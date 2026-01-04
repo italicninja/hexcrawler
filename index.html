@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Hexcrawl Generator</title>
+    <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>D&D Hexcrawl Generator</h1>
+        </header>
+
+        <div class="container">
+            <aside class="controls">
+                <h2>Settings</h2>
+
+                <div class="control-group">
+                    <label for="gridWidth">Grid Width:</label>
+                    <input type="number" id="gridWidth" min="5" max="50" value="20">
+                </div>
+
+                <div class="control-group">
+                    <label for="gridHeight">Grid Height:</label>
+                    <input type="number" id="gridHeight" min="5" max="50" value="15">
+                </div>
+
+                <div class="control-group">
+                    <label for="seed">Random Seed:</label>
+                    <input type="text" id="seed" value="">
+                    <button id="randomSeed">Random</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="terrainDensity">Terrain Variety:</label>
+                    <input type="range" id="terrainDensity" min="1" max="10" value="5">
+                    <span id="terrainDensityValue">5</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="poiFrequency">POI Frequency:</label>
+                    <input type="range" id="poiFrequency" min="0" max="20" value="5">
+                    <span id="poiFrequencyValue">5%</span>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="popupMode">
+                        Popup follows mouse
+                    </label>
+                </div>
+
+                <button id="generate" class="btn-primary">Generate Map</button>
+
+                <div class="action-buttons">
+                    <button id="save">Save</button>
+                    <button id="load">Load</button>
+                    <button id="export">Export PNG</button>
+                </div>
+
+                <div class="legend">
+                    <h3>Legend</h3>
+                    <div id="legendContent"></div>
+                </div>
+            </aside>
+
+            <main class="canvas-container">
+                <canvas id="hexCanvas"></canvas>
+                <div id="hexInfoPanel" class="hex-info-panel hidden">
+                    <div id="hexDetails">Hover over a hex</div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
