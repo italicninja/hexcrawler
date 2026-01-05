@@ -6,6 +6,7 @@ export class UIController {
         this.popupMode = false;
         this.isPinned = false;
         this.pinnedHex = null;
+        this.selectedTerrainFilter = null;
 
         this.setupEventListeners();
         this.updateLegend();
@@ -18,6 +19,18 @@ export class UIController {
     }
 
     setupEventListeners() {
+        // Tab switching - handle both control panels separately
+        document.querySelectorAll('.controls').forEach(controlPanel => {
+            const buttons = controlPanel.querySelectorAll('.tab-button');
+            buttons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const tabName = e.target.dataset.tab;
+                    this.switchTab(tabName, controlPanel);
+                });
+            });
+        });
+
+        // Generation controls
         document.getElementById('generate').addEventListener('click', () => this.generateMap());
         document.getElementById('randomSeed').addEventListener('click', () => this.randomizeSeed());
         document.getElementById('save').addEventListener('click', () => this.saveMap());
@@ -33,7 +46,7 @@ export class UIController {
             document.getElementById('poiFrequencyValue').textContent = e.target.value + '%';
         });
 
-        // Popup mode toggle
+        // Customization controls
         document.getElementById('popupMode').addEventListener('change', (e) => {
             this.popupMode = e.target.checked;
             if (this.popupMode) {
@@ -41,6 +54,31 @@ export class UIController {
             } else {
                 this.hexInfoPanel.classList.remove('popup');
             }
+        });
+
+        document.getElementById('showCoordinates').addEventListener('change', (e) => {
+            this.hexGrid.setShowCoordinates(e.target.checked);
+        });
+
+        document.getElementById('hexSize').addEventListener('input', (e) => {
+            document.getElementById('hexSizeValue').textContent = e.target.value;
+            this.hexGrid.setHexSize(parseInt(e.target.value));
+        });
+
+        document.getElementById('showGrid').addEventListener('change', (e) => {
+            this.hexGrid.setShowGrid(e.target.checked);
+        });
+    }
+
+    switchTab(tabName, controlPanel) {
+        // Update tab buttons within this control panel
+        controlPanel.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.toggle('active', button.dataset.tab === tabName);
+        });
+
+        // Update tab content within this control panel
+        controlPanel.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `${tabName}-tab`);
         });
     }
 
@@ -50,9 +88,11 @@ export class UIController {
         const seed = document.getElementById('seed').value;
         const terrainVariety = parseInt(document.getElementById('terrainDensity').value);
         const poiFrequency = parseInt(document.getElementById('poiFrequency').value);
+        const algorithm = document.getElementById('terrainAlgorithm').value;
 
-        // Set seed
+        // Set seed and algorithm
         this.terrainGenerator.setSeed(seed);
+        this.terrainGenerator.setAlgorithm(algorithm);
 
         // Update grid dimensions
         this.hexGrid.setDimensions(width, height);
@@ -99,13 +139,17 @@ export class UIController {
     displayHexInfo(hex) {
         const details = document.getElementById('hexDetails');
 
+        // Calculate total difficulty
+        const totalDifficulty = this.terrainGenerator.encounterManager.calculateDifficulty(hex.terrain, hex.weather);
+        const diffDesc = this.terrainGenerator.encounterManager.getDifficultyDescription(totalDifficulty);
+
         let html = `
             <p><strong>Hex (${hex.col}, ${hex.row})</strong></p>
-            <p>${hex.terrain.name} • Difficulty ${hex.terrain.difficulty}/4</p>
+            <p>${hex.terrain.name} • ${diffDesc}</p>
         `;
 
         if (hex.poi) {
-            html += `<p>${hex.poi.icon} ${hex.poi.name}</p>`;
+            html += `<p><strong>${hex.poi.name}</strong></p>`;
         }
 
         if (hex.weather) {
@@ -132,7 +176,7 @@ export class UIController {
         let html = '';
         for (const [key, terrain] of Object.entries(terrainTypes)) {
             html += `
-                <div class="legend-item">
+                <div class="legend-item" data-terrain-key="${key}">
                     <div class="legend-color" style="background-color: ${terrain.color}"></div>
                     <span>${terrain.name}</span>
                 </div>
@@ -140,6 +184,38 @@ export class UIController {
         }
 
         legendContent.innerHTML = html;
+
+        // Add click listeners to legend items
+        document.querySelectorAll('.legend-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const terrainKey = e.currentTarget.dataset.terrainKey;
+                this.toggleTerrainFilter(terrainKey);
+            });
+        });
+    }
+
+    toggleTerrainFilter(terrainKey) {
+        // If clicking the same terrain, turn off filter
+        if (this.selectedTerrainFilter === terrainKey) {
+            this.selectedTerrainFilter = null;
+            this.hexGrid.setFilteredTerrain(null);
+            // Remove active class from all items
+            document.querySelectorAll('.legend-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        } else {
+            // Set new filter
+            this.selectedTerrainFilter = terrainKey;
+            this.hexGrid.setFilteredTerrain(terrainKey);
+            // Update active state
+            document.querySelectorAll('.legend-item').forEach(item => {
+                if (item.dataset.terrainKey === terrainKey) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
     }
 
     saveMap() {

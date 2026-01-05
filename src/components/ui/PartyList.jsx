@@ -1,0 +1,76 @@
+import { useState } from 'react';
+
+/**
+ * PartyList component - displays the party composition
+ */
+
+function getHPColor(percent) {
+  if (percent > 75) return '#10b981'; // Green
+  if (percent > 50) return '#eab308'; // Yellow
+  if (percent > 25) return '#f59e0b'; // Orange
+  return '#ef4444'; // Red
+}
+
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function PartyMember({ member, index, isSelected, onClick }) {
+  const hpPercent = (member.currentHP / member.maxHP) * 100;
+  const hpColor = getHPColor(hpPercent);
+  const initial = member.name.charAt(0).toUpperCase();
+
+  return (
+    <div
+      className={`party-member ${isSelected ? 'selected' : ''}`}
+      onClick={() => onClick(member, index)}
+      style={{ cursor: 'pointer' }}
+    >
+      <div className="party-icon">{initial}</div>
+      <div className="party-info">
+        <div className="party-name">{member.name}</div>
+        <div className="party-hp">
+          <span style={{ color: hpColor }}>
+            {member.currentHP}/{member.maxHP} HP
+          </span>
+          {' • '}Lv{member.level} {capitalize(member.class)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PartyList({ party, onMemberSelect }) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  if (!party) {
+    return <div>No party</div>;
+  }
+
+  const members = party.getAllMembers();
+
+  const handleMemberClick = (member, index) => {
+    setSelectedIndex(index);
+    if (onMemberSelect) {
+      onMemberSelect(member, index);
+    }
+  };
+
+  return (
+    <div className="party-container">
+      {members.map((member, index) =>
+        member ? (
+          <PartyMember
+            key={index}
+            member={member}
+            index={index}
+            isSelected={selectedIndex === index}
+            onClick={handleMemberClick}
+          />
+        ) : null
+      )}
+    </div>
+  );
+}
+
+export default PartyList;
