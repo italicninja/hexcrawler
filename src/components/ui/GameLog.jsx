@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import PropTypes from 'prop-types';
+
+const MAX_MESSAGES = 100; // Limit to prevent memory leaks
 
 const GameLog = forwardRef((props, ref) => {
   const [messages, setMessages] = useState([]);
@@ -6,7 +9,14 @@ const GameLog = forwardRef((props, ref) => {
 
   const addMessage = (text, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
-    setMessages(prev => [...prev, { text, type, timestamp, id: Date.now() + Math.random() }]);
+    setMessages(prev => {
+      const newMessages = [...prev, { text, type, timestamp, id: Date.now() + Math.random() }];
+      // Keep only the last MAX_MESSAGES messages
+      if (newMessages.length > MAX_MESSAGES) {
+        return newMessages.slice(-MAX_MESSAGES);
+      }
+      return newMessages;
+    });
   };
 
   const scrollToBottom = () => {
@@ -45,5 +55,9 @@ const GameLog = forwardRef((props, ref) => {
 });
 
 GameLog.displayName = 'GameLog';
+
+GameLog.propTypes = {
+  // This component doesn't receive any props, only uses forwardRef for imperative handle
+};
 
 export default GameLog;

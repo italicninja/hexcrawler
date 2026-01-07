@@ -1,0 +1,257 @@
+/**
+ * InteriorHexDetails - Shows details for interior hexes and interaction buttons
+ */
+
+import PropTypes from 'prop-types';
+import { useGameState } from '../../contexts/GameStateContext';
+import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
+import { DiceRoller } from '../../game/DiceRoller';
+import { getCombatDuration, TIME_COSTS } from '../../game/TimeManager';
+import { Combat } from '../../game/Combat';
+import { Enemy } from '../../game/Enemy';
+import { Character } from '../../game/Character';
+import './InteriorHexDetails.css';
+
+function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }) {
+  const { state, actions, dispatch } = useGameState();
+  const { showMessage } = useEventInfoBox();
+
+  if (!hex) {
+    return (
+      <div className="interior-hex-details">
+        <div className="no-selection">
+          <p>Click a hex to view details</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate distance from player
+  const getHexDistance = (col1, row1, col2, row2) => {
+    const x1 = col1 - Math.floor(row1 / 2);
+    const z1 = row1;
+    const y1 = -x1 - z1;
+
+    const x2 = col2 - Math.floor(row2 / 2);
+    const z2 = row2;
+    const y2 = -x2 - z2;
+
+    return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2), Math.abs(z1 - z2));
+  };
+
+  const distance = playerPosition
+    ? getHexDistance(hex.col, hex.row, playerPosition.col, playerPosition.row)
+    : null;
+
+  // Find content data
+  const encounter = interiorMap?.encounters?.find(e => e.col === hex.col && e.row === hex.row);
+  const loot = interiorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
+  const hazard = interiorMap?.hazards?.find(h => h.col === hex.col && h.row === hex.row);
+
+  // Handle encounter engagement
+  const handleEngageEncounter = () => {
+    if (!encounter || encounter.defeated) return;
+
+    const combatTime = getCombatDuration();
+
+    // TODO: Real combat system
+    showMessage(
+      'Combat!',
+      `You engage ${encounter.creatures}!\n\n(Combat system coming soon - auto-resolving...)\n\nYou defeat the enemies!\n\nTime elapsed: ${combatTime} minutes`,
+      'info',
+      true
+    );
+
+    // Advance time for combat
+    dispatch({
+      type: actions.ADVANCE_TIME,
+      payload: combatTime
+    });
+
+    // Mark encounter as defeated
+    dispatch({
+      type: actions.DEFEAT_ENCOUNTER,
+      payload: {
+        poiKey,
+        encounterKey: `${encounter.col},${encounter.row}`
+      }
+    });
+  };
+
+  // Handle loot collection
+  const handleCollectLoot = () => {
+    if (!loot || loot.collected) return;
+
+    // Build item list from Item instances
+    const itemsList = loot.items.length > 0
+      ? `\n\nItems:\n${loot.items.map(item => {
+          return `• ${item.name} (${item.rarity})`;
+        }).join('\n')}`
+      : '';
+
+    const goldText = loot.gold > 0 ? `You found ${loot.gold} gold!` : 'You search the area...';
+
+    showMessage(
+      'Treasure Collected!',
+      `${goldText}${itemsList}\n\nItems added to inventory!\n\nTime elapsed: ${TIME_COSTS.SEARCH} minutes`,
+      'info',
+      true
+    );
+
+    // Advance time for searching/looting
+    dispatch({
+      type: actions.ADVANCE_TIME,
+      payload: TIME_COSTS.SEARCH
+    });
+
+    // Collect loot - pass full loot object with Item instances
+    dispatch({
+      type: actions.COLLECT_LOOT,
+      payload: {
+        poiKey,
+        lootKey: `${loot.col},${loot.row}`,
+        loot: {
+          gold: loot.gold,
+          items: loot.items
+        }
+      }
+    });
+  };
+
+  // Render encounter info
+  const renderEncounterInfo = () => {
+    if (!encounter) return null;
+
+    return (
+      <div className="content-section encounter-section">
+        <h4>⚔️ Encounter</h4>
+        <p><strong>CR:</strong> {encounter.cr}</p>
+        <p><strong>Creatures:</strong> {encounter.creatures}</p>
+        {encounter.defeated ? (
+          <p className="status-defeated">✓ Defeated</p>
+        ) : distance === 0 ? (
+          <button
+            className="btn-danger"
+            onClick={handleEngageEncounter}
+          >
+            ⚔️ Engage
+          </button>
+        ) : (
+          <p className="status-warning">Must be on this hex to engage</p>
+        )}
+      </div>
+    );
+  };
+
+  // Render loot info
+  const renderLootInfo = () => {
+    if (!loot) return null;
+
+    return (
+      <div className="content-section loot-section">
+        <h4>💰 Loot</h4>
+        <p><strong>Gold:</strong> {loot.gold} gp</p>
+        {loot.items.length > 0 && (
+          <div className="loot-items">
+            <p><strong>Items:</strong></p>
+            <ul>
+              {loot.items.map((item, i) => (
+                <li key={i} style={{ color: item.getRarityColor ? item.getRarityColor() : '#fff' }}>
+                  {item.name} ({item.rarity})
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <p className="rarity-badge" style={{ color: getRarityColor(loot.rarity) }}>
+          {loot.rarity.toUpperCase()}
+        </p>
+        {loot.collected ? (
+          <p className="status-collected">✓ Collected</p>
+        ) : distance === 0 ? (
+          <button
+            className="btn-primary"
+            onClick={handleCollectLoot}
+          >
+            💰 Collect
+          </button>
+        ) : (
+          <p className="status-warning">Must be on this hex to collect</p>
+        )}
+      </div>
+    );
+  };
+
+  // Render hazard info
+  const renderHazardInfo = () => {
+    if (!hazard) return null;
+
+    return (
+      <div className="content-section hazard-section">
+        <h4>⚠️ Hazard</h4>
+        <p><strong>Type:</strong> {hazard.type}</p>
+        <p><strong>Category:</strong> {hazard.category}</p>
+        <p>{hazard.description}</p>
+        <p><strong>DC {hazard.dc}</strong> {hazard.saveType} save</p>
+        <p><strong>Damage:</strong> {hazard.damage} {hazard.damageType}</p>
+        {hazard.triggered && (
+          <p className="status-triggered">⚡ Triggered</p>
+        )}
+      </div>
+    );
+  };
+
+  // Get rarity color
+  const getRarityColor = (rarity) => {
+    const colors = {
+      'common': '#9d9d9d',
+      'uncommon': '#1eff00',
+      'rare': '#0070dd',
+      'very rare': '#a335ee',
+      'legendary': '#ff8000'
+    };
+    return colors[rarity] || colors.common;
+  };
+
+  return (
+    <div className="interior-hex-details">
+      <div className="hex-info">
+        <h3>Hex ({hex.col}, {hex.row})</h3>
+        <p><strong>Terrain:</strong> {hex.terrain.name}</p>
+        {distance !== null && (
+          <p><strong>Distance:</strong> {distance} {distance === 1 ? 'hex' : 'hexes'}</p>
+        )}
+        {hex.content && (
+          <p><strong>Content:</strong> {hex.content}</p>
+        )}
+      </div>
+
+      {renderEncounterInfo()}
+      {renderLootInfo()}
+      {renderHazardInfo()}
+
+      {!hex.content && (
+        <div className="empty-hex">
+          <p>Nothing of interest here.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+InteriorHexDetails.propTypes = {
+  hex: PropTypes.shape({
+    col: PropTypes.number.isRequired,
+    row: PropTypes.number.isRequired,
+    terrain: PropTypes.object.isRequired,
+    content: PropTypes.string
+  }),
+  playerPosition: PropTypes.shape({
+    col: PropTypes.number.isRequired,
+    row: PropTypes.number.isRequired
+  }),
+  interiorMap: PropTypes.object,
+  poiKey: PropTypes.string
+};
+
+export default InteriorHexDetails;

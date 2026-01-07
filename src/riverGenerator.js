@@ -11,12 +11,12 @@ export class RiverGenerator {
     /**
      * Generate rivers on the map
      */
-    generateRivers(grid, width, height, numRivers = 3) {
+    generateRivers(grid, width, height, numRivers = 3, random = Math.random) {
         // Calculate elevation map first
         const elevationMap = this.calculateElevationMap(grid, width, height);
 
         // Find river sources (high elevation, not water/swamp)
-        const sources = this.findRiverSources(grid, elevationMap, width, height, numRivers);
+        const sources = this.findRiverSources(grid, elevationMap, width, height, numRivers, random);
 
         // Trace each river from source to destination
         for (const source of sources) {
@@ -56,13 +56,13 @@ export class RiverGenerator {
     /**
      * Find good river source locations
      */
-    findRiverSources(grid, elevationMap, width, height, numRivers) {
+    findRiverSources(grid, elevationMap, width, height, numRivers, random = Math.random) {
         const sources = [];
         const attempts = numRivers * 10;
 
         for (let i = 0; i < attempts && sources.length < numRivers; i++) {
-            const col = Math.floor(Math.random() * width);
-            const row = Math.floor(Math.random() * height);
+            const col = Math.floor(random() * width);
+            const row = Math.floor(random() * height);
 
             // Must be high elevation (mountains/hills)
             if (elevationMap[row][col] >= 4) {
@@ -139,7 +139,8 @@ export class RiverGenerator {
      */
     getNeighbors(row, col, width, height) {
         const neighbors = [];
-        const isOddRow = row % 2 === 1;
+        // Use Math.abs to handle negative rows correctly
+        const isOddRow = Math.abs(row % 2) === 1;
 
         const offsets = isOddRow ? [
             [-1, 0], [-1, 1],  // top-left, top-right

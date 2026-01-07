@@ -15,7 +15,7 @@ class Game {
     }
 
     async init() {
-        console.log('Initializing Hexcrawl Adventures...');
+        console.log('Initializing hexcrawlers...');
 
         // Create game state manager
         this.gameState = new GameState();

@@ -1,6 +1,11 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Character } from '../game/Character.js';
 import { Party } from '../game/Party.js';
+import { createGameTime, advanceTime } from '../game/TimeManager.js';
+import SurvivalManager from '../game/SurvivalManager.js';
+import Quest from '../game/Quest.js';
+import { Shop } from '../game/Shop.js';
 
 // Create context
 const GameStateContext = createContext(null);
@@ -14,9 +19,53 @@ const ACTIONS = {
   SET_MAP_SEED: 'SET_MAP_SEED',
   ADD_EXPLORED_HEX: 'ADD_EXPLORED_HEX',
   REVEAL_AROUND_PLAYER: 'REVEAL_AROUND_PLAYER',
+  DISCOVER_POI: 'DISCOVER_POI',
   LOAD_GAME: 'LOAD_GAME',
   SET_CURRENT_SCENE: 'SET_CURRENT_SCENE',
-  NEW_GAME: 'NEW_GAME'
+  NEW_GAME: 'NEW_GAME',
+  // Exploration actions
+  SEARCH_POI: 'SEARCH_POI',
+  SET_INTERIOR_MAP: 'SET_INTERIOR_MAP',
+  ENTER_EXPLORATION: 'ENTER_EXPLORATION',
+  EXIT_EXPLORATION: 'EXIT_EXPLORATION',
+  DEFEAT_ENCOUNTER: 'DEFEAT_ENCOUNTER',
+  COLLECT_LOOT: 'COLLECT_LOOT',
+  TRIGGER_HAZARD: 'TRIGGER_HAZARD',
+  UPDATE_CHARACTER: 'UPDATE_CHARACTER',
+  // Time tracking
+  ADVANCE_TIME: 'ADVANCE_TIME',
+  // Rest actions
+  SHORT_REST: 'SHORT_REST',
+  LONG_REST: 'LONG_REST',
+  INN_REST: 'INN_REST',
+  // Inventory actions
+  ADD_ITEM: 'ADD_ITEM',
+  REMOVE_ITEM: 'REMOVE_ITEM',
+  EQUIP_ITEM: 'EQUIP_ITEM',
+  UNEQUIP_ITEM: 'UNEQUIP_ITEM',
+  // Survival actions
+  CONSUME_RATIONS: 'CONSUME_RATIONS',
+  CONSUME_WATER: 'CONSUME_WATER',
+  FORAGE: 'FORAGE',
+  FIND_WATER: 'FIND_WATER',
+  APPLY_EXHAUSTION: 'APPLY_EXHAUSTION',
+  // Combat actions
+  START_COMBAT: 'START_COMBAT',
+  RESOLVE_COMBAT: 'RESOLVE_COMBAT',
+  // XP and leveling actions
+  AWARD_XP: 'AWARD_XP',
+  LEVEL_UP_CHARACTER: 'LEVEL_UP_CHARACTER',
+  // Quest actions
+  ACCEPT_QUEST: 'ACCEPT_QUEST',
+  UPDATE_QUEST_PROGRESS: 'UPDATE_QUEST_PROGRESS',
+  COMPLETE_QUEST: 'COMPLETE_QUEST',
+  FAIL_QUEST: 'FAIL_QUEST',
+  GENERATE_TOWN_QUESTS: 'GENERATE_TOWN_QUESTS',
+  REFRESH_QUESTS: 'REFRESH_QUESTS',
+  // Shop actions
+  GENERATE_SHOP_INVENTORY: 'GENERATE_SHOP_INVENTORY',
+  BUY_ITEM: 'BUY_ITEM',
+  SELL_ITEM: 'SELL_ITEM'
 };
 
 // Initial state
@@ -27,8 +76,28 @@ const initialState = {
   mapData: null,
   mapSeed: '',
   exploredHexes: new Set(),
+  discoveredPOIs: new Set(),
   currentScene: 'title',
-  newGameSeed: null
+  newGameSeed: null,
+  // Exploration state
+  interiorMaps: {},
+  currentPOI: null,
+  explorationState: {
+    searchedPOIs: new Set(),
+    clearedEncounters: {},
+    collectedLoot: {},
+    triggeredHazards: {}
+  },
+  // Time tracking
+  gameTime: createGameTime(),
+  // Combat state
+  combatLog: [],
+  // Quest state
+  activeQuests: [],
+  completedQuests: [],
+  townQuests: {}, // Available quests per town, keyed by location (e.g., "10,7")
+  // Shop state
+  shopInventories: {} // Keyed by POI location (e.g., "10,7" for hex coordinates)
 };
 
 // Reducer
@@ -79,29 +148,850 @@ function gameStateReducer(state, action) {
       return { ...state, exploredHexes: newExplored };
     }
 
-    case ACTIONS.LOAD_GAME:
+    case ACTIONS.DISCOVER_POI:
+      return {
+        ...state,
+        discoveredPOIs: new Set([...state.discoveredPOIs, `${action.payload.col},${action.payload.row}`])
+      };
+
+    case ACTIONS.SEARCH_POI:
+      return {
+        ...state,
+        explorationState: {
+          ...state.explorationState,
+          searchedPOIs: new Set([...state.explorationState.searchedPOIs, action.payload])
+        }
+      };
+
+    case ACTIONS.SET_INTERIOR_MAP:
+      return {
+        ...state,
+        interiorMaps: {
+          ...state.interiorMaps,
+          [action.payload.key]: action.payload.map
+        }
+      };
+
+    case ACTIONS.ENTER_EXPLORATION: {
+      const poi = action.payload;
+
+      // Update quest progress for visit objectives
+      const updatedActiveQuests = [...state.activeQuests];
+      let questsModified = false;
+
+      if (poi && poi.type) {
+        updatedActiveQuests.forEach((quest, index) => {
+          const questCopy = Quest.fromJSON(quest.toJSON());
+          const updated = questCopy.updateObjectivesByTarget('visit', poi.type, 1);
+          if (updated) {
+            updatedActiveQuests[index] = questCopy;
+            questsModified = true;
+          }
+        });
+      }
+
+      return {
+        ...state,
+        currentScene: 'exploration',
+        currentPOI: poi,
+        activeQuests: questsModified ? updatedActiveQuests : state.activeQuests
+      };
+    }
+
+    case ACTIONS.EXIT_EXPLORATION:
+      return {
+        ...state,
+        currentScene: 'overworld',
+        currentPOI: null
+      };
+
+    case ACTIONS.DEFEAT_ENCOUNTER: {
+      const { poiKey, encounterKey, enemies } = action.payload;
+      const clearedEncounters = { ...state.explorationState.clearedEncounters };
+      if (!clearedEncounters[poiKey]) {
+        clearedEncounters[poiKey] = new Set();
+      } else {
+        clearedEncounters[poiKey] = new Set(clearedEncounters[poiKey]);
+      }
+      clearedEncounters[poiKey].add(encounterKey);
+
+      // Also update the interior map to mark encounter as defeated
+      const updatedInteriorMaps = { ...state.interiorMaps };
+      if (updatedInteriorMaps[poiKey]) {
+        const interiorMap = { ...updatedInteriorMaps[poiKey] };
+        interiorMap.encounters = interiorMap.encounters.map(e => {
+          if (`${e.col},${e.row}` === encounterKey) {
+            return { ...e, defeated: true };
+          }
+          return e;
+        });
+        updatedInteriorMaps[poiKey] = interiorMap;
+      }
+
+      // Update quest progress for kill objectives
+      const updatedActiveQuests = [...state.activeQuests];
+      let questsModified = false;
+
+      if (enemies && enemies.length > 0) {
+        enemies.forEach(enemy => {
+          updatedActiveQuests.forEach((quest, index) => {
+            const questCopy = Quest.fromJSON(quest.toJSON());
+            const updated = questCopy.updateObjectivesByTarget('kill', enemy.name, 1);
+            if (updated) {
+              updatedActiveQuests[index] = questCopy;
+              questsModified = true;
+            }
+          });
+        });
+      }
+
+      return {
+        ...state,
+        interiorMaps: updatedInteriorMaps,
+        explorationState: {
+          ...state.explorationState,
+          clearedEncounters
+        },
+        activeQuests: questsModified ? updatedActiveQuests : state.activeQuests
+      };
+    }
+
+    case ACTIONS.COLLECT_LOOT: {
+      const { poiKey, lootKey, loot } = action.payload;
+
+      // Add items and gold to character
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+
+      // Add gold
+      if (loot.gold > 0) {
+        updatedCharacter.addGold(loot.gold);
+      }
+
+      // Add items (Item instances)
+      if (loot.items && loot.items.length > 0) {
+        loot.items.forEach(item => {
+          updatedCharacter.addItem(item);
+        });
+      }
+
+      // Mark loot as collected
+      const collectedLoot = { ...state.explorationState.collectedLoot };
+      if (!collectedLoot[poiKey]) {
+        collectedLoot[poiKey] = new Set();
+      } else {
+        collectedLoot[poiKey] = new Set(collectedLoot[poiKey]);
+      }
+      collectedLoot[poiKey].add(lootKey);
+
+      // Also update the interior map to mark loot as collected
+      const updatedInteriorMaps = { ...state.interiorMaps };
+      if (updatedInteriorMaps[poiKey]) {
+        const interiorMap = { ...updatedInteriorMaps[poiKey] };
+        interiorMap.loot = interiorMap.loot.map(l => {
+          if (`${l.col},${l.row}` === lootKey) {
+            return { ...l, collected: true };
+          }
+          return l;
+        });
+        updatedInteriorMaps[poiKey] = interiorMap;
+      }
+
+      // Update quest progress for collect objectives
+      const updatedActiveQuests = [...state.activeQuests];
+      let questsModified = false;
+
+      if (loot.items && loot.items.length > 0) {
+        loot.items.forEach(item => {
+          updatedActiveQuests.forEach((quest, index) => {
+            const questCopy = Quest.fromJSON(quest.toJSON());
+            const updated = questCopy.updateObjectivesByTarget('collect', item.name, 1);
+            if (updated) {
+              updatedActiveQuests[index] = questCopy;
+              questsModified = true;
+            }
+          });
+        });
+      }
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter,
+        interiorMaps: updatedInteriorMaps,
+        explorationState: {
+          ...state.explorationState,
+          collectedLoot
+        },
+        activeQuests: questsModified ? updatedActiveQuests : state.activeQuests
+      };
+    }
+
+    case ACTIONS.TRIGGER_HAZARD: {
+      const { poiKey, hazardKey } = action.payload;
+      const triggeredHazards = { ...state.explorationState.triggeredHazards };
+      if (!triggeredHazards[poiKey]) {
+        triggeredHazards[poiKey] = new Set();
+      } else {
+        triggeredHazards[poiKey] = new Set(triggeredHazards[poiKey]);
+      }
+      triggeredHazards[poiKey].add(hazardKey);
+
+      // Also update the interior map to mark hazard as triggered
+      const updatedInteriorMaps = { ...state.interiorMaps };
+      if (updatedInteriorMaps[poiKey]) {
+        const interiorMap = { ...updatedInteriorMaps[poiKey] };
+        interiorMap.hazards = interiorMap.hazards.map(h => {
+          if (`${h.col},${h.row}` === hazardKey) {
+            return { ...h, triggered: true };
+          }
+          return h;
+        });
+        updatedInteriorMaps[poiKey] = interiorMap;
+      }
+
+      return {
+        ...state,
+        interiorMaps: updatedInteriorMaps,
+        explorationState: {
+          ...state.explorationState,
+          triggeredHazards
+        }
+      };
+    }
+
+    case ACTIONS.UPDATE_CHARACTER:
+      return {
+        ...state,
+        playerCharacter: action.payload
+      };
+
+    case ACTIONS.ADVANCE_TIME:
+      return {
+        ...state,
+        gameTime: advanceTime(state.gameTime, action.payload)
+      };
+
+    case ACTIONS.SHORT_REST: {
+      // Short rest handled by RestManager, just update character and time
+      const { character } = action.payload;
+      return {
+        ...state,
+        playerCharacter: character,
+        gameTime: advanceTime(state.gameTime, 60) // Short rest takes 1 hour (60 minutes)
+      };
+    }
+
+    case ACTIONS.LONG_REST: {
+      // Long rest handled by RestManager, just update character and time
+      const { character } = action.payload;
+
+      // Consume rations and water during long rest
+      const rationResult = SurvivalManager.consumeRations(character);
+      const waterResult = SurvivalManager.consumeWater(character);
+
+      // Get current terrain for exhaustion check
+      const currentHex = state.mapData?.find(hex =>
+        hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
+      );
+      const terrain = currentHex?.terrain?.key || 'grassland';
+
+      // Apply exhaustion if no food/water available
+      if (!rationResult.success) {
+        SurvivalManager.applyStarvation(character);
+      }
+      if (!waterResult.success) {
+        SurvivalManager.applyDehydration(character, terrain);
+      }
+
+      // Reduce exhaustion if food and water were consumed
+      if (rationResult.success && waterResult.success) {
+        SurvivalManager.reduceExhaustion(character);
+      }
+
+      return {
+        ...state,
+        playerCharacter: character,
+        gameTime: advanceTime(state.gameTime, 480) // Long rest takes 8 hours (480 minutes)
+      };
+    }
+
+    case ACTIONS.INN_REST: {
+      // Inn rest: guaranteed safe long rest with no interruption
+      // Does NOT consume rations or water (included in inn price)
+      // Handled by RestManager.innRest(), just update character and time
+      const { character } = action.payload;
+
+      // NOTE: Food and water are NOT consumed during inn rest (included in price)
+      // No interruption check needed (guaranteed safe)
+      // Gold already deducted by RestManager.innRest()
+
+      return {
+        ...state,
+        playerCharacter: character,
+        gameTime: advanceTime(state.gameTime, 480) // Inn rest takes 8 hours (480 minutes)
+      };
+    }
+
+    case ACTIONS.LOAD_GAME: {
+      // Deserialize exploration state from arrays back to Sets
+      const deserializeExplorationState = (savedState) => {
+        if (!savedState) {
+          return {
+            searchedPOIs: new Set(),
+            clearedEncounters: {},
+            collectedLoot: {},
+            triggeredHazards: {}
+          };
+        }
+
+        const clearedEncounters = {};
+        const collectedLoot = {};
+        const triggeredHazards = {};
+
+        // Convert arrays back to Sets
+        Object.keys(savedState.clearedEncounters || {}).forEach(key => {
+          clearedEncounters[key] = new Set(savedState.clearedEncounters[key]);
+        });
+        Object.keys(savedState.collectedLoot || {}).forEach(key => {
+          collectedLoot[key] = new Set(savedState.collectedLoot[key]);
+        });
+        Object.keys(savedState.triggeredHazards || {}).forEach(key => {
+          triggeredHazards[key] = new Set(savedState.triggeredHazards[key]);
+        });
+
+        return {
+          searchedPOIs: new Set(savedState.searchedPOIs || []),
+          clearedEncounters,
+          collectedLoot,
+          triggeredHazards
+        };
+      };
+
+      // Deserialize quests from JSON
+      const activeQuests = (action.payload.activeQuests || []).map(q => Quest.fromJSON(q));
+      const completedQuests = (action.payload.completedQuests || []).map(q => Quest.fromJSON(q));
+
+      // Deserialize shop inventories from JSON
+      const shopInventories = {};
+      if (action.payload.shopInventories) {
+        Object.entries(action.payload.shopInventories).forEach(([key, shopData]) => {
+          shopInventories[key] = Shop.fromJSON(shopData);
+        });
+      }
+
       return {
         ...state,
         ...action.payload,
-        exploredHexes: new Set(action.payload.exploredHexes || [])
+        exploredHexes: new Set(action.payload.exploredHexes || []),
+        discoveredPOIs: new Set(action.payload.discoveredPOIs || []),
+        interiorMaps: action.payload.interiorMaps || {},
+        explorationState: deserializeExplorationState(action.payload.explorationState),
+        currentPOI: null, // Always reset to null (never load mid-exploration)
+        gameTime: action.payload.gameTime || createGameTime(), // Load saved time or create new
+        activeQuests,
+        completedQuests,
+        shopInventories
       };
+    }
 
     case ACTIONS.SET_CURRENT_SCENE:
       return { ...state, currentScene: action.payload };
 
-    case ACTIONS.NEW_GAME:
+    case ACTIONS.NEW_GAME: {
+      const mapSeed = action.payload;
+
+      const playerChar = new Character('Hero', 'paladin');
+      const party = new Party();
+      party.setPlayer(playerChar);
+      // NOTE: NPCs will be hired/recruited later through gameplay (taverns, quests, etc.)
+      // No initial party members
+
       return {
         ...initialState,
-        mapSeed: action.payload,
+        mapSeed,
         currentScene: 'overworld',
-        playerCharacter: new Character('Hero', 'paladin'),
-        party: (() => {
-          const party = new Party();
-          party.setPlayer(new Character('Hero', 'paladin'));
-          party.createPlaceholderNPCs();
-          return party;
-        })()
+        playerCharacter: playerChar,
+        party,
+        gameTime: createGameTime() // Initialize game time for new game
       };
+    }
+
+    case ACTIONS.ADD_ITEM: {
+      const { item } = action.payload;
+      if (!state.playerCharacter) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      updatedCharacter.addItem(item);
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.REMOVE_ITEM: {
+      const { itemId } = action.payload;
+      if (!state.playerCharacter) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      updatedCharacter.removeItem(itemId);
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.EQUIP_ITEM: {
+      const { itemId, slot } = action.payload;
+      if (!state.playerCharacter) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const success = updatedCharacter.equipItem(itemId, slot);
+
+      if (!success) {
+        console.warn('Failed to equip item');
+        return state;
+      }
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.UNEQUIP_ITEM: {
+      const { slot } = action.payload;
+      if (!state.playerCharacter) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const success = updatedCharacter.unequipItem(slot);
+
+      if (!success) {
+        console.warn('Failed to unequip item');
+        return state;
+      }
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.CONSUME_RATIONS: {
+      if (!state.playerCharacter) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const result = SurvivalManager.consumeRations(updatedCharacter);
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.CONSUME_WATER: {
+      if (!state.playerCharacter) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const result = SurvivalManager.consumeWater(updatedCharacter);
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.FORAGE: {
+      const { terrainKey, diceRoller } = action.payload;
+      if (!state.playerCharacter || !diceRoller) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const result = SurvivalManager.forage(updatedCharacter, terrainKey, diceRoller);
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.FIND_WATER: {
+      const { terrainKey, diceRoller } = action.payload;
+      if (!state.playerCharacter || !diceRoller) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const result = SurvivalManager.findWater(updatedCharacter, terrainKey, diceRoller);
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.APPLY_EXHAUSTION: {
+      const { terrain } = action.payload;
+      if (!state.playerCharacter) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+
+      // Apply starvation and dehydration
+      const starvationResult = SurvivalManager.applyStarvation(updatedCharacter);
+      const dehydrationResult = SurvivalManager.applyDehydration(updatedCharacter, terrain);
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter
+      };
+    }
+
+
+    case ACTIONS.START_COMBAT: {
+      const { combatLog } = action.payload;
+      return {
+        ...state,
+        combatLog
+      };
+    }
+
+    case ACTIONS.RESOLVE_COMBAT: {
+      const { playerCharacter, party, combatLog, xpPerCharacter } = action.payload;
+
+      // Award XP if provided and combat was victorious
+      if (xpPerCharacter && xpPerCharacter > 0) {
+        // Award XP to player character
+        if (playerCharacter && playerCharacter.currentHP > 0) {
+          playerCharacter.awardXP(xpPerCharacter);
+        }
+
+        // Award XP to living party members
+        if (party && party.npcs) {
+          party.npcs.forEach(npc => {
+            if (npc && npc.currentHP > 0) {
+              npc.awardXP(xpPerCharacter);
+            }
+          });
+        }
+      }
+
+      return {
+        ...state,
+        playerCharacter,
+        party,
+        combatLog
+      };
+    }
+
+    case ACTIONS.AWARD_XP: {
+      const { characterId, amount } = action.payload;
+      const updatedPlayerCharacter = state.playerCharacter ? { ...state.playerCharacter } : null;
+      const updatedParty = state.party ? { ...state.party, npcs: [...state.party.npcs] } : null;
+
+      if (characterId === 'player' && updatedPlayerCharacter) {
+        updatedPlayerCharacter.awardXP(amount);
+      } else if (updatedParty) {
+        const npcIndex = parseInt(characterId);
+        if (!isNaN(npcIndex) && updatedParty.npcs[npcIndex]) {
+          updatedParty.npcs[npcIndex] = { ...updatedParty.npcs[npcIndex] };
+          updatedParty.npcs[npcIndex].awardXP(amount);
+        }
+      }
+
+      return {
+        ...state,
+        playerCharacter: updatedPlayerCharacter,
+        party: updatedParty
+      };
+    }
+
+    case ACTIONS.LEVEL_UP_CHARACTER: {
+      const { characterId } = action.payload;
+      const updatedPlayerCharacter = state.playerCharacter ? { ...state.playerCharacter } : null;
+      const updatedParty = state.party ? { ...state.party, npcs: [...state.party.npcs] } : null;
+
+      let levelUpResult = null;
+
+      if (characterId === 'player' && updatedPlayerCharacter) {
+        levelUpResult = updatedPlayerCharacter.levelUp();
+        if (levelUpResult) {
+          toast.success(`${updatedPlayerCharacter.name} reached level ${levelUpResult.newLevel}!`, {
+            description: `Gained ${levelUpResult.hpGain} HP. New max HP: ${levelUpResult.newMaxHP}`
+          });
+        }
+      } else if (updatedParty) {
+        const npcIndex = parseInt(characterId);
+        if (!isNaN(npcIndex) && updatedParty.npcs[npcIndex]) {
+          updatedParty.npcs[npcIndex] = { ...updatedParty.npcs[npcIndex] };
+          levelUpResult = updatedParty.npcs[npcIndex].levelUp();
+          if (levelUpResult) {
+            toast.success(`${updatedParty.npcs[npcIndex].name} reached level ${levelUpResult.newLevel}!`, {
+              description: `Gained ${levelUpResult.hpGain} HP. New max HP: ${levelUpResult.newMaxHP}`
+            });
+          }
+        }
+      }
+
+      return {
+        ...state,
+        playerCharacter: updatedPlayerCharacter,
+        party: updatedParty
+      };
+    }
+
+    case ACTIONS.ACCEPT_QUEST: {
+      const { quest } = action.payload;
+      const questInstance = quest instanceof Quest ? quest : Quest.fromJSON(quest);
+      questInstance.status = 'active';
+
+      return {
+        ...state,
+        activeQuests: [...state.activeQuests, questInstance]
+      };
+    }
+
+    case ACTIONS.UPDATE_QUEST_PROGRESS: {
+      const { questId, type, target, amount } = action.payload;
+
+      const updatedActiveQuests = state.activeQuests.map(quest => {
+        if (quest.id === questId) {
+          const updatedQuest = Quest.fromJSON(quest.toJSON());
+          updatedQuest.updateObjectivesByTarget(type, target, amount);
+          return updatedQuest;
+        }
+        return quest;
+      });
+
+      return {
+        ...state,
+        activeQuests: updatedActiveQuests
+      };
+    }
+
+    case ACTIONS.COMPLETE_QUEST: {
+      const { questId } = action.payload;
+
+      // Find the quest
+      const questIndex = state.activeQuests.findIndex(q => q.id === questId);
+      if (questIndex === -1) return state;
+
+      const quest = state.activeQuests[questIndex];
+      const completedQuest = Quest.fromJSON(quest.toJSON());
+      completedQuest.status = 'completed';
+
+      // Remove from active quests
+      const updatedActiveQuests = [...state.activeQuests];
+      updatedActiveQuests.splice(questIndex, 1);
+
+      // Award rewards
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+
+      // Award XP
+      if (quest.rewards.xp > 0) {
+        updatedCharacter.awardXP(quest.rewards.xp);
+        toast.success(`Quest Complete: ${quest.title}`, {
+          description: `Gained ${quest.rewards.xp} XP${quest.rewards.gold > 0 ? ` and ${quest.rewards.gold} gold` : ''}`
+        });
+      }
+
+      // Award gold
+      if (quest.rewards.gold > 0) {
+        updatedCharacter.addGold(quest.rewards.gold);
+      }
+
+      // Award items
+      if (quest.rewards.items && quest.rewards.items.length > 0) {
+        quest.rewards.items.forEach(item => {
+          updatedCharacter.addItem(item);
+        });
+      }
+
+      return {
+        ...state,
+        activeQuests: updatedActiveQuests,
+        completedQuests: [...state.completedQuests, completedQuest],
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.FAIL_QUEST: {
+      const { questId } = action.payload;
+
+      // Find the quest
+      const questIndex = state.activeQuests.findIndex(q => q.id === questId);
+      if (questIndex === -1) return state;
+
+      const quest = state.activeQuests[questIndex];
+      const failedQuest = Quest.fromJSON(quest.toJSON());
+      failedQuest.status = 'failed';
+
+      // Remove from active quests
+      const updatedActiveQuests = [...state.activeQuests];
+      updatedActiveQuests.splice(questIndex, 1);
+
+      toast.error(`Quest Failed: ${quest.title}`);
+
+      return {
+        ...state,
+        activeQuests: updatedActiveQuests,
+        completedQuests: [...state.completedQuests, failedQuest]
+      };
+    }
+
+    case ACTIONS.GENERATE_TOWN_QUESTS: {
+      const { location, quests } = action.payload;
+      const locationKey = `${location.col},${location.row}`;
+
+      // Store quests for this town location
+      return {
+        ...state,
+        townQuests: {
+          ...state.townQuests,
+          [locationKey]: {
+            quests,
+            lastGenerated: state.gameTime.day
+          }
+        }
+      };
+    }
+
+    case ACTIONS.REFRESH_QUESTS: {
+      const { location, quests } = action.payload;
+      const locationKey = `${location.col},${location.row}`;
+
+      // Refresh quests for this town (called after X days)
+      return {
+        ...state,
+        townQuests: {
+          ...state.townQuests,
+          [locationKey]: {
+            quests,
+            lastGenerated: state.gameTime.day
+          }
+        }
+      };
+    }
+
+    case ACTIONS.GENERATE_SHOP_INVENTORY: {
+      const { poiKey, shopType, level } = action.payload;
+
+      // Don't regenerate if shop already exists
+      if (state.shopInventories[poiKey]) {
+        return state;
+      }
+
+      // Generate shop name based on type
+      const shopNames = {
+        weapon: 'Blacksmith',
+        armor: 'Armory',
+        general: 'General Store',
+        magic: 'Magic Shop'
+      };
+
+      const shop = new Shop({
+        name: shopNames[shopType] || 'General Store',
+        type: shopType,
+        level: level || state.playerCharacter?.level || 1
+      });
+
+      return {
+        ...state,
+        shopInventories: {
+          ...state.shopInventories,
+          [poiKey]: shop
+        }
+      };
+    }
+
+    case ACTIONS.BUY_ITEM: {
+      const { poiKey, itemId } = action.payload;
+      if (!state.playerCharacter || !state.shopInventories[poiKey]) return state;
+
+      const shop = Shop.fromJSON(state.shopInventories[poiKey].toJSON());
+      const item = shop.inventory.find(i => i.id === itemId);
+
+      if (!item) {
+        toast.error('Item not found in shop inventory');
+        return state;
+      }
+
+      const price = shop.getBuyPrice(item);
+
+      // Check if player has enough gold
+      if (state.playerCharacter.gold < price) {
+        toast.error('Not enough gold!', {
+          description: `You need ${price} gold but only have ${state.playerCharacter.gold} gold.`
+        });
+        return state;
+      }
+
+      // Remove item from shop
+      const purchasedItem = shop.buyItem(itemId);
+      if (!purchasedItem) return state;
+
+      // Update player character
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      updatedCharacter.removeGold(price);
+      updatedCharacter.addItem(purchasedItem);
+
+      toast.success(`Purchased ${purchasedItem.name}`, {
+        description: `Spent ${price} gold. You have ${updatedCharacter.gold} gold remaining.`
+      });
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter,
+        shopInventories: {
+          ...state.shopInventories,
+          [poiKey]: shop
+        }
+      };
+    }
+
+    case ACTIONS.SELL_ITEM: {
+      const { poiKey, itemId } = action.payload;
+      if (!state.playerCharacter || !state.shopInventories[poiKey]) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const item = updatedCharacter.inventory.find(i => i.id === itemId);
+
+      if (!item) {
+        toast.error('Item not found in your inventory');
+        return state;
+      }
+
+      // Check if item is equipped
+      const isEquipped = Object.values(updatedCharacter.equipment).some(
+        equipped => equipped && equipped.id === itemId
+      );
+
+      if (isEquipped) {
+        toast.error('Cannot sell equipped items', {
+          description: 'Unequip the item first before selling.'
+        });
+        return state;
+      }
+
+      const shop = Shop.fromJSON(state.shopInventories[poiKey].toJSON());
+      const price = shop.getSellPrice(item);
+
+      // Remove item from player and add gold
+      updatedCharacter.removeItem(itemId);
+      updatedCharacter.addGold(price);
+
+      // Add item to shop
+      shop.sellItem(item);
+
+      toast.success(`Sold ${item.name}`, {
+        description: `Received ${price} gold. You now have ${updatedCharacter.gold} gold.`
+      });
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter,
+        shopInventories: {
+          ...state.shopInventories,
+          [poiKey]: shop
+        }
+      };
+    }
 
     default:
       return state;
@@ -121,29 +1011,91 @@ function getHexDistance(col1, row1, col2, row2) {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2), Math.abs(z1 - z2));
 }
 
+// Helper function - simple string hash
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
+
 // Provider component
 export function GameStateProvider({ children }) {
   const [state, dispatch] = useReducer(gameStateReducer, initialState);
 
   // Auto-save to localStorage on state changes
   useEffect(() => {
-    if (state.currentScene === 'overworld' && state.playerCharacter) {
+    if ((state.currentScene === 'overworld' || state.currentScene === 'exploration') && state.playerCharacter) {
+      // Convert Sets to arrays for JSON serialization
+      const serializeExplorationState = () => {
+        const clearedEncounters = {};
+        const collectedLoot = {};
+        const triggeredHazards = {};
+
+        // Convert Set values to arrays
+        Object.keys(state.explorationState.clearedEncounters).forEach(key => {
+          clearedEncounters[key] = Array.from(state.explorationState.clearedEncounters[key]);
+        });
+        Object.keys(state.explorationState.collectedLoot).forEach(key => {
+          collectedLoot[key] = Array.from(state.explorationState.collectedLoot[key]);
+        });
+        Object.keys(state.explorationState.triggeredHazards).forEach(key => {
+          triggeredHazards[key] = Array.from(state.explorationState.triggeredHazards[key]);
+        });
+
+        return {
+          searchedPOIs: Array.from(state.explorationState.searchedPOIs),
+          clearedEncounters,
+          collectedLoot,
+          triggeredHazards
+        };
+      };
+
       const saveData = {
-        version: '2.0',
+        version: '4.2',
         timestamp: Date.now(),
         playerPosition: state.playerPosition,
         playerCharacter: state.playerCharacter?.toJSON(),
         party: state.party?.toJSON(),
-        currentScene: state.currentScene,
+        currentScene: state.currentScene === 'exploration' ? 'overworld' : state.currentScene, // Reset to overworld on load
         mapSeed: state.mapSeed,
         exploredHexes: Array.from(state.exploredHexes),
-        mapData: state.mapData
+        discoveredPOIs: Array.from(state.discoveredPOIs),
+        mapData: state.mapData,
+        // Exploration system data (v4.0)
+        interiorMaps: state.interiorMaps,
+        explorationState: serializeExplorationState(),
+        // Time tracking (v4.1)
+        gameTime: state.gameTime,
+        // Quest system data (v4.1)
+        activeQuests: state.activeQuests.map(q => q.toJSON()),
+        completedQuests: state.completedQuests.map(q => q.toJSON()),
+        // Shop system data (v4.2)
+        shopInventories: Object.fromEntries(
+          Object.entries(state.shopInventories).map(([key, shop]) => [key, shop.toJSON()])
+        )
       };
 
       try {
         localStorage.setItem('hexcrawl_save', JSON.stringify(saveData));
       } catch (error) {
         console.error('Failed to save game:', error);
+
+        // Check if it's a quota exceeded error
+        if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+          toast.error('Save Failed: Storage Quota Exceeded', {
+            description: 'Your browser\'s localStorage is full. Try clearing your cache or using a different browser.',
+            duration: 10000,
+          });
+        } else {
+          toast.error('Save Failed', {
+            description: `An error occurred while saving: ${error.message}. Your progress may not be saved.`,
+            duration: 10000,
+          });
+        }
       }
     }
   }, [state]);
@@ -173,6 +1125,18 @@ export function GameStateProvider({ children }) {
       );
       return distance <= state.playerCharacter.moveDistance;
     },
+
+    isPoiDiscovered: (col, row) => state.discoveredPOIs.has(`${col},${row}`),
+
+    shouldShowPOI: (poi, col, row) => {
+      if (!poi) return false;
+      // Towns are always visible
+      if (poi.visibleWithoutDiscovery) return true;
+      // Other POIs only visible if discovered
+      return state.discoveredPOIs.has(`${col},${row}`);
+    },
+
+    isPoiSearched: (col, row) => state.explorationState.searchedPOIs.has(`${col},${row}`),
 
     getHexDistance,
 
@@ -237,3 +1201,6 @@ export function useGameState() {
   }
   return context;
 }
+
+// Export ACTIONS for use in components
+export { ACTIONS };

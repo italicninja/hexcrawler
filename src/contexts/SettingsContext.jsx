@@ -5,7 +5,8 @@ const SettingsContext = createContext(null);
 
 // Default settings
 const defaultSettings = {
-  doubleClickMove: true
+  doubleClickMove: true,
+  theme: 'midnight-gold' // midnight-gold, teal-dark, light, dark-blue, forest
 };
 
 // Provider component

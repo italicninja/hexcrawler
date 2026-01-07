@@ -21,7 +21,15 @@ export class POIRenderer {
      * Draw POI icon at specified location
      */
     draw(ctx, x, y, size, poi) {
-        const drawer = this.iconDrawers[poi.name];
+        // Use poi.icon field if available, otherwise fall back to poi.name for backwards compatibility
+        const iconKey = poi.icon || poi.name;
+
+        // Skip if no icon (e.g., random encounters)
+        if (!iconKey) {
+            return;
+        }
+
+        const drawer = this.iconDrawers[iconKey];
         if (drawer) {
             ctx.save();
             drawer(ctx, x, y, size);
@@ -33,7 +41,7 @@ export class POIRenderer {
      * Draw dungeon icon (castle/fortress)
      */
     drawDungeon(ctx, x, y, size) {
-        const s = size * 0.6;
+        const s = size * 0.9;
 
         ctx.fillStyle = '#2c3e50';
         ctx.strokeStyle = '#1a252f';
@@ -59,7 +67,7 @@ export class POIRenderer {
      * Draw settlement icon (houses)
      */
     drawSettlement(ctx, x, y, size) {
-        const s = size * 0.6;
+        const s = size * 0.9;
 
         ctx.fillStyle = '#8B4513';
         ctx.strokeStyle = '#654321';
@@ -92,7 +100,7 @@ export class POIRenderer {
      * Draw ruins icon (broken columns)
      */
     drawRuins(ctx, x, y, size) {
-        const s = size * 0.6;
+        const s = size * 0.9;
 
         ctx.fillStyle = '#95a5a6';
         ctx.strokeStyle = '#7f8c8d';
@@ -122,7 +130,7 @@ export class POIRenderer {
      * Draw tower icon (tall structure)
      */
     drawTower(ctx, x, y, size) {
-        const s = size * 0.6;
+        const s = size * 0.9;
 
         ctx.fillStyle = '#34495e';
         ctx.strokeStyle = '#2c3e50';
@@ -150,7 +158,7 @@ export class POIRenderer {
      * Draw cave icon (cave entrance)
      */
     drawCave(ctx, x, y, size) {
-        const s = size * 0.6;
+        const s = size * 0.9;
 
         // Cave background (dark)
         ctx.fillStyle = '#2c3e50';
@@ -180,7 +188,7 @@ export class POIRenderer {
      * Draw shrine icon (temple/shrine)
      */
     drawShrine(ctx, x, y, size) {
-        const s = size * 0.6;
+        const s = size * 0.9;
 
         ctx.fillStyle = '#e74c3c';
         ctx.strokeStyle = '#c0392b';
@@ -210,7 +218,7 @@ export class POIRenderer {
      * Draw camp icon (tent)
      */
     drawCamp(ctx, x, y, size) {
-        const s = size * 0.6;
+        const s = size * 0.9;
 
         ctx.fillStyle = '#8B7355';
         ctx.strokeStyle = '#654321';

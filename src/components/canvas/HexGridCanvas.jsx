@@ -1,7 +1,10 @@
-import { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
+import PropTypes from 'prop-types';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
 import { POIRenderer } from '../../poiRenderer.js';
+import { calculateHexPosition, drawHexShape, drawHexOutline as renderHexOutline, findHexAtPoint } from '../../utils/hexRenderer';
 
 /**
  * HexGridCanvas component - renders hex grid on canvas
@@ -9,7 +12,7 @@ import { POIRenderer } from '../../poiRenderer.js';
 
 function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
   const canvasRef = useRef(null);
-  const { state, isHexExplored } = useGameState();
+  const { state, isHexExplored, shouldShowPOI, isPoiDiscovered } = useGameState();
   const { settings } = useSettings();
 
   const [hexSize] = useState(30);
@@ -18,114 +21,103 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
   const [zoom] = useState(1.0);
   const [selectedHex, setSelectedHex] = useState(null);
 
-  // Animation state
-  const animationFrameRef = useRef(null);
-  const targetCameraRef = useRef({ x: 0, y: 0 });
-  const currentCameraRef = useRef({ x: 0, y: 0 });
-  const previousPlayerPosRef = useRef(state.playerPosition);
-
-  // Use ref for player visual position - NEVER null
-  const playerVisualPosRef = useRef(null);
-  const playerAnimationRef = useRef(null); // Track animation state
-  const drawRef = useRef(null); // Reference to draw function
-
   const poiRenderer = useRef(new POIRenderer());
 
-  // Calculate hex position
+  // Calculate hex position (using utility function)
   const getHexX = useCallback((col, row) => {
-    const xSpacing = hexSize * Math.sqrt(3);
-    const xOffset = (row % 2) * (hexSize * Math.sqrt(3) / 2);
-    return col * xSpacing + hexSize * 1.5 + xOffset;
+    return calculateHexPosition(col, row, hexSize).x;
   }, [hexSize]);
 
   const getHexY = useCallback((row) => {
-    const ySpacing = hexSize * 1.5;
-    return row * ySpacing + hexSize * 1.5;
+    return calculateHexPosition(0, row, hexSize).y;
   }, [hexSize]);
 
   // Convert hex array to positioned hex objects
   const positionedHexes = useCallback(() => {
     if (!hexes) return [];
-    return hexes.map(hex => ({
-      ...hex,
-      x: getHexX(hex.col, hex.row),
-      y: getHexY(hex.row)
-    }));
-  }, [hexes, getHexX, getHexY]);
+    return hexes.map(hex => {
+      const { x, y } = calculateHexPosition(hex.col, hex.row, hexSize);
+      return { ...hex, x, y };
+    });
+  }, [hexes, hexSize]);
 
   // Draw a single hex
   const drawHex = useCallback((ctx, hex) => {
     const { x, y } = hex;
-    const size = hexSize;
-
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i - Math.PI / 6;
-      const hx = x + size * Math.cos(angle);
-      const hy = y + size * Math.sin(angle);
-
-      if (i === 0) {
-        ctx.moveTo(hx, hy);
-      } else {
-        ctx.lineTo(hx, hy);
-      }
-    }
-    ctx.closePath();
 
     // Check if hex has been explored (fog of war)
     const explored = isHexExplored(hex.col, hex.row);
 
     if (!explored) {
       // Draw fog of war
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      drawHexShape(ctx, x, y, hexSize, '#1a1a1a', '#333', 1);
       return;
     }
 
-    // Fill with terrain color
-    ctx.fillStyle = hex.terrain.color;
-    ctx.fill();
+    // Draw explored hex with terrain color
+    drawHexShape(ctx, x, y, hexSize, hex.terrain.color, '#333', 1);
 
-    // Draw border
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    // Draw POI icon if present AND visible (towns always, others only if discovered)
+    if (hex.poi && shouldShowPOI(hex.poi, hex.col, hex.row)) {
+      // Save context before drawing POI
+      ctx.save();
 
-    // Draw POI icon if present
-    if (hex.poi) {
       poiRenderer.current.draw(ctx, x, y, hexSize, hex.poi);
-    }
-  }, [hexSize, isHexExplored]);
 
-  // Draw hex outline (for selection)
-  const drawHexOutline = useCallback((ctx, hex, color, width) => {
-    const { x, y } = hex;
-    const size = hexSize;
+      ctx.restore();
 
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i - Math.PI / 6;
-      const hx = x + size * Math.cos(angle);
-      const hy = y + size * Math.sin(angle);
+      // Draw discovered marker for discovered POIs (not towns, they're always visible)
+      if (isPoiDiscovered(hex.col, hex.row) && !hex.poi.visibleWithoutDiscovery) {
+        ctx.save();
 
-      if (i === 0) {
-        ctx.moveTo(hx, hy);
-      } else {
-        ctx.lineTo(hx, hy);
+        // Draw a small star marker in the top-right corner of the hex
+        const starX = x + hexSize * 0.6;
+        const starY = y - hexSize * 0.6;
+        const starSize = hexSize * 0.15;
+
+        // Draw a 5-pointed star
+        ctx.fillStyle = '#FFD700'; // Gold color
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+          const outerRadius = starSize;
+          const innerRadius = starSize * 0.4;
+
+          // Outer point
+          const outerX = starX + Math.cos(angle) * outerRadius;
+          const outerY = starY + Math.sin(angle) * outerRadius;
+
+          if (i === 0) {
+            ctx.moveTo(outerX, outerY);
+          } else {
+            ctx.lineTo(outerX, outerY);
+          }
+
+          // Inner point
+          const innerAngle = angle + Math.PI / 5;
+          const innerX = starX + Math.cos(innerAngle) * innerRadius;
+          const innerY = starY + Math.sin(innerAngle) * innerRadius;
+          ctx.lineTo(innerX, innerY);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
       }
     }
-    ctx.closePath();
+  }, [hexSize, isHexExplored, shouldShowPOI, isPoiDiscovered]);
 
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.stroke();
+  // Draw hex outline (for selection) - wrapper around utility function
+  const drawHexOutline = useCallback((ctx, hex, color, width) => {
+    renderHexOutline(ctx, hex.x, hex.y, hexSize, color, width);
   }, [hexSize]);
 
-  // Draw player marker
-  const drawPlayer = useCallback((ctx, hexes) => {
+  // Draw player marker (now receives playerVisualPosRef from animation hook)
+  const drawPlayerMarker = useCallback((ctx, hexes, playerVisualPosRef) => {
     const partySize = state.party?.getSize() || 1;
     let playerX, playerY;
 
@@ -160,94 +152,8 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
     ctx.fillText(partySize.toString(), playerX, playerY);
   }, [hexSize, state.playerPosition, state.party]);
 
-  // Center camera on a specific hex
-  const centerCameraOnHex = useCallback((col, row, smooth = true) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const x = getHexX(col, row);
-    const y = getHexY(row);
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-
-    const targetX = centerX - x;
-    const targetY = centerY - y;
-
-    if (smooth) {
-      targetCameraRef.current = { x: targetX, y: targetY };
-    } else {
-      currentCameraRef.current = { x: targetX, y: targetY };
-      targetCameraRef.current = { x: targetX, y: targetY };
-      setOffsetX(targetX);
-      setOffsetY(targetY);
-    }
-  }, [getHexX, getHexY]);
-
-  // Animation loop for smooth camera AND player movement
-  useEffect(() => {
-    let running = true;
-
-    const animate = () => {
-      if (!running) return;
-
-      // Update player animation
-      if (playerAnimationRef.current) {
-        const { startPos, endPos, startTime, duration } = playerAnimationRef.current;
-        const elapsed = performance.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-
-        // Easing function (ease-out cubic)
-        const eased = 1 - Math.pow(1 - progress, 3);
-
-        playerVisualPosRef.current = {
-          x: startPos.x + (endPos.x - startPos.x) * eased,
-          y: startPos.y + (endPos.y - startPos.y) * eased
-        };
-
-        // Animation complete
-        if (progress >= 1) {
-          playerVisualPosRef.current = endPos;
-          playerAnimationRef.current = null;
-        }
-      }
-
-      // Smooth camera lerp
-      const lerpSpeed = 0.1;
-      const dx = targetCameraRef.current.x - currentCameraRef.current.x;
-      const dy = targetCameraRef.current.y - currentCameraRef.current.y;
-
-      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-        currentCameraRef.current.x += dx * lerpSpeed;
-        currentCameraRef.current.y += dy * lerpSpeed;
-        setOffsetX(currentCameraRef.current.x);
-        setOffsetY(currentCameraRef.current.y);
-      } else {
-        currentCameraRef.current = { ...targetCameraRef.current };
-        setOffsetX(targetCameraRef.current.x);
-        setOffsetY(targetCameraRef.current.y);
-      }
-
-      // Call draw function via ref (always get latest version)
-      if (drawRef.current) {
-        drawRef.current();
-      }
-
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-
-    animationFrameRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      running = false;
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
-
-  // Main draw function
-  const draw = useCallback(() => {
+  // Main draw function (will be called by animation hook)
+  const draw = useCallback((playerVisualPosRef) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -273,109 +179,87 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
     }
 
     // Draw player marker
-    drawPlayer(ctx, hexArray);
+    drawPlayerMarker(ctx, hexArray, playerVisualPosRef);
 
     ctx.restore();
-  }, [positionedHexes, offsetX, offsetY, zoom, selectedHex, drawHex, drawHexOutline, drawPlayer]);
+  }, [positionedHexes, offsetX, offsetY, zoom, selectedHex, drawHex, drawHexOutline, drawPlayerMarker]);
 
-  // Keep draw ref updated
-  useEffect(() => {
-    drawRef.current = draw;
-  }, [draw]);
+  // Use animation hook for smooth camera and player movement
+  const { playerVisualPosRef, centerCameraOnHex, currentCameraRef } = useCanvasAnimation({
+    drawCallback: () => draw(playerVisualPosRef),
+    getHexX,
+    getHexY,
+    setOffsetX,
+    setOffsetY,
+    playerPosition: state.playerPosition,
+    hexes
+  });
 
-  // Setup canvas
+  // Setup canvas and handle resize
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const container = canvas.parentElement;
-    if (container) {
-      canvas.width = container.clientWidth - 48;
-      canvas.height = container.clientHeight - 48;
-    }
+    const resizeCanvas = () => {
+      const container = canvas.parentElement;
+      if (container) {
+        canvas.width = container.clientWidth - 48;
+        canvas.height = container.clientHeight - 48;
+      }
+    };
+
+    // Initial size
+    resizeCanvas();
+
+    // Add resize listener
+    window.addEventListener('resize', resizeCanvas);
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+    };
   }, []);
 
   // Center camera on player initially when hexes are loaded
   useEffect(() => {
     if (!hexes || hexes.length === 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
     // Only center once when map first loads
     const hasInitialized = currentCameraRef.current.x !== 0 || currentCameraRef.current.y !== 0;
     if (hasInitialized) return;
 
-    centerCameraOnHex(state.playerPosition.col, state.playerPosition.row, false);
-  }, [hexes, centerCameraOnHex, state.playerPosition.col, state.playerPosition.row]);
+    centerCameraOnHex(
+      state.playerPosition.col,
+      state.playerPosition.row,
+      canvas.width,
+      canvas.height,
+      false
+    );
+  }, [hexes, centerCameraOnHex, state.playerPosition.col, state.playerPosition.row, currentCameraRef]);
 
-  // Redraw when dependencies change (continuous redraw at 60fps via animation loop)
+  // Center camera when player moves
   useEffect(() => {
-    // Initial draw
-    draw();
-  }, [draw, hexes, selectedHex, state.party]);
+    const canvas = canvasRef.current;
+    if (!canvas || !hexes || hexes.length === 0) return;
 
-  // Animate player movement when position changes
-  useLayoutEffect(() => {
-    if (!hexes || hexes.length === 0) return;
-
-    // Check if position actually changed
-    const prevPos = previousPlayerPosRef.current;
-    const currentPos = state.playerPosition;
-
-    if (prevPos.col === currentPos.col && prevPos.row === currentPos.row) {
-      return; // No movement, don't animate
-    }
-
-    // Find old and new hex positions
-    const oldHex = hexes.find(h => h.col === prevPos.col && h.row === prevPos.row);
-    const newHex = hexes.find(h => h.col === currentPos.col && h.row === currentPos.row);
-
-    if (!newHex) return;
-
-    // Start position is the CURRENT visual position (where player is drawn now)
-    const startPos = playerVisualPosRef.current || (oldHex ? { x: oldHex.x, y: oldHex.y } : {
-      x: getHexX(prevPos.col, prevPos.row),
-      y: getHexY(prevPos.row)
-    });
-
-    const endPos = { x: newHex.x, y: newHex.y };
-
-    // Set up animation state
-    playerAnimationRef.current = {
-      startPos,
-      endPos,
-      startTime: performance.now(),
-      duration: 300
-    };
-
-    // Update previous position after setting up animation
-    previousPlayerPosRef.current = currentPos;
-
-    // Center camera on new position
-    centerCameraOnHex(currentPos.col, currentPos.row, true);
-  }, [state.playerPosition, hexes, getHexX, getHexY, centerCameraOnHex]);
+    centerCameraOnHex(
+      state.playerPosition.col,
+      state.playerPosition.row,
+      canvas.width,
+      canvas.height,
+      true
+    );
+  }, [state.playerPosition, hexes, centerCameraOnHex]);
 
 
-  // Get hex at point
+  // Get hex at point (using utility function)
   const getHexAtPoint = useCallback((x, y) => {
     const worldX = (x - offsetX) / zoom;
     const worldY = (y - offsetY) / zoom;
     const hexArray = positionedHexes();
 
-    for (const hex of hexArray) {
-      const dx = Math.abs(worldX - hex.x);
-      const dy = Math.abs(worldY - hex.y);
-
-      if (dx > hexSize * 0.866) continue;
-      if (dy > hexSize) continue;
-
-      const check = (hexSize * Math.sqrt(3) / 2 * hexSize -
-                     hexSize / 2 * dx -
-                     hexSize * Math.sqrt(3) / 2 * dy);
-
-      if (check >= 0) {
-        return hex;
-      }
-    }
-    return null;
+    return findHexAtPoint(worldX, worldY, hexArray, hexSize);
   }, [hexSize, offsetX, offsetY, zoom, positionedHexes]);
 
   // Handle click
@@ -433,5 +317,22 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
     />
   );
 }
+
+HexGridCanvas.propTypes = {
+  hexes: PropTypes.arrayOf(
+    PropTypes.shape({
+      col: PropTypes.number.isRequired,
+      row: PropTypes.number.isRequired,
+      terrain: PropTypes.shape({
+        name: PropTypes.string.isRequired,
+        color: PropTypes.string.isRequired
+      }).isRequired
+    })
+  ).isRequired,
+  width: PropTypes.number.isRequired,
+  height: PropTypes.number.isRequired,
+  onHexClick: PropTypes.func,
+  onHexDoubleClick: PropTypes.func
+};
 
 export default HexGridCanvas;

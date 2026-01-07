@@ -1,4 +1,4 @@
-# D&D Hexcrawl Generator
+# Hexcrawler
 
 A web-based hexcrawl RPG for D&D 5e. Explore procedurally generated hex maps with a party system, fog of war, turn-based movement, and D&D 5e character mechanics.
 

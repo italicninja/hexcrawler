@@ -190,7 +190,7 @@ export class OverworldScene extends Scene {
         if (isNewGame) {
             this.generateNewMap();
             if (this.gameLog) {
-                this.gameLog.addMessage('Welcome to Hexcrawl Adventures! Your journey begins...', 'success');
+                this.gameLog.addMessage('Welcome to hexcrawlers! Your journey begins...', 'success');
             }
         } else {
             this.restoreMap();

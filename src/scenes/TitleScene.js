@@ -35,7 +35,7 @@ export class TitleScene extends Scene {
 
         this.container.innerHTML = `
             <div class="title-content">
-                <h1 class="title-logo">Hexcrawl Adventures</h1>
+                <h1 class="title-logo">hexcrawlers</h1>
                 <div class="title-subtitle">An RPG Journey</div>
 
                 <div class="title-form">

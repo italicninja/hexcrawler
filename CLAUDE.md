@@ -203,6 +203,46 @@ Currently **no test suite** exists. When adding tests:
 - **Destructure props/context** - `const { state, dispatch } = useGameState()`
 - **Explicit action types** - use `ACTIONS.SET_X` constants, not string literals
 
+## Bottom Toolbar
+
+A **fixed bottom toolbar** displays development/debugging information:
+
+**Location:** `src/components/ui/BottomToolbar.jsx`
+
+**Current Features:**
+- Git branch name
+- Git commit SHA (short, 7 chars)
+- Hover effects for visual feedback
+
+**How it works:**
+- Git info is injected at **build time** via `vite.config.js`
+- Uses `execSync` to run git commands during build
+- Values stored in `import.meta.env.VITE_GIT_COMMIT` and `VITE_GIT_BRANCH`
+- Falls back to 'dev'/'local' if git info unavailable
+
+**Adding new toolbar items:**
+```jsx
+<div className="toolbar-separator" />
+<div className="toolbar-section">
+  <span className="toolbar-label">Version:</span>
+  <span className="toolbar-value">1.0.0</span>
+</div>
+```
+
+**Common additions:**
+- Version from package.json: `import.meta.env.VITE_VERSION`
+- Build timestamp: `import.meta.env.VITE_BUILD_TIME`
+- Environment: `import.meta.env.MODE` (development/production)
+- FPS counter (requires state/effect hook)
+- Network status indicator
+- Active debug flags
+
+**Styling:**
+- Toolbar classes in `style.css` starting at line 1320
+- Uses monospace font for technical data
+- Hover effects highlight individual sections
+- Fixed positioning at bottom (z-index: 1000)
+
 ## Future Feature Hooks
 
 The codebase has several **stubbed systems** ready for implementation:

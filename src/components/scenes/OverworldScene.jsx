@@ -1,25 +1,41 @@
 import { useEffect, useState, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
+import { useMapGeneration } from '../../hooks/useMapGeneration';
+import { useInfiniteTerrainExpansion } from '../../hooks/useInfiniteTerrainExpansion';
 import { TerrainGenerator } from '../../terrainGenerator.js';
+import { TIME_COSTS, formatTime, getCombatDuration } from '../../game/TimeManager.js';
+import { DiceRoller } from '../../game/DiceRoller.js';
+import { Combat } from '../../game/Combat.js';
+import { Enemy } from '../../game/Enemy.js';
+import { Character } from '../../game/Character.js';
 import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
 import PartyList from '../ui/PartyList';
 import Equipment from '../ui/Equipment';
 import HexDetails from '../ui/HexDetails';
 import Settings from '../ui/Settings';
+import RestMenu from '../ui/RestMenu';
+import SurvivalMenu from '../ui/SurvivalMenu';
+import QuestLog from '../ui/QuestLog';
 import HexGridCanvas from '../canvas/HexGridCanvas';
+import EventInfoBox from '../ui/EventInfoBox';
+import MenuSidebar from '../ui/MenuSidebar';
+import MenuPanel from '../ui/MenuPanel';
 
 function OverworldScene() {
-  const { state, dispatch, actions, isHexReachable } = useGameState();
+  const { state, dispatch, actions, isHexReachable, isPoiDiscovered } = useGameState();
   const { settings } = useSettings();
-  const [activeTab, setActiveTab] = useState({ left: 'equipment', bottom: 'party', right: 'hexinfo' });
+  const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
+  const [openPanel, setOpenPanel] = useState(null);
   const [selectedCharacter, setSelectedCharacter] = useState(state.playerCharacter);
   const [selectedHex, setSelectedHex] = useState(null);
+  const [viewportSize, setViewportSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   const terrainGeneratorRef = useRef(null);
   const gameLogRef = useRef(null);
-  const mapGeneratedRef = useRef(false);
 
   // Initialize terrain generator
   useEffect(() => {
@@ -28,57 +44,22 @@ function OverworldScene() {
     }
   }, []);
 
-  // Generate map ONCE when mapSeed is available and map hasn't been generated
+  // Handle window resize
   useEffect(() => {
-    if (!state.mapSeed || !terrainGeneratorRef.current) return;
-    if (state.mapData) return; // Map already exists, don't regenerate
-    if (mapGeneratedRef.current) return; // Already generated in this session
+    const handleResize = () => {
+      setViewportSize({ width: window.innerWidth, height: window.innerHeight });
+    };
 
-    console.log('Generating map with seed:', state.mapSeed);
-    mapGeneratedRef.current = true;
+    window.addEventListener('resize', handleResize);
 
-    // Set seed and generate terrain
-    terrainGeneratorRef.current.setSeed(state.mapSeed);
-    const terrainData = terrainGeneratorRef.current.generate(
-      20,  // width
-      30,  // height (extended north/south)
-      0.5, // terrainVariety
-      5    // poiFrequency
-    );
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
-    // Convert terrain data to hex objects with col/row coordinates
-    const generatedHexes = [];
-    for (let row = 0; row < 30; row++) {
-      for (let col = 0; col < 20; col++) {
-        generatedHexes.push({
-          row,
-          col,
-          terrain: terrainData[row][col].terrain,
-          poi: terrainData[row][col].poi,
-          encounter: terrainData[row][col].encounter,
-          weather: terrainData[row][col].weather
-        });
-      }
-    }
-
-    // Store map in context
-    dispatch({
-      type: actions.SET_MAP_DATA,
-      payload: generatedHexes
-    });
-
-    // Reveal hexes around starting position
-    dispatch({
-      type: actions.REVEAL_AROUND_PLAYER,
-      payload: state.playerPosition
-    });
-
-    // Log game start
-    if (gameLogRef.current) {
-      gameLogRef.current.addMessage('Your journey begins...', 'info');
-      gameLogRef.current.addMessage(`Map generated with seed: ${state.mapSeed}`, 'system');
-    }
-  }, [state.mapSeed, state.mapData, dispatch, actions]);
+  // Use custom hooks for map generation and expansion
+  useMapGeneration(terrainGeneratorRef, gameLogRef, viewportSize);
+  useInfiniteTerrainExpansion(terrainGeneratorRef, gameLogRef, viewportSize);
 
   // Update selected character when player character changes
   useEffect(() => {
@@ -87,123 +68,64 @@ function OverworldScene() {
     }
   }, [state.playerCharacter]);
 
-  // Check if map needs expansion and expand if necessary
-  useEffect(() => {
-    if (!state.mapData || !state.mapData.length || !terrainGeneratorRef.current) return;
-
-    const { col, row } = state.playerPosition;
-
-    // Find map boundaries
-    const maxCol = Math.max(...state.mapData.map(h => h.col));
-    const maxRow = Math.max(...state.mapData.map(h => h.row));
-    const minCol = Math.min(...state.mapData.map(h => h.col));
-    const minRow = Math.min(...state.mapData.map(h => h.row));
-
-    const expansionThreshold = 5; // Expand when within 5 hexes of edge
-    const chunkSize = 10; // Generate 10 new rows/cols at a time
-
-    let needsExpansion = false;
-    let expandDirection = null;
-
-    // Check each direction
-    if (col >= maxCol - expansionThreshold) {
-      needsExpansion = true;
-      expandDirection = 'east';
-    } else if (col <= minCol + expansionThreshold) {
-      needsExpansion = true;
-      expandDirection = 'west';
-    } else if (row >= maxRow - expansionThreshold) {
-      needsExpansion = true;
-      expandDirection = 'south';
-    } else if (row <= minRow + expansionThreshold) {
-      needsExpansion = true;
-      expandDirection = 'north';
-    }
-
-    if (needsExpansion && expandDirection) {
-      console.log(`Expanding map to the ${expandDirection}...`);
-
-      // Keep same seed for consistent generation
-      terrainGeneratorRef.current.setSeed(state.mapSeed);
-
-      const newHexes = [];
-
-      if (expandDirection === 'east') {
-        // Add columns to the east
-        for (let r = minRow; r <= maxRow; r++) {
-          for (let c = maxCol + 1; c <= maxCol + chunkSize; c++) {
-            const terrainType = terrainGeneratorRef.current.generateTerrain(c, r, maxCol + chunkSize + 1, maxRow + 1, 0.5);
-            newHexes.push({
-              row: r,
-              col: c,
-              terrain: terrainType,
-              poi: terrainGeneratorRef.current.generatePOI(5),
-              encounter: terrainGeneratorRef.current.encounterManager.getEncounter(terrainType, () => terrainGeneratorRef.current.random()),
-              weather: terrainGeneratorRef.current.generateWeather(terrainType)
-            });
-          }
-        }
-      } else if (expandDirection === 'west') {
-        // Add columns to the west
-        for (let r = minRow; r <= maxRow; r++) {
-          for (let c = minCol - chunkSize; c < minCol; c++) {
-            const terrainType = terrainGeneratorRef.current.generateTerrain(c, r, maxCol + 1, maxRow + 1, 0.5);
-            newHexes.push({
-              row: r,
-              col: c,
-              terrain: terrainType,
-              poi: terrainGeneratorRef.current.generatePOI(5),
-              encounter: terrainGeneratorRef.current.encounterManager.getEncounter(terrainType, () => terrainGeneratorRef.current.random()),
-              weather: terrainGeneratorRef.current.generateWeather(terrainType)
-            });
-          }
-        }
-      } else if (expandDirection === 'south') {
-        // Add rows to the south
-        for (let r = maxRow + 1; r <= maxRow + chunkSize; r++) {
-          for (let c = minCol; c <= maxCol; c++) {
-            const terrainType = terrainGeneratorRef.current.generateTerrain(c, r, maxCol + 1, maxRow + chunkSize + 1, 0.5);
-            newHexes.push({
-              row: r,
-              col: c,
-              terrain: terrainType,
-              poi: terrainGeneratorRef.current.generatePOI(5),
-              encounter: terrainGeneratorRef.current.encounterManager.getEncounter(terrainType, () => terrainGeneratorRef.current.random()),
-              weather: terrainGeneratorRef.current.generateWeather(terrainType)
-            });
-          }
-        }
-      } else if (expandDirection === 'north') {
-        // Add rows to the north
-        for (let r = minRow - chunkSize; r < minRow; r++) {
-          for (let c = minCol; c <= maxCol; c++) {
-            const terrainType = terrainGeneratorRef.current.generateTerrain(c, r, maxCol + 1, maxRow + 1, 0.5);
-            newHexes.push({
-              row: r,
-              col: c,
-              terrain: terrainType,
-              poi: terrainGeneratorRef.current.generatePOI(5),
-              encounter: terrainGeneratorRef.current.encounterManager.getEncounter(terrainType, () => terrainGeneratorRef.current.random()),
-              weather: terrainGeneratorRef.current.generateWeather(terrainType)
-            });
-          }
-        }
-      }
-
-      // Update map data with new hexes
-      dispatch({
-        type: actions.SET_MAP_DATA,
-        payload: [...state.mapData, ...newHexes]
-      });
-
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage(`Explored new territory to the ${expandDirection}!`, 'info');
-      }
-    }
-  }, [state.playerPosition, state.mapData, state.mapSeed, dispatch, actions]);
-
   const handlePartyMemberSelect = (member, index) => {
     setSelectedCharacter(member);
+  };
+
+  // Define menu items
+  const menuItems = [
+    {
+      id: 'character',
+      label: 'Character',
+      icon: '👤',
+      description: 'View character stats',
+    },
+    {
+      id: 'party',
+      label: 'Party',
+      icon: '👥',
+      description: 'Manage party members',
+      badge: state.party?.npcs?.filter(npc => npc).length || 0
+    },
+    {
+      id: 'equipment',
+      label: 'Equipment',
+      icon: '⚔️',
+      description: 'Manage inventory & gear',
+    },
+    {
+      id: 'rest',
+      label: 'Rest',
+      icon: '🏕️',
+      description: 'Rest and recover',
+    },
+    {
+      id: 'survival',
+      label: 'Survival',
+      icon: '🌲',
+      description: 'Forage and hunt',
+    },
+    {
+      id: 'quests',
+      label: 'Quests',
+      icon: '📜',
+      description: 'Track your quests',
+      badge: state.activeQuests?.length || 0
+    },
+    {
+      id: 'config',
+      label: 'Config',
+      icon: '⚙️',
+      description: 'Game settings',
+    }
+  ];
+
+  const handleMenuItemClick = (item) => {
+    setOpenPanel(item.id);
+  };
+
+  const handleClosePanel = () => {
+    setOpenPanel(null);
   };
 
   const handleHexClick = (hex) => {
@@ -212,6 +134,14 @@ function OverworldScene() {
 
   const handleHexDoubleClick = (hex) => {
     if (!settings.doubleClickMove) return;
+
+    // Block movement if active event is in progress
+    if (isBlockingMovement) {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage('You must resolve the current event first!', 'warning');
+      }
+      return;
+    }
 
     // Check if hex is reachable
     if (isHexReachable(hex.col, hex.row)) {
@@ -224,10 +154,29 @@ function OverworldScene() {
   const handleMoveToHex = (hex) => {
     if (!hex || !isHexReachable(hex.col, hex.row)) return;
 
+    // Don't move if already on this hex
+    if (hex.col === state.playerPosition.col && hex.row === state.playerPosition.row) {
+      return;
+    }
+
+    // Block movement if active event is in progress
+    if (isBlockingMovement) {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage('You must resolve the current event first!', 'warning');
+      }
+      return;
+    }
+
     // Update player position
     dispatch({
       type: actions.SET_PLAYER_POSITION,
       payload: { col: hex.col, row: hex.row }
+    });
+
+    // Advance time for movement (10 minutes per hex)
+    dispatch({
+      type: actions.ADVANCE_TIME,
+      payload: TIME_COSTS.MOVEMENT
     });
 
     // Reveal hexes around new position
@@ -242,76 +191,223 @@ function OverworldScene() {
         `Moved to hex (${hex.col}, ${hex.row}) - ${hex.terrain.name}`,
         'action'
       );
+    }
 
-      // Log POI if present
-      if (hex.poi) {
-        gameLogRef.current.addMessage(
-          `You discover a ${hex.poi.name}!`,
-          'discovery'
+    // Check for POI discovery
+    if (hex.poi) {
+      const discovered = isPoiDiscovered(hex.col, hex.row);
+
+      if (!discovered) {
+        // Mark as discovered
+        dispatch({
+          type: actions.DISCOVER_POI,
+          payload: { col: hex.col, row: hex.row }
+        });
+
+        // Log discovery
+        if (gameLogRef.current) {
+          gameLogRef.current.addMessage(
+            `You discovered: ${hex.poi.name}!`,
+            'discovery'
+          );
+        }
+
+        // Show discovery message
+        showMessage(
+          '✨ DISCOVERY!',
+          `You discovered: ${hex.poi.name}`,
+          'info',
+          true
         );
-      }
 
-      // Log encounter if present
-      if (hex.encounter) {
+        // Trigger event based on type
+        if (hex.poi.eventType === 'active') {
+          // Show active event
+          const choices = getActiveEventChoices(hex.poi);
+          showEvent(hex.poi, 'active', choices, (action) => handleEventChoice(action, hex.poi));
+        }
+      } else if (hex.poi.eventType === 'active') {
+        // Already discovered active event - trigger again
+        const choices = getActiveEventChoices(hex.poi);
+        showEvent(hex.poi, 'active', choices, (action) => handleEventChoice(action, hex.poi));
+      }
+    }
+  };
+
+  // Get choices for active events (combat)
+  const getActiveEventChoices = (poi) => {
+    return [
+      { label: 'Fight', action: 'fight', style: 'danger' },
+      { label: 'Flee', action: 'flee', style: 'warning' }
+    ];
+  };
+
+  // Handle event choice (combat, flee, etc.)
+  const handleEventChoice = (action, poi) => {
+    if (action === 'fight') {
+      if (gameLogRef.current) {
         gameLogRef.current.addMessage(
-          `Encounter: ${hex.encounter.name} (CR ${hex.encounter.cr})`,
+          `You engage ${poi.name} in combat!`,
           'encounter'
         );
       }
+
+      // Get party members (player + NPCs)
+      const characters = [state.playerCharacter];
+      if (state.party) {
+        characters.push(...state.party.npcs.filter(npc => npc && npc.currentHP > 0));
+      }
+
+      // Parse creature string into Enemy instances
+      const diceRoller = new DiceRoller();
+      const enemies = Enemy.parseCreatureString(poi.creatures, poi.cr, diceRoller);
+
+      // Run combat simulation
+      const combat = new Combat(characters, enemies, { canFlee: true });
+      const result = combat.simulateCombat();
+
+      // Get combat time
+      const combatTime = getCombatDuration();
+
+      // Show combat results
+      const summary = combat.getCombatSummary(result);
+      const fullLog = combat.generateCombatLog();
+
+      showMessage(
+        result.victory ? '⚔️ Victory!' : (result.fled ? '🏃 Fled!' : '💀 Defeat!'),
+        `${summary}
+
+--- Combat Log ---
+${fullLog}`,
+        result.victory ? 'info' : 'warning',
+        true
+      );
+
+      // Update character HP from combat
+      const updatedPlayerCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const playerState = result.characterStates.find(c => c.name === state.playerCharacter.name);
+      if (playerState) {
+        updatedPlayerCharacter.currentHP = playerState.currentHP;
+      }
+
+      // Update party
+      let updatedParty = state.party;
+      if (state.party) {
+        updatedParty = { ...state.party };
+        updatedParty.npcs = updatedParty.npcs.map((npc, index) => {
+          if (!npc) return null;
+          const npcState = result.characterStates.find(c => c.name === npc.name);
+          if (npcState) {
+            const updatedNPC = Character.fromJSON(npc.toJSON());
+            updatedNPC.currentHP = npcState.currentHP;
+            return updatedNPC;
+          }
+          return npc;
+        });
+      }
+
+      // Advance time for combat
+      dispatch({
+        type: actions.ADVANCE_TIME,
+        payload: combatTime
+      });
+
+      // Update character states and award XP
+      dispatch({
+        type: actions.RESOLVE_COMBAT,
+        payload: {
+          playerCharacter: updatedPlayerCharacter,
+          party: updatedParty,
+          combatLog: result.combatLog,
+          xpPerCharacter: result.xpPerCharacter || 0
+        }
+      });
+
+      // Log result to game log
+      if (gameLogRef.current) {
+        if (result.victory) {
+          gameLogRef.current.addMessage(
+            `Victory! Defeated ${poi.creatures}.`,
+            'success'
+          );
+          if (result.xpPerCharacter > 0) {
+            gameLogRef.current.addMessage(
+              `Earned ${result.xpPerCharacter} XP per party member.`,
+              'info'
+            );
+          }
+        } else if (result.fled) {
+          gameLogRef.current.addMessage(
+            `The party fled from ${poi.name}!`,
+            'warning'
+          );
+        } else {
+          gameLogRef.current.addMessage(
+            `Defeat! The party was defeated by ${poi.creatures}.`,
+            'error'
+          );
+        }
+      }
+    } else if (action === 'flee') {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage(
+          `You flee from ${poi.name}!`,
+          'action'
+        );
+      }
+      // Dismiss event without fighting
+      dismissEvent();
     }
   };
 
   return (
     <div className="game-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <div className="container" style={{ display: 'flex', flex: 1 }}>
-        {/* Left Column */}
-        <div className="left-column">
-          <aside className="controls">
-            <div className="tabs">
-              <button
-                className={`tab-button ${activeTab.left === 'equipment' ? 'active' : ''}`}
-                onClick={() => setActiveTab(prev => ({ ...prev, left: 'equipment' }))}
-              >
-                Equipment
-              </button>
-            </div>
+      {/* Game Header with Time Display */}
+      <div style={{
+        backgroundColor: 'var(--panel-bg)',
+        borderBottom: '1px solid var(--border-color)',
+        padding: '0.75rem 1.5rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h2 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.25rem' }}>
+          hexcrawler
+        </h2>
+        <div style={{
+          display: 'flex',
+          gap: '1.5rem',
+          alignItems: 'center',
+          color: 'var(--text-color)'
+        }}>
+          <div style={{
+            fontSize: '1.1rem',
+            fontWeight: '500',
+            fontFamily: 'monospace',
+            padding: '0.25rem 0.75rem',
+            backgroundColor: 'var(--control-bg)',
+            borderRadius: '4px'
+          }}>
+            {formatTime(state.gameTime)}
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            Position: ({state.playerPosition.col}, {state.playerPosition.row})
+          </div>
+        </div>
+      </div>
 
-            <div className="tab-content active">
-              <Equipment character={selectedCharacter} />
-            </div>
-          </aside>
-
-          <aside className="controls controls-bottom">
-            <div className="tabs">
-              <button
-                className={`tab-button ${activeTab.bottom === 'party' ? 'active' : ''}`}
-                onClick={() => setActiveTab(prev => ({ ...prev, bottom: 'party' }))}
-              >
-                Party
-              </button>
-              <button
-                className={`tab-button ${activeTab.bottom === 'character' ? 'active' : ''}`}
-                onClick={() => setActiveTab(prev => ({ ...prev, bottom: 'character' }))}
-              >
-                Character
-              </button>
-            </div>
-
-            <div className={`tab-content ${activeTab.bottom === 'party' ? 'active' : ''}`}>
-              <PartyList
-                party={state.party}
-                onMemberSelect={handlePartyMemberSelect}
-              />
-            </div>
-
-            <div className={`tab-content ${activeTab.bottom === 'character' ? 'active' : ''}`}>
-              <CharacterStats character={state.playerCharacter} />
-            </div>
-          </aside>
+      <div className="container" style={{ display: 'flex', flex: 1, gap: '1rem', padding: '1rem' }}>
+        {/* Left Sidebar - Menu */}
+        <div style={{ width: '280px', flexShrink: 0 }}>
+          <MenuSidebar
+            items={menuItems}
+            onItemClick={handleMenuItemClick}
+            selectedItem={menuItems.find(item => item.id === openPanel)}
+          />
         </div>
 
         {/* Canvas Container */}
-        <main className="canvas-container">
+        <main className="canvas-container" style={{ flex: 1 }}>
           {state.mapData && state.mapData.length > 0 ? (
             <HexGridCanvas
               hexes={state.mapData}
@@ -336,43 +432,103 @@ function OverworldScene() {
           )}
         </main>
 
-        {/* Right Column */}
-        <aside className="hex-detail-panel">
-          <div className="tabs">
-            <button
-              className={`tab-button ${activeTab.right === 'hexinfo' ? 'active' : ''}`}
-              onClick={() => setActiveTab(prev => ({ ...prev, right: 'hexinfo' }))}
-            >
-              Hex Info
-            </button>
-            <button
-              className={`tab-button ${activeTab.right === 'config' ? 'active' : ''}`}
-              onClick={() => setActiveTab(prev => ({ ...prev, right: 'config' }))}
-            >
-              Config
-            </button>
-          </div>
-
-          <div className={`tab-content ${activeTab.right === 'hexinfo' ? 'active' : ''}`}>
-            <HexDetails
-              hex={selectedHex}
-              terrainGenerator={terrainGeneratorRef.current}
-              onMoveClick={handleMoveToHex}
-            />
-          </div>
-
-          <div className={`tab-content ${activeTab.right === 'config' ? 'active' : ''}`}>
-            <Settings />
-          </div>
+        {/* Right Panel - Hex Info (always visible) */}
+        <aside style={{
+          width: '280px',
+          flexShrink: 0,
+          backgroundColor: 'var(--panel-bg)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          padding: '1rem',
+          overflowY: 'auto'
+        }}>
+          <HexDetails
+            hex={selectedHex}
+            terrainGenerator={terrainGeneratorRef.current}
+            onMoveClick={handleMoveToHex}
+          />
         </aside>
       </div>
 
+      {/* Popup Panels */}
+      <MenuPanel
+        title="Character"
+        isOpen={openPanel === 'character'}
+        onClose={handleClosePanel}
+        width="600px"
+      >
+        <CharacterStats character={state.playerCharacter} />
+      </MenuPanel>
+
+      <MenuPanel
+        title="Party"
+        isOpen={openPanel === 'party'}
+        onClose={handleClosePanel}
+        width="700px"
+      >
+        <PartyList
+          party={state.party}
+          onMemberSelect={handlePartyMemberSelect}
+        />
+      </MenuPanel>
+
+      <MenuPanel
+        title="Equipment"
+        isOpen={openPanel === 'equipment'}
+        onClose={handleClosePanel}
+        width="800px"
+      >
+        <Equipment character={selectedCharacter} />
+      </MenuPanel>
+
+      <MenuPanel
+        title="Rest"
+        isOpen={openPanel === 'rest'}
+        onClose={handleClosePanel}
+        width="600px"
+      >
+        <RestMenu />
+      </MenuPanel>
+
+      <MenuPanel
+        title="Survival"
+        isOpen={openPanel === 'survival'}
+        onClose={handleClosePanel}
+        width="600px"
+      >
+        <SurvivalMenu />
+      </MenuPanel>
+
+      <MenuPanel
+        title="Quests"
+        isOpen={openPanel === 'quests'}
+        onClose={handleClosePanel}
+        width="900px"
+      >
+        <QuestLog />
+      </MenuPanel>
+
+      <MenuPanel
+        title="Settings"
+        isOpen={openPanel === 'config'}
+        onClose={handleClosePanel}
+        width="600px"
+      >
+        <Settings />
+      </MenuPanel>
+
       {/* Game Log */}
-      <div className="game-log-container" style={{ display: 'flex' }}>
+      <div className="game-log-container" style={{ display: 'flex', position: 'relative' }}>
         <GameLog ref={gameLogRef} />
+        {/* EventInfoBox positioned in bottom right */}
+        <EventInfoBox />
       </div>
     </div>
   );
 }
+
+OverworldScene.propTypes = {
+  // This component doesn't receive any props, gets all data from hooks
+};
 
 export default OverworldScene;

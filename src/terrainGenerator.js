@@ -1,7 +1,7 @@
 import { PerlinNoise, SimpleNoise } from './noise.js';
 import { TerrainAlgorithms } from './terrainAlgorithms.js';
 import { RiverGenerator } from './riverGenerator.js';
-import { EncounterManager } from './encounters.js';
+import { POISystem, POI_TYPES } from './poiSystem.js';
 
 export class TerrainGenerator {
     constructor() {
@@ -107,7 +107,7 @@ export class TerrainGenerator {
         this.noise = new PerlinNoise(this.seed);
         this.terrainAlgorithms = new TerrainAlgorithms(this.noise);
         this.riverGenerator = new RiverGenerator(this.noise);
-        this.encounterManager = new EncounterManager();
+        this.poiSystem = new POISystem();
         this.algorithm = 'biome'; // default algorithm
     }
 
@@ -138,7 +138,6 @@ export class TerrainGenerator {
                 grid[row][col] = {
                     terrain: terrainType,
                     poi: null,
-                    encounter: this.encounterManager.getEncounter(terrainType, () => this.random()),
                     weather: this.generateWeather(terrainType),
                     elevation: 0 // Will be set during generation
                 };
@@ -148,7 +147,7 @@ export class TerrainGenerator {
         // Generate rivers
         this.generateRivers(grid, width, height, terrainVariety);
 
-        // Generate POIs with smart placement
+        // Generate POIs with smart placement and CR scaling
         this.generateSmartPOIs(grid, width, height, poiFrequency);
 
         return grid;
@@ -201,41 +200,46 @@ export class TerrainGenerator {
     generateRivers(grid, width, height, terrainVariety) {
         // Number of rivers based on map size
         const numRivers = Math.floor((width * height) / 100) + 2;
-        this.riverGenerator.generateRivers(grid, width, height, numRivers);
+        this.riverGenerator.generateRivers(grid, width, height, numRivers, () => this.random());
 
         // Update river terrain references
         for (let row = 0; row < height; row++) {
             for (let col = 0; col < width; col++) {
                 if (grid[row][col].terrain.name === 'River') {
                     grid[row][col].terrain = this.terrainTypes.river;
-                    grid[row][col].encounter = this.encounterManager.getEncounter(this.terrainTypes.river, () => this.random());
                     grid[row][col].weather = this.generateWeather(this.terrainTypes.river);
                 }
             }
         }
     }
 
-    generateSmartPOIs(grid, width, height, baseFrequency) {
-        // Find suitable settlement locations
+    generateSmartPOIs(grid, width, height, baseFrequency, startCol = 10, startRow = 7) {
+        // Find suitable settlement locations (towns)
         const settlementLocations = this.findSettlementLocations(grid, width, height);
 
         // Calculate number of settlements based on frequency
-        const numSettlements = Math.floor((baseFrequency / 100) * width * height * 0.3);
+        const numSettlements = Math.floor((baseFrequency / 100) * width * height * 0.2);
 
-        // Place settlements in best locations
+        // Place towns in best locations
         for (let i = 0; i < Math.min(numSettlements, settlementLocations.length); i++) {
             const loc = settlementLocations[i];
-            grid[loc.row][loc.col].poi = {
-                name: 'Settlement',
-                weight: 5
-            };
+            grid[loc.row][loc.col].poi = this.poiSystem.generatePOI(
+                POI_TYPES.TOWN,
+                loc.col,
+                loc.row,
+                grid[loc.row][loc.col].terrain,
+                startCol,
+                startRow,
+                () => this.random()
+            );
         }
 
-        // Place other POIs randomly but respecting terrain
-        const otherPOITypes = this.poiTypes.filter(p => p.name !== 'Settlement');
-        const numOtherPOIs = Math.floor((baseFrequency / 100) * width * height * 0.7);
+        // Calculate number of other POIs
+        const numEncounters = Math.floor((baseFrequency / 100) * width * height * 0.3);
+        const numPassivePOIs = Math.floor((baseFrequency / 100) * width * height * 0.2);
 
-        for (let i = 0; i < numOtherPOIs; i++) {
+        // Place random encounters
+        for (let i = 0; i < numEncounters; i++) {
             const col = Math.floor(this.random() * width);
             const row = Math.floor(this.random() * height);
 
@@ -244,10 +248,48 @@ export class TerrainGenerator {
                 continue;
             }
 
-            // Select appropriate POI for terrain
-            const poi = this.selectPOIForTerrain(grid[row][col].terrain, otherPOITypes);
-            if (poi) {
-                grid[row][col].poi = { ...poi };
+            // Generate encounter
+            grid[row][col].poi = this.poiSystem.generatePOI(
+                POI_TYPES.ENCOUNTER,
+                col,
+                row,
+                grid[row][col].terrain,
+                startCol,
+                startRow,
+                () => this.random()
+            );
+        }
+
+        // Place passive POIs (dungeons, shrines, camps, etc.)
+        for (let i = 0; i < numPassivePOIs; i++) {
+            const col = Math.floor(this.random() * width);
+            const row = Math.floor(this.random() * height);
+
+            // Skip if already has POI or is water
+            if (grid[row][col].poi || grid[row][col].terrain.name === 'Water') {
+                continue;
+            }
+
+            // Get appropriate POI types for this terrain
+            const suitableTypes = this.poiSystem.getPOITypesForTerrain(grid[row][col].terrain);
+            // Filter out encounters and towns
+            const passiveTypes = suitableTypes.filter(
+                t => t !== POI_TYPES.ENCOUNTER && t !== POI_TYPES.TOWN
+            );
+
+            if (passiveTypes.length > 0) {
+                // Select random passive POI type
+                const poiType = passiveTypes[Math.floor(this.random() * passiveTypes.length)];
+
+                grid[row][col].poi = this.poiSystem.generatePOI(
+                    poiType,
+                    col,
+                    row,
+                    grid[row][col].terrain,
+                    startCol,
+                    startRow,
+                    () => this.random()
+                );
             }
         }
     }

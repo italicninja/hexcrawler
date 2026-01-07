@@ -1,7 +1,7 @@
-# Hexcrawl Adventures - Game Guide
+# hexcrawlers - Game Guide
 
 ## Overview
-Hexcrawl Adventures is an interactive web-based RPG built on a hex grid system with D&D 5e-inspired mechanics. The game features click-based movement, procedural map generation with dynamic expansion, character progression, party management, and fog of war exploration.
+hexcrawlers is an interactive web-based RPG built on a hex grid system with D&D 5e-inspired mechanics. The game features click-based movement, procedural map generation with dynamic expansion, character progression, party management, and fog of war exploration.
 
 ## Current Implementation
 

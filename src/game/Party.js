@@ -1,4 +1,5 @@
 import { Character } from './Character.js';
+import { generateNPCParty } from './NPCGenerator.js';
 
 /**
  * Party class - manages the player character and 3 NPC companions
@@ -78,12 +79,22 @@ export class Party {
     }
 
     /**
+     * Generate random NPCs for party slots
+     * @param {number} level - Character level for NPCs (defaults to 1)
+     * @param {number} seed - Random seed for reproducible generation
+     */
+    generateNPCs(level = 1, seed = Date.now()) {
+        const npcs = generateNPCParty(level, seed);
+        this.npcs = npcs;
+    }
+
+    /**
      * Create placeholder NPCs (for initial game state)
+     * @deprecated Use generateNPCs() instead
      */
     createPlaceholderNPCs() {
-        // For now, create empty slots
-        // Future: Random generation will go here
-        this.npcs = [null, null, null];
+        // Generate real NPCs instead of empty slots
+        this.generateNPCs(1, Date.now());
     }
 
     /**
