@@ -119,11 +119,13 @@ function RestMenu({ onClose }) {
   const canShortRest = RestManager.canShortRest(character);
   const canLongRestCheck = RestManager.canLongRest(character, getGameTimeInHours());
 
-  // Check if player is in a town
+  // Check if player is inside a town interior (not just standing on a town hex)
+  const isInTown = state.inInterior && state.currentPOI?.poi?.type === 'town';
+  
+  // Get current hex for terrain-based rest interruption calculation
   const currentHex = state.mapData?.find(
     hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
   );
-  const isInTown = currentHex?.poi?.type === 'town';
 
   // Calculate inn rest cost
   const costPerPerson = 10;
