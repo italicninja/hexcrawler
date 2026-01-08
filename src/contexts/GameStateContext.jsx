@@ -24,6 +24,8 @@ const ACTIONS = {
   LOAD_GAME: 'LOAD_GAME',
   SET_CURRENT_SCENE: 'SET_CURRENT_SCENE',
   NEW_GAME: 'NEW_GAME',
+  // Event blocking
+  SET_ACTIVE_EVENT: 'SET_ACTIVE_EVENT',
   // Exploration actions
   SEARCH_POI: 'SEARCH_POI',
   SET_INTERIOR_MAP: 'SET_INTERIOR_MAP',
@@ -85,6 +87,7 @@ const initialState = {
   currentScene: 'title',
   newGameSeed: null,
   characterCreationSeed: null, // Store seed for character creation
+  hasActiveEvent: false, // Blocks movement during active events (combat, etc.)
   // Exploration state
   interiorMaps: {},
   currentPOI: null,
@@ -160,6 +163,12 @@ function gameStateReducer(state, action) {
       return {
         ...state,
         discoveredPOIs: new Set([...state.discoveredPOIs, `${action.payload.col},${action.payload.row}`])
+      };
+
+    case ACTIONS.SET_ACTIVE_EVENT:
+      return {
+        ...state,
+        hasActiveEvent: action.payload
       };
 
     case ACTIONS.SEARCH_POI:

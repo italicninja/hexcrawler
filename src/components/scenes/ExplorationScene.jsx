@@ -6,19 +6,18 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
-import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
+import { useGameLog } from '../../contexts/GameLogContext';
 import CharacterStats from '../ui/CharacterStats';
 import GameLog from '../ui/GameLog';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import InteriorHexDetails from '../ui/InteriorHexDetails';
-import EventInfoBox from '../ui/EventInfoBox';
 import { DiceRoller } from '../../game/DiceRoller';
 import { formatTime } from '../../game/TimeManager';
 import './ExplorationScene.css';
 
 function ExplorationScene() {
   const { state, actions, dispatch } = useGameState();
-  const { showMessage } = useEventInfoBox();
+  const { addMessage } = useGameLog();
   const [selectedHex, setSelectedHex] = useState(null);
 
   const { currentPOI, interiorMaps } = state;
@@ -46,9 +45,7 @@ function ExplorationScene() {
   // Handle hex movement
   const handleHexDoubleClick = (hex) => {
     if (!hex.terrain.walkable) {
-      if (showMessage) {
-        showMessage('Cannot Move', 'This hex is not walkable (wall or obstacle)', 'info', true);
-      }
+      addMessage('Cannot move - hex is not walkable (wall or obstacle)', 'warning');
       return;
     }
 
@@ -61,9 +58,7 @@ function ExplorationScene() {
     );
 
     if (distance > 1) {
-      if (showMessage) {
-        showMessage('Too Far', `This hex is ${distance} hexes away. You can only move 1 hex at a time.`, 'info', true);
-      }
+      addMessage(`Too far - hex is ${distance} away. You can only move 1 hex at a time.`, 'warning');
       return;
     }
 
@@ -83,7 +78,7 @@ function ExplorationScene() {
 
     // Null check for player character
     if (!state.playerCharacter) {
-      showMessage('Error', 'No player character found', 'info', true);
+      addMessage('No player character found', 'error');
       return;
     }
 
@@ -105,22 +100,18 @@ function ExplorationScene() {
 
       if (saveResult.success) {
         // Saved!
-        showMessage(
-          'Hazard Avoided!',
-          `${hazard.description}\n\nYou rolled ${saveResult.total} (needed ${hazard.dc}).\nYou successfully dodge the ${hazard.type}!`,
-          'info',
-          true
+        addMessage(
+          `Hazard Avoided! ${hazard.description}\n\nRolled ${saveResult.total} (needed ${hazard.dc}). Successfully dodged the ${hazard.type}!`,
+          'success'
         );
       } else {
         // Failed save - take damage
         const character = state.playerCharacter;
         character.damage(hazard.damage);
 
-        showMessage(
-          'Hazard Triggered!',
-          `${hazard.description}\n\nYou rolled ${saveResult.total} (needed ${hazard.dc}).\nYou take ${hazard.damage} ${hazard.damageType} damage!\n\nHP: ${character.currentHP}/${character.maxHP}`,
-          'active',
-          true
+        addMessage(
+          `Hazard Triggered! ${hazard.description}\n\nRolled ${saveResult.total} (needed ${hazard.dc}). Took ${hazard.damage} ${hazard.damageType} damage! HP: ${character.currentHP}/${character.maxHP}`,
+          'encounter'
         );
 
         // Update character HP in state
@@ -234,8 +225,7 @@ function ExplorationScene() {
         <GameLog />
       </div>
 
-      {/* Event Info Box */}
-      <EventInfoBox />
+
     </div>
   );
 }

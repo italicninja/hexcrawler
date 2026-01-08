@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
+import { useGameLog } from '../contexts/GameLogContext';
 
 /**
  * useMapGeneration Hook
@@ -8,11 +9,11 @@ import { useGameState } from '../contexts/GameStateContext';
  * Generates the map once based on seed and viewport size, then stores it in game state.
  *
  * @param {Object} terrainGeneratorRef - React ref containing TerrainGenerator instance
- * @param {Object} gameLogRef - React ref containing GameLog component
  * @param {Object} viewportSize - Object with { width, height } of viewport
  */
-export function useMapGeneration(terrainGeneratorRef, gameLogRef, viewportSize) {
+export function useMapGeneration(terrainGeneratorRef, viewportSize) {
   const { state, dispatch, actions } = useGameState();
+  const { addMessage } = useGameLog();
   const mapGeneratedRef = useRef(false);
 
   useEffect(() => {
@@ -102,12 +103,10 @@ export function useMapGeneration(terrainGeneratorRef, gameLogRef, viewportSize) 
     });
 
     // Log game start
-    if (gameLogRef.current) {
-      gameLogRef.current.addMessage('Your journey begins...', 'info');
-      if (startingHex && startingHex.poi) {
-        gameLogRef.current.addMessage(`You start your adventure in ${startingHex.poi.name}, a safe haven.`, 'info');
-      }
-      gameLogRef.current.addMessage(`Map generated with seed: ${state.mapSeed}`, 'system');
+    addMessage('Your journey begins...', 'info');
+    if (startingHex && startingHex.poi) {
+      addMessage(`You start your adventure in ${startingHex.poi.name}, a safe haven.`, 'info');
     }
-  }, [state.mapSeed, state.mapData, state.playerPosition, dispatch, actions, viewportSize, terrainGeneratorRef, gameLogRef]);
+    addMessage(`Map generated with seed: ${state.mapSeed}`, 'system');
+  }, [state.mapSeed, state.mapData, state.playerPosition, dispatch, actions, viewportSize, terrainGeneratorRef, addMessage]);
 }

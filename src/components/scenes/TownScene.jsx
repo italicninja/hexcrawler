@@ -5,18 +5,17 @@
 
 import { useState, useEffect } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
-import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
+import { useGameLog } from '../../contexts/GameLogContext';
 import { useKeyboardControls } from '../../hooks/useKeyboardControls';
 import CharacterStats from '../ui/CharacterStats';
 import GameLog from '../ui/GameLog';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
-import EventInfoBox from '../ui/EventInfoBox';
 import { formatTime } from '../../game/TimeManager';
 import './TownScene.css';
 
 function TownScene() {
   const { state, actions, dispatch } = useGameState();
-  const { showMessage } = useEventInfoBox();
+  const { addMessage } = useGameLog();
   const [selectedHex, setSelectedHex] = useState(null);
 
   const { currentTown, interiorMaps } = state;
@@ -82,57 +81,27 @@ function TownScene() {
     
     switch (buildingType) {
       case 'inn':
-        showMessage(
-          'The Weary Traveler Inn',
-          'Welcome to the inn! Here you can rest safely and recover your strength.\n\nRest options are available in the Rest Menu (R key).',
-          'info',
-          true
-        );
+        addMessage('Entered The Weary Traveler Inn - Rest options available (R key)', 'info');
         break;
       
       case 'shop':
-        showMessage(
-          'General Store',
-          'Welcome to the General Store! Browse our wares and trade your goods.\n\nShop interface coming soon!',
-          'info',
-          true
-        );
+        addMessage('Entered General Store - Shop interface coming soon!', 'info');
         break;
       
       case 'questBoard':
-        showMessage(
-          'Quest Board',
-          'The town quest board displays various jobs and bounties.\n\nQuest system available in Hex Details panel!',
-          'info',
-          true
-        );
+        addMessage('Checking Quest Board - Quest system available in Hex Details panel!', 'info');
         break;
       
       case 'blacksmith':
-        showMessage(
-          'Blacksmith',
-          'The blacksmith\'s forge glows with heat. Weapons and armor hang on the walls.\n\nBlacksmith services coming soon!',
-          'info',
-          true
-        );
+        addMessage('Entered Blacksmith - Services coming soon!', 'info');
         break;
       
       case 'temple':
-        showMessage(
-          'Temple',
-          'A peaceful temple dedicated to the gods. You feel a sense of tranquility.\n\nTemple services coming soon!',
-          'info',
-          true
-        );
+        addMessage('Entered Temple - You feel a sense of tranquility. Services coming soon!', 'info');
         break;
       
       case 'house':
-        showMessage(
-          'House',
-          'A private residence. The door is locked.\n\nPerhaps the residents are home?',
-          'info',
-          true
-        );
+        addMessage('Private residence - The door is locked.', 'info');
         break;
       
       default:
@@ -352,8 +321,7 @@ function TownScene() {
         <GameLog />
       </div>
 
-      {/* Event Info Box */}
-      <EventInfoBox />
+
     </div>
   );
 }

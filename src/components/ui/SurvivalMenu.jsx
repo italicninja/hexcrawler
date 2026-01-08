@@ -1,13 +1,15 @@
 import { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
+import { useGameLog } from '../../contexts/GameLogContext';
 import { DiceRoller } from '../../game/DiceRoller';
 import { Character } from '../../game/Character';
 import SurvivalManager from '../../game/SurvivalManager';
 import { TIME_COSTS } from '../../game/TimeManager';
 
-function SurvivalMenu({ onClose, gameLogRef }) {
+function SurvivalMenu({ onClose }) {
   const { state, dispatch, actions } = useGameState();
+  const { addMessage } = useGameLog();
   const [isForaging, setIsForaging] = useState(false);
 
   const character = state.playerCharacter;
@@ -72,7 +74,7 @@ function SurvivalMenu({ onClose, gameLogRef }) {
     if (hexesOnCooldown.length === allHexes.length) {
       if (gameLogRef?.current) {
         const daysRemaining = FORAGE_COOLDOWN - (currentDay - character.foragedHexes[`${currentHex.col},${currentHex.row}`]);
-        gameLogRef.current.addMessage(
+        addMessage(
           `All hexes in this area have been foraged recently. Wait ${daysRemaining} more day(s).`,
           'warning'
         );
@@ -108,9 +110,9 @@ function SurvivalMenu({ onClose, gameLogRef }) {
     // Show result in game log
     if (gameLogRef?.current) {
       if (result.success) {
-        gameLogRef.current.addMessage(result.message, 'success');
+        addMessage(result.message, 'success');
       } else {
-        gameLogRef.current.addMessage(result.message, 'warning');
+        addMessage(result.message, 'warning');
       }
     }
 
@@ -298,8 +300,7 @@ function SurvivalMenu({ onClose, gameLogRef }) {
 }
 
 SurvivalMenu.propTypes = {
-  onClose: PropTypes.func,
-  gameLogRef: PropTypes.object
+  onClose: PropTypes.func
 };
 
 export default SurvivalMenu;

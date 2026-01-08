@@ -241,6 +241,78 @@ dispatch({
 });
 ```
 
+### User Notifications & Feedback
+
+**CRITICAL: Use GameLog for ALL user feedback** - Never create modal dialogs, popups, or blocking UI.
+
+**Accessing GameLog:**
+```javascript
+import { useGameLog } from '../../contexts/GameLogContext';
+
+const { addMessage } = useGameLog();
+addMessage('Your message here', 'info');
+```
+
+**Message Types:**
+- `'info'` - General information, neutral events
+- `'success'` - Positive outcomes, achievements, gains
+- `'warning'` - Cautions, restrictions, blocked actions
+- `'error'` - Failures, errors, critical issues
+- `'action'` - Player actions, movement, interactions
+- `'discovery'` - Finding new locations, POIs, secrets
+- `'encounter'` - Combat events, enemy interactions
+- `'system'` - Meta game events, saves, loads, generation
+- `'poi-interaction'` - POI-specific actions (pray, search, etc.)
+
+**Best Practices:**
+1. **Log immediately** - Don't queue or delay feedback
+2. **Be concise** - Keep messages under 100 chars when possible
+3. **Use appropriate types** - Helps player scan log quickly
+4. **Multi-line for complex data** - Use `\n` for structured info
+5. **Always log user actions** - Movement, searches, interactions
+6. **Log outcomes** - Success/failure, rewards, consequences
+
+**Examples:**
+```javascript
+// Movement
+addMessage('Moved to forest hex (15, 23)', 'action');
+
+// Discovery
+addMessage('Discovered: Ancient Ruins (CR 3)', 'discovery');
+
+// POI interaction
+addMessage('Prayed at Shrine of Pelor. +1 Piety', 'poi-interaction');
+
+// Search result (multi-line)
+addMessage(
+  `Perception Check: 18\n\nChallenge Rating: 3\nExpect goblins and traps\nEstimated size: 15x10 hexes`,
+  'info'
+);
+
+// Combat
+addMessage('Defeated Goblin! +50 XP, +15 gold', 'success');
+
+// Blocked action
+addMessage('You need a raft to cross the river!', 'warning');
+
+// Error
+addMessage('Failed to save game: Storage quota exceeded', 'error');
+```
+
+**FORBIDDEN:**
+- ❌ **EventInfoBox** (removed from codebase)
+- ❌ **Toast notifications** (Sonner unused, may be removed)
+- ❌ **Modal dialogs or popups**
+- ❌ **window.alert() or window.confirm()** (deprecated)
+- ❌ **Blocking UI overlays** (except combat)
+- ❌ **Message queues that delay feedback**
+
+**POI Interactions:**
+- All POI actions are triggered via **buttons in HexDetails panel** when player is standing on the hex
+- Spacebar triggers the default action for the POI type
+- Results are logged to GameLog immediately
+- No confirmation dialogs or choice popups
+
 ### Data Serialization
 
 Classes must implement `toJSON()` and `fromJSON()` for localStorage persistence.
@@ -285,9 +357,12 @@ Uses **cube coordinates** converted to offset coordinates:
 4. **DO NOT** use class components
 5. **DO NOT** store canvas context in state (use refs)
 6. **DO NOT** use routing libraries (use scene-based navigation)
-7. **ALWAYS** check for null/undefined before accessing nested properties
-8. **ALWAYS** use `actions.ACTION_NAME` constants, not string literals
-9. **ALWAYS** create new Set/Array when updating collections in state
+7. **DO NOT** create modal dialogs or popups - use GameLog for all feedback
+8. **DO NOT** use EventInfoBox (removed system) - use GameLog
+9. **ALWAYS** check for null/undefined before accessing nested properties
+10. **ALWAYS** use `actions.ACTION_NAME` constants, not string literals
+11. **ALWAYS** create new Set/Array when updating collections in state
+12. **ALWAYS** log user actions and outcomes to GameLog
 
 ## Additional Resources
 

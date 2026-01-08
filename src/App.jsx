@@ -1,14 +1,13 @@
 import { useEffect } from 'react';
 import { GameStateProvider, useGameState } from './contexts/GameStateContext';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
-import { EventInfoBoxProvider } from './contexts/EventInfoBoxContext';
+import { GameLogProvider } from './contexts/GameLogContext';
 import TitleScene from './components/scenes/TitleScene';
 import CharacterCreationScene from './components/scenes/CharacterCreationScene';
 import OverworldScene from './components/scenes/OverworldScene';
 import GameOverScene from './components/scenes/GameOverScene';
 import ErrorBoundary from './components/ErrorBoundary';
 import BottomToolbar from './components/ui/BottomToolbar';
-import { Toaster } from './components/shadcn/ui/sonner';
 import './style.css';
 
 function GameRouter() {
@@ -42,7 +41,6 @@ function GameRouter() {
           <GameOverScene />
         </ErrorBoundary>
       )}
-      <Toaster />
       <BottomToolbar />
     </div>
   );
@@ -52,9 +50,9 @@ function App() {
   return (
     <GameStateProvider>
       <SettingsProvider>
-        <EventInfoBoxProvider>
+        <GameLogProvider>
           <GameRouter />
-        </EventInfoBoxProvider>
+        </GameLogProvider>
       </SettingsProvider>
     </GameStateProvider>
   );

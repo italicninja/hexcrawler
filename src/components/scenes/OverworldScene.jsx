@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
+// import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
 import { useMapGeneration } from '../../hooks/useMapGeneration';
 import { useInfiniteTerrainExpansion } from '../../hooks/useInfiniteTerrainExpansion';
 import { useKeyboardControls } from '../../hooks/useKeyboardControls';
@@ -27,14 +27,14 @@ import SurvivalMenu from '../ui/SurvivalMenu';
 import QuestLog from '../ui/QuestLog';
 import HexGridCanvas from '../canvas/HexGridCanvas';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
-import EventInfoBox from '../ui/EventInfoBox';
 import MenuSidebar from '../ui/MenuSidebar';
 import MenuPanel from '../ui/MenuPanel';
 
 function OverworldScene() {
   const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } = useGameState();
   const { settings } = useSettings();
-  const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
+  // const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
+  const isBlockingMovement = false;
   const [openPanel, setOpenPanel] = useState(null);
   const [selectedCharacter, setSelectedCharacter] = useState(state.playerCharacter);
   const [selectedHex, setSelectedHex] = useState(null);
@@ -1146,7 +1146,6 @@ function OverworldScene() {
       <div className="game-log-container" style={{ display: 'flex', position: 'relative' }}>
         <GameLog ref={gameLogRef} />
         {/* EventInfoBox positioned in bottom right */}
-        <EventInfoBox />
       </div>
     </div>
   );

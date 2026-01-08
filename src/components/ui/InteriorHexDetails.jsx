@@ -4,7 +4,7 @@
 
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
-import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
+import { useGameLog } from '../../contexts/GameLogContext';
 import { DiceRoller } from '../../game/DiceRoller';
 import { getCombatDuration, TIME_COSTS } from '../../game/TimeManager';
 import { Combat } from '../../game/Combat';
@@ -14,7 +14,7 @@ import './InteriorHexDetails.css';
 
 function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveToHex }) {
   const { state, actions, dispatch } = useGameState();
-  const { showMessage } = useEventInfoBox();
+  const { addMessage } = useGameLog();
 
   if (!hex) {
     return (
@@ -55,11 +55,9 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
     const combatTime = getCombatDuration();
 
     // TODO: Real combat system
-    showMessage(
-      'Combat!',
-      `You engage ${encounter.creatures}!\n\n(Combat system coming soon - auto-resolving...)\n\nYou defeat the enemies!\n\nTime elapsed: ${combatTime} minutes`,
-      'info',
-      true
+    addMessage(
+      `Combat! You engage ${encounter.creatures}!\n\n(Combat system coming soon - auto-resolving...)\n\nYou defeat the enemies!\n\nTime elapsed: ${combatTime} minutes`,
+      'encounter'
     );
 
     // Advance time for combat
@@ -91,11 +89,9 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
 
     const goldText = loot.gold > 0 ? `You found ${loot.gold} gold!` : 'You search the area...';
 
-    showMessage(
-      'Treasure Collected!',
-      `${goldText}${itemsList}\n\nItems added to inventory!\n\nTime elapsed: ${TIME_COSTS.SEARCH} minutes`,
-      'info',
-      true
+    addMessage(
+      `Treasure Collected! ${goldText}${itemsList}\n\nItems added to inventory!\n\nTime elapsed: ${TIME_COSTS.SEARCH} minutes`,
+      'discovery'
     );
 
     // Advance time for searching/looting
@@ -240,15 +236,15 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
   // Handle move button click
   const handleMoveClick = () => {
     if (distance === 0) {
-      showMessage('Already Here', 'You are already on this hex', 'info', true);
+      addMessage('You are already on this hex', 'info');
       return;
     }
     if (!hex.terrain.walkable) {
-      showMessage('Cannot Move', 'This hex is not walkable (wall or obstacle)', 'info', true);
+      addMessage('Cannot move - hex is not walkable (wall or obstacle)', 'warning');
       return;
     }
     if (distance > 1) {
-      showMessage('Too Far', `This hex is ${distance} hexes away. You can only move 1 hex at a time.`, 'info', true);
+      addMessage(`Too far - hex is ${distance} away. You can only move 1 hex at a time.`, 'warning');
       return;
     }
     if (onMoveToHex) {

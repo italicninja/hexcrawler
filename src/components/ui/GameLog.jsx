@@ -1,36 +1,12 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import PropTypes from 'prop-types';
+import { useGameLog } from '../../contexts/GameLogContext';
 
-const MAX_MESSAGES = 100; // Limit to prevent memory leaks
-
-const GameLog = forwardRef((props, ref) => {
-  const [messages, setMessages] = useState([]);
-  const messagesEndRef = useRef(null);
-
-  const addMessage = (text, type = 'info') => {
-    const timestamp = new Date().toLocaleTimeString();
-    setMessages(prev => {
-      const newMessages = [...prev, { text, type, timestamp, id: Date.now() + Math.random() }];
-      // Keep only the last MAX_MESSAGES messages
-      if (newMessages.length > MAX_MESSAGES) {
-        return newMessages.slice(-MAX_MESSAGES);
-      }
-      return newMessages;
-    });
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  // Expose addMessage method to parent via ref
-  useImperativeHandle(ref, () => ({
-    addMessage
-  }));
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+/**
+ * GameLog Component
+ * Displays timestamped game messages
+ * Now connected to GameLogContext instead of using refs
+ */
+function GameLog() {
+  const { messages, messagesEndRef } = useGameLog();
 
   return (
     <div id="game-log" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
@@ -52,12 +28,6 @@ const GameLog = forwardRef((props, ref) => {
       </div>
     </div>
   );
-});
-
-GameLog.displayName = 'GameLog';
-
-GameLog.propTypes = {
-  // This component doesn't receive any props, only uses forwardRef for imperative handle
-};
+}
 
 export default GameLog;

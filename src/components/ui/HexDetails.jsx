@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
-import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
 import { useHexInteraction } from '../../hooks/useHexInteraction';
 import QuestGiverUI from './QuestGiverUI';
 import QuestGenerator from '../../game/QuestGenerator';
@@ -14,11 +13,22 @@ import { ACTIONS } from '../../contexts/GameStateContext';
 
 function HexDetails({ hex, terrainGenerator, onMoveClick }) {
   const { state, dispatch, isHexReachable, isPoiDiscovered, isPoiSearched, getHexDistance } = useGameState();
-  const { isBlockingMovement } = useEventInfoBox();
-  const { handleInteract, handlePassiveChoice } = useHexInteraction(hex);
+  const { 
+    handleInteract, 
+    handleSearch, 
+    handleExplore, 
+    handlePray, 
+    handleOffer, 
+    handleEnterTown, 
+    handleApproach, 
+    handleTrade 
+  } = useHexInteraction(hex);
   const [showQuestGiver, setShowQuestGiver] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [shopType, setShopType] = useState('general');
+  
+  // Check for blocking movement during active events
+  const isBlockingMovement = state.hasActiveEvent || false;
 
   if (!hex) {
     return (
@@ -449,7 +459,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
         {hex.poi && poiVisible && hex.poi.eventType === 'passive' && hex.poi.type === 'town' && isPlayerOnHex && (
           <button
             className="hex-action-btn hex-action-btn-success"
-            onClick={handleInteract}
+            onClick={handleEnterTown}
             style={{
               background: 'var(--primary-color)',
               borderColor: 'var(--accent-color)',
@@ -481,7 +491,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
          ['cave', 'ruins', 'tower', 'dungeon', 'town'].includes(hex.poi.type) && (
           <button
             className="hex-action-btn hex-action-btn-search"
-            onClick={() => handlePassiveChoice('search', hex.poi)}
+            onClick={handleSearch}
             style={{
               background: 'var(--primary-color)',
               borderColor: 'var(--accent-color)',
@@ -497,7 +507,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
          ['cave', 'ruins', 'tower', 'dungeon'].includes(hex.poi.type) && (
           <button
             className="hex-action-btn hex-action-btn-explore"
-            onClick={() => handlePassiveChoice('explore', hex.poi)}
+            onClick={handleExplore}
             style={{
               background: 'var(--primary-color)',
               borderColor: 'var(--accent-color)',
@@ -513,7 +523,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
           <>
             <button
               className="hex-action-btn hex-action-btn-success"
-              onClick={() => handlePassiveChoice('pray', hex.poi)}
+              onClick={handlePray}
               style={{
                 background: 'var(--primary-color)',
                 borderColor: 'var(--accent-color)',
@@ -524,7 +534,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
             </button>
             <button
               className="hex-action-btn hex-action-btn-success"
-              onClick={() => handlePassiveChoice('offer', hex.poi)}
+              onClick={handleOffer}
               style={{
                 background: 'var(--primary-color)',
                 borderColor: 'var(--accent-color)',
@@ -557,7 +567,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
           <>
             <button
               className="hex-action-btn hex-action-btn-success"
-              onClick={() => handlePassiveChoice('approach', hex.poi)}
+              onClick={handleApproach}
               style={{
                 background: 'var(--primary-color)',
                 borderColor: 'var(--accent-color)',
@@ -568,7 +578,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
             </button>
             <button
               className="hex-action-btn hex-action-btn-success"
-              onClick={() => handlePassiveChoice('trade', hex.poi)}
+              onClick={handleTrade}
               style={{
                 background: 'var(--primary-color)',
                 borderColor: 'var(--accent-color)',

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
+import { useGameLog } from '../contexts/GameLogContext';
 import { generateHex } from '../utils/poiGenerationHelper';
 
 /**
@@ -10,11 +11,11 @@ import { generateHex } from '../utils/poiGenerationHelper';
  * Uses viewport-aware expansion to ensure smooth scrolling experience.
  *
  * @param {Object} terrainGeneratorRef - React ref containing TerrainGenerator instance
- * @param {Object} gameLogRef - React ref containing GameLog component
  * @param {Object} viewportSize - Object with { width, height } of viewport
  */
-export function useInfiniteTerrainExpansion(terrainGeneratorRef, gameLogRef, viewportSize) {
+export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
   const { state, dispatch, actions } = useGameState();
+  const { addMessage } = useGameLog();
 
   useEffect(() => {
     // Guard clause - don't expand if map isn't ready
@@ -87,10 +88,8 @@ export function useInfiniteTerrainExpansion(terrainGeneratorRef, gameLogRef, vie
     });
 
     // Log expansion
-    if (gameLogRef.current) {
-      gameLogRef.current.addMessage(`Explored new territory to the ${expandDirection}!`, 'info');
-    }
-  }, [state.playerPosition, state.mapData, state.mapSeed, dispatch, actions, viewportSize, terrainGeneratorRef, gameLogRef]);
+    addMessage(`Explored new territory to the ${expandDirection}!`, 'info');
+  }, [state.playerPosition, state.mapData, state.mapSeed, dispatch, actions, viewportSize, terrainGeneratorRef, addMessage]);
 }
 
 /**
