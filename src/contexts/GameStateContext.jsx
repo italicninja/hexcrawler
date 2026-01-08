@@ -84,6 +84,7 @@ const initialState = {
   discoveredPOIs: new Set(),
   currentScene: 'title',
   newGameSeed: null,
+  characterCreationSeed: null, // Store seed for character creation
   // Exploration state
   interiorMaps: {},
   currentPOI: null,
@@ -404,26 +405,16 @@ function gameStateReducer(state, action) {
       // Long rest handled by RestManager, just update character and time
       const { character } = action.payload;
 
-      // Consume rations and water during long rest
+      // Consume rations during long rest (water removed from survival system)
       const rationResult = SurvivalManager.consumeRations(character);
-      const waterResult = SurvivalManager.consumeWater(character);
 
-      // Get current terrain for exhaustion check
-      const currentHex = state.mapData?.find(hex =>
-        hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
-      );
-      const terrain = currentHex?.terrain?.key || 'grassland';
-
-      // Apply exhaustion if no food/water available
+      // Apply exhaustion if no food available
       if (!rationResult.success) {
         SurvivalManager.applyStarvation(character);
       }
-      if (!waterResult.success) {
-        SurvivalManager.applyDehydration(character, terrain);
-      }
 
-      // Reduce exhaustion if food and water were consumed
-      if (rationResult.success && waterResult.success) {
+      // Reduce exhaustion if food was consumed
+      if (rationResult.success) {
         SurvivalManager.reduceExhaustion(character);
       }
 
@@ -521,18 +512,12 @@ function gameStateReducer(state, action) {
     case ACTIONS.NEW_GAME: {
       const mapSeed = action.payload;
 
-      const playerChar = new Character('Hero', 'paladin');
-      const party = new Party();
-      party.setPlayer(playerChar);
-      // NOTE: NPCs will be hired/recruited later through gameplay (taverns, quests, etc.)
-      // No initial party members
-
+      // Transition to character creation scene instead of creating default character
       return {
         ...initialState,
         mapSeed,
-        currentScene: 'overworld',
-        playerCharacter: playerChar,
-        party,
+        characterCreationSeed: mapSeed,
+        currentScene: 'characterCreation',
         gameTime: createGameTime() // Initialize game time for new game
       };
     }

@@ -52,31 +52,17 @@ export function consumeRations(character) {
 }
 
 /**
- * Consume 1 day's water (called during long rest)
+ * Consume 1 day's water (DEPRECATED - water removed from survival system)
  * @param {Character} character - Character object
  * @returns {object} Result of consumption { success, message }
  */
 export function consumeWater(character) {
-  if (!character) {
-    return { success: false, message: 'No character provided' };
-  }
-
-  if (character.water > 0) {
-    character.water--;
-    character.daysWithoutWater = 0; // Reset dehydration counter
-    return {
-      success: true,
-      message: `Consumed 1 day's water. ${character.water} days remaining.`,
-      remaining: character.water
-    };
-  } else {
-    character.daysWithoutWater++;
-    return {
-      success: false,
-      message: `No water available! Days without water: ${character.daysWithoutWater}`,
-      daysWithout: character.daysWithoutWater
-    };
-  }
+  // Water consumption removed - always returns success
+  return {
+    success: true,
+    message: 'Water consumption removed from survival system.',
+    remaining: 0
+  };
 }
 
 /**
@@ -114,52 +100,30 @@ export function applyStarvation(character) {
 }
 
 /**
- * Apply dehydration exhaustion (1+ days without water)
- * D&D 5e: A character needs 1 gallon per day (2 gallons in hot weather)
- * Going without water causes exhaustion after 1 day
+ * Apply dehydration exhaustion (DEPRECATED - water removed from survival system)
  * @param {Character} character - Character object
  * @param {string} terrain - Current terrain type (for hot weather check)
  * @returns {object} Result { exhaustionGained, message }
  */
 export function applyDehydration(character, terrain = 'grassland') {
-  if (!character) {
-    return { exhaustionGained: 0, message: 'No character provided' };
-  }
-
-  // In desert terrain, dehydration is more severe
-  const isHotWeather = terrain === 'desert';
-  const daysBeforeDehydration = isHotWeather ? 0.5 : 1; // Half day in desert
-
-  if (character.daysWithoutWater >= daysBeforeDehydration) {
-    // Gain exhaustion (more severe in desert)
-    const exhaustionToGain = isHotWeather ? 2 : 1;
-    const oldLevel = character.exhaustionLevel;
-    character.exhaustionLevel = Math.min(6, character.exhaustionLevel + exhaustionToGain);
-
-    const effects = getExhaustionEffects(character.exhaustionLevel);
-
-    return {
-      exhaustionGained: exhaustionToGain,
-      message: `Dehydration! Exhaustion level ${oldLevel} → ${character.exhaustionLevel}. ${effects.description}`,
-      newLevel: character.exhaustionLevel,
-      effects: effects.description
-    };
-  }
-
-  return { exhaustionGained: 0, message: 'No dehydration effects' };
+  // Dehydration removed - always returns no exhaustion
+  return { exhaustionGained: 0, message: 'Dehydration removed from survival system' };
 }
 
 /**
  * Forage for food (Survival check - Wisdom based)
- * DC varies by terrain type
+ * Forages current hex + all adjacent hexes (7 total)
+ * DC is averaged across all hexes
+ * 3-day cooldown per hex
  * @param {Character} character - Character object
- * @param {string} terrainKey - Terrain type key
+ * @param {Array} hexes - Array of hex objects {terrain: {key: string}}
  * @param {DiceRoller} diceRoller - DiceRoller instance
- * @returns {object} Result { success, rationsGained, message, roll }
+ * @param {number} currentDay - Current game day for cooldown tracking
+ * @returns {object} Result { success, rationsGained, message, roll, hexesForaged }
  */
-export function forage(character, terrainKey, diceRoller) {
-  if (!character || !diceRoller) {
-    return { success: false, rationsGained: 0, message: 'Invalid parameters' };
+export function forage(character, hexes, diceRoller, currentDay) {
+  if (!character || !diceRoller || !hexes || hexes.length === 0) {
+    return { success: false, rationsGained: 0, message: 'Invalid parameters', hexesForaged: [] };
   }
 
   // Terrain-based DCs for foraging
@@ -175,7 +139,31 @@ export function forage(character, terrainKey, diceRoller) {
     river: 12
   };
 
-  const dc = forageDCs[terrainKey] || 15;
+  // Filter out water/impassable hexes and calculate average DC
+  const validHexes = hexes.filter(hex => {
+    const terrainKey = hex?.terrain?.key;
+    return terrainKey && terrainKey !== 'water';
+  });
+
+  if (validHexes.length === 0) {
+    return { success: false, rationsGained: 0, message: 'No valid terrain to forage', hexesForaged: [] };
+  }
+
+  // Calculate average DC
+  let totalDC = 0;
+  let goodHexCount = 0; // Hexes with DC <= 10
+  
+  validHexes.forEach(hex => {
+    const terrainKey = hex.terrain.key;
+    const hexDC = forageDCs[terrainKey] || 15;
+    totalDC += hexDC;
+    
+    if (hexDC <= 10) {
+      goodHexCount++;
+    }
+  });
+
+  const averageDC = Math.ceil(totalDC / validHexes.length);
 
   // Survival check (Wisdom + Proficiency if proficient in Survival)
   // For simplicity, assume all characters are proficient in Survival
@@ -184,90 +172,55 @@ export function forage(character, terrainKey, diceRoller) {
     { wisdom: wisdomScore, proficiencyBonus: character.proficiencyBonus },
     'wisdom',
     true, // Proficient in Survival
-    dc,
+    averageDC,
     'normal'
   );
 
+  // Create list of hex keys for cooldown tracking
+  const hexesForaged = validHexes.map(hex => `${hex.col},${hex.row}`);
+
   if (result.success) {
-    // Success - gain 1d4 rations (1-4 days)
-    const rationsGained = diceRoller.rollDice(4);
+    // Success - gain 1d4 + number of good hexes (DC <= 10)
+    const baseRations = diceRoller.rollDice(4);
+    const rationsGained = baseRations + goodHexCount;
     character.rations += rationsGained;
 
     return {
       success: true,
       rationsGained,
-      message: `Foraging successful! Found ${rationsGained} day(s) of food. (Roll: ${result.roll} + ${result.modifier} = ${result.total} vs DC ${dc})`,
-      roll: result
+      message: `Foraging successful! Found ${rationsGained} day(s) of food (${baseRations} base + ${goodHexCount} from rich terrain). Searched ${validHexes.length} hexes. (Roll: ${result.roll} + ${result.modifier} = ${result.total} vs DC ${averageDC})`,
+      roll: result,
+      hexesForaged,
+      hexCount: validHexes.length,
+      goodHexCount
     };
   } else {
     // Failure - no food found
     return {
       success: false,
       rationsGained: 0,
-      message: `Foraging failed. No food found. (Roll: ${result.roll} + ${result.modifier} = ${result.total} vs DC ${dc})`,
-      roll: result
+      message: `Foraging failed. No food found in ${validHexes.length} hexes. (Roll: ${result.roll} + ${result.modifier} = ${result.total} vs DC ${averageDC})`,
+      roll: result,
+      hexesForaged,
+      hexCount: validHexes.length
     };
   }
 }
 
 /**
- * Find water source (Survival check - Wisdom based)
- * DC varies by terrain, easier near rivers and forests
+ * Find water source (DEPRECATED - water removed from survival system)
  * @param {Character} character - Character object
  * @param {string} terrainKey - Terrain type key
  * @param {DiceRoller} diceRoller - DiceRoller instance
  * @returns {object} Result { success, waterGained, message, roll }
  */
 export function findWater(character, terrainKey, diceRoller) {
-  if (!character || !diceRoller) {
-    return { success: false, waterGained: 0, message: 'Invalid parameters' };
-  }
-
-  // Terrain-based DCs for finding water
-  const waterDCs = {
-    river: 5,      // Very easy near rivers
-    water: 5,      // Very easy near water
-    swamp: 8,      // Easy in swamps (but might be unclean)
-    forest: 10,    // Moderate in forests
-    grassland: 12, // Moderate in grasslands
-    hills: 15,     // Hard in hills
-    mountains: 15, // Hard in mountains
-    tundra: 18,    // Very hard in tundra (frozen)
-    desert: 20     // Extremely hard in desert
+  return {
+    success: false,
+    waterGained: 0,
+    message: 'Water finding removed from survival system.',
+    roll: null
   };
-
-  const dc = waterDCs[terrainKey] || 15;
-
-  // Survival check (Wisdom + Proficiency)
-  const wisdomScore = character.abilities.wisdom;
-  const result = diceRoller.skillCheck(
-    { wisdom: wisdomScore, proficiencyBonus: character.proficiencyBonus },
-    'wisdom',
-    true, // Proficient in Survival
-    dc,
-    'normal'
-  );
-
-  if (result.success) {
-    // Success - gain 1d4 + 1 days of water (2-5 days)
-    const waterGained = diceRoller.rollDice(4) + 1;
-    character.water += waterGained;
-
-    return {
-      success: true,
-      waterGained,
-      message: `Found water! Gained ${waterGained} day(s) of water. (Roll: ${result.roll} + ${result.modifier} = ${result.total} vs DC ${dc})`,
-      roll: result
-    };
-  } else {
-    // Failure - no water found
-    return {
-      success: false,
-      waterGained: 0,
-      message: `No water source found. (Roll: ${result.roll} + ${result.modifier} = ${result.total} vs DC ${dc})`,
-      roll: result
-    };
-  }
 }
 
 /**

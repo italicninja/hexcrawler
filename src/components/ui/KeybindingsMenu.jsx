@@ -19,6 +19,7 @@ function KeybindingsMenu() {
     interact: 'Interact',
     search: 'Search',
     rest: 'Rest Menu',
+    forage: 'Forage',
     inventory: 'Inventory',
     quests: 'Quest Log',
     map: 'Map View'
@@ -102,6 +103,7 @@ function KeybindingsMenu() {
       interact: ' ',
       search: 'Shift',
       rest: 'r',
+      forage: 'f',
       inventory: 'i',
       quests: 'q',
       map: 'm'

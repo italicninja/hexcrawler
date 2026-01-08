@@ -191,13 +191,15 @@ export class Shop {
         { name: 'Torch (10)', type: 'misc', effects: {}, weight: 5, value: 5, description: 'Pack of 10 torches.' },
         { name: 'Bedroll', type: 'misc', effects: {}, weight: 7, value: 3, description: 'A bedroll for camping.' },
         { name: 'Backpack', type: 'misc', effects: {}, weight: 5, value: 5, description: 'A sturdy backpack.' },
-        { name: 'Tinderbox', type: 'misc', effects: {}, weight: 1, value: 2, description: 'For starting fires.' }
+        { name: 'Tinderbox', type: 'misc', effects: {}, weight: 1, value: 2, description: 'For starting fires.' },
+        { name: 'Raft', type: 'misc', effects: { allowsRiverCrossing: true }, weight: 50, value: 25, description: 'A simple wooden raft that allows crossing rivers. Not sturdy enough for deep water.' }
       ],
       uncommon: [
         { name: 'Potion of Healing', type: 'consumable', effects: { hp: 10 }, weight: 0.5, value: 50, consumable: true, description: 'Restores 10 HP.' },
         { name: 'Potion of Climbing', type: 'consumable', effects: { speed: 10 }, weight: 0.5, value: 75, consumable: true, description: 'Grants climbing ability for 1 hour.' },
         { name: 'Oil of Slipperiness', type: 'consumable', effects: {}, weight: 0.5, value: 80, consumable: true, description: 'Makes surfaces slippery.' },
-        { name: 'Antitoxin', type: 'consumable', effects: {}, weight: 0.5, value: 50, consumable: true, description: 'Cures poison.' }
+        { name: 'Antitoxin', type: 'consumable', effects: {}, weight: 0.5, value: 50, consumable: true, description: 'Cures poison.' },
+        { name: 'Boat', type: 'misc', effects: { allowsWaterCrossing: true, allowsRiverCrossing: true }, weight: 100, value: 50, description: 'A sturdy rowboat that allows crossing deep water and rivers.' }
       ],
       rare: [
         { name: 'Potion of Greater Healing', type: 'consumable', effects: { hp: 20 }, weight: 0.5, value: 150, consumable: true, description: 'Restores 20 HP.' },

@@ -328,6 +328,40 @@ export class Item {
       consumable: true
     });
   }
+
+  /**
+   * Create a Raft (allows crossing rivers)
+   * @returns {Item}
+   */
+  static createRaft() {
+    return new Item({
+      name: 'Raft',
+      description: 'A simple wooden raft that allows crossing rivers. Not sturdy enough for deep water.',
+      type: 'misc',
+      rarity: 'common',
+      slot: null,
+      effects: { allowsRiverCrossing: true },
+      weight: 50,
+      value: 25
+    });
+  }
+
+  /**
+   * Create a Boat (allows crossing water and rivers)
+   * @returns {Item}
+   */
+  static createBoat() {
+    return new Item({
+      name: 'Boat',
+      description: 'A sturdy rowboat that allows crossing deep water and rivers.',
+      type: 'misc',
+      rarity: 'uncommon',
+      slot: null,
+      effects: { allowsWaterCrossing: true, allowsRiverCrossing: true },
+      weight: 100,
+      value: 50
+    });
+  }
 }
 
 export default Item;

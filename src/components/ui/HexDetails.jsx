@@ -428,6 +428,23 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
           {isBlockingMovement ? 'Resolve Event First' : (reachable ? 'Move Here' : 'Out of Range')}
         </button>
 
+        {/* Helper text when POI is visible but player not on hex */}
+        {hex.poi && poiVisible && !isPlayerOnHex && hex.poi.eventType === 'passive' && (
+          <div style={{
+            padding: '0.75rem',
+            background: 'var(--bg-lighter)',
+            border: '2px dashed var(--accent-color)',
+            borderRadius: '4px',
+            color: 'var(--accent-color)',
+            fontSize: '0.85rem',
+            textAlign: 'center',
+            fontStyle: 'italic',
+            lineHeight: '1.4'
+          }}>
+            Move to this hex to interact with {hex.poi.name}
+          </div>
+        )}
+
         {/* Enter button for towns - only when on the hex */}
         {hex.poi && poiVisible && hex.poi.eventType === 'passive' && hex.poi.type === 'town' && isPlayerOnHex && (
           <button

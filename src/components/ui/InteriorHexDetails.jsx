@@ -12,7 +12,7 @@ import { Enemy } from '../../game/Enemy';
 import { Character } from '../../game/Character';
 import './InteriorHexDetails.css';
 
-function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }) {
+function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveToHex }) {
   const { state, actions, dispatch } = useGameState();
   const { showMessage } = useEventInfoBox();
 
@@ -124,20 +124,32 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }) {
 
     return (
       <div className="content-section encounter-section">
-        <h4>⚔️ Encounter</h4>
+        <h4>Encounter</h4>
         <p><strong>CR:</strong> {encounter.cr}</p>
         <p><strong>Creatures:</strong> {encounter.creatures}</p>
         {encounter.defeated ? (
-          <p className="status-defeated">✓ Defeated</p>
+          <p className="status-defeated">Defeated</p>
         ) : distance === 0 ? (
           <button
             className="btn-danger"
             onClick={handleEngageEncounter}
           >
-            ⚔️ Engage
+            Engage
           </button>
         ) : (
-          <p className="status-warning">Must be on this hex to engage</p>
+          <div style={{
+            padding: '0.5rem',
+            background: 'rgba(231, 76, 60, 0.1)',
+            border: '2px dashed #e74c3c',
+            borderRadius: '4px',
+            color: '#e74c3c',
+            fontSize: '0.85rem',
+            textAlign: 'center',
+            fontStyle: 'italic',
+            marginTop: '0.5rem'
+          }}>
+            Move to this hex to engage ({distance} {distance === 1 ? 'hex' : 'hexes'} away)
+          </div>
         )}
       </div>
     );
@@ -149,7 +161,7 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }) {
 
     return (
       <div className="content-section loot-section">
-        <h4>💰 Loot</h4>
+        <h4>Loot</h4>
         <p><strong>Gold:</strong> {loot.gold} gp</p>
         {loot.items.length > 0 && (
           <div className="loot-items">
@@ -167,16 +179,28 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }) {
           {loot.rarity.toUpperCase()}
         </p>
         {loot.collected ? (
-          <p className="status-collected">✓ Collected</p>
+          <p className="status-collected">Collected</p>
         ) : distance === 0 ? (
           <button
             className="btn-primary"
             onClick={handleCollectLoot}
           >
-            💰 Collect
+            Collect
           </button>
         ) : (
-          <p className="status-warning">Must be on this hex to collect</p>
+          <div style={{
+            padding: '0.5rem',
+            background: 'rgba(52, 152, 219, 0.1)',
+            border: '2px dashed #3498db',
+            borderRadius: '4px',
+            color: '#3498db',
+            fontSize: '0.85rem',
+            textAlign: 'center',
+            fontStyle: 'italic',
+            marginTop: '0.5rem'
+          }}>
+            Move to this hex to collect ({distance} {distance === 1 ? 'hex' : 'hexes'} away)
+          </div>
         )}
       </div>
     );
@@ -188,14 +212,14 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }) {
 
     return (
       <div className="content-section hazard-section">
-        <h4>⚠️ Hazard</h4>
+        <h4>Hazard</h4>
         <p><strong>Type:</strong> {hazard.type}</p>
         <p><strong>Category:</strong> {hazard.category}</p>
         <p>{hazard.description}</p>
         <p><strong>DC {hazard.dc}</strong> {hazard.saveType} save</p>
         <p><strong>Damage:</strong> {hazard.damage} {hazard.damageType}</p>
         {hazard.triggered && (
-          <p className="status-triggered">⚡ Triggered</p>
+          <p className="status-triggered">Triggered</p>
         )}
       </div>
     );
@@ -213,6 +237,25 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }) {
     return colors[rarity] || colors.common;
   };
 
+  // Handle move button click
+  const handleMoveClick = () => {
+    if (distance === 0) {
+      showMessage('Already Here', 'You are already on this hex', 'info', true);
+      return;
+    }
+    if (!hex.terrain.walkable) {
+      showMessage('Cannot Move', 'This hex is not walkable (wall or obstacle)', 'info', true);
+      return;
+    }
+    if (distance > 1) {
+      showMessage('Too Far', `This hex is ${distance} hexes away. You can only move 1 hex at a time.`, 'info', true);
+      return;
+    }
+    if (onMoveToHex) {
+      onMoveToHex(hex);
+    }
+  };
+
   return (
     <div className="interior-hex-details">
       <div className="hex-info">
@@ -225,6 +268,18 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }) {
           <p><strong>Content:</strong> {hex.content}</p>
         )}
       </div>
+
+      {/* Move button */}
+      {distance > 0 && (
+        <button
+          className={distance === 1 && hex.terrain.walkable ? 'btn-primary' : 'btn-disabled'}
+          onClick={handleMoveClick}
+          disabled={distance > 1 || !hex.terrain.walkable}
+          style={{ marginBottom: '1rem', width: '100%' }}
+        >
+          {!hex.terrain.walkable ? 'Blocked' : distance === 1 ? 'Move Here' : `Too Far (${distance} hexes)`}
+        </button>
+      )}
 
       {renderEncounterInfo()}
       {renderLootInfo()}
@@ -251,7 +306,8 @@ InteriorHexDetails.propTypes = {
     row: PropTypes.number.isRequired
   }),
   interiorMap: PropTypes.object,
-  poiKey: PropTypes.string
+  poiKey: PropTypes.string,
+  onMoveToHex: PropTypes.func
 };
 
 export default InteriorHexDetails;

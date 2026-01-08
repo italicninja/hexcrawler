@@ -94,12 +94,13 @@ export function getTimeOfDay(hour) {
  * Time costs for various actions (in minutes)
  */
 export const TIME_COSTS = {
-  MOVEMENT: 10,           // Per hex
+  MOVEMENT: 1440,         // 1 day per hex (24 hours)
   COMBAT_MIN: 5,          // Minimum combat duration
   COMBAT_MAX: 10,         // Maximum combat duration
   SHORT_REST: 60,         // 1 hour
   LONG_REST: 480,         // 8 hours
   SEARCH: 30,             // Search hex
+  FORAGE: 240,            // 4 hours - thoroughly search area
   EXPLORATION_MIN: 60,    // 1 hour
   EXPLORATION_MAX: 120,   // 2 hours
   CAMP_SETUP: 30,         // Setting up camp

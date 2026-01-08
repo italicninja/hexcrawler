@@ -186,26 +186,13 @@ function CharacterStats({ character, characterId = 'player' }) {
               {character.rations} days
             </div>
           </div>
-          <div className="stat-item">
-            <div className="stat-label">Water</div>
-            <div className="stat-value" style={{ color: character.water <= 2 ? '#e74c3c' : 'var(--text-color)' }}>
-              {character.water} days
-            </div>
-          </div>
         </div>
 
-        {(character.daysWithoutFood > 0 || character.daysWithoutWater > 0) && (
+        {character.daysWithoutFood > 0 && (
           <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
-            {character.daysWithoutFood > 0 && (
-              <div style={{ color: '#e74c3c', marginBottom: '0.25rem' }}>
-                ⚠ {character.daysWithoutFood} day(s) without food
-              </div>
-            )}
-            {character.daysWithoutWater > 0 && (
-              <div style={{ color: '#e74c3c' }}>
-                ⚠ {character.daysWithoutWater} day(s) without water
-              </div>
-            )}
+            <div style={{ color: '#e74c3c' }}>
+              ⚠ {character.daysWithoutFood} day(s) without food
+            </div>
           </div>
         )}
 

@@ -3,6 +3,7 @@ import { GameStateProvider, useGameState } from './contexts/GameStateContext';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { EventInfoBoxProvider } from './contexts/EventInfoBoxContext';
 import TitleScene from './components/scenes/TitleScene';
+import CharacterCreationScene from './components/scenes/CharacterCreationScene';
 import OverworldScene from './components/scenes/OverworldScene';
 import GameOverScene from './components/scenes/GameOverScene';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -24,6 +25,11 @@ function GameRouter() {
       {state.currentScene === 'title' && (
         <ErrorBoundary>
           <TitleScene />
+        </ErrorBoundary>
+      )}
+      {state.currentScene === 'characterCreation' && (
+        <ErrorBoundary>
+          <CharacterCreationScene />
         </ErrorBoundary>
       )}
       {state.currentScene === 'overworld' && (

@@ -15,6 +15,7 @@ const defaultSettings = {
     interact: ' ', // Space bar
     search: 'Shift',
     rest: 'r',
+    forage: 'f',
     inventory: 'i',
     quests: 'q',
     map: 'm'

@@ -14,6 +14,7 @@ import { Combat } from '../../game/Combat.js';
 import { Enemy } from '../../game/Enemy.js';
 import { Character } from '../../game/Character.js';
 import { Party } from '../../game/Party.js';
+import SurvivalManager from '../../game/SurvivalManager';
 import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
 import PartyList from '../ui/PartyList';
@@ -127,6 +128,15 @@ function OverworldScene() {
   ];
 
   const handleMenuItemClick = (item) => {
+    // If survival is clicked, trigger foraging directly instead of opening panel
+    if (item.id === 'survival') {
+      if (!state.inInterior) {
+        handleForage();
+      } else if (gameLogRef.current) {
+        gameLogRef.current.addMessage('Cannot forage indoors.', 'warning');
+      }
+      return;
+    }
     setOpenPanel(item.id);
   };
 
@@ -173,13 +183,65 @@ function OverworldScene() {
       return;
     }
 
+    // Check terrain traversability
+    const terrainKey = hex.terrain?.key;
+    if (state.playerCharacter && !state.playerCharacter.canCrossTerrain(terrainKey)) {
+      if (gameLogRef.current) {
+        if (terrainKey === 'river') {
+          gameLogRef.current.addMessage('You need a raft or boat to cross the river!', 'warning');
+        } else if (terrainKey === 'water') {
+          gameLogRef.current.addMessage('You need a boat to cross the water!', 'warning');
+        } else {
+          gameLogRef.current.addMessage('You cannot traverse this terrain!', 'warning');
+        }
+      }
+      return;
+    }
+
+    // Consume rations for travel
+    const character = state.playerCharacter;
+    if (character) {
+      if (character.rations > 0) {
+        character.rations--;
+        character.daysWithoutFood = 0;
+        
+        // Update character state
+        dispatch({
+          type: actions.UPDATE_CHARACTER,
+          payload: character
+        });
+        
+        if (gameLogRef.current) {
+          gameLogRef.current.addMessage(
+            `Consumed 1 ration for travel. ${character.rations} days remaining.`,
+            'info'
+          );
+        }
+      } else {
+        character.daysWithoutFood++;
+        
+        // Update character state
+        dispatch({
+          type: actions.UPDATE_CHARACTER,
+          payload: character
+        });
+        
+        if (gameLogRef.current) {
+          gameLogRef.current.addMessage(
+            `No rations available! Days without food: ${character.daysWithoutFood}`,
+            'warning'
+          );
+        }
+      }
+    }
+
     // Update player position
     dispatch({
       type: actions.SET_PLAYER_POSITION,
       payload: { col: hex.col, row: hex.row }
     });
 
-    // Advance time for movement (10 minutes per hex)
+    // Advance time for movement (1 day per hex)
     dispatch({
       type: actions.ADVANCE_TIME,
       payload: TIME_COSTS.MOVEMENT
@@ -194,7 +256,7 @@ function OverworldScene() {
     // Log movement
     if (gameLogRef.current) {
       gameLogRef.current.addMessage(
-        `Moved to hex (${hex.col}, ${hex.row}) - ${hex.terrain.name}`,
+        `Moved to hex (${hex.col}, ${hex.row}) - ${hex.terrain.name} (1 day)`,
         'action'
       );
     }
@@ -228,6 +290,148 @@ function OverworldScene() {
         // Already discovered active event - trigger again
         const choices = getActiveEventChoices(hex.poi);
         showEvent(hex.poi, 'active', choices, (action) => handleEventChoice(action, hex.poi));
+      }
+    }
+  };
+
+  // Get adjacent hexes (6 neighbors in hex grid)
+  const getAdjacentHexes = (col, row) => {
+    const isEvenRow = row % 2 === 0;
+    const offsets = isEvenRow
+      ? [
+          { dc: -1, dr: 0 },  // left
+          { dc: 1, dr: 0 },   // right
+          { dc: -1, dr: -1 }, // top-left
+          { dc: 0, dr: -1 },  // top-right
+          { dc: -1, dr: 1 },  // bottom-left
+          { dc: 0, dr: 1 }    // bottom-right
+        ]
+      : [
+          { dc: -1, dr: 0 },  // left
+          { dc: 1, dr: 0 },   // right
+          { dc: 0, dr: -1 },  // top-left
+          { dc: 1, dr: -1 },  // top-right
+          { dc: 0, dr: 1 },   // bottom-left
+          { dc: 1, dr: 1 }    // bottom-right
+        ];
+
+    const adjacent = [];
+    offsets.forEach(({ dc, dr }) => {
+      const hex = state.mapData?.find(h => h.col === col + dc && h.row === row + dr);
+      if (hex) {
+        adjacent.push(hex);
+      }
+    });
+
+    return adjacent;
+  };
+
+  // Handle foraging
+  const handleForage = () => {
+    // Block foraging in interiors
+    if (state.inInterior) {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage('Cannot forage indoors.', 'warning');
+      }
+      return;
+    }
+
+    if (!state.playerCharacter) {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage('No player character found.', 'error');
+      }
+      return;
+    }
+
+    // Get current hex
+    const currentHex = state.mapData?.find(
+      hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
+    );
+    
+    if (!currentHex) {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage('Cannot determine current hex.', 'error');
+      }
+      return;
+    }
+
+    // Get current hex + adjacent hexes
+    const adjacentHexes = getAdjacentHexes(state.playerPosition.col, state.playerPosition.row);
+    const allHexes = [currentHex, ...adjacentHexes];
+
+    // Check if any hex is on cooldown (3 days)
+    const currentDay = state.gameTime.day;
+    const FORAGE_COOLDOWN = 3;
+
+    if (!state.playerCharacter.foragedHexes) {
+      state.playerCharacter.foragedHexes = {};
+    }
+
+    const hexesOnCooldown = allHexes.filter(hex => {
+      const hexKey = `${hex.col},${hex.row}`;
+      const lastForaged = state.playerCharacter.foragedHexes[hexKey];
+      return lastForaged && (currentDay - lastForaged < FORAGE_COOLDOWN);
+    });
+
+    if (hexesOnCooldown.length === allHexes.length) {
+      if (gameLogRef.current) {
+        const daysRemaining = FORAGE_COOLDOWN - (currentDay - state.playerCharacter.foragedHexes[`${currentHex.col},${currentHex.row}`]);
+        gameLogRef.current.addMessage(
+          `All hexes in this area have been foraged recently. Wait ${daysRemaining} more day(s).`,
+          'warning'
+        );
+      }
+      return;
+    }
+
+    if (hexesOnCooldown.length > 0) {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage(
+          `${hexesOnCooldown.length} of ${allHexes.length} hexes already foraged recently. Searching remaining hexes...`,
+          'info'
+        );
+      }
+    }
+
+    // Create a proper copy of the character
+    const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+
+    // Create dice roller (no seed - we want random rolls, not deterministic)
+    const diceRoller = new DiceRoller();
+
+    // Perform forage check
+    const result = SurvivalManager.forage(updatedCharacter, allHexes, diceRoller, currentDay);
+
+    // Mark all hexes as foraged with current day
+    result.hexesForaged.forEach(hexKey => {
+      updatedCharacter.foragedHexes[hexKey] = currentDay;
+    });
+
+    // Log for debugging
+    console.log('Foraging complete:', {
+      currentDay,
+      hexesForaged: result.hexesForaged,
+      foragedHexes: updatedCharacter.foragedHexes
+    });
+
+    // Update character state
+    dispatch({
+      type: actions.UPDATE_CHARACTER,
+      payload: updatedCharacter
+    });
+
+    // Advance time (foraging takes 4 hours)
+    dispatch({
+      type: actions.ADVANCE_TIME,
+      payload: TIME_COSTS.FORAGE
+    });
+
+    // Show result in game log
+    if (gameLogRef.current) {
+      if (result.success) {
+        gameLogRef.current.addMessage(result.message, 'success');
+      } else {
+        gameLogRef.current.addMessage(result.message, 'warning');
       }
     }
   };
@@ -540,6 +744,11 @@ function OverworldScene() {
     onRest: () => {
       setOpenPanel('rest');
     },
+    onForage: () => {
+      if (!state.inInterior) {
+        handleForage();
+      }
+    },
     onInventory: () => {
       setOpenPanel('equipment');
     },
@@ -680,6 +889,55 @@ function OverworldScene() {
     ? state.interiorMaps[`${state.currentPOI.col},${state.currentPOI.row}`]
     : null;
 
+  // Check foraging status for indicator
+  const getForageStatus = () => {
+    // Disable foraging in interiors
+    if (state.inInterior) {
+      return { ready: false, message: 'Cannot forage indoors' };
+    }
+
+    if (!state.playerCharacter || !state.mapData) {
+      return { ready: false, message: 'Not ready' };
+    }
+
+    const currentHex = state.mapData?.find(
+      hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
+    );
+    
+    if (!currentHex) {
+      return { ready: false, message: 'Invalid location' };
+    }
+
+    const adjacentHexes = getAdjacentHexes(state.playerPosition.col, state.playerPosition.row);
+    const allHexes = [currentHex, ...adjacentHexes];
+    const currentDay = state.gameTime.day;
+    const FORAGE_COOLDOWN = 3;
+
+    if (!state.playerCharacter.foragedHexes) {
+      return { ready: true, message: 'Ready to forage' };
+    }
+
+    const hexesOnCooldown = allHexes.filter(hex => {
+      const hexKey = `${hex.col},${hex.row}`;
+      const lastForaged = state.playerCharacter.foragedHexes[hexKey];
+      return lastForaged && (currentDay - lastForaged < FORAGE_COOLDOWN);
+    });
+
+    if (hexesOnCooldown.length === allHexes.length) {
+      const hexKey = `${currentHex.col},${currentHex.row}`;
+      const daysRemaining = FORAGE_COOLDOWN - (currentDay - state.playerCharacter.foragedHexes[hexKey]);
+      return { ready: false, message: `Cooldown: ${daysRemaining}d` };
+    }
+
+    if (hexesOnCooldown.length > 0) {
+      return { ready: true, message: `Partial: ${allHexes.length - hexesOnCooldown.length}/${allHexes.length} hexes` };
+    }
+
+    return { ready: true, message: 'Ready to forage' };
+  };
+
+  const forageStatus = getForageStatus();
+
   return (
     <div className="game-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       {/* Game Header with Time Display */}
@@ -709,6 +967,37 @@ function OverworldScene() {
             borderRadius: '4px'
           }}>
             {formatTime(state.gameTime)}
+          </div>
+          <div style={{
+            fontSize: '0.95rem',
+            fontWeight: '500',
+            padding: '0.25rem 0.75rem',
+            backgroundColor: 'var(--control-bg)',
+            borderRadius: '4px',
+            color: state.playerCharacter?.rations <= 2 ? '#e74c3c' : 'var(--text-color)'
+          }}>
+            Rations: {state.playerCharacter?.rations || 0}
+          </div>
+          <div style={{
+            fontSize: '0.95rem',
+            fontWeight: '500',
+            padding: '0.25rem 0.75rem',
+            backgroundColor: 'var(--control-bg)',
+            borderRadius: '4px',
+            color: '#f39c12'
+          }}>
+            Gold: {state.playerCharacter?.gold || 0}
+          </div>
+          {/* Forage Status Indicator */}
+          <div style={{
+            fontSize: '0.95rem',
+            fontWeight: '500',
+            color: forageStatus.ready ? '#2ecc71' : '#e74c3c',
+            cursor: 'default',
+            userSelect: 'none'
+          }}
+          title={forageStatus.message}>
+            Forage
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             Position: ({state.playerPosition.col}, {state.playerPosition.row})
@@ -832,7 +1121,7 @@ function OverworldScene() {
         onClose={handleClosePanel}
         width="600px"
       >
-        <SurvivalMenu />
+        <SurvivalMenu gameLogRef={gameLogRef} />
       </MenuPanel>
 
       <MenuPanel

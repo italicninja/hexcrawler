@@ -46,7 +46,9 @@ function ExplorationScene() {
   // Handle hex movement
   const handleHexDoubleClick = (hex) => {
     if (!hex.terrain.walkable) {
-      console.log('Cannot move to unwalkable hex');
+      if (showMessage) {
+        showMessage('Cannot Move', 'This hex is not walkable (wall or obstacle)', 'info', true);
+      }
       return;
     }
 
@@ -59,7 +61,9 @@ function ExplorationScene() {
     );
 
     if (distance > 1) {
-      console.log('Too far to move in one turn');
+      if (showMessage) {
+        showMessage('Too Far', `This hex is ${distance} hexes away. You can only move 1 hex at a time.`, 'info', true);
+      }
       return;
     }
 
@@ -214,6 +218,14 @@ function ExplorationScene() {
           playerPosition={playerPosition}
           interiorMap={interiorMap}
           poiKey={poiKey}
+          onMoveToHex={(hex) => {
+            setPlayerPosition({ col: hex.col, row: hex.row });
+            setSelectedHex(hex);
+            // Check for hazards on entered hex
+            if (hex.content === 'hazard') {
+              handleHazardTrigger(hex);
+            }
+          }}
         />
       </div>
 

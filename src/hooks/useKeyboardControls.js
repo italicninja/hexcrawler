@@ -13,6 +13,7 @@ import { useSettings } from '../contexts/SettingsContext';
  * @param {function} callbacks.onInteract - Called when interact key is pressed
  * @param {function} callbacks.onSearch - Called when search key is pressed
  * @param {function} callbacks.onRest - Called when rest key is pressed
+ * @param {function} callbacks.onForage - Called when forage key is pressed
  * @param {function} callbacks.onInventory - Called when inventory key is pressed
  * @param {function} callbacks.onQuests - Called when quests key is pressed
  * @param {function} callbacks.onMap - Called when map key is pressed
@@ -77,6 +78,12 @@ export function useKeyboardControls(callbacks = {}, enabled = true) {
     if (key === keybindings.rest?.toLowerCase()) {
       event.preventDefault();
       callbacks.onRest?.();
+      return;
+    }
+
+    if (key === keybindings.forage?.toLowerCase()) {
+      event.preventDefault();
+      callbacks.onForage?.();
       return;
     }
 

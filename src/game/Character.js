@@ -65,10 +65,9 @@ export class Character {
 
         // Survival mechanics
         this.rations = 7; // Days of food (default 7)
-        this.water = 7; // Days of water (default 7)
         this.daysWithoutFood = 0; // Counter for starvation
-        this.daysWithoutWater = 0; // Counter for dehydration
         this.exhaustionLevel = 0; // Exhaustion level (0-6)
+        this.foragedHexes = {}; // Track hex forage cooldowns: { "col,row": lastForagedDay }
 
         // XP and leveling
         this.xp = 0; // Current experience points
@@ -379,39 +378,120 @@ export class Character {
      * Apply class-specific modifiers
      */
     applyClassModifiers(charClass) {
-        if (charClass === 'paladin') {
-            this.hitDie = 'd10';
-            this.abilities.strength = 16; // Primary stat
-            this.abilities.charisma = 14; // Secondary stat
-            this.abilities.constitution = 14;
-            this.abilities.wisdom = 12;
-            this.abilities.dexterity = 10;
-            this.abilities.intelligence = 8;
+        const classKey = charClass.toLowerCase();
+        
+        // Class definitions matching CharacterCreationScene
+        const classConfigs = {
+            barbarian: {
+                hitDie: 'd12',
+                abilities: { strength: 15, dexterity: 13, constitution: 14, intelligence: 8, wisdom: 12, charisma: 10 },
+                armorClass: 13, // Unarmored defense (10 + DEX + CON)
+                proficiencies: ['Light Armor', 'Medium Armor', 'Shields', 'Simple Weapons', 'Martial Weapons', 'Strength Saves', 'Constitution Saves'],
+                abilities_list: [{ name: 'Rage', uses: 2, maxUses: 2 }]
+            },
+            bard: {
+                hitDie: 'd8',
+                abilities: { strength: 8, dexterity: 14, constitution: 12, intelligence: 10, wisdom: 13, charisma: 15 },
+                armorClass: 14, // Light armor
+                proficiencies: ['Light Armor', 'Simple Weapons', 'Hand Crossbows', 'Longswords', 'Rapiers', 'Shortswords', 'Dexterity Saves', 'Charisma Saves'],
+                abilities_list: [{ name: 'Bardic Inspiration', uses: 2, maxUses: 2 }]
+            },
+            cleric: {
+                hitDie: 'd8',
+                abilities: { strength: 14, dexterity: 10, constitution: 13, intelligence: 8, wisdom: 15, charisma: 12 },
+                armorClass: 18, // Chain mail + shield
+                proficiencies: ['Light Armor', 'Medium Armor', 'Shields', 'Simple Weapons', 'Wisdom Saves', 'Charisma Saves'],
+                abilities_list: [{ name: 'Channel Divinity', uses: 1, maxUses: 1 }]
+            },
+            druid: {
+                hitDie: 'd8',
+                abilities: { strength: 10, dexterity: 12, constitution: 14, intelligence: 13, wisdom: 15, charisma: 8 },
+                armorClass: 13, // Hide armor
+                proficiencies: ['Light Armor (non-metal)', 'Medium Armor (non-metal)', 'Shields (non-metal)', 'Clubs', 'Daggers', 'Darts', 'Javelins', 'Maces', 'Quarterstaffs', 'Scimitars', 'Sickles', 'Slings', 'Spears', 'Intelligence Saves', 'Wisdom Saves'],
+                abilities_list: [{ name: 'Wild Shape', uses: 2, maxUses: 2 }]
+            },
+            fighter: {
+                hitDie: 'd10',
+                abilities: { strength: 15, dexterity: 14, constitution: 13, intelligence: 8, wisdom: 10, charisma: 12 },
+                armorClass: 18, // Chain mail + shield
+                proficiencies: ['All Armor', 'All Shields', 'Simple Weapons', 'Martial Weapons', 'Strength Saves', 'Constitution Saves'],
+                abilities_list: [{ name: 'Second Wind', uses: 1, maxUses: 1 }]
+            },
+            monk: {
+                hitDie: 'd8',
+                abilities: { strength: 10, dexterity: 15, constitution: 13, intelligence: 8, wisdom: 14, charisma: 12 },
+                armorClass: 14, // Unarmored defense (10 + DEX + WIS)
+                proficiencies: ['Simple Weapons', 'Shortswords', 'Strength Saves', 'Dexterity Saves'],
+                abilities_list: [{ name: 'Ki Points', uses: 1, maxUses: 1 }, { name: 'Martial Arts', uses: -1, maxUses: -1 }]
+            },
+            paladin: {
+                hitDie: 'd10',
+                abilities: { strength: 15, dexterity: 10, constitution: 13, intelligence: 8, wisdom: 12, charisma: 14 },
+                armorClass: 18, // Chain mail + shield
+                proficiencies: ['All Armor', 'All Shields', 'Simple Weapons', 'Martial Weapons', 'Wisdom Saves', 'Charisma Saves'],
+                abilities_list: [{ name: 'Divine Sense', uses: 4, maxUses: 4 }, { name: 'Lay on Hands', uses: 5, maxUses: 5 }]
+            },
+            ranger: {
+                hitDie: 'd10',
+                abilities: { strength: 12, dexterity: 15, constitution: 13, intelligence: 8, wisdom: 14, charisma: 10 },
+                armorClass: 15, // Studded leather
+                proficiencies: ['Light Armor', 'Medium Armor', 'Shields', 'Simple Weapons', 'Martial Weapons', 'Strength Saves', 'Dexterity Saves'],
+                abilities_list: [{ name: 'Favored Enemy', uses: -1, maxUses: -1 }]
+            },
+            rogue: {
+                hitDie: 'd8',
+                abilities: { strength: 8, dexterity: 15, constitution: 12, intelligence: 14, wisdom: 13, charisma: 10 },
+                armorClass: 14, // Leather armor
+                proficiencies: ['Light Armor', 'Simple Weapons', 'Hand Crossbows', 'Longswords', 'Rapiers', 'Shortswords', 'Dexterity Saves', 'Intelligence Saves'],
+                abilities_list: [{ name: 'Sneak Attack', uses: -1, maxUses: -1 }]
+            },
+            sorcerer: {
+                hitDie: 'd6',
+                abilities: { strength: 8, dexterity: 12, constitution: 14, intelligence: 10, wisdom: 13, charisma: 15 },
+                armorClass: 11, // No armor (10 + DEX)
+                proficiencies: ['Daggers', 'Darts', 'Slings', 'Quarterstaffs', 'Light Crossbows', 'Constitution Saves', 'Charisma Saves'],
+                abilities_list: [{ name: 'Sorcery Points', uses: 1, maxUses: 1 }]
+            },
+            warlock: {
+                hitDie: 'd8',
+                abilities: { strength: 8, dexterity: 13, constitution: 14, intelligence: 12, wisdom: 10, charisma: 15 },
+                armorClass: 12, // Leather armor
+                proficiencies: ['Light Armor', 'Simple Weapons', 'Wisdom Saves', 'Charisma Saves'],
+                abilities_list: [{ name: 'Eldritch Invocations', uses: -1, maxUses: -1 }]
+            },
+            wizard: {
+                hitDie: 'd6',
+                abilities: { strength: 8, dexterity: 13, constitution: 14, intelligence: 15, wisdom: 12, charisma: 10 },
+                armorClass: 11, // No armor (10 + DEX)
+                proficiencies: ['Daggers', 'Darts', 'Slings', 'Quarterstaffs', 'Light Crossbows', 'Intelligence Saves', 'Wisdom Saves'],
+                abilities_list: [{ name: 'Arcane Recovery', uses: 1, maxUses: 1 }]
+            }
+        };
 
-            // Calculate HP
-            this.maxHP = 10 + this.getModifier('constitution');
-            this.currentHP = this.maxHP;
-
-            // AC (assume chain mail + shield)
-            this.armorClass = 18;
-
-            // Proficiencies (stub)
-            this.proficiencies = [
-                'All Armor',
-                'All Shields',
-                'Simple Weapons',
-                'Martial Weapons',
-                'Wisdom Saves',
-                'Charisma Saves'
-            ];
-
-            // Placeholder for abilities
-            this.abilities_list = [
-                { name: 'Divine Sense', uses: 4, maxUses: 4 },
-                { name: 'Lay on Hands', uses: 5, maxUses: 5 }
-            ];
+        const config = classConfigs[classKey];
+        if (!config) {
+            console.warn(`Unknown class: ${charClass}. Defaulting to Fighter.`);
+            this.applyClassModifiers('fighter');
+            return;
         }
-        // Note: Other classes (fighter, rogue, cleric, wizard, ranger) are applied via NPCGenerator
+
+        // Apply class configuration
+        this.hitDie = config.hitDie;
+        this.abilities = { ...config.abilities };
+        
+        // Calculate HP (max hit die value at level 1 + CON modifier)
+        const hitDieValue = parseInt(config.hitDie.substring(1));
+        this.maxHP = hitDieValue + this.getModifier('constitution');
+        this.currentHP = this.maxHP;
+
+        // Set AC
+        this.armorClass = config.armorClass;
+
+        // Set proficiencies
+        this.proficiencies = [...config.proficiencies];
+
+        // Set class abilities
+        this.abilities_list = config.abilities_list.map(ability => ({ ...ability }));
     }
 
     /**
@@ -500,6 +580,42 @@ export class Character {
     }
 
     /**
+     * Check if character has a raft (allows river crossing)
+     * @returns {boolean}
+     */
+    hasRaft() {
+        return this.inventory.some(item => 
+            item.effects && item.effects.allowsRiverCrossing === true
+        );
+    }
+
+    /**
+     * Check if character has a boat (allows water crossing)
+     * @returns {boolean}
+     */
+    hasBoat() {
+        return this.inventory.some(item => 
+            item.effects && item.effects.allowsWaterCrossing === true
+        );
+    }
+
+    /**
+     * Check if character can cross a specific terrain type
+     * @param {string} terrainKey - Terrain type key (e.g., 'river', 'water')
+     * @returns {boolean}
+     */
+    canCrossTerrain(terrainKey) {
+        if (terrainKey === 'river') {
+            return this.hasRaft() || this.hasBoat();
+        }
+        if (terrainKey === 'water') {
+            return this.hasBoat();
+        }
+        // All other terrain types are passable
+        return true;
+    }
+
+    /**
      * Increase piety (from praying at shrines)
      */
     increasePiety(amount = 1) {
@@ -584,10 +700,9 @@ export class Character {
             baseStats: this.baseStats ? { ...this.baseStats } : undefined,
             // Survival mechanics
             rations: this.rations,
-            water: this.water,
             daysWithoutFood: this.daysWithoutFood,
-            daysWithoutWater: this.daysWithoutWater,
             exhaustionLevel: this.exhaustionLevel,
+            foragedHexes: this.foragedHexes,
             // XP and leveling
             xp: this.xp,
             xpToNextLevel: this.xpToNextLevel,
@@ -644,10 +759,15 @@ export class Character {
 
         // Survival mechanics
         char.rations = data.rations !== undefined ? data.rations : 7;
-        char.water = data.water !== undefined ? data.water : 7;
         char.daysWithoutFood = data.daysWithoutFood || 0;
-        char.daysWithoutWater = data.daysWithoutWater || 0;
         char.exhaustionLevel = data.exhaustionLevel || 0;
+        // Handle both old Set format and new object format for backwards compatibility
+        if (Array.isArray(data.foragedHexes)) {
+            // Old format - convert to empty object (reset cooldowns)
+            char.foragedHexes = {};
+        } else {
+            char.foragedHexes = data.foragedHexes || {};
+        }
 
         // XP and leveling
         char.xp = data.xp !== undefined ? data.xp : 0;
