@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 
 const GameLogContext = createContext(null);
@@ -11,7 +11,6 @@ const MAX_MESSAGES = 100; // Limit to prevent memory leaks
  */
 export function GameLogProvider({ children }) {
   const [messages, setMessages] = useState([]);
-  const messagesEndRef = useRef(null);
 
   /**
    * Add a message to the game log
@@ -37,23 +36,10 @@ export function GameLogProvider({ children }) {
     setMessages([]);
   }, []);
 
-  /**
-   * Scroll to bottom of log
-   */
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  // Auto-scroll when new messages arrive
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
   const value = {
     messages,
     addMessage,
-    clearMessages,
-    messagesEndRef
+    clearMessages
   };
 
   return (

@@ -188,7 +188,7 @@ export function forage(character, hexes, diceRoller, currentDay) {
     return {
       success: true,
       rationsGained,
-      message: `Foraging successful! Found ${rationsGained} day(s) of food (${baseRations} base + ${goodHexCount} from rich terrain). Searched ${validHexes.length} hexes. (Roll: ${result.roll} + ${result.modifier} = ${result.total} vs DC ${averageDC})`,
+      message: `Foraging successful! Found ${rationsGained} day(s) of food (${baseRations} base + ${goodHexCount} from rich terrain). Searched ${validHexes.length} hexes.`,
       roll: result,
       hexesForaged,
       hexCount: validHexes.length,
@@ -199,7 +199,7 @@ export function forage(character, hexes, diceRoller, currentDay) {
     return {
       success: false,
       rationsGained: 0,
-      message: `Foraging failed. No food found in ${validHexes.length} hexes. (Roll: ${result.roll} + ${result.modifier} = ${result.total} vs DC ${averageDC})`,
+      message: `Foraging failed. No food found in ${validHexes.length} hexes.`,
       roll: result,
       hexesForaged,
       hexCount: validHexes.length

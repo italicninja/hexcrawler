@@ -271,6 +271,7 @@ addMessage('Your message here', 'info');
 4. **Multi-line for complex data** - Use `\n` for structured info
 5. **Always log user actions** - Movement, searches, interactions
 6. **Log outcomes** - Success/failure, rewards, consequences
+7. **Put dice rolls first** - Always show roll results at the start of messages (e.g., `Survival 10+3=13 vs DC 12: Found 9 rations`)
 
 **Examples:**
 ```javascript
@@ -283,14 +284,20 @@ addMessage('Discovered: Ancient Ruins (CR 3)', 'discovery');
 // POI interaction
 addMessage('Prayed at Shrine of Pelor. +1 Piety', 'poi-interaction');
 
-// Search result (multi-line)
+// Skill check with result (dice rolls FIRST)
+addMessage('Survival 10+3=13 vs DC 12: Found 9 rations (6 rich hexes)', 'success');
+
+// Search result (multi-line with roll first)
 addMessage(
-  `Perception Check: 18\n\nChallenge Rating: 3\nExpect goblins and traps\nEstimated size: 15x10 hexes`,
+  `Perception 18+2=20 vs DC 15: Success\n\nChallenge Rating: 3\nExpect goblins and traps\nEstimated size: 15x10 hexes`,
   'info'
 );
 
 // Combat
-addMessage('Defeated Goblin! +50 XP, +15 gold', 'success');
+addMessage('Attack 15+5=20 vs AC 16: Hit! 8 damage', 'success');
+
+// Failed check (dice rolls FIRST)
+addMessage('Stealth 3+2=5 vs DC 12: Failed! Guards are alerted', 'warning');
 
 // Blocked action
 addMessage('You need a raft to cross the river!', 'warning');

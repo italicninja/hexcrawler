@@ -72,13 +72,11 @@ function SurvivalMenu({ onClose }) {
     });
 
     if (hexesOnCooldown.length === allHexes.length) {
-      if (gameLogRef?.current) {
-        const daysRemaining = FORAGE_COOLDOWN - (currentDay - character.foragedHexes[`${currentHex.col},${currentHex.row}`]);
-        addMessage(
-          `All hexes in this area have been foraged recently. Wait ${daysRemaining} more day(s).`,
-          'warning'
-        );
-      }
+      const daysRemaining = FORAGE_COOLDOWN - (currentDay - character.foragedHexes[`${currentHex.col},${currentHex.row}`]);
+      addMessage(
+        `All hexes in this area have been foraged recently. Wait ${daysRemaining} more day(s).`,
+        'warning'
+      );
       return;
     }
 
@@ -108,12 +106,10 @@ function SurvivalMenu({ onClose }) {
     });
 
     // Show result in game log
-    if (gameLogRef?.current) {
-      if (result.success) {
-        addMessage(result.message, 'success');
-      } else {
-        addMessage(result.message, 'warning');
-      }
+    if (result.success) {
+      addMessage(`Survival ${result.roll.roll}+${result.roll.modifier}=${result.roll.total} vs DC ${result.roll.dc}: Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`, 'success');
+    } else {
+      addMessage(`Survival ${result.roll.roll}+${result.roll.modifier}=${result.roll.total} vs DC ${result.roll.dc}: No food found`, 'warning');
     }
 
     setIsForaging(false);

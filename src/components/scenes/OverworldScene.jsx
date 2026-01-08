@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useGameLog } from '../../contexts/GameLogContext';
 // import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
 import { useMapGeneration } from '../../hooks/useMapGeneration';
 import { useInfiniteTerrainExpansion } from '../../hooks/useInfiniteTerrainExpansion';
@@ -33,6 +34,7 @@ import MenuPanel from '../ui/MenuPanel';
 function OverworldScene() {
   const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } = useGameState();
   const { settings } = useSettings();
+  const { addMessage } = useGameLog();
   // const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
   const isBlockingMovement = false;
   const [openPanel, setOpenPanel] = useState(null);
@@ -42,7 +44,6 @@ function OverworldScene() {
   const [viewportSize, setViewportSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   const terrainGeneratorRef = useRef(null);
-  const gameLogRef = useRef(null);
 
   // Initialize terrain generator
   useEffect(() => {
@@ -66,7 +67,7 @@ function OverworldScene() {
 
   // Use custom hooks for map generation and expansion
   useMapGeneration(terrainGeneratorRef, viewportSize);
-  useInfiniteTerrainExpansion(terrainGeneratorRef, gameLogRef, viewportSize);
+  useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize);
 
   // Update selected character when player character changes
   useEffect(() => {
@@ -132,8 +133,8 @@ function OverworldScene() {
     if (item.id === 'survival') {
       if (!state.inInterior) {
         handleForage();
-      } else if (gameLogRef.current) {
-        gameLogRef.current.addMessage('Cannot forage indoors.', 'warning');
+      } else {
+        addMessage('Cannot forage indoors.', 'warning');
       }
       return;
     }
@@ -153,17 +154,15 @@ function OverworldScene() {
 
     // Block movement if active event is in progress
     if (isBlockingMovement) {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage('You must resolve the current event first!', 'warning');
-      }
+      addMessage('You must resolve the current event first!', 'warning');
       return;
     }
 
     // Check if hex is reachable
     if (isHexReachable(hex.col, hex.row)) {
       handleMoveToHex(hex);
-    } else if (gameLogRef.current) {
-      gameLogRef.current.addMessage('That hex is too far away!', 'warning');
+    } else {
+      addMessage('That hex is too far away!', 'warning');
     }
   };
 
@@ -177,23 +176,19 @@ function OverworldScene() {
 
     // Block movement if active event is in progress
     if (isBlockingMovement) {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage('You must resolve the current event first!', 'warning');
-      }
+      addMessage('You must resolve the current event first!', 'warning');
       return;
     }
 
     // Check terrain traversability
     const terrainKey = hex.terrain?.key;
     if (state.playerCharacter && !state.playerCharacter.canCrossTerrain(terrainKey)) {
-      if (gameLogRef.current) {
-        if (terrainKey === 'river') {
-          gameLogRef.current.addMessage('You need a raft or boat to cross the river!', 'warning');
-        } else if (terrainKey === 'water') {
-          gameLogRef.current.addMessage('You need a boat to cross the water!', 'warning');
-        } else {
-          gameLogRef.current.addMessage('You cannot traverse this terrain!', 'warning');
-        }
+      if (terrainKey === 'river') {
+        addMessage('You need a raft or boat to cross the river!', 'warning');
+      } else if (terrainKey === 'water') {
+        addMessage('You need a boat to cross the water!', 'warning');
+      } else {
+        addMessage('You cannot traverse this terrain!', 'warning');
       }
       return;
     }
@@ -211,12 +206,10 @@ function OverworldScene() {
           payload: character
         });
         
-        if (gameLogRef.current) {
-          gameLogRef.current.addMessage(
-            `Consumed 1 ration for travel. ${character.rations} days remaining.`,
-            'info'
-          );
-        }
+        addMessage(
+          `Consumed 1 ration for travel. ${character.rations} days remaining.`,
+          'info'
+        );
       } else {
         character.daysWithoutFood++;
         
@@ -226,12 +219,10 @@ function OverworldScene() {
           payload: character
         });
         
-        if (gameLogRef.current) {
-          gameLogRef.current.addMessage(
-            `No rations available! Days without food: ${character.daysWithoutFood}`,
-            'warning'
-          );
-        }
+        addMessage(
+          `No rations available! Days without food: ${character.daysWithoutFood}`,
+          'warning'
+        );
       }
     }
 
@@ -254,12 +245,10 @@ function OverworldScene() {
     });
 
     // Log movement
-    if (gameLogRef.current) {
-      gameLogRef.current.addMessage(
-        `Moved to hex (${hex.col}, ${hex.row}) - ${hex.terrain.name} (1 day)`,
-        'action'
-      );
-    }
+    addMessage(
+      `Moved to hex (${hex.col}, ${hex.row}) - ${hex.terrain.name} (1 day)`,
+      'action'
+    );
 
     // Check for POI discovery
     if (hex.poi) {
@@ -273,12 +262,10 @@ function OverworldScene() {
         });
 
         // Log discovery
-        if (gameLogRef.current) {
-          gameLogRef.current.addMessage(
-            `You discovered: ${hex.poi.name}!`,
-            'discovery'
-          );
-        }
+        addMessage(
+          `You discovered: ${hex.poi.name}!`,
+          'discovery'
+        );
 
         // Trigger event based on type
         if (hex.poi.eventType === 'active') {
@@ -330,16 +317,12 @@ function OverworldScene() {
   const handleForage = () => {
     // Block foraging in interiors
     if (state.inInterior) {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage('Cannot forage indoors.', 'warning');
-      }
+      addMessage('Cannot forage indoors.', 'warning');
       return;
     }
 
     if (!state.playerCharacter) {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage('No player character found.', 'error');
-      }
+      addMessage('No player character found.', 'error');
       return;
     }
 
@@ -349,9 +332,7 @@ function OverworldScene() {
     );
     
     if (!currentHex) {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage('Cannot determine current hex.', 'error');
-      }
+      addMessage('Cannot determine current hex.', 'error');
       return;
     }
 
@@ -374,23 +355,19 @@ function OverworldScene() {
     });
 
     if (hexesOnCooldown.length === allHexes.length) {
-      if (gameLogRef.current) {
-        const daysRemaining = FORAGE_COOLDOWN - (currentDay - state.playerCharacter.foragedHexes[`${currentHex.col},${currentHex.row}`]);
-        gameLogRef.current.addMessage(
-          `All hexes in this area have been foraged recently. Wait ${daysRemaining} more day(s).`,
-          'warning'
-        );
-      }
+      const daysRemaining = FORAGE_COOLDOWN - (currentDay - state.playerCharacter.foragedHexes[`${currentHex.col},${currentHex.row}`]);
+      addMessage(
+        `All hexes in this area have been foraged recently. Wait ${daysRemaining} more day(s).`,
+        'warning'
+      );
       return;
     }
 
     if (hexesOnCooldown.length > 0) {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage(
-          `${hexesOnCooldown.length} of ${allHexes.length} hexes already foraged recently. Searching remaining hexes...`,
-          'info'
-        );
-      }
+      addMessage(
+        `${hexesOnCooldown.length} of ${allHexes.length} hexes already foraged recently. Searching remaining hexes...`,
+        'info'
+      );
     }
 
     // Create a proper copy of the character
@@ -427,12 +404,10 @@ function OverworldScene() {
     });
 
     // Show result in game log
-    if (gameLogRef.current) {
-      if (result.success) {
-        gameLogRef.current.addMessage(result.message, 'success');
-      } else {
-        gameLogRef.current.addMessage(result.message, 'warning');
-      }
+    if (result.success) {
+      addMessage(`Survival ${result.roll.roll}+${result.roll.modifier}=${result.roll.total} vs DC ${result.roll.dc}: Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`, 'success');
+    } else {
+      addMessage(`Survival ${result.roll.roll}+${result.roll.modifier}=${result.roll.total} vs DC ${result.roll.dc}: No food found`, 'warning');
     }
   };
 
@@ -446,12 +421,10 @@ function OverworldScene() {
   // Handle event choice (combat, flee, etc.)
   const handleEventChoice = (action, poi) => {
     if (action === 'fight') {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage(
-          `You engage ${poi.name} in combat!`,
-          'encounter'
-        );
-      }
+      addMessage(
+        `You engage ${poi.name} in combat!`,
+        'encounter'
+      );
 
       // TODO: Future tactical combat will create a combat canvas here
       // For now, auto-win combat simulation
@@ -523,24 +496,22 @@ function OverworldScene() {
       const fullLog = combat.generateCombatLog();
 
       // Log result to game log
-      if (gameLogRef.current) {
-        if (result.victory) {
-          gameLogRef.current.addMessage(
-            `Victory! Defeated ${poi.creatures}.`,
-            'success'
-          );
-          if (result.xpPerCharacter > 0) {
-            gameLogRef.current.addMessage(
-              `Earned ${result.xpPerCharacter} XP per party member.`,
-              'info'
-            );
-          }
-        } else {
-          gameLogRef.current.addMessage(
-            `Defeat! The party was defeated by ${poi.creatures}.`,
-            'error'
+      if (result.victory) {
+        addMessage(
+          `Victory! Defeated ${poi.creatures}.`,
+          'success'
+        );
+        if (result.xpPerCharacter > 0) {
+          addMessage(
+            `Earned ${result.xpPerCharacter} XP per party member.`,
+            'info'
           );
         }
+      } else {
+        addMessage(
+          `Defeat! The party was defeated by ${poi.creatures}.`,
+          'error'
+        );
       }
 
       if (isWiped) {
@@ -756,9 +727,7 @@ function OverworldScene() {
       setOpenPanel('quests');
     },
     onMap: () => {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage('Map view not yet implemented', 'info');
-      }
+      addMessage('Map view not yet implemented', 'info');
     }
   };
 
@@ -809,9 +778,7 @@ function OverworldScene() {
     console.log('Interior player position:', state.interiorPlayerPosition);
     
     if (!hex.terrain.walkable) {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage('Cannot move to unwalkable terrain', 'warning');
-      }
+      addMessage('Cannot move to unwalkable terrain', 'warning');
       return;
     }
 
@@ -831,9 +798,7 @@ function OverworldScene() {
     console.log('Distance:', distance);
 
     if (distance > 1) {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage('Too far to move in one turn', 'warning');
-      }
+      addMessage('Too far to move in one turn', 'warning');
       return;
     }
 
@@ -867,9 +832,7 @@ function OverworldScene() {
         setOpenPanel('rest');
         break;
       case 'shop':
-        if (gameLogRef.current) {
-          gameLogRef.current.addMessage('Shop interface coming soon!', 'info');
-        }
+        addMessage('Shop interface coming soon!', 'info');
         break;
       case 'questBoard':
         setOpenPanel('quests');
@@ -877,9 +840,7 @@ function OverworldScene() {
       case 'blacksmith':
       case 'temple':
       case 'house':
-        if (gameLogRef.current) {
-          gameLogRef.current.addMessage(`${buildingType} services coming soon!`, 'info');
-        }
+        addMessage(`${buildingType} services coming soon!`, 'info');
         break;
     }
   };
@@ -1121,7 +1082,7 @@ function OverworldScene() {
         onClose={handleClosePanel}
         width="600px"
       >
-        <SurvivalMenu gameLogRef={gameLogRef} />
+        <SurvivalMenu />
       </MenuPanel>
 
       <MenuPanel
@@ -1144,7 +1105,7 @@ function OverworldScene() {
 
       {/* Game Log */}
       <div className="game-log-container" style={{ display: 'flex', position: 'relative' }}>
-        <GameLog ref={gameLogRef} />
+        <GameLog />
         {/* EventInfoBox positioned in bottom right */}
       </div>
     </div>
