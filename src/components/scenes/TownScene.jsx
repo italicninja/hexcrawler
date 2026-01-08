@@ -18,22 +18,22 @@ function TownScene() {
   const { addMessage } = useGameLog();
   const [selectedHex, setSelectedHex] = useState(null);
 
-  const { currentTown, interiorMaps } = state;
+  const { currentPOI, interiorMaps } = state;
 
-  // Get the current town interior map
-  const poiKey = currentTown ? `${currentTown.col},${currentTown.row}` : null;
-  const townMap = poiKey ? interiorMaps[poiKey] : null;
+  // Get the current settlement interior map
+  const poiKey = currentPOI ? `${currentPOI.col},${currentPOI.row}` : null;
+  const interiorMap = poiKey ? interiorMaps[poiKey] : null;
 
   // Set player position to entrance when entering
   const [playerPosition, setPlayerPosition] = useState(
-    townMap?.entrance || { col: 0, row: 0 }
+    interiorMap?.entrance || { col: 0, row: 0 }
   );
 
   useEffect(() => {
-    if (townMap?.entrance) {
-      setPlayerPosition(townMap.entrance);
+    if (interiorMap?.entrance) {
+      setPlayerPosition(interiorMap.entrance);
     }
-  }, [townMap]);
+  }, [interiorMap]);
 
   // Handle hex selection
   const handleHexClick = (hex) => {
@@ -104,6 +104,26 @@ function TownScene() {
         addMessage('Private residence - The door is locked.', 'info');
         break;
       
+      case 'tent':
+        addMessage('Entered tent - A simple shelter for travelers.', 'info');
+        break;
+      
+      case 'campfire':
+        addMessage('Standing by the campfire - A warm place to rest and share stories.', 'info');
+        break;
+      
+      case 'supplyWagon':
+        addMessage('Supply Wagon - Basic traveling goods available.', 'info');
+        break;
+      
+      case 'market':
+        addMessage('Entered Market - A bustling marketplace with diverse goods.', 'info');
+        break;
+      
+      case 'barracks':
+        addMessage('Entered Guard Barracks - City guards training and resting.', 'info');
+        break;
+      
       default:
         console.log('Unknown building type:', buildingType);
     }
@@ -129,8 +149,8 @@ function TownScene() {
 
   // Helper to get hex at position
   const getHexAt = (col, row) => {
-    if (!townMap) return null;
-    return townMap.hexes.find(h => h.col === col && h.row === row);
+    if (!interiorMap) return null;
+    return interiorMap.hexes.find(h => h.col === col && h.row === row);
   };
 
   // Helper to get hex in direction
@@ -198,13 +218,13 @@ function TownScene() {
   // Enable keyboard controls
   useKeyboardControls(keyboardCallbacks, true);
 
-  // Error state - no town data
-  if (!currentTown || !townMap) {
+  // Error state - no settlement data
+  if (!currentPOI || !interiorMap) {
     return (
       <div className="town-scene">
         <div className="error-message">
-          <h2>Error: No Town Data</h2>
-          <p>There was an error loading the town.</p>
+          <h2>Error: No Settlement Data</h2>
+          <p>There was an error loading the settlement interior.</p>
           <button onClick={handleExitTown}>Return to Overworld</button>
         </div>
       </div>
@@ -216,11 +236,11 @@ function TownScene() {
     if (!selectedHex) {
       return (
         <div className="town-hex-details">
-          <h3>Town Information</h3>
+          <h3>Settlement Information</h3>
           <p className="hint">Click on a hex to see details. Double-click to move.</p>
           <div className="town-info">
-            <h4>{currentTown.poi.name}</h4>
-            <p>{currentTown.poi.description || 'A bustling town with various services and opportunities.'}</p>
+            <h4>{currentPOI.poi.name}</h4>
+            <p>{currentPOI.poi.description}</p>
           </div>
           <div className="legend">
             <h4>Legend:</h4>
@@ -285,7 +305,7 @@ function TownScene() {
       <div className="center-panel">
         <div className="town-header">
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <h2>{currentTown.poi.name || 'Unknown Town'}</h2>
+            <h2>{currentPOI.poi.name || 'Unknown Settlement'}</h2>
             <div style={{
               fontSize: '0.9rem',
               fontWeight: '500',
@@ -303,7 +323,7 @@ function TownScene() {
           </button>
         </div>
         <InteriorHexCanvas
-          interiorMap={townMap}
+          interiorMap={interiorMap}
           playerPosition={playerPosition}
           selectedHex={selectedHex}
           onHexClick={handleHexClick}
