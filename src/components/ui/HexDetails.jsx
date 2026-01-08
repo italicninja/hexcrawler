@@ -518,27 +518,6 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
             )}
           </div>
         )}
-
-        {/* Move button - only for selected hex */}
-        {!isCurrentHex && reachable && (
-          <button
-            onClick={() => onMoveClick && onMoveClick(displayHex)}
-            style={{
-              background: 'var(--primary-color)',
-              borderColor: 'var(--accent-color)',
-              color: 'var(--text-color)',
-              padding: '0.5rem 0.6rem',
-              fontSize: '0.8rem',
-              borderRadius: '3px',
-              cursor: 'pointer',
-              border: '1px solid',
-              fontWeight: '700',
-              marginTop: '0.3rem'
-            }}
-          >
-            Move to Hex
-          </button>
-        )}
       </div>
     );
   };
