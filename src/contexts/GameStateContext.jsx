@@ -6,7 +6,6 @@ import { createGameTime, advanceTime } from '../game/TimeManager.js';
 import SurvivalManager from '../game/SurvivalManager.js';
 import Quest from '../game/Quest.js';
 import { Shop } from '../game/Shop.js';
-import { TownGenerator } from '../game/TownGenerator.js';
 
 // Create context
 const GameStateContext = createContext(null);

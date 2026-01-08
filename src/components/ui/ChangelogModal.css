@@ -1,0 +1,154 @@
+/* Overlay */
+.changelog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+/* Modal Container */
+.changelog-modal {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Header */
+.changelog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.changelog-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-color);
+}
+
+/* Content (Scrollable) */
+.changelog-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+/* Sections */
+.changelog-section {
+  margin-bottom: 1.5rem;
+}
+
+.changelog-section:last-child {
+  margin-bottom: 0;
+}
+
+.changelog-date {
+  color: var(--accent-color);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Commit List */
+.changelog-list {
+  list-style: none;
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.changelog-list li {
+  margin-bottom: 0.4rem;
+  padding-left: 0.75rem;
+  position: relative;
+  line-height: 1.4;
+  color: var(--text-color);
+}
+
+.changelog-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--accent-color);
+}
+
+/* Empty State */
+.changelog-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 2rem;
+}
+
+/* Footer */
+.changelog-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.btn-close {
+  padding: 0.5rem 1.5rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+.btn-close:hover {
+  background: var(--hover-bg);
+  border-color: var(--accent-color);
+}
+
+/* Close Button (×) */
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.close-button:hover {
+  color: var(--text-color);
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .changelog-modal {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .changelog-content {
+    padding: 1rem;
+  }
+}
