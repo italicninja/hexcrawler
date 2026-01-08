@@ -102,7 +102,7 @@ function ExplorationScene() {
       if (saveResult.success) {
         // Saved!
         showMessage(
-          '⚡ Hazard Avoided!',
+          'Hazard Avoided!',
           `${hazard.description}\n\nYou rolled ${saveResult.total} (needed ${hazard.dc}).\nYou successfully dodge the ${hazard.type}!`,
           'info',
           true
@@ -113,7 +113,7 @@ function ExplorationScene() {
         character.damage(hazard.damage);
 
         showMessage(
-          '💥 Hazard Triggered!',
+          'Hazard Triggered!',
           `${hazard.description}\n\nYou rolled ${saveResult.total} (needed ${hazard.dc}).\nYou take ${hazard.damage} ${hazard.damageType} damage!\n\nHP: ${character.currentHP}/${character.maxHP}`,
           'active',
           true

@@ -74,6 +74,12 @@ export class Character {
         this.xp = 0; // Current experience points
         this.xpToNextLevel = Character.getXPForLevel(2); // XP needed for next level
 
+        // Hidden stats (for shrine interactions, etc.)
+        this.hiddenStats = {
+            piety: 0,      // Increases from praying at shrines
+            generosity: 0  // Increases from making offerings
+        };
+
         // Apply class modifiers
         if (charClass) {
             this.applyClassModifiers(charClass);
@@ -494,6 +500,47 @@ export class Character {
     }
 
     /**
+     * Increase piety (from praying at shrines)
+     */
+    increasePiety(amount = 1) {
+        this.hiddenStats.piety += amount;
+        console.log(`${this.name} - Piety increased by ${amount}. Total Piety: ${this.hiddenStats.piety}`);
+        return this.hiddenStats.piety;
+    }
+
+    /**
+     * Increase generosity (from making offerings at shrines)
+     * Requires gold to be spent
+     */
+    increaseGenerosity(goldOffered) {
+        if (goldOffered <= 0) {
+            return { success: false, message: 'Offering must be greater than 0 gold' };
+        }
+
+        if (this.gold < goldOffered) {
+            return { success: false, message: `Not enough gold. You have ${this.gold} gold.` };
+        }
+
+        // Remove gold
+        this.removeGold(goldOffered);
+
+        // Generosity increases based on offering amount (1 point per 10 gold, minimum 1)
+        const generosityGain = Math.max(1, Math.floor(goldOffered / 10));
+        this.hiddenStats.generosity += generosityGain;
+
+        console.log(`${this.name} - Generosity increased by ${generosityGain}. Total Generosity: ${this.hiddenStats.generosity}`);
+        console.log(`${this.name} - Offered ${goldOffered} gold. Remaining gold: ${this.gold}`);
+
+        return { 
+            success: true, 
+            goldOffered, 
+            generosityGain, 
+            totalGenerosity: this.hiddenStats.generosity,
+            remainingGold: this.gold
+        };
+    }
+
+    /**
      * Serialize to JSON for saving
      */
     toJSON() {
@@ -543,7 +590,9 @@ export class Character {
             exhaustionLevel: this.exhaustionLevel,
             // XP and leveling
             xp: this.xp,
-            xpToNextLevel: this.xpToNextLevel
+            xpToNextLevel: this.xpToNextLevel,
+            // Hidden stats
+            hiddenStats: { ...this.hiddenStats }
         };
     }
 
@@ -603,6 +652,9 @@ export class Character {
         // XP and leveling
         char.xp = data.xp !== undefined ? data.xp : 0;
         char.xpToNextLevel = data.xpToNextLevel !== undefined ? data.xpToNextLevel : Character.getXPForLevel(char.level + 1);
+
+        // Hidden stats
+        char.hiddenStats = data.hiddenStats || { piety: 0, generosity: 0 };
 
         return char;
     }

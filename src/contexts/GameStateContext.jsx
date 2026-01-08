@@ -6,6 +6,7 @@ import { createGameTime, advanceTime } from '../game/TimeManager.js';
 import SurvivalManager from '../game/SurvivalManager.js';
 import Quest from '../game/Quest.js';
 import { Shop } from '../game/Shop.js';
+import { TownGenerator } from '../game/TownGenerator.js';
 
 // Create context
 const GameStateContext = createContext(null);
@@ -26,6 +27,7 @@ const ACTIONS = {
   // Exploration actions
   SEARCH_POI: 'SEARCH_POI',
   SET_INTERIOR_MAP: 'SET_INTERIOR_MAP',
+  SET_INTERIOR_PLAYER_POSITION: 'SET_INTERIOR_PLAYER_POSITION',
   ENTER_EXPLORATION: 'ENTER_EXPLORATION',
   EXIT_EXPLORATION: 'EXIT_EXPLORATION',
   DEFEAT_ENCOUNTER: 'DEFEAT_ENCOUNTER',
@@ -65,7 +67,10 @@ const ACTIONS = {
   // Shop actions
   GENERATE_SHOP_INVENTORY: 'GENERATE_SHOP_INVENTORY',
   BUY_ITEM: 'BUY_ITEM',
-  SELL_ITEM: 'SELL_ITEM'
+  SELL_ITEM: 'SELL_ITEM',
+  // Town actions
+  ENTER_TOWN: 'ENTER_TOWN',
+  EXIT_TOWN: 'EXIT_TOWN'
 };
 
 // Initial state
@@ -82,6 +87,8 @@ const initialState = {
   // Exploration state
   interiorMaps: {},
   currentPOI: null,
+  interiorPlayerPosition: null, // Player position inside POI/town
+  inInterior: false, // Whether player is currently inside a POI/town
   explorationState: {
     searchedPOIs: new Set(),
     clearedEncounters: {},
@@ -172,6 +179,12 @@ function gameStateReducer(state, action) {
         }
       };
 
+    case ACTIONS.SET_INTERIOR_PLAYER_POSITION:
+      return {
+        ...state,
+        interiorPlayerPosition: action.payload
+      };
+
     case ACTIONS.ENTER_EXPLORATION: {
       const poi = action.payload;
 
@@ -190,10 +203,16 @@ function gameStateReducer(state, action) {
         });
       }
 
+      // Get interior map to set player position
+      const poiKey = `${poi.col},${poi.row}`;
+      const interiorMap = state.interiorMaps[poiKey];
+      const entrancePos = interiorMap?.entrance || { col: 0, row: 0 };
+
       return {
         ...state,
-        currentScene: 'exploration',
+        inInterior: true,
         currentPOI: poi,
+        interiorPlayerPosition: entrancePos,
         activeQuests: questsModified ? updatedActiveQuests : state.activeQuests
       };
     }
@@ -201,8 +220,9 @@ function gameStateReducer(state, action) {
     case ACTIONS.EXIT_EXPLORATION:
       return {
         ...state,
-        currentScene: 'overworld',
-        currentPOI: null
+        inInterior: false,
+        currentPOI: null,
+        interiorPlayerPosition: null
       };
 
     case ACTIONS.DEFEAT_ENCOUNTER: {
@@ -485,7 +505,9 @@ function gameStateReducer(state, action) {
         discoveredPOIs: new Set(action.payload.discoveredPOIs || []),
         interiorMaps: action.payload.interiorMaps || {},
         explorationState: deserializeExplorationState(action.payload.explorationState),
-        currentPOI: null, // Always reset to null (never load mid-exploration)
+        currentPOI: null, // Always reset to null (never load mid-exploration/town)
+        inInterior: false, // Always reset to false
+        interiorPlayerPosition: null, // Always reset to null
         gameTime: action.payload.gameTime || createGameTime(), // Load saved time or create new
         activeQuests,
         completedQuests,
@@ -682,15 +704,15 @@ function gameStateReducer(state, action) {
 
     case ACTIONS.AWARD_XP: {
       const { characterId, amount } = action.payload;
-      const updatedPlayerCharacter = state.playerCharacter ? { ...state.playerCharacter } : null;
-      const updatedParty = state.party ? { ...state.party, npcs: [...state.party.npcs] } : null;
+      const updatedPlayerCharacter = state.playerCharacter ? Character.fromJSON(state.playerCharacter.toJSON()) : null;
+      const updatedParty = state.party ? Party.fromJSON(state.party.toJSON()) : null;
 
       if (characterId === 'player' && updatedPlayerCharacter) {
         updatedPlayerCharacter.awardXP(amount);
       } else if (updatedParty) {
         const npcIndex = parseInt(characterId);
         if (!isNaN(npcIndex) && updatedParty.npcs[npcIndex]) {
-          updatedParty.npcs[npcIndex] = { ...updatedParty.npcs[npcIndex] };
+          updatedParty.npcs[npcIndex] = Character.fromJSON(updatedParty.npcs[npcIndex].toJSON());
           updatedParty.npcs[npcIndex].awardXP(amount);
         }
       }
@@ -704,28 +726,20 @@ function gameStateReducer(state, action) {
 
     case ACTIONS.LEVEL_UP_CHARACTER: {
       const { characterId } = action.payload;
-      const updatedPlayerCharacter = state.playerCharacter ? { ...state.playerCharacter } : null;
-      const updatedParty = state.party ? { ...state.party, npcs: [...state.party.npcs] } : null;
+      const updatedPlayerCharacter = state.playerCharacter ? Character.fromJSON(state.playerCharacter.toJSON()) : null;
+      const updatedParty = state.party ? Party.fromJSON(state.party.toJSON()) : null;
 
       let levelUpResult = null;
 
       if (characterId === 'player' && updatedPlayerCharacter) {
         levelUpResult = updatedPlayerCharacter.levelUp();
-        if (levelUpResult) {
-          toast.success(`${updatedPlayerCharacter.name} reached level ${levelUpResult.newLevel}!`, {
-            description: `Gained ${levelUpResult.hpGain} HP. New max HP: ${levelUpResult.newMaxHP}`
-          });
-        }
+        // Level up notification logged to game log
       } else if (updatedParty) {
         const npcIndex = parseInt(characterId);
         if (!isNaN(npcIndex) && updatedParty.npcs[npcIndex]) {
-          updatedParty.npcs[npcIndex] = { ...updatedParty.npcs[npcIndex] };
+          updatedParty.npcs[npcIndex] = Character.fromJSON(updatedParty.npcs[npcIndex].toJSON());
           levelUpResult = updatedParty.npcs[npcIndex].levelUp();
-          if (levelUpResult) {
-            toast.success(`${updatedParty.npcs[npcIndex].name} reached level ${levelUpResult.newLevel}!`, {
-              description: `Gained ${levelUpResult.hpGain} HP. New max HP: ${levelUpResult.newMaxHP}`
-            });
-          }
+          // Level up notification logged to game log
         }
       }
 
@@ -786,9 +800,7 @@ function gameStateReducer(state, action) {
       // Award XP
       if (quest.rewards.xp > 0) {
         updatedCharacter.awardXP(quest.rewards.xp);
-        toast.success(`Quest Complete: ${quest.title}`, {
-          description: `Gained ${quest.rewards.xp} XP${quest.rewards.gold > 0 ? ` and ${quest.rewards.gold} gold` : ''}`
-        });
+        // Quest complete logged to game log
       }
 
       // Award gold
@@ -826,7 +838,7 @@ function gameStateReducer(state, action) {
       const updatedActiveQuests = [...state.activeQuests];
       updatedActiveQuests.splice(questIndex, 1);
 
-      toast.error(`Quest Failed: ${quest.title}`);
+      // Quest failed logged to game log
 
       return {
         ...state,
@@ -908,7 +920,7 @@ function gameStateReducer(state, action) {
       const item = shop.inventory.find(i => i.id === itemId);
 
       if (!item) {
-        toast.error('Item not found in shop inventory');
+        // Item not found - logged to game log
         return state;
       }
 
@@ -916,9 +928,7 @@ function gameStateReducer(state, action) {
 
       // Check if player has enough gold
       if (state.playerCharacter.gold < price) {
-        toast.error('Not enough gold!', {
-          description: `You need ${price} gold but only have ${state.playerCharacter.gold} gold.`
-        });
+        // Not enough gold - logged to game log
         return state;
       }
 
@@ -931,9 +941,7 @@ function gameStateReducer(state, action) {
       updatedCharacter.removeGold(price);
       updatedCharacter.addItem(purchasedItem);
 
-      toast.success(`Purchased ${purchasedItem.name}`, {
-        description: `Spent ${price} gold. You have ${updatedCharacter.gold} gold remaining.`
-      });
+      // Purchase logged to game log
 
       return {
         ...state,
@@ -953,7 +961,7 @@ function gameStateReducer(state, action) {
       const item = updatedCharacter.inventory.find(i => i.id === itemId);
 
       if (!item) {
-        toast.error('Item not found in your inventory');
+        // Item not found - logged to game log
         return state;
       }
 
@@ -963,9 +971,7 @@ function gameStateReducer(state, action) {
       );
 
       if (isEquipped) {
-        toast.error('Cannot sell equipped items', {
-          description: 'Unequip the item first before selling.'
-        });
+        // Cannot sell equipped items - logged to game log
         return state;
       }
 
@@ -979,9 +985,7 @@ function gameStateReducer(state, action) {
       // Add item to shop
       shop.sellItem(item);
 
-      toast.success(`Sold ${item.name}`, {
-        description: `Received ${price} gold. You now have ${updatedCharacter.gold} gold.`
-      });
+      // Sale logged to game log
 
       return {
         ...state,
@@ -992,6 +996,59 @@ function gameStateReducer(state, action) {
         }
       };
     }
+
+    case ACTIONS.ENTER_TOWN: {
+      const { col, row, poi } = action.payload;
+      const poiKey = `${col},${row}`;
+
+      // Check if town interior already exists
+      let townInterior = state.interiorMaps[poiKey];
+      
+      if (!townInterior) {
+        // Generate new town interior
+        const generator = new TownGenerator();
+        const seed = `town-${poiKey}-${state.mapSeed}`;
+        generator.setSeed(seed);
+
+        // Generate town map (fixed size for towns)
+        const width = 24;
+        const height = 18;
+        townInterior = generator.generate(width, height, { name: poi.name });
+
+        // Store town interior in state
+        const updatedInteriorMaps = {
+          ...state.interiorMaps,
+          [poiKey]: townInterior
+        };
+
+        const entrancePos = townInterior.entrance || { col: 0, row: 0 };
+
+        return {
+          ...state,
+          inInterior: true,
+          currentPOI: { col, row, poi },
+          interiorPlayerPosition: entrancePos,
+          interiorMaps: updatedInteriorMaps
+        };
+      }
+
+      const entrancePos = townInterior.entrance || { col: 0, row: 0 };
+
+      return {
+        ...state,
+        inInterior: true,
+        currentPOI: { col, row, poi },
+        interiorPlayerPosition: entrancePos
+      };
+    }
+
+    case ACTIONS.EXIT_TOWN:
+      return {
+        ...state,
+        inInterior: false,
+        currentPOI: null,
+        interiorPlayerPosition: null
+      };
 
     default:
       return state;
@@ -1028,7 +1085,7 @@ export function GameStateProvider({ children }) {
 
   // Auto-save to localStorage on state changes
   useEffect(() => {
-    if ((state.currentScene === 'overworld' || state.currentScene === 'exploration') && state.playerCharacter) {
+    if (state.currentScene === 'overworld' && state.playerCharacter) {
       // Convert Sets to arrays for JSON serialization
       const serializeExplorationState = () => {
         const clearedEncounters = {};
@@ -1060,7 +1117,7 @@ export function GameStateProvider({ children }) {
         playerPosition: state.playerPosition,
         playerCharacter: state.playerCharacter?.toJSON(),
         party: state.party?.toJSON(),
-        currentScene: state.currentScene === 'exploration' ? 'overworld' : state.currentScene, // Reset to overworld on load
+        currentScene: state.currentScene, // Always save as is (only overworld scene exists now)
         mapSeed: state.mapSeed,
         exploredHexes: Array.from(state.exploredHexes),
         discoveredPOIs: Array.from(state.discoveredPOIs),
@@ -1086,15 +1143,9 @@ export function GameStateProvider({ children }) {
 
         // Check if it's a quota exceeded error
         if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-          toast.error('Save Failed: Storage Quota Exceeded', {
-            description: 'Your browser\'s localStorage is full. Try clearing your cache or using a different browser.',
-            duration: 10000,
-          });
+          console.error('Save Failed: Storage Quota Exceeded');
         } else {
-          toast.error('Save Failed', {
-            description: `An error occurred while saving: ${error.message}. Your progress may not be saved.`,
-            duration: 10000,
-          });
+          console.error('Save Failed:', error.message);
         }
       }
     }

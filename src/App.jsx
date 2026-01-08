@@ -4,7 +4,7 @@ import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { EventInfoBoxProvider } from './contexts/EventInfoBoxContext';
 import TitleScene from './components/scenes/TitleScene';
 import OverworldScene from './components/scenes/OverworldScene';
-import ExplorationScene from './components/scenes/ExplorationScene';
+import GameOverScene from './components/scenes/GameOverScene';
 import ErrorBoundary from './components/ErrorBoundary';
 import BottomToolbar from './components/ui/BottomToolbar';
 import { Toaster } from './components/shadcn/ui/sonner';
@@ -31,9 +31,9 @@ function GameRouter() {
           <OverworldScene />
         </ErrorBoundary>
       )}
-      {state.currentScene === 'exploration' && (
+      {state.currentScene === 'gameover' && (
         <ErrorBoundary>
-          <ExplorationScene />
+          <GameOverScene />
         </ErrorBoundary>
       )}
       <Toaster />

@@ -5,33 +5,39 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { useEventInfoBox } from '../../contexts/EventInfoBoxContext';
 import { useMapGeneration } from '../../hooks/useMapGeneration';
 import { useInfiniteTerrainExpansion } from '../../hooks/useInfiniteTerrainExpansion';
+import { useKeyboardControls } from '../../hooks/useKeyboardControls';
+import { useHexInteraction } from '../../hooks/useHexInteraction';
 import { TerrainGenerator } from '../../terrainGenerator.js';
 import { TIME_COSTS, formatTime, getCombatDuration } from '../../game/TimeManager.js';
 import { DiceRoller } from '../../game/DiceRoller.js';
 import { Combat } from '../../game/Combat.js';
 import { Enemy } from '../../game/Enemy.js';
 import { Character } from '../../game/Character.js';
+import { Party } from '../../game/Party.js';
 import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
 import PartyList from '../ui/PartyList';
 import Equipment from '../ui/Equipment';
 import HexDetails from '../ui/HexDetails';
+import InteriorInfoPane from '../ui/InteriorInfoPane';
 import Settings from '../ui/Settings';
 import RestMenu from '../ui/RestMenu';
 import SurvivalMenu from '../ui/SurvivalMenu';
 import QuestLog from '../ui/QuestLog';
 import HexGridCanvas from '../canvas/HexGridCanvas';
+import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import EventInfoBox from '../ui/EventInfoBox';
 import MenuSidebar from '../ui/MenuSidebar';
 import MenuPanel from '../ui/MenuPanel';
 
 function OverworldScene() {
-  const { state, dispatch, actions, isHexReachable, isPoiDiscovered } = useGameState();
+  const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } = useGameState();
   const { settings } = useSettings();
   const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
   const [openPanel, setOpenPanel] = useState(null);
   const [selectedCharacter, setSelectedCharacter] = useState(state.playerCharacter);
   const [selectedHex, setSelectedHex] = useState(null);
+  const [selectedInteriorHex, setSelectedInteriorHex] = useState(null);
   const [viewportSize, setViewportSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   const terrainGeneratorRef = useRef(null);
@@ -212,14 +218,6 @@ function OverworldScene() {
           );
         }
 
-        // Show discovery message
-        showMessage(
-          '✨ DISCOVERY!',
-          `You discovered: ${hex.poi.name}`,
-          'info',
-          true
-        );
-
         // Trigger event based on type
         if (hex.poi.eventType === 'active') {
           // Show active event
@@ -237,8 +235,7 @@ function OverworldScene() {
   // Get choices for active events (combat)
   const getActiveEventChoices = (poi) => {
     return [
-      { label: 'Fight', action: 'fight', style: 'danger' },
-      { label: 'Flee', action: 'flee', style: 'warning' }
+      { label: 'Fight', action: 'fight', style: 'danger' }
     ];
   };
 
@@ -252,6 +249,9 @@ function OverworldScene() {
         );
       }
 
+      // TODO: Future tactical combat will create a combat canvas here
+      // For now, auto-win combat simulation
+
       // Get party members (player + NPCs)
       const characters = [state.playerCharacter];
       if (state.party) {
@@ -262,26 +262,12 @@ function OverworldScene() {
       const diceRoller = new DiceRoller();
       const enemies = Enemy.parseCreatureString(poi.creatures, poi.cr, diceRoller);
 
-      // Run combat simulation
-      const combat = new Combat(characters, enemies, { canFlee: true });
+      // Run combat simulation (auto-win for now)
+      const combat = new Combat(characters, enemies, { canFlee: false });
       const result = combat.simulateCombat();
 
       // Get combat time
       const combatTime = getCombatDuration();
-
-      // Show combat results
-      const summary = combat.getCombatSummary(result);
-      const fullLog = combat.generateCombatLog();
-
-      showMessage(
-        result.victory ? '⚔️ Victory!' : (result.fled ? '🏃 Fled!' : '💀 Defeat!'),
-        `${summary}
-
---- Combat Log ---
-${fullLog}`,
-        result.victory ? 'info' : 'warning',
-        true
-      );
 
       // Update character HP from combat
       const updatedPlayerCharacter = Character.fromJSON(state.playerCharacter.toJSON());
@@ -293,7 +279,8 @@ ${fullLog}`,
       // Update party
       let updatedParty = state.party;
       if (state.party) {
-        updatedParty = { ...state.party };
+        // Properly reconstruct Party instance to preserve class methods
+        updatedParty = Party.fromJSON(state.party.toJSON());
         updatedParty.npcs = updatedParty.npcs.map((npc, index) => {
           if (!npc) return null;
           const npcState = result.characterStates.find(c => c.name === npc.name);
@@ -323,6 +310,14 @@ ${fullLog}`,
         }
       });
 
+      // Check for party wipe after updating character states
+      const isWiped = updatedPlayerCharacter.currentHP <= 0 && 
+                      (!updatedParty || updatedParty.isWiped());
+
+      // Show combat results in EventInfoBox
+      const summary = combat.getCombatSummary(result);
+      const fullLog = combat.generateCombatLog();
+
       // Log result to game log
       if (gameLogRef.current) {
         if (result.victory) {
@@ -336,11 +331,6 @@ ${fullLog}`,
               'info'
             );
           }
-        } else if (result.fled) {
-          gameLogRef.current.addMessage(
-            `The party fled from ${poi.name}!`,
-            'warning'
-          );
         } else {
           gameLogRef.current.addMessage(
             `Defeat! The party was defeated by ${poi.creatures}.`,
@@ -348,17 +338,347 @@ ${fullLog}`,
           );
         }
       }
-    } else if (action === 'flee') {
-      if (gameLogRef.current) {
-        gameLogRef.current.addMessage(
-          `You flee from ${poi.name}!`,
-          'action'
+
+      if (isWiped) {
+        // Party wiped - show defeat message then game over
+        showEvent(
+          {
+            name: 'Defeat!',
+            description: `${summary}\n\n--- Combat Log ---\n${fullLog}`,
+            type: 'encounter',
+            eventType: 'active'
+          },
+          'active',
+          [{ label: 'Game Over', action: 'gameover', style: 'primary' }],
+          () => {
+            dismissEvent();
+            dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'gameover' });
+          }
+        );
+      } else if (result.victory) {
+        // Victory - auto-dismiss after showing message
+        showEvent(
+          {
+            name: 'Victory!',
+            description: `${summary}\n\n--- Combat Log ---\n${fullLog}`,
+            type: 'encounter',
+            eventType: 'active'
+          },
+          'passive',
+          [{ label: 'Continue', action: 'continue', style: 'primary' }],
+          () => dismissEvent()
+        );
+        
+        // Auto-dismiss after 2 seconds
+        setTimeout(() => {
+          dismissEvent();
+        }, 2000);
+      } else {
+        // Defeat but party survived - show continue button
+        showEvent(
+          {
+            name: 'Defeat!',
+            description: `${summary}\n\n--- Combat Log ---\n${fullLog}`,
+            type: 'encounter',
+            eventType: 'active'
+          },
+          'active',
+          [{ label: 'Continue', action: 'continue', style: 'primary' }],
+          () => dismissEvent()
         );
       }
-      // Dismiss event without fighting
+    } else if (action === 'continue') {
+      // Continue after combat results
       dismissEvent();
+    } else if (action === 'gameover') {
+      // Transition to game over screen
+      dismissEvent();
+      dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'gameover' });
     }
   };
+
+  // Get current hex the player is on
+  const getCurrentHex = () => {
+    if (!state.mapData) return null;
+    return state.mapData.find(
+      h => h.col === state.playerPosition.col && h.row === state.playerPosition.row
+    );
+  };
+
+  // Get hex interaction handlers for current hex
+  const currentHex = getCurrentHex();
+  const { handleInteract, handlePassiveChoice } = useHexInteraction(currentHex);
+
+  // Helper function to get hex in a direction
+  const getHexInDirection = (direction) => {
+    if (!state.mapData) return null;
+    
+    const { col, row } = state.playerPosition;
+    let targetCol = col;
+    let targetRow = row;
+
+    // Hex grid movement offsets (offset coordinates)
+    const isEvenRow = row % 2 === 0;
+    
+    switch(direction) {
+      case 'up':
+        targetRow = row - 1;
+        break;
+      case 'down':
+        targetRow = row + 1;
+        break;
+      case 'left':
+        targetCol = col - 1;
+        break;
+      case 'right':
+        targetCol = col + 1;
+        break;
+      default:
+        return null;
+    }
+
+    return state.mapData.find(h => h.col === targetCol && h.row === targetRow);
+  };
+
+  // Unified keyboard control callbacks (works for both overworld and interior)
+  const keyboardCallbacks = {
+    onMoveUp: () => {
+      if (state.inInterior) {
+        const targetHex = getInteriorHexInDirection('up');
+        if (targetHex && targetHex.terrain.walkable) {
+          handleInteriorHexDoubleClick(targetHex);
+        }
+      } else {
+        const targetHex = getHexInDirection('up');
+        if (targetHex && isHexReachable(targetHex.col, targetHex.row)) {
+          handleMoveToHex(targetHex);
+        }
+      }
+    },
+    onMoveDown: () => {
+      if (state.inInterior) {
+        const targetHex = getInteriorHexInDirection('down');
+        if (targetHex && targetHex.terrain.walkable) {
+          handleInteriorHexDoubleClick(targetHex);
+        }
+      } else {
+        const targetHex = getHexInDirection('down');
+        if (targetHex && isHexReachable(targetHex.col, targetHex.row)) {
+          handleMoveToHex(targetHex);
+        }
+      }
+    },
+    onMoveLeft: () => {
+      if (state.inInterior) {
+        const targetHex = getInteriorHexInDirection('left');
+        if (targetHex && targetHex.terrain.walkable) {
+          handleInteriorHexDoubleClick(targetHex);
+        }
+      } else {
+        const targetHex = getHexInDirection('left');
+        if (targetHex && isHexReachable(targetHex.col, targetHex.row)) {
+          handleMoveToHex(targetHex);
+        }
+      }
+    },
+    onMoveRight: () => {
+      if (state.inInterior) {
+        const targetHex = getInteriorHexInDirection('right');
+        if (targetHex && targetHex.terrain.walkable) {
+          handleInteriorHexDoubleClick(targetHex);
+        }
+      } else {
+        const targetHex = getHexInDirection('right');
+        if (targetHex && isHexReachable(targetHex.col, targetHex.row)) {
+          handleMoveToHex(targetHex);
+        }
+      }
+    },
+    onInteract: () => {
+      if (state.inInterior) {
+        const currentHex = getInteriorHexAt(state.interiorPlayerPosition?.col, state.interiorPlayerPosition?.row);
+        if (currentHex && currentHex.terrain.isInteractive && currentHex.buildingType) {
+          handleBuildingInteraction(currentHex);
+        } else if (currentHex && currentHex.terrain.key === 'gate') {
+          if (state.currentPOI?.poi.type === 'town') {
+            dispatch({ type: actions.EXIT_TOWN });
+          } else {
+            dispatch({ type: actions.EXIT_EXPLORATION });
+          }
+        }
+      } else {
+        const hex = getCurrentHex();
+        if (hex && hex.poi) {
+          // Check if POI is discovered first
+          const discovered = isPoiDiscovered(hex.col, hex.row);
+          
+          // Directly trigger the appropriate action based on POI type
+          if (hex.poi.type === 'town') {
+            if (discovered || hex.poi.visibleWithoutDiscovery) {
+              // Enter town directly without showing dialog
+              dispatch({
+                type: actions.ENTER_TOWN,
+                payload: { col: hex.col, row: hex.row, poi: hex.poi }
+              });
+            }
+          } else if (['cave', 'ruins', 'tower', 'dungeon'].includes(hex.poi.type)) {
+            handlePassiveChoice('explore', hex.poi);
+          }
+          // Note: shrines and camps now use buttons in HexDetails panel
+          // No spacebar action for them - player uses buttons
+        }
+      }
+    },
+    onSearch: () => {
+      if (!state.inInterior) {
+        const hex = getCurrentHex();
+        if (hex && hex.poi) {
+          handlePassiveChoice('search', hex.poi);
+        }
+      }
+    },
+    onRest: () => {
+      setOpenPanel('rest');
+    },
+    onInventory: () => {
+      setOpenPanel('equipment');
+    },
+    onQuests: () => {
+      setOpenPanel('quests');
+    },
+    onMap: () => {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage('Map view not yet implemented', 'info');
+      }
+    }
+  };
+
+  // Enable keyboard controls (works for both overworld and interior)
+  useKeyboardControls(keyboardCallbacks, !isBlockingMovement);
+
+  // Helper to get interior hex at position
+  const getInteriorHexAt = (col, row) => {
+    if (!interiorMap) return null;
+    return interiorMap.hexes.find(h => h.col === col && h.row === row);
+  };
+
+  // Helper to get interior hex in direction
+  const getInteriorHexInDirection = (direction) => {
+    if (!state.interiorPlayerPosition || !interiorMap) return null;
+    
+    const { col, row } = state.interiorPlayerPosition;
+    let targetCol = col;
+    let targetRow = row;
+
+    switch(direction) {
+      case 'up':
+        targetRow = row - 1;
+        break;
+      case 'down':
+        targetRow = row + 1;
+        break;
+      case 'left':
+        targetCol = col - 1;
+        break;
+      case 'right':
+        targetCol = col + 1;
+        break;
+      default:
+        return null;
+    }
+
+    return getInteriorHexAt(targetCol, targetRow);
+  };
+
+  // Interior handlers
+  const handleInteriorHexClick = (hex) => {
+    setSelectedInteriorHex(hex);
+  };
+
+  const handleInteriorHexDoubleClick = (hex) => {
+    console.log('Interior hex double click:', hex);
+    console.log('Interior player position:', state.interiorPlayerPosition);
+    
+    if (!hex.terrain.walkable) {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage('Cannot move to unwalkable terrain', 'warning');
+      }
+      return;
+    }
+
+    if (!state.interiorPlayerPosition) {
+      console.error('No interior player position set!');
+      return;
+    }
+
+    // Check distance (1 hex move at a time)
+    const distance = getHexDistance(
+      state.interiorPlayerPosition.col,
+      state.interiorPlayerPosition.row,
+      hex.col,
+      hex.row
+    );
+
+    console.log('Distance:', distance);
+
+    if (distance > 1) {
+      if (gameLogRef.current) {
+        gameLogRef.current.addMessage('Too far to move in one turn', 'warning');
+      }
+      return;
+    }
+
+    // Update interior player position
+    dispatch({
+      type: actions.SET_INTERIOR_PLAYER_POSITION,
+      payload: { col: hex.col, row: hex.row }
+    });
+    
+    setSelectedInteriorHex(hex);
+
+    // Check for building interactions (towns)
+    if (hex.terrain.isInteractive && hex.buildingType) {
+      handleBuildingInteraction(hex);
+    }
+
+    // Check for town gate exit
+    if (hex.terrain.key === 'gate') {
+      if (state.currentPOI?.poi.type === 'town') {
+        dispatch({ type: actions.EXIT_TOWN });
+      }
+    }
+  };
+
+  // Handle building interactions in towns
+  const handleBuildingInteraction = (hex) => {
+    const buildingType = hex.buildingType;
+    
+    switch (buildingType) {
+      case 'inn':
+        setOpenPanel('rest');
+        break;
+      case 'shop':
+        if (gameLogRef.current) {
+          gameLogRef.current.addMessage('Shop interface coming soon!', 'info');
+        }
+        break;
+      case 'questBoard':
+        setOpenPanel('quests');
+        break;
+      case 'blacksmith':
+      case 'temple':
+      case 'house':
+        if (gameLogRef.current) {
+          gameLogRef.current.addMessage(`${buildingType} services coming soon!`, 'info');
+        }
+        break;
+    }
+  };
+
+  // Get interior map if in interior
+  const interiorMap = state.inInterior && state.currentPOI 
+    ? state.interiorMaps[`${state.currentPOI.col},${state.currentPOI.row}`]
+    : null;
 
   return (
     <div className="game-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -408,7 +728,15 @@ ${fullLog}`,
 
         {/* Canvas Container */}
         <main className="canvas-container" style={{ flex: 1 }}>
-          {state.mapData && state.mapData.length > 0 ? (
+          {state.inInterior && interiorMap ? (
+            <InteriorHexCanvas
+              interiorMap={interiorMap}
+              playerPosition={state.interiorPlayerPosition}
+              selectedHex={selectedInteriorHex}
+              onHexClick={handleInteriorHexClick}
+              onHexDoubleClick={handleInteriorHexDoubleClick}
+            />
+          ) : state.mapData && state.mapData.length > 0 ? (
             <HexGridCanvas
               hexes={state.mapData}
               onHexClick={handleHexClick}
@@ -432,21 +760,29 @@ ${fullLog}`,
           )}
         </main>
 
-        {/* Right Panel - Hex Info (always visible) */}
+        {/* Right Panel - Hex Info or Interior Info */}
         <aside style={{
           width: '280px',
           flexShrink: 0,
           backgroundColor: 'var(--panel-bg)',
           border: '1px solid var(--border-color)',
           borderRadius: '8px',
-          padding: '1rem',
+          padding: state.inInterior ? 0 : '1rem',
           overflowY: 'auto'
         }}>
-          <HexDetails
-            hex={selectedHex}
-            terrainGenerator={terrainGeneratorRef.current}
-            onMoveClick={handleMoveToHex}
-          />
+          {state.inInterior && interiorMap ? (
+            <InteriorInfoPane
+              selectedHex={selectedInteriorHex}
+              playerPosition={state.interiorPlayerPosition}
+              interiorMap={interiorMap}
+            />
+          ) : (
+            <HexDetails
+              hex={selectedHex}
+              terrainGenerator={terrainGeneratorRef.current}
+              onMoveClick={handleMoveToHex}
+            />
+          )}
         </aside>
       </div>
 

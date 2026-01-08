@@ -62,22 +62,30 @@ export function useHexInteraction(hex) {
     if (action === 'search') {
       // Check if already searched
       if (isPoiSearched(hex.col, hex.row)) {
-        showMessage(
-          'Already Searched',
-          `You've already searched this ${poi.type}. There's nothing new to find.`,
-          'info',
-          true
+        showEvent(
+          {
+            ...poi,
+            name: 'Already Searched',
+            description: `You've already searched this ${poi.type}. There's nothing new to find.`
+          },
+          'passive',
+          [{ label: 'Continue', action: 'leave', style: 'primary' }],
+          (action) => dismissEvent()
         );
         return;
       }
 
       // Null check for player character
       if (!state.playerCharacter) {
-        showMessage(
-          'Error',
-          'No player character found',
-          'info',
-          true
+        showEvent(
+          {
+            ...poi,
+            name: 'Error',
+            description: 'No player character found'
+          },
+          'passive',
+          [{ label: 'Continue', action: 'leave', style: 'primary' }],
+          (action) => dismissEvent()
         );
         return;
       }
@@ -110,13 +118,18 @@ export function useHexInteraction(hex) {
         hints.push(`The most dangerous area appears to be deep inside.`);
       }
 
-      // Show perception check result and hints
+      // Show perception check result and hints in event box
       const hintText = hints.length > 0 ? hints.join('\n\n') : 'You learn nothing new about this location.';
-      showMessage(
-        `Perception Check: ${result.total}`,
-        hintText,
-        'info',
-        true
+      
+      showEvent(
+        {
+          ...poi,
+          name: `Perception Check: ${result.total}`,
+          description: hintText
+        },
+        'passive',
+        [{ label: 'Continue', action: 'leave', style: 'primary' }],
+        (action) => dismissEvent()
       );
 
       // Mark as searched
@@ -194,34 +207,140 @@ export function useHexInteraction(hex) {
       });
 
     } else if (action === 'pray') {
-      // Handle prayer at shrine
-      showMessage(
-        'Prayer',
-        `You kneel before the ${poi.name} and offer your prayers. You feel a sense of peace wash over you.`,
-        'info',
-        true
+      // Check if already interacted with this shrine
+      if (isPoiSearched(hex.col, hex.row)) {
+        showEvent(
+          {
+            ...poi,
+            name: 'Already Visited',
+            description: `You have already paid your respects at this ${poi.name}.`
+          },
+          'passive',
+          [{ label: 'Continue', action: 'leave', style: 'primary' }],
+          (action) => dismissEvent()
+        );
+        return;
+      }
+
+      // Increase piety
+      const character = state.playerCharacter;
+      character.increasePiety(1);
+
+      // Mark shrine as visited
+      dispatch({
+        type: actions.SEARCH_POI,
+        payload: poiKey
+      });
+
+      // Update character in state
+      dispatch({
+        type: actions.UPDATE_CHARACTER,
+        payload: character
+      });
+
+      // Show result in event box
+      showEvent(
+        {
+          ...poi,
+          name: 'Prayer',
+          description: `You kneel before the ${poi.name} and offer your prayers. You feel a sense of peace wash over you.\n\n+1 Piety`
+        },
+        'passive',
+        [{ label: 'Continue', action: 'leave', style: 'primary' }],
+        (action) => dismissEvent()
       );
-      // Dismiss the event - player can only pray or offer, not both
-      setTimeout(() => dismissEvent(), 100);
 
     } else if (action === 'offer') {
-      // Handle making an offering at shrine
-      showMessage(
-        'Offering Made',
-        `You place an offering at the ${poi.name}. The shrine seems to glow faintly in response.`,
-        'info',
-        true
+      // Check if already interacted with this shrine
+      if (isPoiSearched(hex.col, hex.row)) {
+        showEvent(
+          {
+            ...poi,
+            name: 'Already Visited',
+            description: `You have already paid your respects at this ${poi.name}.`
+          },
+          'passive',
+          [{ label: 'Continue', action: 'leave', style: 'primary' }],
+          (action) => dismissEvent()
+        );
+        return;
+      }
+
+      // Default offering amount (could be made customizable)
+      const offeringAmount = 10;
+      const character = state.playerCharacter;
+      
+      // Attempt to make offering
+      const result = character.increaseGenerosity(offeringAmount);
+
+      if (!result.success) {
+        // Not enough gold
+        showEvent(
+          {
+            ...poi,
+            name: 'Insufficient Gold',
+            description: result.message
+          },
+          'passive',
+          [{ label: 'Continue', action: 'leave', style: 'primary' }],
+          (action) => dismissEvent()
+        );
+        return;
+      }
+
+      // Mark shrine as visited
+      dispatch({
+        type: actions.SEARCH_POI,
+        payload: poiKey
+      });
+
+      // Update character in state
+      dispatch({
+        type: actions.UPDATE_CHARACTER,
+        payload: character
+      });
+
+      // Show result in event box
+      showEvent(
+        {
+          ...poi,
+          name: 'Offering',
+          description: `You place ${result.goldOffered} gold at the ${poi.name}. The shrine glows faintly in response.\n\n+${result.generosityGain} Generosity\nRemaining Gold: ${result.remainingGold}`
+        },
+        'passive',
+        [{ label: 'Continue', action: 'leave', style: 'primary' }],
+        (action) => dismissEvent()
       );
-      // Dismiss the event - player can only pray or offer, not both
-      setTimeout(() => dismissEvent(), 100);
 
     } else if (action === 'leave') {
       // Close the event box
       dismissEvent();
 
+    } else if (action === 'enter') {
+      // Handle entering town
+      dispatch({
+        type: actions.ENTER_TOWN,
+        payload: { col: hex.col, row: hex.row, poi: poi }
+      });
+      // Dismiss the event box
+      dismissEvent();
+
+    } else if (action === 'approach' || action === 'trade') {
+      // Handle camp interactions (to be implemented) - show result in event box
+      showEvent(
+        {
+          ...poi,
+          name: action === 'approach' ? 'Approaching Camp' : 'Trading',
+          description: `You ${action === 'approach' ? 'cautiously approach' : 'begin trading with'} the ${poi.name}.\n\nThis feature is coming soon!`
+        },
+        'passive',
+        [{ label: 'Continue', action: 'leave', style: 'primary' }],
+        (action) => dismissEvent()
+      );
+
     } else {
-      // Other actions (enter, approach, trade, etc.)
-      console.log(`Player chose ${action} at ${poi.name}`);
+      // Unknown action
+      console.log(`Unknown action: ${action} at ${poi.name}`);
     }
   };
 

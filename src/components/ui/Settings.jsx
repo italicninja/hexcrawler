@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { useSettings } from '../../contexts/SettingsContext';
+import KeybindingsMenu from './KeybindingsMenu';
 
 /**
  * Settings component - displays game configuration options
@@ -74,6 +75,8 @@ function Settings() {
             Enable double-clicking a hex to move there instantly
           </p>
         </div>
+
+        <KeybindingsMenu />
       </div>
     </div>
   );

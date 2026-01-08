@@ -13,9 +13,40 @@ function EventInfoBox() {
 
   const isMessage = currentEvent.type === 'message';
   const isEvent = currentEvent.type === 'event';
+  
+  // Center combat RESULTS (not initial prompt)
+  // Combat results have eventType === 'active' set explicitly
+  const isCombatResult = isEvent && currentEvent.poi?.eventType === 'active';
+  const centerClass = isCombatResult ? 'centered' : '';
+
+  console.log('EventInfoBox render:', {
+    type: currentEvent.type,
+    displayType: currentEvent.displayType,
+    poiType: currentEvent.poi?.type,
+    poiEventType: currentEvent.poi?.eventType,
+    isCombatResult,
+    centerClass
+  });
 
   return (
-    <div className={`event-info-box ${currentEvent.displayType}`}>
+    <>
+      {/* Backdrop for centered alerts */}
+      {centerClass && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            zIndex: 999,
+            animation: 'fadeIn 0.3s ease-out'
+          }}
+          onClick={currentEvent.dismissible ? dismissEvent : undefined}
+        />
+      )}
+      <div className={`event-info-box ${currentEvent.displayType} ${centerClass}`}>
       {/* Header */}
       <div className="event-info-box-header">
         <h3>{isMessage ? currentEvent.title : currentEvent.poi.name}</h3>
@@ -75,6 +106,7 @@ function EventInfoBox() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { RestManager } from '../../game/RestManager';
-import { toast } from 'sonner';
 
 function RestMenu({ onClose }) {
   const { state, dispatch, actions } = useGameState();
@@ -21,7 +20,7 @@ function RestMenu({ onClose }) {
 
   const handleShortRest = () => {
     if (!RestManager.canShortRest(character)) {
-      toast.error('Cannot short rest - no hit dice remaining!');
+      // Cannot short rest - no hit dice
       return;
     }
 
@@ -36,16 +35,7 @@ function RestMenu({ onClose }) {
       payload: { character }
     });
 
-    // Show result
-    if (result.success) {
-      toast.success('Short Rest Complete', {
-        description: result.message
-      });
-    } else {
-      toast.error('Short Rest Failed', {
-        description: result.message
-      });
-    }
+    // Rest complete - logged to game log
 
     setIsResting(false);
   };
@@ -55,9 +45,7 @@ function RestMenu({ onClose }) {
     const canRest = RestManager.canLongRest(character, currentGameTime);
 
     if (!canRest.allowed) {
-      toast.error('Cannot long rest', {
-        description: canRest.reason
-      });
+      // Cannot long rest - logged to game log
       return;
     }
 
@@ -82,11 +70,7 @@ function RestMenu({ onClose }) {
         payload: { character }
       });
 
-      toast.warning('Rest Interrupted!', {
-        description: `Your rest was interrupted by a random encounter! ${partialResult.message}`,
-        duration: 5000
-      });
-
+      // Rest interrupted - logged to game log
       // TODO: Trigger random encounter here
       setIsResting(false);
       return;
@@ -101,16 +85,7 @@ function RestMenu({ onClose }) {
       payload: { character }
     });
 
-    // Show result
-    if (result.success) {
-      toast.success('Long Rest Complete', {
-        description: result.message
-      });
-    } else {
-      toast.error('Long Rest Failed', {
-        description: result.message
-      });
-    }
+    // Rest complete - logged to game log
 
     setIsResting(false);
   };
@@ -123,9 +98,7 @@ function RestMenu({ onClose }) {
     const result = RestManager.innRest(character, state.party, costPerPerson, currentGameTime);
 
     if (!result.success) {
-      toast.error('Cannot stay at inn', {
-        description: result.message
-      });
+      // Cannot stay at inn - logged to game log
       return;
     }
 
@@ -137,10 +110,7 @@ function RestMenu({ onClose }) {
       payload: { character }
     });
 
-    // Show result
-    toast.success('Inn Rest Complete', {
-      description: result.message
-    });
+    // Inn rest complete - logged to game log
 
     setIsResting(false);
   };

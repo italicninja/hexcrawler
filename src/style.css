@@ -691,6 +691,36 @@ button:active {
     font-size: 0.875rem;
 }
 
+/* Game Over Screen */
+.game-over-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, #1a0000 0%, #330000 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    margin: 0;
+    padding: 0;
+}
+
+.game-over-logo {
+    font-size: 4rem;
+    font-weight: 700;
+    color: #ff4444;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+}
+
+.game-over-subtitle {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+}
+
 /* Advanced Options Toggle */
 .advanced-toggle {
     background: transparent;

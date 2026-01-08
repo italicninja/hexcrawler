@@ -6,7 +6,19 @@ const SettingsContext = createContext(null);
 // Default settings
 const defaultSettings = {
   doubleClickMove: true,
-  theme: 'midnight-gold' // midnight-gold, teal-dark, light, dark-blue, forest
+  theme: 'midnight-gold', // midnight-gold, teal-dark, light, dark-blue, forest
+  keybindings: {
+    moveUp: 'w',
+    moveDown: 's',
+    moveLeft: 'a',
+    moveRight: 'd',
+    interact: ' ', // Space bar
+    search: 'Shift',
+    rest: 'r',
+    inventory: 'i',
+    quests: 'q',
+    map: 'm'
+  }
 };
 
 // Provider component

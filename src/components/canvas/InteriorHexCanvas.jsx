@@ -12,6 +12,12 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
   const [hexSize] = useState(30);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
+  const [targetOffsetX, setTargetOffsetX] = useState(0);
+  const [targetOffsetY, setTargetOffsetY] = useState(0);
+  const animationFrameRef = useRef(null);
+  const playerAnimationRef = useRef(null);
+  const playerVisualPosRef = useRef(null);
+  const previousPlayerPosRef = useRef(playerPosition);
 
   // Convert grid to positioned hexes (using utility function)
   const positionedHexes = useCallback(() => {
@@ -189,14 +195,23 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
     renderHexOutline(ctx, hex.x, hex.y, hexSize, color, width);
   }, [hexSize]);
 
-  // Draw player marker (using utility function)
+  // Draw player marker (using utility function with smooth animation)
   const drawPlayer = useCallback((ctx, hexArray) => {
     if (!playerPosition) return;
 
-    const playerHex = hexArray.find(h => h.col === playerPosition.col && h.row === playerPosition.row);
-    if (!playerHex) return;
+    // Use animated position if available, otherwise actual position
+    let x, y;
+    if (playerVisualPosRef.current) {
+      x = playerVisualPosRef.current.x;
+      y = playerVisualPosRef.current.y;
+    } else {
+      const playerHex = hexArray.find(h => h.col === playerPosition.col && h.row === playerPosition.row);
+      if (!playerHex) return;
+      x = playerHex.x;
+      y = playerHex.y;
+    }
 
-    drawPlayerMarker(ctx, playerHex.x, playerHex.y, hexSize, 'P');
+    drawPlayerMarker(ctx, x, y, hexSize, 'P');
   }, [hexSize, playerPosition]);
 
   // Main draw function
@@ -251,7 +266,7 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
     return () => window.removeEventListener('resize', resizeCanvas);
   }, []);
 
-  // Center camera on player when position changes
+  // Set target camera position and animate player when position changes
   useEffect(() => {
     if (!interiorMap || !playerPosition) return;
 
@@ -262,12 +277,89 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
     const playerHex = hexArray.find(h => h.col === playerPosition.col && h.row === playerPosition.row);
     if (!playerHex) return;
 
+    // Start player movement animation if position changed
+    if (previousPlayerPosRef.current && 
+        (previousPlayerPosRef.current.col !== playerPosition.col || 
+         previousPlayerPosRef.current.row !== playerPosition.row)) {
+      
+      const prevHex = hexArray.find(h => 
+        h.col === previousPlayerPosRef.current.col && 
+        h.row === previousPlayerPosRef.current.row
+      );
+
+      if (prevHex) {
+        playerAnimationRef.current = {
+          startPos: { x: prevHex.x, y: prevHex.y },
+          endPos: { x: playerHex.x, y: playerHex.y },
+          startTime: performance.now(),
+          duration: 150 // milliseconds
+        };
+      }
+    }
+
+    previousPlayerPosRef.current = playerPosition;
+
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    setOffsetX(centerX - playerHex.x);
-    setOffsetY(centerY - playerHex.y);
+    setTargetOffsetX(centerX - playerHex.x);
+    setTargetOffsetY(centerY - playerHex.y);
   }, [interiorMap, playerPosition, positionedHexes]);
+
+  // Smooth camera and player animation with lerp
+  useEffect(() => {
+    let running = true;
+    const lerpSpeed = 0.1; // Match the overworld smoothness
+
+    const animate = () => {
+      if (!running) return;
+
+      // Update player animation
+      if (playerAnimationRef.current) {
+        const { startPos, endPos, startTime, duration } = playerAnimationRef.current;
+        const elapsed = performance.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Easing function (ease-out cubic for smooth deceleration)
+        const eased = 1 - Math.pow(1 - progress, 3);
+
+        playerVisualPosRef.current = {
+          x: startPos.x + (endPos.x - startPos.x) * eased,
+          y: startPos.y + (endPos.y - startPos.y) * eased
+        };
+
+        // Animation complete
+        if (progress >= 1) {
+          playerVisualPosRef.current = endPos;
+          playerAnimationRef.current = null;
+        }
+      }
+
+      // Smooth camera lerp
+      setOffsetX(prev => {
+        const diff = targetOffsetX - prev;
+        if (Math.abs(diff) < 0.1) return targetOffsetX;
+        return prev + diff * lerpSpeed;
+      });
+
+      setOffsetY(prev => {
+        const diff = targetOffsetY - prev;
+        if (Math.abs(diff) < 0.1) return targetOffsetY;
+        return prev + diff * lerpSpeed;
+      });
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      running = false;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [targetOffsetX, targetOffsetY]);
 
   // Redraw when dependencies change
   useEffect(() => {
