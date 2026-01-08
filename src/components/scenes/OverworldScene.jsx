@@ -1014,10 +1014,9 @@ function OverworldScene() {
         <aside style={{
           width: '280px',
           flexShrink: 0,
-          backgroundColor: 'var(--panel-bg)',
-          border: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-color)',
           borderRadius: '8px',
-          padding: state.inInterior ? 0 : '1rem',
+          padding: state.inInterior ? 0 : '0.5rem',
           overflowY: 'auto'
         }}>
           {state.inInterior && interiorMap ? (

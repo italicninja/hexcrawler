@@ -8,14 +8,19 @@ import ShopUI from './ShopUI';
 import { ACTIONS } from '../../contexts/GameStateContext';
 
 /**
- * HexDetails component - displays selected hex details with Move button
+ * HexDetails component - displays current hex and selected hex in two panes
  */
 
 function HexDetails({ hex, terrainGenerator, onMoveClick }) {
   const { state, dispatch, isHexReachable, isPoiDiscovered, isPoiSearched, getHexDistance } = useGameState();
   
-  // If no hex is selected, use the player's current hex
-  const displayHex = hex || (state.mapData?.[`${state.playerPosition.col},${state.playerPosition.row}`]);
+  // Current hex the player is standing on
+  const currentHex = state.mapData?.find(
+    h => h.col === state.playerPosition.col && h.row === state.playerPosition.row
+  );
+  
+  // Selected hex (the one clicked)
+  const selectedHex = hex;
   
   const { 
     handleInteract, 
@@ -26,7 +31,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
     handleEnterTown, 
     handleApproach, 
     handleTrade 
-  } = useHexInteraction(displayHex);
+  } = useHexInteraction(currentHex);
   const [showQuestGiver, setShowQuestGiver] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [shopType, setShopType] = useState('general');
@@ -34,65 +39,9 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
   // Check for blocking movement during active events
   const isBlockingMovement = state.hasActiveEvent || false;
 
-  if (!displayHex) {
-    return (
-      <div className="hex-info-placeholder" style={{
-        textAlign: 'center',
-        padding: '3rem 1rem',
-        color: 'var(--text-muted)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%'
-      }}>
-        <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}>🗺️</div>
-        <p style={{ margin: 0, fontSize: '0.95rem' }}>Click a hex to view details</p>
-      </div>
-    );
-  }
-
-  // Calculate difficulty
-  let totalDifficulty = displayHex.terrain.difficulty || 1;
-  let diffDesc = 'Easy';
-
-  if (terrainGenerator && terrainGenerator.poiSystem) {
-    // Use terrain difficulty
-    totalDifficulty = displayHex.terrain.difficulty || 1;
-    if (totalDifficulty <= 1) diffDesc = 'Easy';
-    else if (totalDifficulty <= 2) diffDesc = 'Moderate';
-    else if (totalDifficulty <= 3) diffDesc = 'Difficult';
-    else diffDesc = 'Very Difficult';
-  }
-
-  // Check if hex is reachable
-  const reachable = isHexReachable(displayHex.col, displayHex.row);
-  const distance = getHexDistance(
-    state.playerPosition.col,
-    state.playerPosition.row,
-    displayHex.col,
-    displayHex.row
-  );
-
-  // Check if player is on this hex
-  const isPlayerOnHex = state.playerPosition.col === displayHex.col && state.playerPosition.row === displayHex.row;
-
-  const handleMoveClick = () => {
-    if (reachable && onMoveClick) {
-      onMoveClick(displayHex);
-    }
-  };
-
-  // Check if POI is discovered
-  const poiDiscovered = displayHex.poi ? isPoiDiscovered(displayHex.col, displayHex.row) : false;
-  const poiVisible = displayHex.poi ? (displayHex.poi.visibleWithoutDiscovery || poiDiscovered) : false;
-
-  // Check if this is a town with quest givers
-  const isTown = displayHex.poi && displayHex.poi.type === 'town';
-
   // Handler for opening quest giver dialog
   const handleTalkToQuestGiver = () => {
-    const location = { col: displayHex.col, row: displayHex.row };
+    const location = { col: currentHex.col, row: currentHex.row };
     const locationKey = `${location.col},${location.row}`;
 
     // Check if quests already exist for this town
@@ -102,7 +51,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
       const playerLevel = state.playerCharacter?.level || 1;
 
       // Get nearby terrain types for context
-      const nearbyTerrain = getNearbyTerrain(displayHex, state.mapData);
+      const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
 
       // Generate 2-3 quests
       const questCount = 2 + Math.floor(Math.random() * 2);
@@ -122,7 +71,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
         // Refresh quests
         const generator = new QuestGenerator(state.mapSeed);
         const playerLevel = state.playerCharacter?.level || 1;
-        const nearbyTerrain = getNearbyTerrain(displayHex, state.mapData);
+        const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
         const questCount = 2 + Math.floor(Math.random() * 2);
         const quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);
 
@@ -166,7 +115,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
 
   // Get available quests for this town
   const getAvailableQuests = () => {
-    const locationKey = `${displayHex.col},${displayHex.row}`;
+    const locationKey = `${currentHex.col},${currentHex.row}`;
     const townData = state.townQuests[locationKey];
 
     if (!townData) return [];
@@ -177,393 +126,456 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
     });
   };
 
-  return (
-    <div className="hex-detail-display">
-      <div className="hex-detail-header" style={{
-        borderBottom: `2px solid var(--border-color)`,
-        paddingBottom: '0.75rem',
-        marginBottom: '1rem'
-      }}>
-        <h3 style={{
-          margin: '0 0 0.5rem 0',
-          color: 'var(--accent-color)',
-          fontSize: '1.2rem',
-          fontWeight: '600'
+  // Render a single hex pane
+  const renderHexPane = (displayHex, isCurrentHex) => {
+    if (!displayHex) {
+      return (
+        <div style={{
+          textAlign: 'center',
+          padding: '1.5rem 0.5rem',
+          color: 'var(--text-muted)',
+          fontSize: '0.8rem'
         }}>
-          Hex ({displayHex.col}, {displayHex.row})
-        </h3>
-        <div className="hex-terrain-badge" style={{
-          backgroundColor: displayHex.terrain.color,
-          padding: '0.4rem 0.8rem',
-          borderRadius: '4px',
-          fontSize: '0.85rem',
-          fontWeight: '600',
-          color: 'white',
-          textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
-          display: 'inline-block',
-          border: '1px solid rgba(0, 0, 0, 0.2)'
-        }}>
-          {displayHex.terrain.name}
+          {isCurrentHex ? 'No current hex' : 'Click a hex'}
         </div>
-      </div>
+      );
+    }
 
-      <div className="hex-detail-content" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <div className="detail-item" style={{
-          padding: '0.4rem 0.5rem',
-          backgroundColor: 'var(--bg-lighter)',
-          borderRadius: '4px',
-          border: '1px solid var(--border-color)'
+    // Calculate difficulty
+    let totalDifficulty = displayHex.terrain.difficulty || 1;
+    let diffDesc = 'Easy';
+
+    if (terrainGenerator && terrainGenerator.poiSystem) {
+      totalDifficulty = displayHex.terrain.difficulty || 1;
+      if (totalDifficulty <= 1) diffDesc = 'Easy';
+      else if (totalDifficulty <= 2) diffDesc = 'Moderate';
+      else if (totalDifficulty <= 3) diffDesc = 'Difficult';
+      else diffDesc = 'Very Difficult';
+    }
+
+    // Check if hex is reachable (for selected hex)
+    const reachable = !isCurrentHex && isHexReachable(displayHex.col, displayHex.row);
+    const distance = !isCurrentHex ? getHexDistance(
+      state.playerPosition.col,
+      state.playerPosition.row,
+      displayHex.col,
+      displayHex.row
+    ) : 0;
+
+    // Check if POI is discovered
+    const poiDiscovered = displayHex.poi ? isPoiDiscovered(displayHex.col, displayHex.row) : false;
+    const poiVisible = displayHex.poi ? (displayHex.poi.visibleWithoutDiscovery || poiDiscovered) : false;
+
+    // Check if this is a town with quest givers
+    const isTown = displayHex.poi && displayHex.poi.type === 'town';
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        {/* Header */}
+        <div style={{
+          borderBottom: `1px solid var(--border-color)`,
+          paddingBottom: '0.4rem'
         }}>
-          <div className="detail-label" style={{
+          <div style={{
             fontSize: '0.7rem',
             color: 'var(--text-muted)',
             textTransform: 'uppercase',
             fontWeight: '600',
-            marginBottom: '0.2rem',
-            letterSpacing: '0.5px'
+            marginBottom: '0.2rem'
           }}>
-            Distance
+            {isCurrentHex ? 'Current Hex' : 'Selected Hex'}
           </div>
-          <div className={`detail-value ${reachable ? 'highlight' : 'detail-muted'}`} style={{
-            color: reachable ? 'var(--accent-color)' : 'var(--text-muted)',
+          <div style={{
             fontSize: '0.85rem',
-            fontWeight: '500'
-          }}>
-            {distance} hex{distance !== 1 ? 'es' : ''} away
-            {!reachable && ' (Too far)'}
-          </div>
-        </div>
-
-        <div className="detail-item" style={{
-          padding: '0.4rem 0.5rem',
-          backgroundColor: 'var(--bg-lighter)',
-          borderRadius: '4px',
-          border: '1px solid var(--border-color)'
-        }}>
-          <div className="detail-label" style={{
-            fontSize: '0.7rem',
-            color: 'var(--text-muted)',
-            textTransform: 'uppercase',
+            color: 'var(--accent-color)',
             fontWeight: '600',
-            marginBottom: '0.2rem',
-            letterSpacing: '0.5px'
+            marginBottom: '0.3rem'
           }}>
-            Difficulty
+            ({displayHex.col}, {displayHex.row})
           </div>
-          <div className="detail-value" style={{
-            color: 'var(--text-color)',
-            fontSize: '0.85rem',
-            fontWeight: '500'
+          <div style={{
+            backgroundColor: displayHex.terrain.color,
+            padding: '0.2rem 0.5rem',
+            borderRadius: '3px',
+            fontSize: '0.75rem',
+            fontWeight: '600',
+            color: 'white',
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
+            display: 'inline-block',
+            border: '1px solid rgba(0, 0, 0, 0.2)'
           }}>
-            {diffDesc}
+            {displayHex.terrain.name}
           </div>
         </div>
 
-        {/* Show POI information if visible */}
-        {displayHex.poi && poiVisible && (
-          <>
-            <div className="detail-item" style={{
-              padding: '0.4rem 0.5rem',
+        {/* Info Grid */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          {/* Distance (only for selected hex) */}
+          {!isCurrentHex && (
+            <div style={{
+              padding: '0.3rem 0.4rem',
               backgroundColor: 'var(--bg-lighter)',
-              borderRadius: '4px',
-              border: '2px solid var(--accent-color)'
+              borderRadius: '3px',
+              fontSize: '0.75rem',
+              display: 'flex',
+              justifyContent: 'space-between'
             }}>
-              <div className="detail-label" style={{
-                fontSize: '0.7rem',
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                fontWeight: '600',
-                marginBottom: '0.2rem',
-                letterSpacing: '0.5px'
+              <span style={{ color: 'var(--text-muted)' }}>Distance</span>
+              <span style={{ 
+                color: reachable ? 'var(--accent-color)' : 'var(--text-muted)',
+                fontWeight: '500'
               }}>
-                Point of Interest
-              </div>
-              <div className="detail-value highlight" style={{
-                color: 'var(--accent-color)',
-                fontSize: '0.95rem',
-                fontWeight: '700'
-              }}>
-                {displayHex.poi.name}
-              </div>
+                {distance} hex{distance !== 1 ? 'es' : ''} {!reachable && '(Far)'}
+              </span>
             </div>
+          )}
 
-            {poiDiscovered && displayHex.poi.description && (
-              <div className="detail-item" style={{
-                padding: '0.4rem 0.5rem',
+          {/* Difficulty */}
+          <div style={{
+            padding: '0.3rem 0.4rem',
+            backgroundColor: 'var(--bg-lighter)',
+            borderRadius: '3px',
+            fontSize: '0.75rem',
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}>
+            <span style={{ color: 'var(--text-muted)' }}>Difficulty</span>
+            <span style={{ fontWeight: '500' }}>{diffDesc}</span>
+          </div>
+
+          {/* POI Info */}
+          {displayHex.poi && poiVisible && (
+            <>
+              <div style={{
+                padding: '0.3rem 0.4rem',
                 backgroundColor: 'var(--bg-lighter)',
-                borderRadius: '4px',
-                border: '1px solid var(--border-color)'
+                borderRadius: '3px',
+                border: '1px solid var(--accent-color)',
+                fontSize: '0.75rem'
               }}>
-                <div className="detail-label" style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  fontWeight: '600',
-                  marginBottom: '0.2rem',
-                  letterSpacing: '0.5px'
-                }}>
-                  Description
+                <div style={{ color: 'var(--text-muted)', marginBottom: '0.1rem' }}>POI</div>
+                <div style={{ color: 'var(--accent-color)', fontWeight: '700', fontSize: '0.8rem' }}>
+                  {displayHex.poi.name}
                 </div>
-                <div className="detail-value detail-muted" style={{
+              </div>
+
+              {poiDiscovered && displayHex.poi.description && (
+                <div style={{
+                  padding: '0.3rem 0.4rem',
+                  backgroundColor: 'var(--bg-lighter)',
+                  borderRadius: '3px',
+                  fontSize: '0.7rem',
                   color: 'var(--text-light)',
-                  fontSize: '0.8rem',
-                  lineHeight: '1.3',
-                  fontStyle: 'italic'
+                  fontStyle: 'italic',
+                  lineHeight: '1.2'
                 }}>
                   {displayHex.poi.description}
                 </div>
-              </div>
-            )}
+              )}
 
-            {poiDiscovered && displayHex.poi.cr !== undefined && (
-              <div className="detail-item" style={{
-                padding: '0.4rem 0.5rem',
-                backgroundColor: 'var(--bg-lighter)',
-                borderRadius: '4px',
-                border: '1px solid var(--border-color)'
-              }}>
-                <div className="detail-label" style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  fontWeight: '600',
-                  marginBottom: '0.2rem',
-                  letterSpacing: '0.5px'
+              {poiDiscovered && displayHex.poi.cr !== undefined && (
+                <div style={{
+                  padding: '0.3rem 0.4rem',
+                  backgroundColor: 'var(--bg-lighter)',
+                  borderRadius: '3px',
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  justifyContent: 'space-between'
                 }}>
-                  Challenge Rating
+                  <span style={{ color: 'var(--text-muted)' }}>CR</span>
+                  <span style={{ color: '#e74c3c', fontWeight: '700' }}>
+                    {displayHex.poi.cr}
+                  </span>
                 </div>
-                <div className="detail-value" style={{
-                  color: '#e74c3c',
-                  fontSize: '0.85rem',
-                  fontWeight: '700'
-                }}>
-                  CR {displayHex.poi.cr}
-                </div>
-              </div>
-            )}
+              )}
 
-            {poiDiscovered && displayHex.poi.eventType && (
-              <div className="detail-item" style={{
-                padding: '0.4rem 0.5rem',
-                backgroundColor: 'var(--bg-lighter)',
-                borderRadius: '4px',
-                border: '1px solid var(--border-color)'
-              }}>
-                <div className="detail-label" style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  fontWeight: '600',
-                  marginBottom: '0.2rem',
-                  letterSpacing: '0.5px'
+              {poiDiscovered && displayHex.poi.eventType && (
+                <div style={{
+                  padding: '0.3rem 0.4rem',
+                  backgroundColor: 'var(--bg-lighter)',
+                  borderRadius: '3px',
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  justifyContent: 'space-between'
                 }}>
-                  Type
+                  <span style={{ color: 'var(--text-muted)' }}>Type</span>
+                  <span style={{ fontWeight: '500' }}>
+                    {displayHex.poi.eventType === 'active' ? 'Combat' : 'Exploration'}
+                  </span>
                 </div>
-                <div className="detail-value" style={{
+              )}
+            </>
+          )}
+
+          {/* Weather */}
+          {displayHex.weather && (
+            <>
+              <div style={{
+                padding: '0.3rem 0.4rem',
+                backgroundColor: 'var(--bg-lighter)',
+                borderRadius: '3px',
+                fontSize: '0.75rem',
+                display: 'flex',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ color: 'var(--text-muted)' }}>Weather</span>
+                <span style={{ fontWeight: '500' }}>{displayHex.weather.condition}</span>
+              </div>
+              {displayHex.weather.effect && (
+                <div style={{
+                  padding: '0.3rem 0.4rem',
+                  backgroundColor: 'var(--bg-lighter)',
+                  borderRadius: '3px',
+                  fontSize: '0.7rem',
+                  color: 'var(--text-light)'
+                }}>
+                  {displayHex.weather.effect}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Action Buttons - only for current hex */}
+        {isCurrentHex && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.3rem' }}>
+            {/* Enter button for towns */}
+            {displayHex.poi && poiVisible && displayHex.poi.eventType === 'passive' && displayHex.poi.type === 'town' && (
+              <button
+                className="hex-action-btn hex-action-btn-success"
+                onClick={handleEnterTown}
+                style={{
+                  background: 'var(--primary-color)',
+                  borderColor: 'var(--accent-color)',
                   color: 'var(--text-color)',
-                  fontSize: '0.85rem',
-                  fontWeight: '500'
-                }}>
-                  {displayHex.poi.eventType === 'active' ? 'Combat' : 'Exploration'}
-                </div>
+                  padding: '0.4rem 0.6rem',
+                  fontSize: '0.75rem',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  border: '1px solid',
+                  fontWeight: '600'
+                }}
+              >
+                Enter {displayHex.poi.name}
+              </button>
+            )}
+
+            {/* Interact button for other passive POIs */}
+            {displayHex.poi && poiVisible && displayHex.poi.eventType === 'passive' && 
+             !['town', 'shrine', 'camp'].includes(displayHex.poi.type) && (
+              <button
+                className="hex-action-btn hex-action-btn-success"
+                onClick={handleInteract}
+                style={{
+                  background: 'var(--primary-color)',
+                  borderColor: 'var(--accent-color)',
+                  color: 'var(--text-color)',
+                  padding: '0.4rem 0.6rem',
+                  fontSize: '0.75rem',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  border: '1px solid',
+                  fontWeight: '600'
+                }}
+              >
+                Interact
+              </button>
+            )}
+
+            {/* Search button */}
+            {displayHex.poi && poiVisible && !isPoiSearched(displayHex.col, displayHex.row) &&
+             ['cave', 'ruins', 'tower', 'dungeon'].includes(displayHex.poi.type) && (
+              <button
+                className="hex-action-btn hex-action-btn-search"
+                onClick={handleSearch}
+                style={{
+                  background: 'var(--primary-color)',
+                  borderColor: 'var(--accent-color)',
+                  color: 'var(--text-color)',
+                  padding: '0.4rem 0.6rem',
+                  fontSize: '0.75rem',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  border: '1px solid',
+                  fontWeight: '600'
+                }}
+              >
+                Search
+              </button>
+            )}
+
+            {/* Explore button */}
+            {displayHex.poi && poiVisible && isPoiSearched(displayHex.col, displayHex.row) &&
+             ['cave', 'ruins', 'tower', 'dungeon'].includes(displayHex.poi.type) && (
+              <button
+                className="hex-action-btn hex-action-btn-explore"
+                onClick={handleExplore}
+                style={{
+                  background: 'var(--primary-color)',
+                  borderColor: 'var(--accent-color)',
+                  color: 'var(--text-color)',
+                  padding: '0.4rem 0.6rem',
+                  fontSize: '0.75rem',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  border: '1px solid',
+                  fontWeight: '600'
+                }}
+              >
+                Explore
+              </button>
+            )}
+
+            {/* Shrine buttons */}
+            {displayHex.poi && poiVisible && displayHex.poi.type === 'shrine' && !isPoiSearched(displayHex.col, displayHex.row) && (
+              <>
+                <button
+                  onClick={handlePray}
+                  style={{
+                    background: 'var(--primary-color)',
+                    borderColor: 'var(--accent-color)',
+                    color: 'var(--text-color)',
+                    padding: '0.4rem 0.6rem',
+                    fontSize: '0.75rem',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    border: '1px solid',
+                    fontWeight: '600'
+                  }}
+                >
+                  Pray
+                </button>
+                <button
+                  onClick={handleOffer}
+                  style={{
+                    background: 'var(--primary-color)',
+                    borderColor: 'var(--accent-color)',
+                    color: 'var(--text-color)',
+                    padding: '0.4rem 0.6rem',
+                    fontSize: '0.75rem',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    border: '1px solid',
+                    fontWeight: '600'
+                  }}
+                >
+                  Offer (10g)
+                </button>
+              </>
+            )}
+
+            {/* Shrine visited message */}
+            {displayHex.poi && poiVisible && displayHex.poi.type === 'shrine' && isPoiSearched(displayHex.col, displayHex.row) && (
+              <div style={{
+                padding: '0.4rem',
+                background: 'var(--bg-lighter)',
+                borderRadius: '3px',
+                color: 'var(--text-muted)',
+                fontSize: '0.7rem',
+                textAlign: 'center',
+                fontStyle: 'italic'
+              }}>
+                Already visited
               </div>
             )}
-          </>
-        )}
 
-        {displayHex.weather && (
-          <>
-            <div className="detail-item" style={{
-              padding: '0.4rem 0.5rem',
-              backgroundColor: 'var(--bg-lighter)',
-              borderRadius: '4px',
-              border: '1px solid var(--border-color)'
-            }}>
-              <div className="detail-label" style={{
-                fontSize: '0.7rem',
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                fontWeight: '600',
-                marginBottom: '0.2rem',
-                letterSpacing: '0.5px'
-              }}>
-                Weather
-              </div>
-              <div className="detail-value" style={{
-                color: 'var(--text-color)',
-                fontSize: '0.85rem',
-                fontWeight: '500'
-              }}>
-                {displayHex.weather.condition}
-              </div>
-            </div>
-            <div className="detail-item" style={{
-              padding: '0.4rem 0.5rem',
-              backgroundColor: 'var(--bg-lighter)',
-              borderRadius: '4px',
-              border: '1px solid var(--border-color)'
-            }}>
-              <div className="detail-label" style={{
-                fontSize: '0.7rem',
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                fontWeight: '600',
-                marginBottom: '0.2rem',
-                letterSpacing: '0.5px'
-              }}>
-                Effect
-              </div>
-              <div className="detail-value detail-muted" style={{
-                color: 'var(--text-light)',
-                fontSize: '0.8rem'
-              }}>
-                {displayHex.weather.effect || 'None'}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Action Buttons Container */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.75rem' }}>
-        {/* Enter button for towns - only when on the hex */}
-        {displayHex.poi && poiVisible && displayHex.poi.eventType === 'passive' && displayHex.poi.type === 'town' && isPlayerOnHex && (
-          <button
-            className="hex-action-btn hex-action-btn-success"
-            onClick={handleEnterTown}
-            style={{
-              background: 'var(--primary-color)',
-              borderColor: 'var(--accent-color)',
-              color: 'var(--text-color)'
-            }}
-          >
-            Enter {displayHex.poi.name}
-          </button>
-        )}
-
-        {/* Interact button for other passive POIs (not shrines/camps which have specific buttons) */}
-        {displayHex.poi && poiVisible && displayHex.poi.eventType === 'passive' && 
-         !['town', 'shrine', 'camp'].includes(displayHex.poi.type) && isPlayerOnHex && (
-          <button
-            className="hex-action-btn hex-action-btn-success"
-            onClick={handleInteract}
-            style={{
-              background: 'var(--primary-color)',
-              borderColor: 'var(--accent-color)',
-              color: 'var(--text-color)'
-            }}
-          >
-            Interact with {displayHex.poi.name}
-          </button>
-        )}
-
-        {/* Search button for explorable POIs - only when on the hex and not yet searched */}
-        {displayHex.poi && poiVisible && isPlayerOnHex && !isPoiSearched(displayHex.col, displayHex.row) &&
-         ['cave', 'ruins', 'tower', 'dungeon'].includes(displayHex.poi.type) && (
-          <button
-            className="hex-action-btn hex-action-btn-search"
-            onClick={handleSearch}
-            style={{
-              background: 'var(--primary-color)',
-              borderColor: 'var(--accent-color)',
-              color: 'var(--text-color)'
-            }}
-          >
-            Search {displayHex.poi.name}
-          </button>
-        )}
-
-        {/* Explore button for searched explorable POIs - only when on the hex */}
-        {displayHex.poi && poiVisible && isPlayerOnHex && isPoiSearched(displayHex.col, displayHex.row) &&
-         ['cave', 'ruins', 'tower', 'dungeon'].includes(displayHex.poi.type) && (
-          <button
-            className="hex-action-btn hex-action-btn-explore"
-            onClick={handleExplore}
-            style={{
-              background: 'var(--primary-color)',
-              borderColor: 'var(--accent-color)',
-              color: 'var(--text-color)'
-            }}
-          >
-            Explore {displayHex.poi.name}
-          </button>
-        )}
-
-        {/* Shrine interaction buttons - only when on the hex and not yet visited */}
-        {displayHex.poi && poiVisible && displayHex.poi.type === 'shrine' && isPlayerOnHex && !isPoiSearched(displayHex.col, displayHex.row) && (
-          <>
-            <button
-              className="hex-action-btn hex-action-btn-success"
-              onClick={handlePray}
-              style={{
-                background: 'var(--primary-color)',
-                borderColor: 'var(--accent-color)',
-                color: 'var(--text-color)'
-              }}
-            >
-              Pray at {displayHex.poi.name}
-            </button>
-            <button
-              className="hex-action-btn hex-action-btn-success"
-              onClick={handleOffer}
-              style={{
-                background: 'var(--primary-color)',
-                borderColor: 'var(--accent-color)',
-                color: 'var(--text-color)'
-              }}
-            >
-              Make Offering (10 gold)
-            </button>
-          </>
-        )}
-
-        {/* Shrine already visited message */}
-        {displayHex.poi && poiVisible && displayHex.poi.type === 'shrine' && isPlayerOnHex && isPoiSearched(displayHex.col, displayHex.row) && (
-          <div style={{
-            padding: '0.75rem',
-            background: 'var(--bg-lighter)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '4px',
-            color: 'var(--text-muted)',
-            fontSize: '0.85rem',
-            textAlign: 'center',
-            fontStyle: 'italic'
-          }}>
-            You have already paid your respects at this shrine.
+            {/* Camp buttons */}
+            {displayHex.poi && poiVisible && displayHex.poi.type === 'camp' && (
+              <>
+                <button
+                  onClick={handleApproach}
+                  style={{
+                    background: 'var(--primary-color)',
+                    borderColor: 'var(--accent-color)',
+                    color: 'var(--text-color)',
+                    padding: '0.4rem 0.6rem',
+                    fontSize: '0.75rem',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    border: '1px solid',
+                    fontWeight: '600'
+                  }}
+                >
+                  Approach
+                </button>
+                <button
+                  onClick={handleTrade}
+                  style={{
+                    background: 'var(--primary-color)',
+                    borderColor: 'var(--accent-color)',
+                    color: 'var(--text-color)',
+                    padding: '0.4rem 0.6rem',
+                    fontSize: '0.75rem',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    border: '1px solid',
+                    fontWeight: '600'
+                  }}
+                >
+                  Trade
+                </button>
+              </>
+            )}
           </div>
         )}
 
-        {/* Camp interaction buttons - only when on the hex */}
-        {displayHex.poi && poiVisible && displayHex.poi.type === 'camp' && isPlayerOnHex && (
-          <>
-            <button
-              className="hex-action-btn hex-action-btn-success"
-              onClick={handleApproach}
-              style={{
-                background: 'var(--primary-color)',
-                borderColor: 'var(--accent-color)',
-                color: 'var(--text-color)'
-              }}
-            >
-              Approach Camp
-            </button>
-            <button
-              className="hex-action-btn hex-action-btn-success"
-              onClick={handleTrade}
-              style={{
-                background: 'var(--primary-color)',
-                borderColor: 'var(--accent-color)',
-                color: 'var(--text-color)'
-              }}
-            >
-              Trade with Camp
-            </button>
-          </>
+        {/* Move button - only for selected hex */}
+        {!isCurrentHex && reachable && (
+          <button
+            onClick={() => onMoveClick && onMoveClick(displayHex)}
+            style={{
+              background: 'var(--primary-color)',
+              borderColor: 'var(--accent-color)',
+              color: 'var(--text-color)',
+              padding: '0.5rem 0.6rem',
+              fontSize: '0.8rem',
+              borderRadius: '3px',
+              cursor: 'pointer',
+              border: '1px solid',
+              fontWeight: '700',
+              marginTop: '0.3rem'
+            }}
+          >
+            Move to Hex
+          </button>
         )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      gap: '0.75rem'
+    }}>
+      {/* Current Hex Pane */}
+      <div style={{
+        flex: 1,
+        backgroundColor: 'var(--panel-bg)',
+        border: '1px solid var(--accent-color)',
+        borderRadius: '6px',
+        padding: '0.6rem',
+        overflow: 'auto'
+      }}>
+        {renderHexPane(currentHex, true)}
+      </div>
+
+      {/* Selected Hex Pane */}
+      <div style={{
+        flex: 1,
+        backgroundColor: 'var(--panel-bg)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '6px',
+        padding: '0.6rem',
+        overflow: 'auto'
+      }}>
+        {renderHexPane(selectedHex, false)}
       </div>
 
       {/* Quest Giver UI Modal */}
-      {showQuestGiver && isTown && (
+      {showQuestGiver && isTown && currentHex && (
         <QuestGiverUI
           questGiver={{ name: 'Village Elder' }}
           availableQuests={getAvailableQuests()}
@@ -573,9 +585,9 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
       )}
 
       {/* Shop UI Modal */}
-      {showShop && (
+      {showShop && currentHex && (
         <ShopUI
-          poiKey={`${displayHex.col},${displayHex.row}`}
+          poiKey={`${currentHex.col},${currentHex.row}`}
           shopType={shopType}
           onClose={() => setShowShop(false)}
         />
