@@ -65,7 +65,7 @@ function OverworldScene() {
   }, []);
 
   // Use custom hooks for map generation and expansion
-  useMapGeneration(terrainGeneratorRef, gameLogRef, viewportSize);
+  useMapGeneration(terrainGeneratorRef, viewportSize);
   useInfiniteTerrainExpansion(terrainGeneratorRef, gameLogRef, viewportSize);
 
   // Update selected character when player character changes
