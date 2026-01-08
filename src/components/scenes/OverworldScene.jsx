@@ -582,7 +582,7 @@ function OverworldScene() {
 
   // Get hex interaction handlers for current hex
   const currentHex = getCurrentHex();
-  const { handleInteract, handlePassiveChoice } = useHexInteraction(currentHex);
+  const { handleInteract, handlePassiveChoice, handleEnterTown } = useHexInteraction(currentHex);
 
   // Helper function to get hex in a direction
   const getHexInDirection = (direction) => {
@@ -688,18 +688,16 @@ function OverworldScene() {
           const discovered = isPoiDiscovered(hex.col, hex.row);
           
           // Directly trigger the appropriate action based on POI type
-          if (hex.poi.type === 'town') {
+          const settlementTypes = ['camp', 'village', 'town', 'city', 'metropolis'];
+          if (settlementTypes.includes(hex.poi.type)) {
             if (discovered || hex.poi.visibleWithoutDiscovery) {
-              // Enter town directly without showing dialog
-              dispatch({
-                type: actions.ENTER_TOWN,
-                payload: { col: hex.col, row: hex.row, poi: hex.poi }
-              });
+              // Enter settlement using handleEnterTown (generates interior first)
+              handleEnterTown();
             }
           } else if (['cave', 'ruins', 'tower', 'dungeon'].includes(hex.poi.type)) {
             handlePassiveChoice('explore', hex.poi);
           }
-          // Note: shrines and camps now use buttons in HexDetails panel
+          // Note: shrines now use buttons in HexDetails panel
           // No spacebar action for them - player uses buttons
         }
       }

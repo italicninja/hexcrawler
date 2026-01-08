@@ -351,14 +351,15 @@ export function useHexInteraction(hex) {
 
     // Default actions by POI type
     switch (poi.type) {
+      case 'camp':
+      case 'village':
       case 'town':
+      case 'city':
+      case 'metropolis':
         handleEnterTown();
         break;
       case 'shrine':
         handlePray();
-        break;
-      case 'camp':
-        handleApproach();
         break;
       case 'cave':
       case 'ruins':
