@@ -186,25 +186,29 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
             {isCurrentHex ? 'Current Hex' : 'Selected Hex'}
           </div>
           <div style={{
-            fontSize: '0.85rem',
-            color: 'var(--accent-color)',
-            fontWeight: '600',
-            marginBottom: '0.3rem'
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
           }}>
-            ({displayHex.col}, {displayHex.row})
-          </div>
-          <div style={{
-            backgroundColor: displayHex.terrain.color,
-            padding: '0.2rem 0.5rem',
-            borderRadius: '3px',
-            fontSize: '0.75rem',
-            fontWeight: '600',
-            color: 'white',
-            textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
-            display: 'inline-block',
-            border: '1px solid rgba(0, 0, 0, 0.2)'
-          }}>
-            {displayHex.terrain.name}
+            <div style={{
+              fontSize: '0.85rem',
+              color: 'var(--accent-color)',
+              fontWeight: '600'
+            }}>
+              ({displayHex.col}, {displayHex.row})
+            </div>
+            <div style={{
+              backgroundColor: displayHex.terrain.color,
+              padding: '0.2rem 0.5rem',
+              borderRadius: '3px',
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              color: 'white',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
+              border: '1px solid rgba(0, 0, 0, 0.2)'
+            }}>
+              {displayHex.terrain.name}
+            </div>
           </div>
         </div>
 
