@@ -800,32 +800,36 @@ button:active {
 
 .character-creation-content {
     text-align: center;
-    max-width: 700px;
-    padding: 2rem;
+    max-width: 600px;
+    padding: 1.5rem;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
+.btn-begin-adventure {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
 .btn-quick-start {
-    margin-top: 1.5rem;
-    padding: 0.875rem 2rem;
-    font-size: 1.1rem;
+    margin-top: 0;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
     font-weight: 600;
-    background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
-    border: none;
-    border-radius: 8px;
-    color: white;
+    background: var(--bg-lighter);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-color);
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
+    transition: all 0.2s ease;
 }
 
 .btn-quick-start:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(20, 184, 166, 0.4);
-    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    transform: translateY(-1px);
+    background: var(--bg-light);
+    border-color: var(--accent-color);
 }
 
 .btn-quick-start:active {
@@ -835,7 +839,7 @@ button:active {
 .divider-text {
     width: 100%;
     max-width: 400px;
-    margin: 1.5rem 0;
+    margin: 1rem 0 0.75rem 0;
     position: relative;
     text-align: center;
 }
@@ -873,7 +877,7 @@ button:active {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .character-creation-form .control-group {
@@ -935,13 +939,13 @@ button:active {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 1rem 0.5rem;
+    padding: 0.75rem 0.5rem;
     background: var(--panel-bg);
     border: 2px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-height: 80px;
+    min-height: 70px;
 }
 
 .class-button:hover {
@@ -1009,6 +1013,43 @@ button:active {
     color: var(--text-light);
 }
 
+.class-info-compact {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1rem;
+    text-align: left;
+}
+
+.class-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.class-info-compact h3 {
+    color: var(--accent-color);
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.class-hitdie {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.class-info-compact .class-description {
+    color: var(--text-light);
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
 .ability-scores-preview {
     background: var(--panel-bg);
     border: 1px solid var(--border-color);
@@ -1020,6 +1061,20 @@ button:active {
     color: var(--text-light);
     margin: 0 0 1rem 0;
     font-size: 1rem;
+    text-align: left;
+}
+
+.ability-scores-preview-compact {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.ability-scores-preview-compact h4 {
+    color: var(--text-light);
+    margin: 0 0 0.75rem 0;
+    font-size: 0.875rem;
     text-align: left;
 }
 
@@ -1040,6 +1095,10 @@ button:active {
     border-radius: 6px;
 }
 
+.ability-scores-preview-compact .ability-score {
+    padding: 0.5rem 0.25rem;
+}
+
 .ability-label {
     font-size: 0.75rem;
     color: var(--text-muted);
@@ -1047,10 +1106,18 @@ button:active {
     text-transform: uppercase;
 }
 
+.ability-scores-preview-compact .ability-label {
+    font-size: 0.65rem;
+}
+
 .ability-value {
     font-size: 1.25rem;
     color: var(--accent-color);
     font-weight: 700;
+}
+
+.ability-scores-preview-compact .ability-value {
+    font-size: 1.1rem;
 }
 
 .btn-large {

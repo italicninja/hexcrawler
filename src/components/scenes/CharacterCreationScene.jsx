@@ -203,6 +203,14 @@ function CharacterCreationScene() {
       <div className="character-creation-content">
         <h1 className="title-logo">Create Your Hero</h1>
         
+        {/* Begin Adventure Button - Moved to Top */}
+        <button
+          className="btn-primary btn-large btn-begin-adventure"
+          onClick={handleCreateCharacter}
+        >
+          Begin Adventure
+        </button>
+
         {/* Quick Start Button */}
         <button
           className="btn-quick-start"
@@ -213,17 +221,17 @@ function CharacterCreationScene() {
         </button>
 
         <div className="divider-text">
-          <span>or customize your hero</span>
+          <span>or customize</span>
         </div>
 
         <div className="character-creation-form">
           {/* Character Name Input */}
           <div className="control-group">
-            <label htmlFor="character-name">Character Name:</label>
+            <label htmlFor="character-name">Name:</label>
             <input
               type="text"
               id="character-name"
-              placeholder="Enter your character's name"
+              placeholder="Enter name"
               value={characterName}
               onChange={(e) => {
                 setCharacterName(e.target.value);
@@ -237,7 +245,7 @@ function CharacterCreationScene() {
 
           {/* Class Selection */}
           <div className="control-group">
-            <label>Choose Your Class:</label>
+            <label>Class:</label>
             <div className="class-selection-grid">
               {Object.entries(CLASS_DATA).map(([key, data]) => (
                 <button
@@ -253,20 +261,18 @@ function CharacterCreationScene() {
             </div>
           </div>
 
-          {/* Class Description */}
-          <div className="class-info">
-            <h3>{currentClassData.name}</h3>
+          {/* Class Description - Condensed */}
+          <div className="class-info-compact">
+            <div className="class-info-header">
+              <h3>{currentClassData.name}</h3>
+              <span className="class-hitdie">{currentClassData.hitDie}</span>
+            </div>
             <p className="class-description">{currentClassData.description}</p>
-            <p className="class-stats">
-              <strong>Hit Die:</strong> {currentClassData.hitDie} | 
-              <strong> Primary:</strong> {currentClassData.primaryStat.toUpperCase()} | 
-              <strong> Secondary:</strong> {currentClassData.secondaryStat.toUpperCase()}
-            </p>
           </div>
 
-          {/* Ability Scores Display */}
-          <div className="ability-scores-preview">
-            <h4>Starting Ability Scores (Standard Array)</h4>
+          {/* Ability Scores Display - Condensed */}
+          <div className="ability-scores-preview-compact">
+            <h4>Starting Scores</h4>
             <div className="ability-scores-grid">
               <div className="ability-score">
                 <div className="ability-label">STR</div>
@@ -294,14 +300,6 @@ function CharacterCreationScene() {
               </div>
             </div>
           </div>
-
-          {/* Create Button */}
-          <button
-            className="btn-primary btn-large"
-            onClick={handleCreateCharacter}
-          >
-            Begin Adventure
-          </button>
         </div>
       </div>
     </div>
