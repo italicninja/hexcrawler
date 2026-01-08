@@ -13,6 +13,10 @@ import { ACTIONS } from '../../contexts/GameStateContext';
 
 function HexDetails({ hex, terrainGenerator, onMoveClick }) {
   const { state, dispatch, isHexReachable, isPoiDiscovered, isPoiSearched, getHexDistance } = useGameState();
+  
+  // If no hex is selected, use the player's current hex
+  const displayHex = hex || (state.mapData?.[`${state.playerPosition.col},${state.playerPosition.row}`]);
+  
   const { 
     handleInteract, 
     handleSearch, 
@@ -22,7 +26,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
     handleEnterTown, 
     handleApproach, 
     handleTrade 
-  } = useHexInteraction(hex);
+  } = useHexInteraction(displayHex);
   const [showQuestGiver, setShowQuestGiver] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [shopType, setShopType] = useState('general');
@@ -30,7 +34,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
   // Check for blocking movement during active events
   const isBlockingMovement = state.hasActiveEvent || false;
 
-  if (!hex) {
+  if (!displayHex) {
     return (
       <div className="hex-info-placeholder" style={{
         textAlign: 'center',
@@ -49,12 +53,12 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
   }
 
   // Calculate difficulty
-  let totalDifficulty = hex.terrain.difficulty || 1;
+  let totalDifficulty = displayHex.terrain.difficulty || 1;
   let diffDesc = 'Easy';
 
   if (terrainGenerator && terrainGenerator.poiSystem) {
     // Use terrain difficulty
-    totalDifficulty = hex.terrain.difficulty || 1;
+    totalDifficulty = displayHex.terrain.difficulty || 1;
     if (totalDifficulty <= 1) diffDesc = 'Easy';
     else if (totalDifficulty <= 2) diffDesc = 'Moderate';
     else if (totalDifficulty <= 3) diffDesc = 'Difficult';
@@ -62,33 +66,33 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
   }
 
   // Check if hex is reachable
-  const reachable = isHexReachable(hex.col, hex.row);
+  const reachable = isHexReachable(displayHex.col, displayHex.row);
   const distance = getHexDistance(
     state.playerPosition.col,
     state.playerPosition.row,
-    hex.col,
-    hex.row
+    displayHex.col,
+    displayHex.row
   );
 
   // Check if player is on this hex
-  const isPlayerOnHex = state.playerPosition.col === hex.col && state.playerPosition.row === hex.row;
+  const isPlayerOnHex = state.playerPosition.col === displayHex.col && state.playerPosition.row === displayHex.row;
 
   const handleMoveClick = () => {
     if (reachable && onMoveClick) {
-      onMoveClick(hex);
+      onMoveClick(displayHex);
     }
   };
 
   // Check if POI is discovered
-  const poiDiscovered = hex.poi ? isPoiDiscovered(hex.col, hex.row) : false;
-  const poiVisible = hex.poi ? (hex.poi.visibleWithoutDiscovery || poiDiscovered) : false;
+  const poiDiscovered = displayHex.poi ? isPoiDiscovered(displayHex.col, displayHex.row) : false;
+  const poiVisible = displayHex.poi ? (displayHex.poi.visibleWithoutDiscovery || poiDiscovered) : false;
 
   // Check if this is a town with quest givers
-  const isTown = hex.poi && hex.poi.type === 'town';
+  const isTown = displayHex.poi && displayHex.poi.type === 'town';
 
   // Handler for opening quest giver dialog
   const handleTalkToQuestGiver = () => {
-    const location = { col: hex.col, row: hex.row };
+    const location = { col: displayHex.col, row: displayHex.row };
     const locationKey = `${location.col},${location.row}`;
 
     // Check if quests already exist for this town
@@ -98,7 +102,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
       const playerLevel = state.playerCharacter?.level || 1;
 
       // Get nearby terrain types for context
-      const nearbyTerrain = getNearbyTerrain(hex, state.mapData);
+      const nearbyTerrain = getNearbyTerrain(displayHex, state.mapData);
 
       // Generate 2-3 quests
       const questCount = 2 + Math.floor(Math.random() * 2);
@@ -118,7 +122,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
         // Refresh quests
         const generator = new QuestGenerator(state.mapSeed);
         const playerLevel = state.playerCharacter?.level || 1;
-        const nearbyTerrain = getNearbyTerrain(hex, state.mapData);
+        const nearbyTerrain = getNearbyTerrain(displayHex, state.mapData);
         const questCount = 2 + Math.floor(Math.random() * 2);
         const quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);
 
@@ -162,7 +166,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
 
   // Get available quests for this town
   const getAvailableQuests = () => {
-    const locationKey = `${hex.col},${hex.row}`;
+    const locationKey = `${displayHex.col},${displayHex.row}`;
     const townData = state.townQuests[locationKey];
 
     if (!townData) return [];
@@ -186,10 +190,10 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
           fontSize: '1.2rem',
           fontWeight: '600'
         }}>
-          Hex ({hex.col}, {hex.row})
+          Hex ({displayHex.col}, {displayHex.row})
         </h3>
         <div className="hex-terrain-badge" style={{
-          backgroundColor: hex.terrain.color,
+          backgroundColor: displayHex.terrain.color,
           padding: '0.4rem 0.8rem',
           borderRadius: '4px',
           fontSize: '0.85rem',
@@ -199,7 +203,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
           display: 'inline-block',
           border: '1px solid rgba(0, 0, 0, 0.2)'
         }}>
-          {hex.terrain.name}
+          {displayHex.terrain.name}
         </div>
       </div>
 
@@ -256,7 +260,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
         </div>
 
         {/* Show POI information if visible */}
-        {hex.poi && poiVisible && (
+        {displayHex.poi && poiVisible && (
           <>
             <div className="detail-item" style={{
               padding: '0.4rem 0.5rem',
@@ -279,11 +283,11 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
                 fontSize: '0.95rem',
                 fontWeight: '700'
               }}>
-                {hex.poi.name}
+                {displayHex.poi.name}
               </div>
             </div>
 
-            {poiDiscovered && hex.poi.description && (
+            {poiDiscovered && displayHex.poi.description && (
               <div className="detail-item" style={{
                 padding: '0.4rem 0.5rem',
                 backgroundColor: 'var(--bg-lighter)',
@@ -306,12 +310,12 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
                   lineHeight: '1.3',
                   fontStyle: 'italic'
                 }}>
-                  {hex.poi.description}
+                  {displayHex.poi.description}
                 </div>
               </div>
             )}
 
-            {poiDiscovered && hex.poi.cr !== undefined && (
+            {poiDiscovered && displayHex.poi.cr !== undefined && (
               <div className="detail-item" style={{
                 padding: '0.4rem 0.5rem',
                 backgroundColor: 'var(--bg-lighter)',
@@ -333,12 +337,12 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
                   fontSize: '0.85rem',
                   fontWeight: '700'
                 }}>
-                  CR {hex.poi.cr}
+                  CR {displayHex.poi.cr}
                 </div>
               </div>
             )}
 
-            {poiDiscovered && hex.poi.eventType && (
+            {poiDiscovered && displayHex.poi.eventType && (
               <div className="detail-item" style={{
                 padding: '0.4rem 0.5rem',
                 backgroundColor: 'var(--bg-lighter)',
@@ -360,14 +364,14 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
                   fontSize: '0.85rem',
                   fontWeight: '500'
                 }}>
-                  {hex.poi.eventType === 'active' ? 'Combat' : 'Exploration'}
+                  {displayHex.poi.eventType === 'active' ? 'Combat' : 'Exploration'}
                 </div>
               </div>
             )}
           </>
         )}
 
-        {hex.weather && (
+        {displayHex.weather && (
           <>
             <div className="detail-item" style={{
               padding: '0.4rem 0.5rem',
@@ -390,7 +394,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
                 fontSize: '0.85rem',
                 fontWeight: '500'
               }}>
-                {hex.weather.condition}
+                {displayHex.weather.condition}
               </div>
             </div>
             <div className="detail-item" style={{
@@ -413,7 +417,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
                 color: 'var(--text-light)',
                 fontSize: '0.8rem'
               }}>
-                {hex.weather.effect || 'None'}
+                {displayHex.weather.effect || 'None'}
               </div>
             </div>
           </>
@@ -422,41 +426,8 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
 
       {/* Action Buttons Container */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.75rem' }}>
-        {/* Move button */}
-        <button
-          className="hex-action-btn hex-action-btn-primary"
-          disabled={!reachable || isBlockingMovement}
-          onClick={handleMoveClick}
-          style={{
-            background: (!reachable || isBlockingMovement) ? 'var(--bg-lighter)' : 'var(--primary-color)',
-            borderColor: (!reachable || isBlockingMovement) ? 'var(--border-color)' : 'var(--accent-color)',
-            color: (!reachable || isBlockingMovement) ? 'var(--text-muted)' : 'var(--text-color)',
-            cursor: (!reachable || isBlockingMovement) ? 'not-allowed' : 'pointer',
-            opacity: (!reachable || isBlockingMovement) ? 0.5 : 1
-          }}
-        >
-          {isBlockingMovement ? 'Resolve Event First' : (reachable ? 'Move Here' : 'Out of Range')}
-        </button>
-
-        {/* Helper text when POI is visible but player not on hex */}
-        {hex.poi && poiVisible && !isPlayerOnHex && hex.poi.eventType === 'passive' && (
-          <div style={{
-            padding: '0.75rem',
-            background: 'var(--bg-lighter)',
-            border: '2px dashed var(--accent-color)',
-            borderRadius: '4px',
-            color: 'var(--accent-color)',
-            fontSize: '0.85rem',
-            textAlign: 'center',
-            fontStyle: 'italic',
-            lineHeight: '1.4'
-          }}>
-            Move to this hex to interact with {hex.poi.name}
-          </div>
-        )}
-
         {/* Enter button for towns - only when on the hex */}
-        {hex.poi && poiVisible && hex.poi.eventType === 'passive' && hex.poi.type === 'town' && isPlayerOnHex && (
+        {displayHex.poi && poiVisible && displayHex.poi.eventType === 'passive' && displayHex.poi.type === 'town' && isPlayerOnHex && (
           <button
             className="hex-action-btn hex-action-btn-success"
             onClick={handleEnterTown}
@@ -466,13 +437,13 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
               color: 'var(--text-color)'
             }}
           >
-            Enter {hex.poi.name}
+            Enter {displayHex.poi.name}
           </button>
         )}
 
         {/* Interact button for other passive POIs (not shrines/camps which have specific buttons) */}
-        {hex.poi && poiVisible && hex.poi.eventType === 'passive' && 
-         !['town', 'shrine', 'camp'].includes(hex.poi.type) && isPlayerOnHex && (
+        {displayHex.poi && poiVisible && displayHex.poi.eventType === 'passive' && 
+         !['town', 'shrine', 'camp'].includes(displayHex.poi.type) && isPlayerOnHex && (
           <button
             className="hex-action-btn hex-action-btn-success"
             onClick={handleInteract}
@@ -482,13 +453,13 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
               color: 'var(--text-color)'
             }}
           >
-            Interact with {hex.poi.name}
+            Interact with {displayHex.poi.name}
           </button>
         )}
 
-        {/* Search button for POIs (including towns) - only when on the hex and not yet searched */}
-        {hex.poi && poiVisible && isPlayerOnHex && !isPoiSearched(hex.col, hex.row) &&
-         ['cave', 'ruins', 'tower', 'dungeon', 'town'].includes(hex.poi.type) && (
+        {/* Search button for explorable POIs - only when on the hex and not yet searched */}
+        {displayHex.poi && poiVisible && isPlayerOnHex && !isPoiSearched(displayHex.col, displayHex.row) &&
+         ['cave', 'ruins', 'tower', 'dungeon'].includes(displayHex.poi.type) && (
           <button
             className="hex-action-btn hex-action-btn-search"
             onClick={handleSearch}
@@ -498,13 +469,13 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
               color: 'var(--text-color)'
             }}
           >
-            Search {hex.poi.name}
+            Search {displayHex.poi.name}
           </button>
         )}
 
         {/* Explore button for searched explorable POIs - only when on the hex */}
-        {hex.poi && poiVisible && isPlayerOnHex && isPoiSearched(hex.col, hex.row) &&
-         ['cave', 'ruins', 'tower', 'dungeon'].includes(hex.poi.type) && (
+        {displayHex.poi && poiVisible && isPlayerOnHex && isPoiSearched(displayHex.col, displayHex.row) &&
+         ['cave', 'ruins', 'tower', 'dungeon'].includes(displayHex.poi.type) && (
           <button
             className="hex-action-btn hex-action-btn-explore"
             onClick={handleExplore}
@@ -514,12 +485,12 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
               color: 'var(--text-color)'
             }}
           >
-            Explore {hex.poi.name}
+            Explore {displayHex.poi.name}
           </button>
         )}
 
         {/* Shrine interaction buttons - only when on the hex and not yet visited */}
-        {hex.poi && poiVisible && hex.poi.type === 'shrine' && isPlayerOnHex && !isPoiSearched(hex.col, hex.row) && (
+        {displayHex.poi && poiVisible && displayHex.poi.type === 'shrine' && isPlayerOnHex && !isPoiSearched(displayHex.col, displayHex.row) && (
           <>
             <button
               className="hex-action-btn hex-action-btn-success"
@@ -530,7 +501,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
                 color: 'var(--text-color)'
               }}
             >
-              Pray at {hex.poi.name}
+              Pray at {displayHex.poi.name}
             </button>
             <button
               className="hex-action-btn hex-action-btn-success"
@@ -547,7 +518,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
         )}
 
         {/* Shrine already visited message */}
-        {hex.poi && poiVisible && hex.poi.type === 'shrine' && isPlayerOnHex && isPoiSearched(hex.col, hex.row) && (
+        {displayHex.poi && poiVisible && displayHex.poi.type === 'shrine' && isPlayerOnHex && isPoiSearched(displayHex.col, displayHex.row) && (
           <div style={{
             padding: '0.75rem',
             background: 'var(--bg-lighter)',
@@ -563,7 +534,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
         )}
 
         {/* Camp interaction buttons - only when on the hex */}
-        {hex.poi && poiVisible && hex.poi.type === 'camp' && isPlayerOnHex && (
+        {displayHex.poi && poiVisible && displayHex.poi.type === 'camp' && isPlayerOnHex && (
           <>
             <button
               className="hex-action-btn hex-action-btn-success"
@@ -604,7 +575,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
       {/* Shop UI Modal */}
       {showShop && (
         <ShopUI
-          poiKey={`${hex.col},${hex.row}`}
+          poiKey={`${displayHex.col},${displayHex.row}`}
           shopType={shopType}
           onClose={() => setShowShop(false)}
         />

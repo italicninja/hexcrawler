@@ -125,27 +125,13 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
         <p><strong>Creatures:</strong> {encounter.creatures}</p>
         {encounter.defeated ? (
           <p className="status-defeated">Defeated</p>
-        ) : distance === 0 ? (
+        ) : distance === 0 && (
           <button
             className="btn-danger"
             onClick={handleEngageEncounter}
           >
             Engage
           </button>
-        ) : (
-          <div style={{
-            padding: '0.5rem',
-            background: 'rgba(231, 76, 60, 0.1)',
-            border: '2px dashed #e74c3c',
-            borderRadius: '4px',
-            color: '#e74c3c',
-            fontSize: '0.85rem',
-            textAlign: 'center',
-            fontStyle: 'italic',
-            marginTop: '0.5rem'
-          }}>
-            Move to this hex to engage ({distance} {distance === 1 ? 'hex' : 'hexes'} away)
-          </div>
         )}
       </div>
     );
@@ -176,27 +162,13 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
         </p>
         {loot.collected ? (
           <p className="status-collected">Collected</p>
-        ) : distance === 0 ? (
+        ) : distance === 0 && (
           <button
             className="btn-primary"
             onClick={handleCollectLoot}
           >
             Collect
           </button>
-        ) : (
-          <div style={{
-            padding: '0.5rem',
-            background: 'rgba(52, 152, 219, 0.1)',
-            border: '2px dashed #3498db',
-            borderRadius: '4px',
-            color: '#3498db',
-            fontSize: '0.85rem',
-            textAlign: 'center',
-            fontStyle: 'italic',
-            marginTop: '0.5rem'
-          }}>
-            Move to this hex to collect ({distance} {distance === 1 ? 'hex' : 'hexes'} away)
-          </div>
         )}
       </div>
     );
@@ -264,18 +236,6 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
           <p><strong>Content:</strong> {hex.content}</p>
         )}
       </div>
-
-      {/* Move button */}
-      {distance > 0 && (
-        <button
-          className={distance === 1 && hex.terrain.walkable ? 'btn-primary' : 'btn-disabled'}
-          onClick={handleMoveClick}
-          disabled={distance > 1 || !hex.terrain.walkable}
-          style={{ marginBottom: '1rem', width: '100%' }}
-        >
-          {!hex.terrain.walkable ? 'Blocked' : distance === 1 ? 'Move Here' : `Too Far (${distance} hexes)`}
-        </button>
-      )}
 
       {renderEncounterInfo()}
       {renderLootInfo()}
