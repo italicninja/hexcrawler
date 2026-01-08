@@ -1,11 +1,14 @@
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import DiceRoller from '../game/DiceRoller';
-import { CaveGenerator } from '../game/CaveGenerator';
-import { RuinsGenerator } from '../game/RuinsGenerator';
-import { TowerGenerator } from '../game/TowerGenerator';
-import { DungeonGenerator } from '../game/DungeonGenerator';
-import { TownGenerator } from '../game/TownGenerator.js';
+
+// Lazy load generators to reduce initial bundle size
+// These are loaded dynamically when entering POIs
+const loadCaveGenerator = () => import('../game/CaveGenerator').then(m => m.CaveGenerator);
+const loadRuinsGenerator = () => import('../game/RuinsGenerator').then(m => m.RuinsGenerator);
+const loadTowerGenerator = () => import('../game/TowerGenerator').then(m => m.TowerGenerator);
+const loadDungeonGenerator = () => import('../game/DungeonGenerator').then(m => m.DungeonGenerator);
+const loadTownGenerator = () => import('../game/TownGenerator.js').then(m => m.TownGenerator);
 
 /**
  * useHexInteraction Hook
@@ -89,7 +92,7 @@ export function useHexInteraction(hex) {
   /**
    * Handle explore action - generates interior and enters exploration scene
    */
-  const handleExplore = () => {
+  const handleExplore = async () => {
     if (!hex || !hex.poi) return;
 
     const poi = hex.poi;
@@ -97,26 +100,36 @@ export function useHexInteraction(hex) {
 
     // Check if interior already exists
     if (!state.interiorMaps[poiKey]) {
-      // Generate new interior map based on POI type
-      let generator;
-      switch (poi.type) {
-        case 'cave':
-          generator = new CaveGenerator();
-          break;
-        case 'ruins':
-          generator = new RuinsGenerator();
-          break;
-        case 'tower':
-          generator = new TowerGenerator();
-          break;
-        case 'dungeon':
-          generator = new DungeonGenerator();
-          break;
-        default:
-          generator = new CaveGenerator(); // Fallback to cave
-          break;
+      // Log loading message
+      addMessage(`Preparing to explore ${poi.name}...`, 'action');
+
+      // Dynamically load the appropriate generator based on POI type
+      let GeneratorClass;
+      try {
+        switch (poi.type) {
+          case 'cave':
+            GeneratorClass = await loadCaveGenerator();
+            break;
+          case 'ruins':
+            GeneratorClass = await loadRuinsGenerator();
+            break;
+          case 'tower':
+            GeneratorClass = await loadTowerGenerator();
+            break;
+          case 'dungeon':
+            GeneratorClass = await loadDungeonGenerator();
+            break;
+          default:
+            GeneratorClass = await loadCaveGenerator(); // Fallback to cave
+            break;
+        }
+      } catch (error) {
+        console.error('Failed to load generator:', error);
+        addMessage('Failed to load area. Please try again.', 'error');
+        return;
       }
 
+      const generator = new GeneratorClass();
       const seed = `poi-${poiKey}-${state.mapSeed}`;
       generator.setSeed(seed);
 
@@ -248,7 +261,7 @@ export function useHexInteraction(hex) {
   /**
    * Handle enter town action
    */
-  const handleEnterTown = () => {
+  const handleEnterTown = async () => {
     if (!hex || !hex.poi) return;
 
     const poi = hex.poi;
@@ -260,7 +273,20 @@ export function useHexInteraction(hex) {
 
     // Check if interior already exists
     if (!state.interiorMaps[poiKey]) {
-      const generator = new TownGenerator();
+      // Log loading message
+      addMessage(`Preparing to enter ${poi.name}...`, 'action');
+
+      // Dynamically load TownGenerator
+      let TownGeneratorClass;
+      try {
+        TownGeneratorClass = await loadTownGenerator();
+      } catch (error) {
+        console.error('Failed to load town generator:', error);
+        addMessage('Failed to load town. Please try again.', 'error');
+        return;
+      }
+
+      const generator = new TownGeneratorClass();
 
       const seed = `poi-${poiKey}-${state.mapSeed}`;
       generator.setSeed(seed);
@@ -320,25 +346,7 @@ export function useHexInteraction(hex) {
     });
   };
 
-  /**
-   * Handle approach camp action
-   */
-  const handleApproach = () => {
-    if (!hex || !hex.poi || hex.poi.type !== 'camp') return;
 
-    const poi = hex.poi;
-    addMessage(`Approaching ${poi.name}... (Feature coming soon!)`, 'info');
-  };
-
-  /**
-   * Handle trade at camp action
-   */
-  const handleTrade = () => {
-    if (!hex || !hex.poi || hex.poi.type !== 'camp') return;
-
-    const poi = hex.poi;
-    addMessage(`Trading with ${poi.name}... (Feature coming soon!)`, 'info');
-  };
 
   /**
    * Legacy handleInteract for backward compatibility
@@ -378,8 +386,6 @@ export function useHexInteraction(hex) {
     handleExplore,
     handlePray,
     handleOffer,
-    handleEnterTown,
-    handleApproach,
-    handleTrade
+    handleEnterTown
   };
 }

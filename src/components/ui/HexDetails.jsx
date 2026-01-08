@@ -28,9 +28,7 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
     handleExplore, 
     handlePray, 
     handleOffer, 
-    handleEnterTown, 
-    handleApproach, 
-    handleTrade 
+    handleEnterTown
   } = useHexInteraction(currentHex);
   const [showQuestGiver, setShowQuestGiver] = useState(false);
   const [showShop, setShowShop] = useState(false);
@@ -552,44 +550,6 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
               }}>
                 Already visited
               </div>
-            )}
-
-            {/* Camp buttons */}
-            {displayHex.poi && poiVisible && displayHex.poi.type === 'camp' && (
-              <>
-                <button
-                  onClick={handleApproach}
-                  style={{
-                    background: 'var(--primary-color)',
-                    borderColor: 'var(--accent-color)',
-                    color: 'var(--text-color)',
-                    padding: '0.4rem 0.6rem',
-                    fontSize: '0.75rem',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    border: '1px solid',
-                    fontWeight: '600'
-                  }}
-                >
-                  Approach
-                </button>
-                <button
-                  onClick={handleTrade}
-                  style={{
-                    background: 'var(--primary-color)',
-                    borderColor: 'var(--accent-color)',
-                    color: 'var(--text-color)',
-                    padding: '0.4rem 0.6rem',
-                    fontSize: '0.75rem',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    border: '1px solid',
-                    fontWeight: '600'
-                  }}
-                >
-                  Trade
-                </button>
-              </>
             )}
           </div>
         )}
