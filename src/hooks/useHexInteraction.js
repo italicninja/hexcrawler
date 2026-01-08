@@ -5,6 +5,7 @@ import { CaveGenerator } from '../game/CaveGenerator';
 import { RuinsGenerator } from '../game/RuinsGenerator';
 import { TowerGenerator } from '../game/TowerGenerator';
 import { DungeonGenerator } from '../game/DungeonGenerator';
+import { TownGenerator } from '../game/TownGenerator.js';
 
 /**
  * useHexInteraction Hook
@@ -248,9 +249,66 @@ export function useHexInteraction(hex) {
    * Handle enter town action
    */
   const handleEnterTown = () => {
-    if (!hex || !hex.poi || hex.poi.type !== 'town') return;
+    if (!hex || !hex.poi) return;
 
     const poi = hex.poi;
+    const settlementTypes = ['town', 'village', 'city', 'metropolis', 'camp'];
+
+    if (!settlementTypes.includes(poi.type)) return;
+
+    const poiKey = `${hex.col},${hex.row}`;
+
+    // Check if interior already exists
+    if (!state.interiorMaps[poiKey]) {
+      const generator = new TownGenerator();
+
+      const seed = `poi-${poiKey}-${state.mapSeed}`;
+      generator.setSeed(seed);
+
+      // Extract settlement size from poi
+      const settlementSize = poi.settlementSize || poi.type;
+
+      // Determine interior size based on settlement tier
+      let width, height;
+      switch (settlementSize) {
+        case 'camp':
+          width = 12;
+          height = 10;
+          break;
+        case 'village':
+          width = 18;
+          height = 14;
+          break;
+        case 'town':
+          width = 24;
+          height = 18;
+          break;
+        case 'city':
+          width = 30;
+          height = 24;
+          break;
+        case 'metropolis':
+          width = 36;
+          height = 30;
+          break;
+        default:
+          width = 24;
+          height = 18;
+      }
+
+      // Generate interior map with settlement size in townData
+      const townData = {
+        name: poi.name,
+        settlementSize: settlementSize
+      };
+      const interiorMap = generator.generate(width, height, townData);
+
+      // Store interior map in state
+      dispatch({
+        type: actions.SET_INTERIOR_MAP,
+        payload: { key: poiKey, map: interiorMap }
+      });
+    }
 
     // Log entry
     addMessage(`Entering ${poi.name}...`, 'action');

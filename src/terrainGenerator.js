@@ -214,15 +214,51 @@ export class TerrainGenerator {
     }
 
     generateSmartPOIs(grid, width, height, baseFrequency, startCol = 10, startRow = 7) {
-        // Find suitable settlement locations (towns)
+        // Find suitable settlement locations (shared by all tiers)
         const settlementLocations = this.findSettlementLocations(grid, width, height);
-
-        // Calculate number of settlements based on frequency
-        const numSettlements = Math.floor((baseFrequency / 100) * width * height * 0.2);
-
-        // Place towns in best locations
-        for (let i = 0; i < Math.min(numSettlements, settlementLocations.length); i++) {
-            const loc = settlementLocations[i];
+        
+        const totalHexes = width * height;
+        
+        // Calculate numbers for each settlement tier (independent spawn rates)
+        const numCamps = Math.floor((10 / 100) * totalHexes * 0.2);
+        const numVillages = Math.floor((5 / 100) * totalHexes * 0.2);
+        const numTowns = Math.floor((2.5 / 100) * totalHexes * 0.2);
+        const numCities = Math.floor((1.25 / 100) * totalHexes * 0.2);
+        const numMetropolises = Math.floor((0.625 / 100) * totalHexes * 0.2);
+        
+        let locationIndex = 0;
+        
+        // Place metropolises first (best locations)
+        for (let i = 0; i < numMetropolises && locationIndex < settlementLocations.length; i++) {
+            const loc = settlementLocations[locationIndex++];
+            grid[loc.row][loc.col].poi = this.poiSystem.generatePOI(
+                POI_TYPES.METROPOLIS,
+                loc.col,
+                loc.row,
+                grid[loc.row][loc.col].terrain,
+                startCol,
+                startRow,
+                () => this.random()
+            );
+        }
+        
+        // Place cities (next best locations)
+        for (let i = 0; i < numCities && locationIndex < settlementLocations.length; i++) {
+            const loc = settlementLocations[locationIndex++];
+            grid[loc.row][loc.col].poi = this.poiSystem.generatePOI(
+                POI_TYPES.CITY,
+                loc.col,
+                loc.row,
+                grid[loc.row][loc.col].terrain,
+                startCol,
+                startRow,
+                () => this.random()
+            );
+        }
+        
+        // Place towns
+        for (let i = 0; i < numTowns && locationIndex < settlementLocations.length; i++) {
+            const loc = settlementLocations[locationIndex++];
             grid[loc.row][loc.col].poi = this.poiSystem.generatePOI(
                 POI_TYPES.TOWN,
                 loc.col,
@@ -233,8 +269,59 @@ export class TerrainGenerator {
                 () => this.random()
             );
         }
+        
+        // Place villages
+        for (let i = 0; i < numVillages && locationIndex < settlementLocations.length; i++) {
+            const loc = settlementLocations[locationIndex++];
+            grid[loc.row][loc.col].poi = this.poiSystem.generatePOI(
+                POI_TYPES.VILLAGE,
+                loc.col,
+                loc.row,
+                grid[loc.row][loc.col].terrain,
+                startCol,
+                startRow,
+                () => this.random()
+            );
+        }
+        
+        // Place camps (remaining good locations + random spots)
+        for (let i = 0; i < numCamps; i++) {
+            let col, row;
+            
+            // First half from scored locations, second half random
+            if (i < numCamps / 2 && locationIndex < settlementLocations.length) {
+                const loc = settlementLocations[locationIndex++];
+                col = loc.col;
+                row = loc.row;
+            } else {
+                // Random placement for camps (can be anywhere habitable)
+                col = Math.floor(this.random() * width);
+                row = Math.floor(this.random() * height);
+                
+                // Skip if already has POI or is water
+                if (grid[row][col].poi || grid[row][col].terrain.name === 'Water') {
+                    continue;
+                }
+                
+                // Skip if not on habitable terrain
+                const terrain = grid[row][col].terrain.name;
+                if (terrain !== 'Grassland' && terrain !== 'Forest' && terrain !== 'Hills') {
+                    continue;
+                }
+            }
+            
+            grid[row][col].poi = this.poiSystem.generatePOI(
+                POI_TYPES.CAMP,
+                col,
+                row,
+                grid[row][col].terrain,
+                startCol,
+                startRow,
+                () => this.random()
+            );
+        }
 
-        // Calculate number of other POIs
+        // Calculate number of other POIs (same as before)
         const numEncounters = Math.floor((baseFrequency / 100) * width * height * 0.3);
         const numPassivePOIs = Math.floor((baseFrequency / 100) * width * height * 0.2);
 
@@ -260,7 +347,7 @@ export class TerrainGenerator {
             );
         }
 
-        // Place passive POIs (dungeons, shrines, camps, etc.)
+        // Place passive POIs (dungeons, shrines, ruins, caves, towers)
         for (let i = 0; i < numPassivePOIs; i++) {
             const col = Math.floor(this.random() * width);
             const row = Math.floor(this.random() * height);
@@ -272,9 +359,14 @@ export class TerrainGenerator {
 
             // Get appropriate POI types for this terrain
             const suitableTypes = this.poiSystem.getPOITypesForTerrain(grid[row][col].terrain);
-            // Filter out encounters and towns
+            // Filter out encounters and all settlement types
             const passiveTypes = suitableTypes.filter(
-                t => t !== POI_TYPES.ENCOUNTER && t !== POI_TYPES.TOWN
+                t => t !== POI_TYPES.ENCOUNTER && 
+                     t !== POI_TYPES.CAMP &&
+                     t !== POI_TYPES.VILLAGE && 
+                     t !== POI_TYPES.TOWN &&
+                     t !== POI_TYPES.CITY &&
+                     t !== POI_TYPES.METROPOLIS
             );
 
             if (passiveTypes.length > 0) {

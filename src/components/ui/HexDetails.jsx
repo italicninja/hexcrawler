@@ -46,18 +46,54 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
 
     // Check if quests already exist for this town
     if (!state.townQuests[locationKey]) {
-      // Generate quests for this town
-      const generator = new QuestGenerator(state.mapSeed);
-      const playerLevel = state.playerCharacter?.level || 1;
+      // Extract quest chance and settlement size from POI
+      const poi = currentHex.poi;
+      const questChance = poi.questChance || 0.75;
+      const settlementSize = poi.settlementSize || poi.type;
 
-      // Get nearby terrain types for context
-      const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
+      // Check if quests should be generated based on chance
+      let quests = [];
+      if (Math.random() < questChance) {
+        // Generate quests for this town
+        const generator = new QuestGenerator(state.mapSeed);
+        const playerLevel = state.playerCharacter?.level || 1;
 
-      // Generate 2-3 quests
-      const questCount = 2 + Math.floor(Math.random() * 2);
-      const quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);
+        // Get nearby terrain types for context
+        const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
 
-      // Store quests in state
+        // Determine quest count based on settlement size
+        let minQuests, maxQuests;
+        switch (settlementSize) {
+          case 'camp':
+            minQuests = 0;
+            maxQuests = 1;
+            break;
+          case 'village':
+            minQuests = 1;
+            maxQuests = 2;
+            break;
+          case 'town':
+            minQuests = 2;
+            maxQuests = 3;
+            break;
+          case 'city':
+            minQuests = 2;
+            maxQuests = 4;
+            break;
+          case 'metropolis':
+            minQuests = 3;
+            maxQuests = 5;
+            break;
+          default:
+            minQuests = 2;
+            maxQuests = 3;
+        }
+
+        const questCount = minQuests + Math.floor(Math.random() * (maxQuests - minQuests + 1));
+        quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);
+      }
+
+      // Store quests in state (even if empty array)
       dispatch({
         type: ACTIONS.GENERATE_TOWN_QUESTS,
         payload: { location, quests }
@@ -68,12 +104,47 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
       const daysSinceGenerated = state.gameTime.day - townData.lastGenerated;
 
       if (daysSinceGenerated >= 7) {
-        // Refresh quests
-        const generator = new QuestGenerator(state.mapSeed);
-        const playerLevel = state.playerCharacter?.level || 1;
-        const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
-        const questCount = 2 + Math.floor(Math.random() * 2);
-        const quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);
+        // Refresh quests with same logic
+        const poi = currentHex.poi;
+        const questChance = poi.questChance || 0.75;
+        const settlementSize = poi.settlementSize || poi.type;
+
+        let quests = [];
+        if (Math.random() < questChance) {
+          const generator = new QuestGenerator(state.mapSeed);
+          const playerLevel = state.playerCharacter?.level || 1;
+          const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
+
+          let minQuests, maxQuests;
+          switch (settlementSize) {
+            case 'camp':
+              minQuests = 0;
+              maxQuests = 1;
+              break;
+            case 'village':
+              minQuests = 1;
+              maxQuests = 2;
+              break;
+            case 'town':
+              minQuests = 2;
+              maxQuests = 3;
+              break;
+            case 'city':
+              minQuests = 2;
+              maxQuests = 4;
+              break;
+            case 'metropolis':
+              minQuests = 3;
+              maxQuests = 5;
+              break;
+            default:
+              minQuests = 2;
+              maxQuests = 3;
+          }
+
+          const questCount = minQuests + Math.floor(Math.random() * (maxQuests - minQuests + 1));
+          quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);
+        }
 
         dispatch({
           type: ACTIONS.REFRESH_QUESTS,

@@ -72,10 +72,13 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
       const startingTownSeed = parseInt(state.mapSeed) + 999999;
       terrainGeneratorRef.current.seed = startingTownSeed;
       
-      // Generate a safe starting town using the POI system
+      // Generate a safe starting TOWN (tier 3) using the POI system
       const startingTown = terrainGeneratorRef.current.poiSystem.generateTown(
         terrainGeneratorRef.current.random.bind(terrainGeneratorRef.current)
       );
+      
+      // Ensure it has settlementSize set to 'town'
+      startingTown.settlementSize = 'town';
       startingHex.poi = startingTown;
       
       // Restore seed state (not that it matters after generation, but for cleanliness)
