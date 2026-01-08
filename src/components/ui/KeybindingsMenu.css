@@ -1,0 +1,131 @@
+.keybindings-menu {
+  padding: 1rem 0;
+}
+
+.keybindings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.keybindings-header h4 {
+  margin: 0;
+  color: var(--text-color);
+  font-size: 1.1rem;
+}
+
+.reset-button {
+  padding: 0.4rem 0.8rem;
+  background: var(--bg-lighter);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-light);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-button:hover {
+  background: var(--primary-color);
+  border-color: var(--accent-color);
+  color: var(--text-color);
+}
+
+.keybindings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.keybinding-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.keybinding-row:hover {
+  background: var(--bg-lighter);
+  border-color: var(--accent-color);
+}
+
+.keybinding-label {
+  color: var(--text-light);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.keybinding-button {
+  min-width: 80px;
+  padding: 0.5rem 1rem;
+  background: var(--bg-lighter);
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-color);
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.keybinding-button:hover:not(:disabled) {
+  background: var(--primary-color);
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.keybinding-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.keybinding-button.editing {
+  background: var(--accent-color);
+  border-color: var(--primary-color);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.listening {
+  color: var(--text-color);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.key-display {
+  color: var(--accent-color);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.keybindings-note {
+  margin-top: 1.5rem;
+  padding: 0.75rem;
+  background: var(--bg-darker);
+  border-left: 3px solid var(--accent-color);
+  border-radius: 4px;
+}
+
+.keybindings-note p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

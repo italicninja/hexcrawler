@@ -1,0 +1,225 @@
+.town-scene {
+  display: grid;
+  grid-template-columns: 300px 1fr 350px;
+  grid-template-rows: 1fr auto;
+  gap: 10px;
+  height: 100vh;
+  background: linear-gradient(180deg, #2c1810 0%, #1a0f08 100%);
+  color: #e0e0e0;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* Left Panel */
+.town-scene .left-panel {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+/* Center Panel */
+.town-scene .center-panel {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  background: rgba(42, 30, 20, 0.9);
+  border: 2px solid #8b6f47;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.town-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: rgba(62, 44, 28, 0.95);
+  border-bottom: 2px solid #8b6f47;
+}
+
+.town-header h2 {
+  margin: 0;
+  color: #f4d03f;
+  font-size: 1.5em;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.exit-button {
+  background: #8b4513;
+  border: 2px solid #654321;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.exit-button:hover {
+  background: #a0522d;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.exit-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Right Panel */
+.town-scene .right-panel {
+  grid-column: 3;
+  grid-row: 1;
+  overflow-y: auto;
+}
+
+.town-hex-details {
+  background: rgba(42, 30, 20, 0.9);
+  border: 2px solid #8b6f47;
+  border-radius: 8px;
+  padding: 20px;
+  color: #e0e0e0;
+}
+
+.town-hex-details h3 {
+  margin: 0 0 15px 0;
+  color: #f4d03f;
+  font-size: 1.3em;
+  border-bottom: 2px solid #8b6f47;
+  padding-bottom: 8px;
+}
+
+.town-hex-details h4 {
+  margin: 15px 0 8px 0;
+  color: #d4af37;
+  font-size: 1.1em;
+}
+
+.player-location {
+  margin: 10px 0;
+}
+
+.badge {
+  display: inline-block;
+  background: #27ae60;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.terrain-info,
+.building-info,
+.gate-info,
+.town-info,
+.legend {
+  margin: 15px 0;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  border-left: 3px solid #8b6f47;
+}
+
+.terrain-info p,
+.building-info p,
+.gate-info p,
+.town-info p {
+  margin: 5px 0;
+  line-height: 1.6;
+}
+
+.hint {
+  color: #d4af37;
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+.legend ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+}
+
+.legend li {
+  margin: 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+}
+
+.legend span {
+  font-size: 1.2em;
+}
+
+/* Bottom Panel */
+.town-scene .bottom-panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: 200px;
+  overflow: hidden;
+}
+
+/* Error Message */
+.error-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 20px;
+  padding: 20px;
+}
+
+.error-message h2 {
+  color: #e74c3c;
+  margin: 0;
+}
+
+.error-message p {
+  color: #e0e0e0;
+  text-align: center;
+}
+
+.error-message button {
+  background: #8b4513;
+  border: 2px solid #654321;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.error-message button:hover {
+  background: #a0522d;
+}
+
+/* Scrollbar styling */
+.town-scene .left-panel::-webkit-scrollbar,
+.town-scene .right-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.town-scene .left-panel::-webkit-scrollbar-track,
+.town-scene .right-panel::-webkit-scrollbar-track {
+  background: #1a0f08;
+}
+
+.town-scene .left-panel::-webkit-scrollbar-thumb,
+.town-scene .right-panel::-webkit-scrollbar-thumb {
+  background: #8b6f47;
+  border-radius: 4px;
+}
+
+.town-scene .left-panel::-webkit-scrollbar-thumb:hover,
+.town-scene .right-panel::-webkit-scrollbar-thumb:hover {
+  background: #a0826b;
+}
