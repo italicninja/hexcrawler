@@ -868,7 +868,7 @@ function gameStateReducer(state, action) {
       combat.tickStatusEffects(currentCombatant);
       
       const nextCombatant = state.combatState.turnOrder[nextIndex];
-      const nextMovement = nextCombatant.character.moveDistance * 5;
+      const nextMovement = (nextCombatant?.character?.moveDistance || GAME_DEFAULTS.MOVE_DISTANCE) * 5;
       
       return {
         ...state,
@@ -1346,12 +1346,7 @@ export function GameStateProvider({ children }) {
 
     isHexReachable: (col, row) => {
       if (!state.playerCharacter) return false;
-      const distance = getHexDistance(
-        state.playerPosition.col,
-        state.playerPosition.row,
-        col,
-        row
-      );
+      const distance = getHexDistance(state.playerPosition.col, state.playerPosition.row, col, row);
       return distance <= state.playerCharacter.moveDistance;
     },
 
