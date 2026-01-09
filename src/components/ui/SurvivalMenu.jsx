@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -15,15 +15,25 @@ function SurvivalMenu({ onClose }) {
   const character = state.playerCharacter;
   if (!character) return null;
 
-  // Get current hex terrain
-  const currentHex = state.mapData?.find(
-    hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
-  );
+  // Get current hex terrain (memoized, using HexGrid for O(1) lookup)
+  const currentHex = useMemo(() => {
+    return state.hexGrid 
+      ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
+      : state.mapData?.find(
+          hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
+        );
+  }, [state.hexGrid, state.mapData, state.playerPosition.col, state.playerPosition.row]);
+  
   const terrainKey = currentHex?.terrain?.key || 'grassland';
   const terrainName = currentHex?.terrain?.name || 'Grassland';
 
-  // Get adjacent hexes
+  // Get adjacent hexes (uses HexGrid spatial index for O(1) lookup if available)
   const getAdjacentHexes = (col, row) => {
+    if (state.hexGrid) {
+      return state.hexGrid.getNeighbors(col, row);
+    }
+
+    // Fallback to manual lookup
     const isEvenRow = row % 2 === 0;
     const offsets = isEvenRow
       ? [

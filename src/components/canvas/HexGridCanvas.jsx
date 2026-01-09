@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
@@ -32,8 +32,8 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
     return calculateHexPosition(0, row, hexSize).y;
   }, [hexSize]);
 
-  // Convert hex array to positioned hex objects
-  const positionedHexes = useCallback(() => {
+  // Convert hex array to positioned hex objects (memoized for performance)
+  const positionedHexes = useMemo(() => {
     if (!hexes) return [];
     return hexes.map(hex => {
       const { x, y } = calculateHexPosition(hex.col, hex.row, hexSize);
@@ -158,7 +158,6 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    const hexArray = positionedHexes();
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -168,18 +167,18 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
     ctx.scale(zoom, zoom);
 
     // Draw all hexes
-    hexArray.forEach(hex => drawHex(ctx, hex));
+    positionedHexes.forEach(hex => drawHex(ctx, hex));
 
     // Draw selected hex outline
     if (selectedHex) {
-      const selectedHexData = hexArray.find(h => h.col === selectedHex.col && h.row === selectedHex.row);
+      const selectedHexData = positionedHexes.find(h => h.col === selectedHex.col && h.row === selectedHex.row);
       if (selectedHexData) {
         drawHexOutline(ctx, selectedHexData, '#ff6b6b', 3);
       }
     }
 
     // Draw player marker
-    drawPlayerMarker(ctx, hexArray, playerVisualPosRef);
+    drawPlayerMarker(ctx, positionedHexes, playerVisualPosRef);
 
     ctx.restore();
   }, [positionedHexes, offsetX, offsetY, zoom, selectedHex, drawHex, drawHexOutline, drawPlayerMarker]);
@@ -257,9 +256,8 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
   const getHexAtPoint = useCallback((x, y) => {
     const worldX = (x - offsetX) / zoom;
     const worldY = (y - offsetY) / zoom;
-    const hexArray = positionedHexes();
 
-    return findHexAtPoint(worldX, worldY, hexArray, hexSize);
+    return findHexAtPoint(worldX, worldY, positionedHexes, hexSize);
   }, [hexSize, offsetX, offsetY, zoom, positionedHexes]);
 
   // Handle click

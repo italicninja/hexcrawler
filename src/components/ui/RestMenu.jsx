@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { RestManager } from '../../game/RestManager';
@@ -10,6 +10,13 @@ function RestMenu({ onClose }) {
 
   const character = state.playerCharacter;
   if (!character) return null;
+
+  // Get current hex (memoized, using HexGrid for O(1) lookup)
+  const currentHex = useMemo(() => {
+    return state.hexGrid 
+      ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
+      : state.mapData?.find(h => h.col === state.playerPosition.col && h.row === state.playerPosition.row);
+  }, [state.hexGrid, state.mapData, state.playerPosition.col, state.playerPosition.row]);
 
   // Helper to convert game time to total hours since game start
   const getGameTimeInHours = () => {
@@ -51,11 +58,7 @@ function RestMenu({ onClose }) {
 
     setIsResting(true);
 
-    // Check for rest interruption
-    const currentHex = state.mapData?.find(
-      hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
-    );
-
+    // Check for rest interruption (using currentHex from useMemo above)
     const terrainType = currentHex?.terrain?.name?.toLowerCase() || 'grassland';
     const terrainDifficulty = currentHex?.terrain?.difficulty || 1;
 
@@ -121,13 +124,8 @@ function RestMenu({ onClose }) {
 
   // Check if player is inside a town interior (not just standing on a town hex)
   const isInTown = state.inInterior && state.currentPOI?.poi?.type === 'town';
-  
-  // Get current hex for terrain-based rest interruption calculation
-  const currentHex = state.mapData?.find(
-    hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
-  );
 
-  // Calculate inn rest cost
+  // Calculate inn rest cost (currentHex already defined via useMemo above)
   const costPerPerson = 10;
   const livingMembers = state.party ? state.party.getLivingMembers().length : 1;
   const totalInnCost = livingMembers * costPerPerson;
@@ -210,8 +208,8 @@ function RestMenu({ onClose }) {
 
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
           Warning: There is a {RestManager.calculateInterruptionChance(
-            state.mapData?.find(h => h.col === state.playerPosition.col && h.row === state.playerPosition.row)?.terrain?.name?.toLowerCase() || 'grassland',
-            state.mapData?.find(h => h.col === state.playerPosition.col && h.row === state.playerPosition.row)?.terrain?.difficulty || 1
+            currentHex?.terrain?.name?.toLowerCase() || 'grassland',
+            currentHex?.terrain?.difficulty || 1
           )}% chance of interruption.
         </p>
 

@@ -185,6 +185,9 @@ export const TERRAIN = {
   MAP_INITIAL_WIDTH: 30,
   MAP_INITIAL_HEIGHT: 20,
   EXPANSION_CHUNK_SIZE: 10,
+  EXPANSION_THRESHOLD: 5, // Hexes from edge before expanding
+  VIEWPORT_WIDTH_RATIO: 0.6, // Approximate canvas width relative to viewport
+  VIEWPORT_HEIGHT_RATIO: 0.8, // Approximate canvas height relative to viewport
   RIVER_MIN_COUNT: 2,
   RIVER_MAX_COUNT: 5,
   RIVER_DENSITY_DIVISOR: 100,

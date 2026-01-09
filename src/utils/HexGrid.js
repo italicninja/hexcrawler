@@ -11,6 +11,7 @@ export class HexGrid {
   constructor(hexes = []) {
     this.grid = new Map();
     this.hexes = hexes;
+    this.bounds = { minCol: Infinity, maxCol: -Infinity, minRow: Infinity, maxRow: -Infinity };
     this._buildIndex();
   }
 
@@ -20,9 +21,17 @@ export class HexGrid {
    */
   _buildIndex() {
     this.grid.clear();
+    this.bounds = { minCol: Infinity, maxCol: -Infinity, minRow: Infinity, maxRow: -Infinity };
+    
     for (const hex of this.hexes) {
       const key = HexGrid.makeKey(hex.col, hex.row);
       this.grid.set(key, hex);
+      
+      // Update bounds
+      this.bounds.minCol = Math.min(this.bounds.minCol, hex.col);
+      this.bounds.maxCol = Math.max(this.bounds.maxCol, hex.col);
+      this.bounds.minRow = Math.min(this.bounds.minRow, hex.row);
+      this.bounds.maxRow = Math.max(this.bounds.maxRow, hex.row);
     }
   }
 
@@ -115,6 +124,20 @@ export class HexGrid {
     } else {
       this.hexes.push(hex);
     }
+
+    // Update bounds
+    this.bounds.minCol = Math.min(this.bounds.minCol, hex.col);
+    this.bounds.maxCol = Math.max(this.bounds.maxCol, hex.col);
+    this.bounds.minRow = Math.min(this.bounds.minRow, hex.row);
+    this.bounds.maxRow = Math.max(this.bounds.maxRow, hex.row);
+  }
+
+  /**
+   * Get map boundaries (O(1))
+   * @returns {object} { minCol, maxCol, minRow, maxRow }
+   */
+  getBounds() {
+    return { ...this.bounds };
   }
 
   /**

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import { generateHex } from '../utils/poiGenerationHelper';
+import { CANVAS, TERRAIN } from '../constants/gameConstants';
 
 /**
  * useInfiniteTerrainExpansion Hook
@@ -23,29 +24,38 @@ export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
 
     const { col, row } = state.playerPosition;
 
-    // Find current map boundaries
-    const maxCol = Math.max(...state.mapData.map(h => h.col));
-    const maxRow = Math.max(...state.mapData.map(h => h.row));
-    const minCol = Math.min(...state.mapData.map(h => h.col));
-    const minRow = Math.min(...state.mapData.map(h => h.row));
+    // Find current map boundaries - Use HexGrid for O(1) lookup if available
+    let minCol, maxCol, minRow, maxRow;
+    if (state.hexGrid) {
+      const bounds = state.hexGrid.getBounds();
+      minCol = bounds.minCol;
+      maxCol = bounds.maxCol;
+      minRow = bounds.minRow;
+      maxRow = bounds.maxRow;
+    } else {
+      // Fallback to linear search if HexGrid not initialized
+      maxCol = Math.max(...state.mapData.map(h => h.col));
+      maxRow = Math.max(...state.mapData.map(h => h.row));
+      minCol = Math.min(...state.mapData.map(h => h.col));
+      minRow = Math.min(...state.mapData.map(h => h.row));
+    }
 
     // Calculate visible viewport area in hexes
-    const hexSize = 30;
-    const viewportWidth = viewportSize.width * 0.6; // Approximate canvas width
-    const viewportHeight = viewportSize.height * 0.8; // Approximate canvas height
+    const hexSize = CANVAS.DEFAULT_HEX_SIZE;
+    const viewportWidth = viewportSize.width * TERRAIN.VIEWPORT_WIDTH_RATIO;
+    const viewportHeight = viewportSize.height * TERRAIN.VIEWPORT_HEIGHT_RATIO;
 
     const visibleHexCols = Math.ceil(viewportWidth / (hexSize * Math.sqrt(3)));
     const visibleHexRows = Math.ceil(viewportHeight / (hexSize * 1.5));
 
     // Calculate required map bounds to cover viewport with a threshold
-    // Only expand when player is within 5 hexes of edge
-    const expansionThreshold = 5;
+    const expansionThreshold = TERRAIN.EXPANSION_THRESHOLD;
     const requiredMinCol = col - Math.ceil(visibleHexCols / 2) - expansionThreshold;
     const requiredMaxCol = col + Math.ceil(visibleHexCols / 2) + expansionThreshold;
     const requiredMinRow = row - Math.ceil(visibleHexRows / 2) - expansionThreshold;
     const requiredMaxRow = row + Math.ceil(visibleHexRows / 2) + expansionThreshold;
 
-    const chunkSize = 10; // Generate 10 new rows/cols at a time
+    const chunkSize = TERRAIN.EXPANSION_CHUNK_SIZE;
 
     // Determine if expansion is needed and in which direction
     // Player must be close to edge to trigger expansion

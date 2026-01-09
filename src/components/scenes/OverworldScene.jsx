@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
@@ -80,8 +80,8 @@ function OverworldScene() {
     setSelectedCharacter(member);
   };
 
-  // Define menu items
-  const menuItems = [
+  // Define menu items (memoized to prevent re-renders)
+  const menuItems = useMemo(() => [
     {
       id: 'character',
       label: 'Character',
@@ -126,7 +126,7 @@ function OverworldScene() {
       icon: '⚙️',
       description: 'Game settings',
     }
-  ];
+  ], [state.party?.npcs, state.activeQuests?.length]);
 
   const handleMenuItemClick = (item) => {
     // If survival is clicked, trigger foraging directly instead of opening panel
@@ -279,8 +279,14 @@ function OverworldScene() {
     }
   };
 
-  // Get adjacent hexes (6 neighbors in hex grid)
+  // Get adjacent hexes (6 neighbors in hex grid) - Uses HexGrid spatial index for O(1) lookup
   const getAdjacentHexes = (col, row) => {
+    // Use HexGrid spatial index if available (much faster than linear search)
+    if (state.hexGrid) {
+      return state.hexGrid.getNeighbors(col, row);
+    }
+
+    // Fallback to manual lookup (only used if hexGrid not initialized)
     const isEvenRow = row % 2 === 0;
     const offsets = isEvenRow
       ? [
@@ -324,10 +330,12 @@ function OverworldScene() {
       return;
     }
 
-    // Get current hex
-    const currentHex = state.mapData?.find(
-      hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
-    );
+    // Get current hex (use HexGrid for O(1) lookup if available)
+    const currentHex = state.hexGrid 
+      ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
+      : state.mapData?.find(
+          hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
+        );
     
     if (!currentHex) {
       addMessage('Cannot determine current hex.', 'error');
@@ -743,9 +751,11 @@ function OverworldScene() {
       return { ready: false, message: 'Not ready' };
     }
 
-    const currentHex = state.mapData?.find(
-      hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
-    );
+    const currentHex = state.hexGrid 
+      ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
+      : state.mapData?.find(
+          hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
+        );
     
     if (!currentHex) {
       return { ready: false, message: 'Invalid location' };
