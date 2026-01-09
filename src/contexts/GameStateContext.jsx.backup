@@ -1,9 +1,17 @@
-import { createContext, useContext, useReducer, useEffect } from 'react';
-import { toast } from 'sonner';
+import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { Character } from '../game/Character.js';
 import { Party } from '../game/Party.js';
 import { createGameTime, advanceTime } from '../game/TimeManager.js';
 import SurvivalManager from '../game/SurvivalManager.js';
+import Quest from '../game/Quest.js';
+import { Shop } from '../game/Shop.js';
+import { Combat } from '../game/Combat.js';
+import { CombatTerrainGenerator } from '../game/CombatTerrainGenerator.js';
+import { EncounterPositions } from '../game/EncounterPositions.js';
+import { SaveManager } from '../utils/SaveManager.js';
+import { HexGrid } from '../utils/HexGrid.js';
+import { getHexDistance, isHexReachable } from '../utils/hexMath.js';
+import { GAME_DEFAULTS, TIME, COMBAT, SAVE } from '../constants/gameConstants.js';
 
 // Create context
 const GameStateContext = createContext(null);
@@ -21,9 +29,12 @@ const ACTIONS = {
   LOAD_GAME: 'LOAD_GAME',
   SET_CURRENT_SCENE: 'SET_CURRENT_SCENE',
   NEW_GAME: 'NEW_GAME',
+  // Event blocking
+  SET_ACTIVE_EVENT: 'SET_ACTIVE_EVENT',
   // Exploration actions
   SEARCH_POI: 'SEARCH_POI',
   SET_INTERIOR_MAP: 'SET_INTERIOR_MAP',
+  SET_INTERIOR_PLAYER_POSITION: 'SET_INTERIOR_PLAYER_POSITION',
   ENTER_EXPLORATION: 'ENTER_EXPLORATION',
   EXIT_EXPLORATION: 'EXIT_EXPLORATION',
   DEFEAT_ENCOUNTER: 'DEFEAT_ENCOUNTER',
@@ -32,9 +43,11 @@ const ACTIONS = {
   UPDATE_CHARACTER: 'UPDATE_CHARACTER',
   // Time tracking
   ADVANCE_TIME: 'ADVANCE_TIME',
+  UPDATE_PLAYTIME: 'UPDATE_PLAYTIME',
   // Rest actions
   SHORT_REST: 'SHORT_REST',
   LONG_REST: 'LONG_REST',
+  INN_REST: 'INN_REST',
   // Inventory actions
   ADD_ITEM: 'ADD_ITEM',
   REMOVE_ITEM: 'REMOVE_ITEM',
@@ -45,23 +58,53 @@ const ACTIONS = {
   CONSUME_WATER: 'CONSUME_WATER',
   FORAGE: 'FORAGE',
   FIND_WATER: 'FIND_WATER',
-  APPLY_EXHAUSTION: 'APPLY_EXHAUSTION'
+  APPLY_EXHAUSTION: 'APPLY_EXHAUSTION',
+  // Combat actions
+  START_COMBAT: 'START_COMBAT',
+  RESOLVE_COMBAT: 'RESOLVE_COMBAT',
+  PROCESS_COMBAT_ACTION: 'PROCESS_COMBAT_ACTION',
+  PROCESS_COMBAT_MOVEMENT: 'PROCESS_COMBAT_MOVEMENT',
+  ADVANCE_COMBAT_TURN: 'ADVANCE_COMBAT_TURN',
+  END_COMBAT: 'END_COMBAT',
+  UPDATE_COMBAT_STATE: 'UPDATE_COMBAT_STATE',
+  // XP and leveling actions
+  AWARD_XP: 'AWARD_XP',
+  LEVEL_UP_CHARACTER: 'LEVEL_UP_CHARACTER',
+  // Quest actions
+  ACCEPT_QUEST: 'ACCEPT_QUEST',
+  UPDATE_QUEST_PROGRESS: 'UPDATE_QUEST_PROGRESS',
+  COMPLETE_QUEST: 'COMPLETE_QUEST',
+  FAIL_QUEST: 'FAIL_QUEST',
+  GENERATE_TOWN_QUESTS: 'GENERATE_TOWN_QUESTS',
+  REFRESH_QUESTS: 'REFRESH_QUESTS',
+  // Shop actions
+  GENERATE_SHOP_INVENTORY: 'GENERATE_SHOP_INVENTORY',
+  BUY_ITEM: 'BUY_ITEM',
+  SELL_ITEM: 'SELL_ITEM',
+  // Town actions
+  ENTER_TOWN: 'ENTER_TOWN',
+  EXIT_TOWN: 'EXIT_TOWN'
 };
 
 // Initial state
 const initialState = {
-  playerPosition: { col: 10, row: 7 },
+  playerPosition: GAME_DEFAULTS.START_POSITION,
   playerCharacter: null,
   party: null,
   mapData: null,
   mapSeed: '',
+  hexGrid: null, // Spatial index for O(1) hex lookups
   exploredHexes: new Set(),
   discoveredPOIs: new Set(),
   currentScene: 'title',
   newGameSeed: null,
+  characterCreationSeed: null, // Store seed for character creation
+  hasActiveEvent: false, // Blocks movement during active events (combat, etc.)
   // Exploration state
   interiorMaps: {},
   currentPOI: null,
+  interiorPlayerPosition: null, // Player position inside POI/town
+  inInterior: false, // Whether player is currently inside a POI/town
   explorationState: {
     searchedPOIs: new Set(),
     clearedEncounters: {},
@@ -69,7 +112,28 @@ const initialState = {
     triggeredHazards: {}
   },
   // Time tracking
-  gameTime: createGameTime()
+  gameTime: createGameTime(),
+  playtime: 0, // Total playtime in milliseconds
+  // Combat state
+  combatLog: [],
+  combatState: {
+    active: false,
+    combat: null, // Combat instance
+    battlefield: null, // {hexes, width, height}
+    turnOrder: [], // Combatants with positions
+    currentTurnIndex: 0,
+    round: 1,
+    encounterName: '',
+    encounterType: 'standard',
+    waitingForPlayerAction: false,
+    movementRemaining: COMBAT.DEFAULT_MOVEMENT_FEET
+  },
+  // Quest state
+  activeQuests: [],
+  completedQuests: [],
+  townQuests: {}, // Available quests per town, keyed by location (e.g., "10,7")
+  // Shop state
+  shopInventories: {} // Keyed by POI location (e.g., "10,7" for hex coordinates)
 };
 
 // Reducer
@@ -92,7 +156,11 @@ function gameStateReducer(state, action) {
       return { ...state, party: action.payload };
 
     case ACTIONS.SET_MAP_DATA:
-      return { ...state, mapData: action.payload };
+      return {
+        ...state,
+        mapData: action.payload,
+        hexGrid: new HexGrid(action.payload) // Create spatial index
+      };
 
     case ACTIONS.SET_MAP_SEED:
       return { ...state, mapSeed: action.payload };
@@ -126,6 +194,12 @@ function gameStateReducer(state, action) {
         discoveredPOIs: new Set([...state.discoveredPOIs, `${action.payload.col},${action.payload.row}`])
       };
 
+    case ACTIONS.SET_ACTIVE_EVENT:
+      return {
+        ...state,
+        hasActiveEvent: action.payload
+      };
+
     case ACTIONS.SEARCH_POI:
       return {
         ...state,
@@ -144,22 +218,54 @@ function gameStateReducer(state, action) {
         }
       };
 
-    case ACTIONS.ENTER_EXPLORATION:
+    case ACTIONS.SET_INTERIOR_PLAYER_POSITION:
       return {
         ...state,
-        currentScene: 'exploration',
-        currentPOI: action.payload
+        interiorPlayerPosition: action.payload
       };
+
+    case ACTIONS.ENTER_EXPLORATION: {
+      const poi = action.payload;
+
+      // Update quest progress for visit objectives
+      const updatedActiveQuests = [...state.activeQuests];
+      let questsModified = false;
+
+      if (poi && poi.type) {
+        updatedActiveQuests.forEach((quest, index) => {
+          const questCopy = Quest.fromJSON(quest.toJSON());
+          const updated = questCopy.updateObjectivesByTarget('visit', poi.type, 1);
+          if (updated) {
+            updatedActiveQuests[index] = questCopy;
+            questsModified = true;
+          }
+        });
+      }
+
+      // Get interior map to set player position
+      const poiKey = `${poi.col},${poi.row}`;
+      const interiorMap = state.interiorMaps[poiKey];
+      const entrancePos = interiorMap?.entrance || { col: 0, row: 0 };
+
+      return {
+        ...state,
+        inInterior: true,
+        currentPOI: poi,
+        interiorPlayerPosition: entrancePos,
+        activeQuests: questsModified ? updatedActiveQuests : state.activeQuests
+      };
+    }
 
     case ACTIONS.EXIT_EXPLORATION:
       return {
         ...state,
-        currentScene: 'overworld',
-        currentPOI: null
+        inInterior: false,
+        currentPOI: null,
+        interiorPlayerPosition: null
       };
 
     case ACTIONS.DEFEAT_ENCOUNTER: {
-      const { poiKey, encounterKey } = action.payload;
+      const { poiKey, encounterKey, enemies } = action.payload;
       const clearedEncounters = { ...state.explorationState.clearedEncounters };
       if (!clearedEncounters[poiKey]) {
         clearedEncounters[poiKey] = new Set();
@@ -181,18 +287,53 @@ function gameStateReducer(state, action) {
         updatedInteriorMaps[poiKey] = interiorMap;
       }
 
+      // Update quest progress for kill objectives
+      const updatedActiveQuests = [...state.activeQuests];
+      let questsModified = false;
+
+      if (enemies && enemies.length > 0) {
+        enemies.forEach(enemy => {
+          updatedActiveQuests.forEach((quest, index) => {
+            const questCopy = Quest.fromJSON(quest.toJSON());
+            const updated = questCopy.updateObjectivesByTarget('kill', enemy.name, 1);
+            if (updated) {
+              updatedActiveQuests[index] = questCopy;
+              questsModified = true;
+            }
+          });
+        });
+      }
+
       return {
         ...state,
         interiorMaps: updatedInteriorMaps,
         explorationState: {
           ...state.explorationState,
           clearedEncounters
-        }
+        },
+        activeQuests: questsModified ? updatedActiveQuests : state.activeQuests
       };
     }
 
     case ACTIONS.COLLECT_LOOT: {
-      const { poiKey, lootKey } = action.payload;
+      const { poiKey, lootKey, loot } = action.payload;
+
+      // Add items and gold to character
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+
+      // Add gold
+      if (loot.gold > 0) {
+        updatedCharacter.addGold(loot.gold);
+      }
+
+      // Add items (Item instances)
+      if (loot.items && loot.items.length > 0) {
+        loot.items.forEach(item => {
+          updatedCharacter.addItem(item);
+        });
+      }
+
+      // Mark loot as collected
       const collectedLoot = { ...state.explorationState.collectedLoot };
       if (!collectedLoot[poiKey]) {
         collectedLoot[poiKey] = new Set();
@@ -214,13 +355,32 @@ function gameStateReducer(state, action) {
         updatedInteriorMaps[poiKey] = interiorMap;
       }
 
+      // Update quest progress for collect objectives
+      const updatedActiveQuests = [...state.activeQuests];
+      let questsModified = false;
+
+      if (loot.items && loot.items.length > 0) {
+        loot.items.forEach(item => {
+          updatedActiveQuests.forEach((quest, index) => {
+            const questCopy = Quest.fromJSON(quest.toJSON());
+            const updated = questCopy.updateObjectivesByTarget('collect', item.name, 1);
+            if (updated) {
+              updatedActiveQuests[index] = questCopy;
+              questsModified = true;
+            }
+          });
+        });
+      }
+
       return {
         ...state,
+        playerCharacter: updatedCharacter,
         interiorMaps: updatedInteriorMaps,
         explorationState: {
           ...state.explorationState,
           collectedLoot
-        }
+        },
+        activeQuests: questsModified ? updatedActiveQuests : state.activeQuests
       };
     }
 
@@ -269,13 +429,19 @@ function gameStateReducer(state, action) {
         gameTime: advanceTime(state.gameTime, action.payload)
       };
 
+    case ACTIONS.UPDATE_PLAYTIME:
+      return {
+        ...state,
+        playtime: state.playtime + action.payload
+      };
+
     case ACTIONS.SHORT_REST: {
       // Short rest handled by RestManager, just update character and time
       const { character } = action.payload;
       return {
         ...state,
         playerCharacter: character,
-        gameTime: advanceTime(state.gameTime, 60) // Short rest takes 1 hour (60 minutes)
+        gameTime: advanceTime(state.gameTime, TIME.SHORT_REST_MINUTES)
       };
     }
 
@@ -283,33 +449,40 @@ function gameStateReducer(state, action) {
       // Long rest handled by RestManager, just update character and time
       const { character } = action.payload;
 
-      // Consume rations and water during long rest
+      // Consume rations during long rest (water removed from survival system)
       const rationResult = SurvivalManager.consumeRations(character);
-      const waterResult = SurvivalManager.consumeWater(character);
 
-      // Get current terrain for exhaustion check
-      const currentHex = state.mapData?.find(hex =>
-        hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
-      );
-      const terrain = currentHex?.terrain?.key || 'grassland';
-
-      // Apply exhaustion if no food/water available
+      // Apply exhaustion if no food available
       if (!rationResult.success) {
         SurvivalManager.applyStarvation(character);
       }
-      if (!waterResult.success) {
-        SurvivalManager.applyDehydration(character, terrain);
-      }
 
-      // Reduce exhaustion if food and water were consumed
-      if (rationResult.success && waterResult.success) {
+      // Reduce exhaustion if food was consumed
+      if (rationResult.success) {
         SurvivalManager.reduceExhaustion(character);
       }
 
       return {
         ...state,
         playerCharacter: character,
-        gameTime: advanceTime(state.gameTime, 480) // Long rest takes 8 hours (480 minutes)
+        gameTime: advanceTime(state.gameTime, TIME.LONG_REST_MINUTES)
+      };
+    }
+
+    case ACTIONS.INN_REST: {
+      // Inn rest: guaranteed safe long rest with no interruption
+      // Does NOT consume rations or water (included in inn price)
+      // Handled by RestManager.innRest(), just update character and time
+      const { character } = action.payload;
+
+      // NOTE: Food and water are NOT consumed during inn rest (included in price)
+      // No interruption check needed (guaranteed safe)
+      // Gold already deducted by RestManager.innRest()
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter,
+        gameTime: advanceTime(state.gameTime, TIME.INN_REST_MINUTES)
       };
     }
 
@@ -348,6 +521,18 @@ function gameStateReducer(state, action) {
         };
       };
 
+      // Deserialize quests from JSON
+      const activeQuests = (action.payload.activeQuests || []).map(q => Quest.fromJSON(q));
+      const completedQuests = (action.payload.completedQuests || []).map(q => Quest.fromJSON(q));
+
+      // Deserialize shop inventories from JSON
+      const shopInventories = {};
+      if (action.payload.shopInventories) {
+        Object.entries(action.payload.shopInventories).forEach(([key, shopData]) => {
+          shopInventories[key] = Shop.fromJSON(shopData);
+        });
+      }
+
       return {
         ...state,
         ...action.payload,
@@ -355,8 +540,13 @@ function gameStateReducer(state, action) {
         discoveredPOIs: new Set(action.payload.discoveredPOIs || []),
         interiorMaps: action.payload.interiorMaps || {},
         explorationState: deserializeExplorationState(action.payload.explorationState),
-        currentPOI: null, // Always reset to null (never load mid-exploration)
-        gameTime: action.payload.gameTime || createGameTime() // Load saved time or create new
+        currentPOI: null, // Always reset to null (never load mid-exploration/town)
+        inInterior: false, // Always reset to false
+        interiorPlayerPosition: null, // Always reset to null
+        gameTime: action.payload.gameTime || createGameTime(), // Load saved time or create new
+        activeQuests,
+        completedQuests,
+        shopInventories
       };
     }
 
@@ -364,21 +554,14 @@ function gameStateReducer(state, action) {
       return { ...state, currentScene: action.payload };
 
     case ACTIONS.NEW_GAME: {
-      // Use map seed to generate deterministic NPCs
       const mapSeed = action.payload;
-      const npcSeed = hashString(mapSeed) + 12345; // Offset to differentiate from map generation
 
-      const playerChar = new Character('Hero', 'paladin');
-      const party = new Party();
-      party.setPlayer(playerChar);
-      party.generateNPCs(1, npcSeed); // Generate level 1 NPCs with seed
-
+      // Transition to character creation scene instead of creating default character
       return {
         ...initialState,
         mapSeed,
-        currentScene: 'overworld',
-        playerCharacter: playerChar,
-        party,
+        characterCreationSeed: mapSeed,
+        currentScene: 'characterCreation',
         gameTime: createGameTime() // Initialize game time for new game
       };
     }
@@ -511,23 +694,574 @@ function gameStateReducer(state, action) {
       };
     }
 
+
+    case ACTIONS.START_COMBAT: {
+      // Legacy combat log support (keep for backward compatibility)
+      if (action.payload.combatLog) {
+        return {
+          ...state,
+          combatLog: action.payload.combatLog
+        };
+      }
+      
+      // New tactical combat system
+      const { allies, enemies, encounterName, encounterType, terrainType } = action.payload;
+      
+      if (!allies || !enemies) {
+        console.error('START_COMBAT requires allies and enemies');
+        return state;
+      }
+      
+      // Generate battlefield
+      const battlefield = CombatTerrainGenerator.generate(encounterType, terrainType, state.mapSeed);
+      
+      // Create combat instance
+      const combat = new Combat(allies, enemies, battlefield);
+      
+      // Roll initiative
+      const turnOrder = combat.rollInitiative();
+      
+      // Place combatants on battlefield
+      const { allies: placedAllies, enemies: placedEnemies } = EncounterPositions.placeForEncounter(
+        encounterType,
+        turnOrder.filter(c => !c.isEnemy),
+        turnOrder.filter(c => c.isEnemy),
+        battlefield
+      );
+      
+      // Merge positions back into turnOrder
+      const updatedTurnOrder = turnOrder.map(combatant => {
+        const placed = combatant.isEnemy 
+          ? placedEnemies.find(e => e.id === combatant.id)
+          : placedAllies.find(a => a.id === combatant.id);
+        return { ...combatant, position: placed.position };
+      });
+      
+      // Update combat instance with positioned combatants
+      combat.turnOrder = updatedTurnOrder;
+      combat.allies = updatedTurnOrder.filter(c => !c.isEnemy);
+      combat.enemies = updatedTurnOrder.filter(c => c.isEnemy);
+      
+      // Get first combatant's movement distance (default to 30 feet if not available)
+      const firstCombatant = updatedTurnOrder[0];
+      const moveDistance = firstCombatant?.character?.moveDistance || GAME_DEFAULTS.MOVE_DISTANCE;
+      
+      return {
+        ...state,
+        combatState: {
+          active: true,
+          combat,
+          battlefield,
+          turnOrder: updatedTurnOrder,
+          currentTurnIndex: 0,
+          round: 1,
+          encounterName: encounterName || 'Combat',
+          encounterType: encounterType || 'standard',
+          waitingForPlayerAction: !firstCombatant?.isEnemy,
+          movementRemaining: moveDistance * 5 // Convert hexes to feet
+        },
+        currentScene: 'combat'
+      };
+    }
+
+    case ACTIONS.RESOLVE_COMBAT: {
+      const { playerCharacter, party, combatLog, xpPerCharacter } = action.payload;
+
+      // Award XP if provided and combat was victorious
+      if (xpPerCharacter && xpPerCharacter > 0) {
+        // Award XP to player character
+        if (playerCharacter && playerCharacter.currentHP > 0) {
+          playerCharacter.awardXP(xpPerCharacter);
+        }
+
+        // Award XP to living party members
+        if (party && party.npcs) {
+          party.npcs.forEach(npc => {
+            if (npc && npc.currentHP > 0) {
+              npc.awardXP(xpPerCharacter);
+            }
+          });
+        }
+      }
+
+      return {
+        ...state,
+        playerCharacter,
+        party,
+        combatLog
+      };
+    }
+
+    case ACTIONS.PROCESS_COMBAT_MOVEMENT: {
+      const { combatantId, path, cost } = action.payload;
+      
+      if (!state.combatState.combat) {
+        console.error('No active combat for movement');
+        return state;
+      }
+      
+      const result = state.combatState.combat.processMovement(combatantId, path, cost);
+      
+      if (result.success) {
+        return {
+          ...state,
+          combatState: {
+            ...state.combatState,
+            movementRemaining: state.combatState.movementRemaining - cost,
+            turnOrder: [...state.combatState.combat.turnOrder] // Trigger re-render
+          }
+        };
+      }
+      
+      return state;
+    }
+
+    case ACTIONS.PROCESS_COMBAT_ACTION: {
+      const { actionType, attacker, target, ability, spell, spellLevel } = action.payload;
+      
+      if (!state.combatState.combat) {
+        console.error('No active combat for action');
+        return state;
+      }
+      
+      let result;
+      const combat = state.combatState.combat;
+      
+      if (actionType === 'attack') {
+        result = combat.processAttack(attacker, target);
+      } else if (actionType === 'ability') {
+        result = combat.processAbility(attacker, ability, target);
+      } else if (actionType === 'spell') {
+        result = combat.processSpell(attacker, spell, target, spellLevel);
+      } else if (actionType === 'dodge') {
+        result = combat.processDodge(attacker);
+      } else if (actionType === 'dash') {
+        result = combat.processDash(attacker);
+      }
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnOrder: [...combat.turnOrder] // Trigger re-render with updated HP
+        }
+      };
+    }
+
+    case ACTIONS.ADVANCE_COMBAT_TURN: {
+      if (!state.combatState.combat) {
+        console.error('No active combat for turn advancement');
+        return state;
+      }
+      
+      const combat = state.combatState.combat;
+      let nextIndex = state.combatState.currentTurnIndex + 1;
+      let newRound = state.combatState.round;
+      
+      if (nextIndex >= state.combatState.turnOrder.length) {
+        nextIndex = 0;
+        newRound++;
+      }
+      
+      // Tick status effects for combatant ending turn
+      const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
+      combat.tickStatusEffects(currentCombatant);
+      
+      const nextCombatant = state.combatState.turnOrder[nextIndex];
+      const nextMovement = (nextCombatant?.character?.moveDistance || GAME_DEFAULTS.MOVE_DISTANCE) * 5;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          currentTurnIndex: nextIndex,
+          round: newRound,
+          waitingForPlayerAction: !nextCombatant.isEnemy,
+          movementRemaining: nextMovement
+        }
+      };
+    }
+
+    case ACTIONS.END_COMBAT: {
+      const { victory, xp } = action.payload;
+      
+      if (!state.combatState.combat || !state.party) {
+        console.error('No active combat or party to end combat');
+        return state;
+      }
+      
+      // Award XP if victory
+      if (victory && xp) {
+        const livingAllies = state.party.getAllMembers().filter(char => char.hp > 0);
+        const xpPerMember = Math.floor(xp / livingAllies.length);
+        
+        livingAllies.forEach(char => {
+          char.gainXP(xpPerMember);
+        });
+      }
+      
+      // Update party HP from combat
+      state.combatState.turnOrder.filter(c => !c.isEnemy).forEach(combatant => {
+        const partyMember = state.party.getAllMembers().find(m => m.name === combatant.character.name);
+        if (partyMember) {
+          partyMember.hp = combatant.hp;
+        }
+      });
+      
+      return {
+        ...state,
+        combatState: {
+          ...initialState.combatState
+        },
+        currentScene: state.inInterior ? 'exploration' : 'overworld'
+      };
+    }
+
+    case ACTIONS.UPDATE_COMBAT_STATE: {
+      const updates = action.payload;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          ...updates
+        }
+      };
+    }
+
+    case ACTIONS.AWARD_XP: {
+      const { characterId, amount } = action.payload;
+      const updatedPlayerCharacter = state.playerCharacter ? Character.fromJSON(state.playerCharacter.toJSON()) : null;
+      const updatedParty = state.party ? Party.fromJSON(state.party.toJSON()) : null;
+
+      if (characterId === 'player' && updatedPlayerCharacter) {
+        updatedPlayerCharacter.awardXP(amount);
+      } else if (updatedParty) {
+        const npcIndex = parseInt(characterId);
+        if (!isNaN(npcIndex) && updatedParty.npcs[npcIndex]) {
+          updatedParty.npcs[npcIndex] = Character.fromJSON(updatedParty.npcs[npcIndex].toJSON());
+          updatedParty.npcs[npcIndex].awardXP(amount);
+        }
+      }
+
+      return {
+        ...state,
+        playerCharacter: updatedPlayerCharacter,
+        party: updatedParty
+      };
+    }
+
+    case ACTIONS.LEVEL_UP_CHARACTER: {
+      const { characterId } = action.payload;
+      const updatedPlayerCharacter = state.playerCharacter ? Character.fromJSON(state.playerCharacter.toJSON()) : null;
+      const updatedParty = state.party ? Party.fromJSON(state.party.toJSON()) : null;
+
+      let levelUpResult = null;
+
+      if (characterId === 'player' && updatedPlayerCharacter) {
+        levelUpResult = updatedPlayerCharacter.levelUp();
+        // Level up notification logged to game log
+      } else if (updatedParty) {
+        const npcIndex = parseInt(characterId);
+        if (!isNaN(npcIndex) && updatedParty.npcs[npcIndex]) {
+          updatedParty.npcs[npcIndex] = Character.fromJSON(updatedParty.npcs[npcIndex].toJSON());
+          levelUpResult = updatedParty.npcs[npcIndex].levelUp();
+          // Level up notification logged to game log
+        }
+      }
+
+      return {
+        ...state,
+        playerCharacter: updatedPlayerCharacter,
+        party: updatedParty
+      };
+    }
+
+    case ACTIONS.ACCEPT_QUEST: {
+      const { quest } = action.payload;
+      const questInstance = quest instanceof Quest ? quest : Quest.fromJSON(quest);
+      questInstance.status = 'active';
+
+      return {
+        ...state,
+        activeQuests: [...state.activeQuests, questInstance]
+      };
+    }
+
+    case ACTIONS.UPDATE_QUEST_PROGRESS: {
+      const { questId, type, target, amount } = action.payload;
+
+      const updatedActiveQuests = state.activeQuests.map(quest => {
+        if (quest.id === questId) {
+          const updatedQuest = Quest.fromJSON(quest.toJSON());
+          updatedQuest.updateObjectivesByTarget(type, target, amount);
+          return updatedQuest;
+        }
+        return quest;
+      });
+
+      return {
+        ...state,
+        activeQuests: updatedActiveQuests
+      };
+    }
+
+    case ACTIONS.COMPLETE_QUEST: {
+      const { questId } = action.payload;
+
+      // Find the quest
+      const questIndex = state.activeQuests.findIndex(q => q.id === questId);
+      if (questIndex === -1) return state;
+
+      const quest = state.activeQuests[questIndex];
+      const completedQuest = Quest.fromJSON(quest.toJSON());
+      completedQuest.status = 'completed';
+
+      // Remove from active quests
+      const updatedActiveQuests = [...state.activeQuests];
+      updatedActiveQuests.splice(questIndex, 1);
+
+      // Award rewards
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+
+      // Award XP
+      if (quest.rewards.xp > 0) {
+        updatedCharacter.awardXP(quest.rewards.xp);
+        // Quest complete logged to game log
+      }
+
+      // Award gold
+      if (quest.rewards.gold > 0) {
+        updatedCharacter.addGold(quest.rewards.gold);
+      }
+
+      // Award items
+      if (quest.rewards.items && quest.rewards.items.length > 0) {
+        quest.rewards.items.forEach(item => {
+          updatedCharacter.addItem(item);
+        });
+      }
+
+      return {
+        ...state,
+        activeQuests: updatedActiveQuests,
+        completedQuests: [...state.completedQuests, completedQuest],
+        playerCharacter: updatedCharacter
+      };
+    }
+
+    case ACTIONS.FAIL_QUEST: {
+      const { questId } = action.payload;
+
+      // Find the quest
+      const questIndex = state.activeQuests.findIndex(q => q.id === questId);
+      if (questIndex === -1) return state;
+
+      const quest = state.activeQuests[questIndex];
+      const failedQuest = Quest.fromJSON(quest.toJSON());
+      failedQuest.status = 'failed';
+
+      // Remove from active quests
+      const updatedActiveQuests = [...state.activeQuests];
+      updatedActiveQuests.splice(questIndex, 1);
+
+      // Quest failed logged to game log
+
+      return {
+        ...state,
+        activeQuests: updatedActiveQuests,
+        completedQuests: [...state.completedQuests, failedQuest]
+      };
+    }
+
+    case ACTIONS.GENERATE_TOWN_QUESTS: {
+      const { location, quests } = action.payload;
+      const locationKey = `${location.col},${location.row}`;
+
+      // Store quests for this town location
+      return {
+        ...state,
+        townQuests: {
+          ...state.townQuests,
+          [locationKey]: {
+            quests,
+            lastGenerated: state.gameTime.day
+          }
+        }
+      };
+    }
+
+    case ACTIONS.REFRESH_QUESTS: {
+      const { location, quests } = action.payload;
+      const locationKey = `${location.col},${location.row}`;
+
+      // Refresh quests for this town (called after X days)
+      return {
+        ...state,
+        townQuests: {
+          ...state.townQuests,
+          [locationKey]: {
+            quests,
+            lastGenerated: state.gameTime.day
+          }
+        }
+      };
+    }
+
+    case ACTIONS.GENERATE_SHOP_INVENTORY: {
+      const { poiKey, shopType, level } = action.payload;
+
+      // Don't regenerate if shop already exists
+      if (state.shopInventories[poiKey]) {
+        return state;
+      }
+
+      // Generate shop name based on type
+      const shopNames = {
+        weapon: 'Blacksmith',
+        armor: 'Armory',
+        general: 'General Store',
+        magic: 'Magic Shop'
+      };
+
+      const shop = new Shop({
+        name: shopNames[shopType] || 'General Store',
+        type: shopType,
+        level: level || state.playerCharacter?.level || 1
+      });
+
+      return {
+        ...state,
+        shopInventories: {
+          ...state.shopInventories,
+          [poiKey]: shop
+        }
+      };
+    }
+
+    case ACTIONS.BUY_ITEM: {
+      const { poiKey, itemId } = action.payload;
+      if (!state.playerCharacter || !state.shopInventories[poiKey]) return state;
+
+      const shop = Shop.fromJSON(state.shopInventories[poiKey].toJSON());
+      const item = shop.inventory.find(i => i.id === itemId);
+
+      if (!item) {
+        // Item not found - logged to game log
+        return state;
+      }
+
+      const price = shop.getBuyPrice(item);
+
+      // Check if player has enough gold
+      if (state.playerCharacter.gold < price) {
+        // Not enough gold - logged to game log
+        return state;
+      }
+
+      // Remove item from shop
+      const purchasedItem = shop.buyItem(itemId);
+      if (!purchasedItem) return state;
+
+      // Update player character
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      updatedCharacter.removeGold(price);
+      updatedCharacter.addItem(purchasedItem);
+
+      // Purchase logged to game log
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter,
+        shopInventories: {
+          ...state.shopInventories,
+          [poiKey]: shop
+        }
+      };
+    }
+
+    case ACTIONS.SELL_ITEM: {
+      const { poiKey, itemId } = action.payload;
+      if (!state.playerCharacter || !state.shopInventories[poiKey]) return state;
+
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const item = updatedCharacter.inventory.find(i => i.id === itemId);
+
+      if (!item) {
+        // Item not found - logged to game log
+        return state;
+      }
+
+      // Check if item is equipped
+      const isEquipped = Object.values(updatedCharacter.equipment).some(
+        equipped => equipped && equipped.id === itemId
+      );
+
+      if (isEquipped) {
+        // Cannot sell equipped items - logged to game log
+        return state;
+      }
+
+      const shop = Shop.fromJSON(state.shopInventories[poiKey].toJSON());
+      const price = shop.getSellPrice(item);
+
+      // Remove item from player and add gold
+      updatedCharacter.removeItem(itemId);
+      updatedCharacter.addGold(price);
+
+      // Add item to shop
+      shop.sellItem(item);
+
+      // Sale logged to game log
+
+      return {
+        ...state,
+        playerCharacter: updatedCharacter,
+        shopInventories: {
+          ...state.shopInventories,
+          [poiKey]: shop
+        }
+      };
+    }
+
+    case ACTIONS.ENTER_TOWN: {
+      const { col, row, poi } = action.payload;
+      const poiKey = `${col},${row}`;
+
+      // Interior should already be generated by useHexInteraction before this action
+      const townInterior = state.interiorMaps[poiKey];
+      
+      if (!townInterior) {
+        console.error('ENTER_TOWN called but interior not found! This should not happen.');
+        return state;
+      }
+
+      const entrancePos = townInterior.entrance || { col: 0, row: 0 };
+
+      return {
+        ...state,
+        inInterior: true,
+        currentPOI: { col, row, poi },
+        interiorPlayerPosition: entrancePos
+      };
+    }
+
+    case ACTIONS.EXIT_TOWN:
+      return {
+        ...state,
+        inInterior: false,
+        currentPOI: null,
+        interiorPlayerPosition: null
+      };
+
     default:
       return state;
   }
 }
 
 // Helper function - hex distance calculation
-function getHexDistance(col1, row1, col2, row2) {
-  const x1 = col1 - Math.floor(row1 / 2);
-  const z1 = row1;
-  const y1 = -x1 - z1;
-
-  const x2 = col2 - Math.floor(row2 / 2);
-  const z2 = row2;
-  const y2 = -x2 - z2;
-
-  return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2), Math.abs(z1 - z2));
-}
+// Re-export hex math functions for backward compatibility
+export { getHexDistance, isHexReachable } from '../utils/hexMath.js';
 
 // Helper function - simple string hash
 function hashString(str) {
@@ -543,73 +1277,57 @@ function hashString(str) {
 // Provider component
 export function GameStateProvider({ children }) {
   const [state, dispatch] = useReducer(gameStateReducer, initialState);
+  const playtimeStartRef = useRef(Date.now());
+  const playtimeIntervalRef = useRef(null);
 
-  // Auto-save to localStorage on state changes
+  // Playtime tracking - update every second
   useEffect(() => {
-    if ((state.currentScene === 'overworld' || state.currentScene === 'exploration') && state.playerCharacter) {
-      // Convert Sets to arrays for JSON serialization
-      const serializeExplorationState = () => {
-        const clearedEncounters = {};
-        const collectedLoot = {};
-        const triggeredHazards = {};
-
-        // Convert Set values to arrays
-        Object.keys(state.explorationState.clearedEncounters).forEach(key => {
-          clearedEncounters[key] = Array.from(state.explorationState.clearedEncounters[key]);
+    if (state.currentScene !== 'title' && state.playerCharacter) {
+      playtimeIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - playtimeStartRef.current;
+        playtimeStartRef.current = Date.now();
+        
+        dispatch({
+          type: ACTIONS.UPDATE_PLAYTIME,
+          payload: elapsed
         });
-        Object.keys(state.explorationState.collectedLoot).forEach(key => {
-          collectedLoot[key] = Array.from(state.explorationState.collectedLoot[key]);
-        });
-        Object.keys(state.explorationState.triggeredHazards).forEach(key => {
-          triggeredHazards[key] = Array.from(state.explorationState.triggeredHazards[key]);
-        });
+      }, 1000);
 
-        return {
-          searchedPOIs: Array.from(state.explorationState.searchedPOIs),
-          clearedEncounters,
-          collectedLoot,
-          triggeredHazards
-        };
-      };
-
-      const saveData = {
-        version: '4.1',
-        timestamp: Date.now(),
-        playerPosition: state.playerPosition,
-        playerCharacter: state.playerCharacter?.toJSON(),
-        party: state.party?.toJSON(),
-        currentScene: state.currentScene === 'exploration' ? 'overworld' : state.currentScene, // Reset to overworld on load
-        mapSeed: state.mapSeed,
-        exploredHexes: Array.from(state.exploredHexes),
-        discoveredPOIs: Array.from(state.discoveredPOIs),
-        mapData: state.mapData,
-        // Exploration system data (v4.0)
-        interiorMaps: state.interiorMaps,
-        explorationState: serializeExplorationState(),
-        // Time tracking (v4.1)
-        gameTime: state.gameTime
-      };
-
-      try {
-        localStorage.setItem('hexcrawl_save', JSON.stringify(saveData));
-      } catch (error) {
-        console.error('Failed to save game:', error);
-
-        // Check if it's a quota exceeded error
-        if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-          toast.error('Save Failed: Storage Quota Exceeded', {
-            description: 'Your browser\'s localStorage is full. Try clearing your cache or using a different browser.',
-            duration: 10000,
-          });
-        } else {
-          toast.error('Save Failed', {
-            description: `An error occurred while saving: ${error.message}. Your progress may not be saved.`,
-            duration: 10000,
-          });
+      return () => {
+        if (playtimeIntervalRef.current) {
+          clearInterval(playtimeIntervalRef.current);
         }
-      }
+      };
     }
-  }, [state]);
+  }, [state.currentScene, state.playerCharacter]);
+
+  // Event-based auto-save - triggers on specific state changes
+  useEffect(() => {
+    if (!state.playerCharacter || state.currentScene === 'title') {
+      return; // Don't save on title screen or without character
+    }
+
+    // Auto-save to AUTOSAVE slot
+    const shouldAutoSave = 
+      state.currentScene === 'overworld' || 
+      state.currentScene === 'exploration' ||
+      state.currentScene === 'town';
+
+    if (shouldAutoSave) {
+      // Debounce auto-save (wait 500ms after last state change)
+      const timeoutId = setTimeout(() => {
+        SaveManager.saveToSlot(SaveManager.SAVE_SLOTS.AUTOSAVE, state);
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    state.currentScene,
+    state.playerCharacter,
+    state.gameTime, // Saves on time advancement (rest, travel)
+    state.completedQuests.length, // Saves when quest completed
+    state.combatState.active // Saves when combat state changes (end of combat)
+  ]);
 
   // Helper functions
   const helpers = {
@@ -628,12 +1346,7 @@ export function GameStateProvider({ children }) {
 
     isHexReachable: (col, row) => {
       if (!state.playerCharacter) return false;
-      const distance = getHexDistance(
-        state.playerPosition.col,
-        state.playerPosition.row,
-        col,
-        row
-      );
+      const distance = getHexDistance(state.playerPosition.col, state.playerPosition.row, col, row);
       return distance <= state.playerCharacter.moveDistance;
     },
 
@@ -651,33 +1364,24 @@ export function GameStateProvider({ children }) {
 
     getHexDistance,
 
-    hasSave: () => localStorage.getItem('hexcrawl_save') !== null,
+    hasSave: () => SaveManager.hasSaveData(),
 
     loadGame: () => {
+      // Note: This is kept for backward compatibility but SaveSlotManager handles loading now
       try {
-        const saveDataStr = localStorage.getItem('hexcrawl_save');
-        if (!saveDataStr) return false;
+        // Try to load from auto-save slot first
+        const gameData = SaveManager.loadFromSlot(SaveManager.SAVE_SLOTS.AUTOSAVE);
+        
+        if (!gameData) {
+          // Try slot 1 as fallback
+          const slot1Data = SaveManager.loadFromSlot(SaveManager.SAVE_SLOTS.SLOT_1);
+          if (!slot1Data) return false;
+          
+          dispatch({ type: ACTIONS.LOAD_GAME, payload: slot1Data });
+          return true;
+        }
 
-        const saveData = JSON.parse(saveDataStr);
-
-        // Reconstruct Character and Party from JSON
-        const playerCharacter = saveData.playerCharacter
-          ? Character.fromJSON(saveData.playerCharacter)
-          : null;
-
-        const party = saveData.party
-          ? Party.fromJSON(saveData.party)
-          : null;
-
-        dispatch({
-          type: ACTIONS.LOAD_GAME,
-          payload: {
-            ...saveData,
-            playerCharacter,
-            party
-          }
-        });
-
+        dispatch({ type: ACTIONS.LOAD_GAME, payload: gameData });
         return true;
       } catch (error) {
         console.error('Failed to load game:', error);
@@ -686,6 +1390,7 @@ export function GameStateProvider({ children }) {
     },
 
     deleteSave: () => {
+      // Delete old save format if it exists
       localStorage.removeItem('hexcrawl_save');
     }
   };
@@ -712,3 +1417,6 @@ export function useGameState() {
   }
   return context;
 }
+
+// Export ACTIONS for use in components
+export { ACTIONS };

@@ -12,6 +12,7 @@ import { SaveManager } from '../utils/SaveManager.js';
 import { HexGrid } from '../utils/HexGrid.js';
 import { getHexDistance, isHexReachable } from '../utils/hexMath.js';
 import { GAME_DEFAULTS, TIME, COMBAT, SAVE } from '../constants/gameConstants.js';
+import { combinedReducer } from './reducers/index.js';
 
 // Create context
 const GameStateContext = createContext(null);
@@ -136,8 +137,13 @@ const initialState = {
   shopInventories: {} // Keyed by POI location (e.g., "10,7" for hex coordinates)
 };
 
-// Reducer
+// Reducer - Delegates to modular reducers
 function gameStateReducer(state, action) {
+  return combinedReducer(state, action, ACTIONS);
+}
+
+// Legacy monolithic reducer (DEPRECATED - kept for reference, will be removed)
+function _legacyGameStateReducer(state, action) {
   switch (action.type) {
     case ACTIONS.SET_PLAYER_POSITION:
       return {
