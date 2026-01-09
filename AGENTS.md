@@ -27,6 +27,17 @@ npm run version:minor   # 0.1.0 -> 0.2.0 (new features, improvements)
 npm run version:major   # 0.1.0 -> 1.0.0 (breaking changes, major rewrites)
 ```
 
+**Important:** Before starting the dev server, make sure no other dev servers are running on ports 3000-3009. If you encounter "port in use" errors, kill lingering processes:
+
+```bash
+# Windows: Find and kill processes on port 3000-3009
+netstat -ano | findstr :300 | findstr LISTENING
+taskkill //F //PID <process_id>
+
+# Or kill all Node processes
+taskkill //F //IM node.exe
+```
+
 **Note:** No test suite currently exists. For testing guidance, see CLAUDE.md.
 
 ## Version Management
