@@ -1,0 +1,104 @@
+.save-slot-manager {
+  background: rgba(20, 20, 20, 0.95);
+  border: 2px solid #555;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.save-slot-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #444;
+}
+
+.save-slot-manager-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #fff;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.save-slots-container {
+  margin-bottom: 16px;
+}
+
+.slot-section h3 {
+  color: #aaa;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 16px 0 12px 0;
+}
+
+.slot-section:first-child h3 {
+  margin-top: 0;
+}
+
+.slot-divider {
+  height: 1px;
+  background: #444;
+  margin: 24px 0;
+}
+
+.save-slot-manager-footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #444;
+}
+
+.save-notice {
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.save-notice strong {
+  color: #aaa;
+}
+
+/* Scrollbar styling */
+.save-slot-manager::-webkit-scrollbar {
+  width: 8px;
+}
+
+.save-slot-manager::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.save-slot-manager::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.save-slot-manager::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}

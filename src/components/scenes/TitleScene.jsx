@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import { toast } from 'sonner';
 import { useGameState } from '../../contexts/GameStateContext';
+import { useGameLog } from '../../contexts/GameLogContext';
 import { useConfirm } from '../../hooks/useConfirm';
 import { ConfirmDialog } from '../shadcn/ConfirmDialog';
+import { SaveManager } from '../../utils/SaveManager';
+import SaveSlotManager from '../ui/SaveSlotManager';
 
 function TitleScene() {
   const { state, dispatch, actions, hasSave, loadGame, deleteSave } = useGameState();
+  const { addMessage } = useGameLog();
   const [seed, setSeed] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showLoadMenu, setShowLoadMenu] = useState(false);
   const { confirm, dialogProps } = useConfirm();
 
   const handleNewGame = async () => {
@@ -29,20 +33,24 @@ function TitleScene() {
       dispatch({ type: actions.NEW_GAME, payload: gameSeed });
     } catch (error) {
       console.error('Error starting new game:', error);
-      toast.error('Failed to start new game: ' + error.message);
+      addMessage('Failed to start new game: ' + error.message, 'error');
     }
   };
 
-  const handleContinue = () => {
-    if (loadGame()) {
-      dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'overworld' });
-    } else {
-      toast.error('Failed to load save game.');
-    }
+  const handleLoadClick = () => {
+    setShowLoadMenu(true);
   };
 
   return (
     <>
+      {showLoadMenu && (
+        <div className="modal-overlay" onClick={() => setShowLoadMenu(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <SaveSlotManager mode="load" onClose={() => setShowLoadMenu(false)} />
+          </div>
+        </div>
+      )}
+
       <div className="title-screen">
         <div className="title-content">
           <h1 className="title-logo">Hexcrawler</h1>
@@ -58,10 +66,10 @@ function TitleScene() {
               </button>
               <button
                 className="title-btn"
-                onClick={handleContinue}
-                disabled={!hasSave()}
+                onClick={handleLoadClick}
+                disabled={!SaveManager.hasSaveData()}
               >
-                Continue
+                Load Game
               </button>
             </div>
 
@@ -93,7 +101,7 @@ function TitleScene() {
 
           <div className="title-footer">
             <strong>Controls:</strong> Click hex to view details • Click "Move Here" or double-click to travel<br />
-            <strong>Shift+S</strong> to manually save • Configure settings in Config tab
+            Game auto-saves on rest, combat victory, quest completion, and scene changes
           </div>
         </div>
       </div>
