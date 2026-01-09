@@ -256,6 +256,12 @@ function CombatCanvas({
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    
+    // Null check for battlefield
+    if (!battlefield || !battlefield.hexes) {
+      console.warn('CombatCanvas: battlefield or battlefield.hexes is null');
+      return;
+    }
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
