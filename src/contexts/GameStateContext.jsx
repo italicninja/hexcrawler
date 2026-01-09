@@ -9,6 +9,8 @@ import { Combat } from '../game/Combat.js';
 import { CombatTerrainGenerator } from '../game/CombatTerrainGenerator.js';
 import { EncounterPositions } from '../game/EncounterPositions.js';
 import { SaveManager } from '../utils/SaveManager.js';
+import { HexGrid } from '../utils/HexGrid.js';
+import { getHexDistance, isHexReachable } from '../utils/hexMath.js';
 import { GAME_DEFAULTS, TIME, COMBAT, SAVE } from '../constants/gameConstants.js';
 
 // Create context
@@ -91,6 +93,7 @@ const initialState = {
   party: null,
   mapData: null,
   mapSeed: '',
+  hexGrid: null, // Spatial index for O(1) hex lookups
   exploredHexes: new Set(),
   discoveredPOIs: new Set(),
   currentScene: 'title',
@@ -153,7 +156,11 @@ function gameStateReducer(state, action) {
       return { ...state, party: action.payload };
 
     case ACTIONS.SET_MAP_DATA:
-      return { ...state, mapData: action.payload };
+      return {
+        ...state,
+        mapData: action.payload,
+        hexGrid: new HexGrid(action.payload) // Create spatial index
+      };
 
     case ACTIONS.SET_MAP_SEED:
       return { ...state, mapSeed: action.payload };
@@ -1249,17 +1256,8 @@ function gameStateReducer(state, action) {
 }
 
 // Helper function - hex distance calculation
-export function getHexDistance(col1, row1, col2, row2) {
-  const x1 = col1 - Math.floor(row1 / 2);
-  const z1 = row1;
-  const y1 = -x1 - z1;
-
-  const x2 = col2 - Math.floor(row2 / 2);
-  const z2 = row2;
-  const y2 = -x2 - z2;
-
-  return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2), Math.abs(z1 - z2));
-}
+// Re-export hex math functions for backward compatibility
+export { getHexDistance, isHexReachable } from '../utils/hexMath.js';
 
 // Helper function - simple string hash
 function hashString(str) {
