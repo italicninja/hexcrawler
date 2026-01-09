@@ -61,7 +61,9 @@ export class Character {
         // Rest mechanics
         this.hitDiceRemaining = this.level; // Start with full hit dice
         this.lastLongRest = 0; // Timestamp of last long rest (in game hours)
-        this.spellSlotsUsed = {}; // For future spell system
+        this.spellSlotsUsed = {}; // Tracks used slots by level: {1: 0, 2: 0, 3: 0}
+        this.knownSpells = []; // For Bard, Sorcerer, Warlock (know specific spells)
+        this.preparedSpells = []; // For Cleric, Druid, Wizard (prepare from list)
 
         // Survival mechanics
         this.rations = 7; // Days of food (default 7)
@@ -83,6 +85,9 @@ export class Character {
         if (charClass) {
             this.applyClassModifiers(charClass);
         }
+
+        // Initialize spell slots for casters
+        this.initializeSpellSlots();
     }
 
     /**
@@ -654,6 +659,16 @@ export class Character {
             totalGenerosity: this.hiddenStats.generosity,
             remainingGold: this.gold
         };
+    }
+
+    /**
+     * Initialize spell slots for spellcasting classes
+     */
+    initializeSpellSlots() {
+        const casterClasses = ['Wizard', 'Cleric', 'Druid', 'Sorcerer', 'Bard', 'Warlock', 'Paladin', 'Ranger'];
+        if (casterClasses.includes(this.class)) {
+            this.spellSlotsUsed = { 1: 0, 2: 0, 3: 0 };
+        }
     }
 
     /**

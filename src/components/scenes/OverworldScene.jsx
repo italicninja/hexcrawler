@@ -269,14 +269,12 @@ function OverworldScene() {
 
         // Trigger event based on type
         if (hex.poi.eventType === 'active') {
-          // Show active event
-          const choices = getActiveEventChoices(hex.poi);
-          showEvent(hex.poi, 'active', choices, (action) => handleEventChoice(action, hex.poi));
+          // Trigger combat encounter directly
+          handleEngageCombat(hex.poi);
         }
       } else if (hex.poi.eventType === 'active') {
-        // Already discovered active event - trigger again
-        const choices = getActiveEventChoices(hex.poi);
-        showEvent(hex.poi, 'active', choices, (action) => handleEventChoice(action, hex.poi));
+        // Already discovered active event - trigger combat again
+        handleEngageCombat(hex.poi);
       }
     }
   };
@@ -411,163 +409,49 @@ function OverworldScene() {
     }
   };
 
-  // Get choices for active events (combat)
-  const getActiveEventChoices = (poi) => {
-    return [
-      { label: 'Fight', action: 'fight', style: 'danger' }
-    ];
+  // Handle engaging in combat with a POI
+  const handleEngageCombat = (poi) => {
+    addMessage(`You engage ${poi.name} in combat!`, 'encounter');
+    
+    // Get party members
+    const allies = state.party.getAllMembers().filter(m => m);
+    
+    // Parse enemies from POI
+    const diceRoller = new DiceRoller();
+    const enemies = Enemy.parseCreatureString(poi.creatures, poi.cr, diceRoller);
+    
+    // Determine encounter type based on POI or terrain
+    let encounterType = 'standard';
+    if (poi.eventType === 'ambush') encounterType = 'ambush';
+    if (poi.cr >= 5) encounterType = 'boss';
+    
+    // Get terrain type from current hex
+    const currentHex = state.mapData.find(h => h.col === state.playerPosition.col && h.row === state.playerPosition.row);
+    const terrainType = currentHex?.terrain?.name || 'plains';
+    
+    // Dispatch START_COMBAT
+    dispatch({
+      type: actions.START_COMBAT,
+      payload: {
+        allies,
+        enemies,
+        encounterName: poi.name,
+        encounterType,
+        terrainType
+      }
+    });
   };
 
   // Handle event choice (combat, flee, etc.)
   const handleEventChoice = (action, poi) => {
     if (action === 'fight') {
-      addMessage(
-        `You engage ${poi.name} in combat!`,
-        'encounter'
-      );
-
-      // TODO: Future tactical combat will create a combat canvas here
-      // For now, auto-win combat simulation
-
-      // Get party members (player + NPCs)
-      const characters = [state.playerCharacter];
-      if (state.party) {
-        characters.push(...state.party.npcs.filter(npc => npc && npc.currentHP > 0));
-      }
-
-      // Parse creature string into Enemy instances
-      const diceRoller = new DiceRoller();
-      const enemies = Enemy.parseCreatureString(poi.creatures, poi.cr, diceRoller);
-
-      // Run combat simulation (auto-win for now)
-      const combat = new Combat(characters, enemies, { canFlee: false });
-      const result = combat.simulateCombat();
-
-      // Get combat time
-      const combatTime = getCombatDuration();
-
-      // Update character HP from combat
-      const updatedPlayerCharacter = Character.fromJSON(state.playerCharacter.toJSON());
-      const playerState = result.characterStates.find(c => c.name === state.playerCharacter.name);
-      if (playerState) {
-        updatedPlayerCharacter.currentHP = playerState.currentHP;
-      }
-
-      // Update party
-      let updatedParty = state.party;
-      if (state.party) {
-        // Properly reconstruct Party instance to preserve class methods
-        updatedParty = Party.fromJSON(state.party.toJSON());
-        updatedParty.npcs = updatedParty.npcs.map((npc, index) => {
-          if (!npc) return null;
-          const npcState = result.characterStates.find(c => c.name === npc.name);
-          if (npcState) {
-            const updatedNPC = Character.fromJSON(npc.toJSON());
-            updatedNPC.currentHP = npcState.currentHP;
-            return updatedNPC;
-          }
-          return npc;
-        });
-      }
-
-      // Advance time for combat
-      dispatch({
-        type: actions.ADVANCE_TIME,
-        payload: combatTime
-      });
-
-      // Update character states and award XP
-      dispatch({
-        type: actions.RESOLVE_COMBAT,
-        payload: {
-          playerCharacter: updatedPlayerCharacter,
-          party: updatedParty,
-          combatLog: result.combatLog,
-          xpPerCharacter: result.xpPerCharacter || 0
-        }
-      });
-
-      // Check for party wipe after updating character states
-      const isWiped = updatedPlayerCharacter.currentHP <= 0 && 
-                      (!updatedParty || updatedParty.isWiped());
-
-      // Show combat results in EventInfoBox
-      const summary = combat.getCombatSummary(result);
-      const fullLog = combat.generateCombatLog();
-
-      // Log result to game log
-      if (result.victory) {
-        addMessage(
-          `Victory! Defeated ${poi.creatures}.`,
-          'success'
-        );
-        if (result.xpPerCharacter > 0) {
-          addMessage(
-            `Earned ${result.xpPerCharacter} XP per party member.`,
-            'info'
-          );
-        }
-      } else {
-        addMessage(
-          `Defeat! The party was defeated by ${poi.creatures}.`,
-          'error'
-        );
-      }
-
-      if (isWiped) {
-        // Party wiped - show defeat message then game over
-        showEvent(
-          {
-            name: 'Defeat!',
-            description: `${summary}\n\n--- Combat Log ---\n${fullLog}`,
-            type: 'encounter',
-            eventType: 'active'
-          },
-          'active',
-          [{ label: 'Game Over', action: 'gameover', style: 'primary' }],
-          () => {
-            dismissEvent();
-            dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'gameover' });
-          }
-        );
-      } else if (result.victory) {
-        // Victory - auto-dismiss after showing message
-        showEvent(
-          {
-            name: 'Victory!',
-            description: `${summary}\n\n--- Combat Log ---\n${fullLog}`,
-            type: 'encounter',
-            eventType: 'active'
-          },
-          'passive',
-          [{ label: 'Continue', action: 'continue', style: 'primary' }],
-          () => dismissEvent()
-        );
-        
-        // Auto-dismiss after 2 seconds
-        setTimeout(() => {
-          dismissEvent();
-        }, 2000);
-      } else {
-        // Defeat but party survived - show continue button
-        showEvent(
-          {
-            name: 'Defeat!',
-            description: `${summary}\n\n--- Combat Log ---\n${fullLog}`,
-            type: 'encounter',
-            eventType: 'active'
-          },
-          'active',
-          [{ label: 'Continue', action: 'continue', style: 'primary' }],
-          () => dismissEvent()
-        );
-      }
+      handleEngageCombat(poi);
     } else if (action === 'continue') {
-      // Continue after combat results
-      dismissEvent();
+      // Continue after combat results (if still using event system)
+      // dismissEvent();
     } else if (action === 'gameover') {
       // Transition to game over screen
-      dismissEvent();
+      // dismissEvent();
       dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'gameover' });
     }
   };
@@ -582,7 +466,7 @@ function OverworldScene() {
 
   // Get hex interaction handlers for current hex
   const currentHex = getCurrentHex();
-  const { handleInteract, handlePassiveChoice, handleEnterTown } = useHexInteraction(currentHex);
+  const { handleInteract, handleSearch, handleExplore, handleEnterTown } = useHexInteraction(currentHex);
 
   // Helper function to get hex in a direction
   const getHexInDirection = (direction) => {
@@ -695,7 +579,7 @@ function OverworldScene() {
               handleEnterTown();
             }
           } else if (['cave', 'ruins', 'tower', 'dungeon'].includes(hex.poi.type)) {
-            handlePassiveChoice('explore', hex.poi);
+            handleExplore();
           }
           // Note: shrines now use buttons in HexDetails panel
           // No spacebar action for them - player uses buttons
@@ -706,7 +590,7 @@ function OverworldScene() {
       if (!state.inInterior) {
         const hex = getCurrentHex();
         if (hex && hex.poi) {
-          handlePassiveChoice('search', hex.poi);
+          handleSearch();
         }
       }
     },

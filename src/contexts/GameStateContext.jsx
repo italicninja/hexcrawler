@@ -6,6 +6,9 @@ import { createGameTime, advanceTime } from '../game/TimeManager.js';
 import SurvivalManager from '../game/SurvivalManager.js';
 import Quest from '../game/Quest.js';
 import { Shop } from '../game/Shop.js';
+import { Combat } from '../game/Combat.js';
+import { CombatTerrainGenerator } from '../game/CombatTerrainGenerator.js';
+import { EncounterPositions } from '../game/EncounterPositions.js';
 
 // Create context
 const GameStateContext = createContext(null);
@@ -55,6 +58,11 @@ const ACTIONS = {
   // Combat actions
   START_COMBAT: 'START_COMBAT',
   RESOLVE_COMBAT: 'RESOLVE_COMBAT',
+  PROCESS_COMBAT_ACTION: 'PROCESS_COMBAT_ACTION',
+  PROCESS_COMBAT_MOVEMENT: 'PROCESS_COMBAT_MOVEMENT',
+  ADVANCE_COMBAT_TURN: 'ADVANCE_COMBAT_TURN',
+  END_COMBAT: 'END_COMBAT',
+  UPDATE_COMBAT_STATE: 'UPDATE_COMBAT_STATE',
   // XP and leveling actions
   AWARD_XP: 'AWARD_XP',
   LEVEL_UP_CHARACTER: 'LEVEL_UP_CHARACTER',
@@ -102,6 +110,18 @@ const initialState = {
   gameTime: createGameTime(),
   // Combat state
   combatLog: [],
+  combatState: {
+    active: false,
+    combat: null, // Combat instance
+    battlefield: null, // {hexes, width, height}
+    turnOrder: [], // Combatants with positions
+    currentTurnIndex: 0,
+    round: 1,
+    encounterName: '',
+    encounterType: 'standard',
+    waitingForPlayerAction: false,
+    movementRemaining: 30 // feet
+  },
   // Quest state
   activeQuests: [],
   completedQuests: [],
@@ -660,10 +680,67 @@ function gameStateReducer(state, action) {
 
 
     case ACTIONS.START_COMBAT: {
-      const { combatLog } = action.payload;
+      // Legacy combat log support (keep for backward compatibility)
+      if (action.payload.combatLog) {
+        return {
+          ...state,
+          combatLog: action.payload.combatLog
+        };
+      }
+      
+      // New tactical combat system
+      const { allies, enemies, encounterName, encounterType, terrainType } = action.payload;
+      
+      if (!allies || !enemies) {
+        console.error('START_COMBAT requires allies and enemies');
+        return state;
+      }
+      
+      // Generate battlefield
+      const battlefield = CombatTerrainGenerator.generate(encounterType, terrainType, state.mapSeed);
+      
+      // Create combat instance
+      const combat = new Combat(allies, enemies, battlefield);
+      
+      // Roll initiative
+      const turnOrder = combat.rollInitiative();
+      
+      // Place combatants on battlefield
+      const { allies: placedAllies, enemies: placedEnemies } = EncounterPositions.placeForEncounter(
+        encounterType,
+        turnOrder.filter(c => !c.isEnemy),
+        turnOrder.filter(c => c.isEnemy),
+        battlefield
+      );
+      
+      // Merge positions back into turnOrder
+      const updatedTurnOrder = turnOrder.map(combatant => {
+        const placed = combatant.isEnemy 
+          ? placedEnemies.find(e => e.id === combatant.id)
+          : placedAllies.find(a => a.id === combatant.id);
+        return { ...combatant, position: placed.position };
+      });
+      
+      // Update combat instance with positioned combatants
+      combat.turnOrder = updatedTurnOrder;
+      combat.allies = updatedTurnOrder.filter(c => !c.isEnemy);
+      combat.enemies = updatedTurnOrder.filter(c => c.isEnemy);
+      
       return {
         ...state,
-        combatLog
+        combatState: {
+          active: true,
+          combat,
+          battlefield,
+          turnOrder: updatedTurnOrder,
+          currentTurnIndex: 0,
+          round: 1,
+          encounterName: encounterName || 'Combat',
+          encounterType: encounterType || 'standard',
+          waitingForPlayerAction: !updatedTurnOrder[0].isEnemy,
+          movementRemaining: updatedTurnOrder[0].character.moveDistance * 5
+        },
+        currentScene: 'combat'
       };
     }
 
@@ -692,6 +769,143 @@ function gameStateReducer(state, action) {
         playerCharacter,
         party,
         combatLog
+      };
+    }
+
+    case ACTIONS.PROCESS_COMBAT_MOVEMENT: {
+      const { combatantId, path, cost } = action.payload;
+      
+      if (!state.combatState.combat) {
+        console.error('No active combat for movement');
+        return state;
+      }
+      
+      const result = state.combatState.combat.processMovement(combatantId, path, cost);
+      
+      if (result.success) {
+        return {
+          ...state,
+          combatState: {
+            ...state.combatState,
+            movementRemaining: state.combatState.movementRemaining - cost,
+            turnOrder: [...state.combatState.combat.turnOrder] // Trigger re-render
+          }
+        };
+      }
+      
+      return state;
+    }
+
+    case ACTIONS.PROCESS_COMBAT_ACTION: {
+      const { actionType, attacker, target, ability, spell, spellLevel } = action.payload;
+      
+      if (!state.combatState.combat) {
+        console.error('No active combat for action');
+        return state;
+      }
+      
+      let result;
+      const combat = state.combatState.combat;
+      
+      if (actionType === 'attack') {
+        result = combat.processAttack(attacker, target);
+      } else if (actionType === 'ability') {
+        result = combat.processAbility(attacker, ability, target);
+      } else if (actionType === 'spell') {
+        result = combat.processSpell(attacker, spell, target, spellLevel);
+      } else if (actionType === 'dodge') {
+        result = combat.processDodge(attacker);
+      } else if (actionType === 'dash') {
+        result = combat.processDash(attacker);
+      }
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnOrder: [...combat.turnOrder] // Trigger re-render with updated HP
+        }
+      };
+    }
+
+    case ACTIONS.ADVANCE_COMBAT_TURN: {
+      if (!state.combatState.combat) {
+        console.error('No active combat for turn advancement');
+        return state;
+      }
+      
+      const combat = state.combatState.combat;
+      let nextIndex = state.combatState.currentTurnIndex + 1;
+      let newRound = state.combatState.round;
+      
+      if (nextIndex >= state.combatState.turnOrder.length) {
+        nextIndex = 0;
+        newRound++;
+      }
+      
+      // Tick status effects for combatant ending turn
+      const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
+      combat.tickStatusEffects(currentCombatant);
+      
+      const nextCombatant = state.combatState.turnOrder[nextIndex];
+      const nextMovement = nextCombatant.character.moveDistance * 5;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          currentTurnIndex: nextIndex,
+          round: newRound,
+          waitingForPlayerAction: !nextCombatant.isEnemy,
+          movementRemaining: nextMovement
+        }
+      };
+    }
+
+    case ACTIONS.END_COMBAT: {
+      const { victory, xp } = action.payload;
+      
+      if (!state.combatState.combat || !state.party) {
+        console.error('No active combat or party to end combat');
+        return state;
+      }
+      
+      // Award XP if victory
+      if (victory && xp) {
+        const livingAllies = state.party.getAllMembers().filter(char => char.hp > 0);
+        const xpPerMember = Math.floor(xp / livingAllies.length);
+        
+        livingAllies.forEach(char => {
+          char.gainXP(xpPerMember);
+        });
+      }
+      
+      // Update party HP from combat
+      state.combatState.turnOrder.filter(c => !c.isEnemy).forEach(combatant => {
+        const partyMember = state.party.getAllMembers().find(m => m.name === combatant.character.name);
+        if (partyMember) {
+          partyMember.hp = combatant.hp;
+        }
+      });
+      
+      return {
+        ...state,
+        combatState: {
+          ...initialState.combatState
+        },
+        currentScene: state.inInterior ? 'exploration' : 'overworld'
+      };
+    }
+
+    case ACTIONS.UPDATE_COMBAT_STATE: {
+      const updates = action.payload;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          ...updates
+        }
       };
     }
 
@@ -1026,7 +1240,7 @@ function gameStateReducer(state, action) {
 }
 
 // Helper function - hex distance calculation
-function getHexDistance(col1, row1, col2, row2) {
+export function getHexDistance(col1, row1, col2, row2) {
   const x1 = col1 - Math.floor(row1 / 2);
   const z1 = row1;
   const y1 = -x1 - z1;

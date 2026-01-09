@@ -19,6 +19,10 @@ export class Enemy {
 
     // Combat state
     this.isDead = false;
+
+    // Special abilities (for tactical AI)
+    this.specialAbilities = [];
+    this.range = 1; // Default melee range (set by stat table)
   }
 
   /**
@@ -67,7 +71,8 @@ export class Enemy {
         wisdom: 10,
         charisma: 8,
         attacks: [{ name: 'Slam', damage: '1d4', damageType: 'bludgeoning' }],
-        multiattack: 1
+        multiattack: 1,
+        range: 1
       },
       1: {
         hp: 36,
@@ -82,7 +87,8 @@ export class Enemy {
         wisdom: 10,
         charisma: 8,
         attacks: [{ name: 'Strike', damage: '1d8+1', damageType: 'slashing' }],
-        multiattack: 1
+        multiattack: 1,
+        range: 1
       },
       2: {
         hp: 52,
@@ -97,7 +103,8 @@ export class Enemy {
         wisdom: 10,
         charisma: 8,
         attacks: [{ name: 'Weapon Attack', damage: '1d8+2', damageType: 'slashing' }],
-        multiattack: 1
+        multiattack: 1,
+        range: 1
       },
       3: {
         hp: 66,
@@ -112,7 +119,8 @@ export class Enemy {
         wisdom: 12,
         charisma: 10,
         attacks: [{ name: 'Claw', damage: '2d6+2', damageType: 'slashing' }],
-        multiattack: 1
+        multiattack: 1,
+        range: 1
       },
       4: {
         hp: 84,
@@ -127,7 +135,8 @@ export class Enemy {
         wisdom: 12,
         charisma: 10,
         attacks: [{ name: 'Bite', damage: '2d8+3', damageType: 'piercing' }],
-        multiattack: 1
+        multiattack: 1,
+        range: 1
       },
       5: {
         hp: 95,
@@ -142,7 +151,8 @@ export class Enemy {
         wisdom: 12,
         charisma: 10,
         attacks: [{ name: 'Greataxe', damage: '2d10+3', damageType: 'slashing' }],
-        multiattack: 1
+        multiattack: 1,
+        range: 1
       },
       6: {
         hp: 112,
@@ -157,7 +167,8 @@ export class Enemy {
         wisdom: 12,
         charisma: 10,
         attacks: [{ name: 'Tail Attack', damage: '2d10+4', damageType: 'bludgeoning' }],
-        multiattack: 2
+        multiattack: 2,
+        range: 1
       },
       7: {
         hp: 133,
@@ -172,7 +183,8 @@ export class Enemy {
         wisdom: 14,
         charisma: 12,
         attacks: [{ name: 'Boulder', damage: '3d10+4', damageType: 'bludgeoning' }],
-        multiattack: 2
+        multiattack: 2,
+        range: 20
       },
       8: {
         hp: 136,
@@ -187,7 +199,8 @@ export class Enemy {
         wisdom: 14,
         charisma: 12,
         attacks: [{ name: 'Greatsword', damage: '4d8+5', damageType: 'slashing' }],
-        multiattack: 2
+        multiattack: 2,
+        range: 1
       },
       9: {
         hp: 145,
@@ -202,7 +215,8 @@ export class Enemy {
         wisdom: 14,
         charisma: 14,
         attacks: [{ name: 'Fang', damage: '4d10+5', damageType: 'piercing' }],
-        multiattack: 2
+        multiattack: 2,
+        range: 1
       },
       10: {
         hp: 157,
@@ -217,7 +231,8 @@ export class Enemy {
         wisdom: 16,
         charisma: 14,
         attacks: [{ name: 'Breath Weapon', damage: '5d10+6', damageType: 'fire' }],
-        multiattack: 2
+        multiattack: 2,
+        range: 20
       },
       11: {
         hp: 175,
@@ -232,7 +247,8 @@ export class Enemy {
         wisdom: 16,
         charisma: 16,
         attacks: [{ name: 'Legendary Strike', damage: '6d10+6', damageType: 'force' }],
-        multiattack: 3
+        multiattack: 3,
+        range: 1
       }
     };
 
@@ -336,6 +352,13 @@ export class Enemy {
   }
 
   /**
+   * Add a special ability to this enemy
+   */
+  addSpecialAbility(ability) {
+    this.specialAbilities.push(ability);
+  }
+
+  /**
    * Serialize to JSON
    */
   toJSON() {
@@ -352,7 +375,9 @@ export class Enemy {
       abilities: { ...this.abilities },
       attacks: [...this.attacks],
       multiattack: this.multiattack,
-      isDead: this.isDead
+      isDead: this.isDead,
+      specialAbilities: [...this.specialAbilities],
+      range: this.range
     };
   }
 
@@ -363,6 +388,8 @@ export class Enemy {
     const enemy = new Enemy(data.name, data.cr, data.type);
     enemy.currentHP = data.currentHP;
     enemy.isDead = data.isDead || false;
+    enemy.specialAbilities = data.specialAbilities || [];
+    enemy.range = data.range || 1;
     return enemy;
   }
 
