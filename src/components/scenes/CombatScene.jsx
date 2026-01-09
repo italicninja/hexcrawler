@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -35,6 +35,12 @@ import './CombatScene.css';
 function CombatScene() {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
+  
+  // Stable reference to addMessage to prevent infinite loops
+  const addMessageRef = useRef(addMessage);
+  useEffect(() => {
+    addMessageRef.current = addMessage;
+  }, [addMessage]);
 
   // Local combat UI state
   const [localCombatState, setLocalCombatState] = useState({
@@ -520,7 +526,7 @@ function CombatScene() {
     );
 
     if (livingEnemies.length === 0 && livingCharacters.length > 0) {
-      addMessage('Victory! All enemies defeated!', 'success');
+      addMessageRef.current('Victory! All enemies defeated!', 'success');
       // TODO: Transition to victory screen or back to overworld
       setTimeout(() => {
         dispatch({
@@ -529,7 +535,7 @@ function CombatScene() {
         });
       }, 2000);
     } else if (livingCharacters.length === 0) {
-      addMessage('Defeat! All party members have fallen...', 'error');
+      addMessageRef.current('Defeat! All party members have fallen...', 'error');
       // TODO: Transition to game over screen
       setTimeout(() => {
         dispatch({
@@ -538,7 +544,7 @@ function CombatScene() {
         });
       }, 2000);
     }
-  }, [state.combatState?.turnOrder, dispatch, actions, addMessage]);
+  }, [state.combatState?.turnOrder, dispatch, actions]); // Removed addMessage from deps
 
   /**
    * ESC key to deselect action
@@ -553,13 +559,13 @@ function CombatScene() {
           showAbilityMenu: false,
           showSpellMenu: false
         }));
-        addMessage('Action cancelled', 'info');
+        addMessageRef.current('Action cancelled', 'info');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [addMessage]);
+  }, []); // No dependencies - stable function
 
   // Null check - combat state not initialized
   if (!state.combatState) {
