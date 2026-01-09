@@ -563,6 +563,7 @@ function CombatScene() {
 
   // Null check - combat state not initialized
   if (!state.combatState) {
+    console.error('CombatScene: state.combatState is null');
     return (
       <div className="combat-scene error-state">
         <h2>Combat state not initialized</h2>
@@ -573,6 +574,15 @@ function CombatScene() {
       </div>
     );
   }
+  
+  // Debug logging
+  console.log('CombatScene rendering with state:', {
+    hasCombatState: !!state.combatState,
+    hasBattlefield: !!state.combatState?.battlefield,
+    battlefieldHexes: state.combatState?.battlefield?.hexes?.length,
+    turnOrderLength: state.combatState?.turnOrder?.length,
+    currentTurn: state.combatState?.currentTurnIndex
+  });
 
   const currentCombatant = getCurrentCombatant();
 
