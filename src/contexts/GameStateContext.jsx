@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { Character } from '../game/Character.js';
 import { Party } from '../game/Party.js';
 import { createGameTime, advanceTime } from '../game/TimeManager.js';
@@ -8,6 +8,7 @@ import { Shop } from '../game/Shop.js';
 import { Combat } from '../game/Combat.js';
 import { CombatTerrainGenerator } from '../game/CombatTerrainGenerator.js';
 import { EncounterPositions } from '../game/EncounterPositions.js';
+import { SaveManager } from '../utils/SaveManager.js';
 
 // Create context
 const GameStateContext = createContext(null);
@@ -39,6 +40,7 @@ const ACTIONS = {
   UPDATE_CHARACTER: 'UPDATE_CHARACTER',
   // Time tracking
   ADVANCE_TIME: 'ADVANCE_TIME',
+  UPDATE_PLAYTIME: 'UPDATE_PLAYTIME',
   // Rest actions
   SHORT_REST: 'SHORT_REST',
   LONG_REST: 'LONG_REST',
@@ -107,6 +109,7 @@ const initialState = {
   },
   // Time tracking
   gameTime: createGameTime(),
+  playtime: 0, // Total playtime in milliseconds
   // Combat state
   combatLog: [],
   combatState: {
@@ -416,6 +419,12 @@ function gameStateReducer(state, action) {
       return {
         ...state,
         gameTime: advanceTime(state.gameTime, action.payload)
+      };
+
+    case ACTIONS.UPDATE_PLAYTIME:
+      return {
+        ...state,
+        playtime: state.playtime + action.payload
       };
 
     case ACTIONS.SHORT_REST: {
@@ -1265,74 +1274,57 @@ function hashString(str) {
 // Provider component
 export function GameStateProvider({ children }) {
   const [state, dispatch] = useReducer(gameStateReducer, initialState);
+  const playtimeStartRef = useRef(Date.now());
+  const playtimeIntervalRef = useRef(null);
 
-  // Auto-save to localStorage on state changes
+  // Playtime tracking - update every second
   useEffect(() => {
-    if (state.currentScene === 'overworld' && state.playerCharacter) {
-      // Convert Sets to arrays for JSON serialization
-      const serializeExplorationState = () => {
-        const clearedEncounters = {};
-        const collectedLoot = {};
-        const triggeredHazards = {};
-
-        // Convert Set values to arrays
-        Object.keys(state.explorationState.clearedEncounters).forEach(key => {
-          clearedEncounters[key] = Array.from(state.explorationState.clearedEncounters[key]);
+    if (state.currentScene !== 'title' && state.playerCharacter) {
+      playtimeIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - playtimeStartRef.current;
+        playtimeStartRef.current = Date.now();
+        
+        dispatch({
+          type: ACTIONS.UPDATE_PLAYTIME,
+          payload: elapsed
         });
-        Object.keys(state.explorationState.collectedLoot).forEach(key => {
-          collectedLoot[key] = Array.from(state.explorationState.collectedLoot[key]);
-        });
-        Object.keys(state.explorationState.triggeredHazards).forEach(key => {
-          triggeredHazards[key] = Array.from(state.explorationState.triggeredHazards[key]);
-        });
+      }, 1000);
 
-        return {
-          searchedPOIs: Array.from(state.explorationState.searchedPOIs),
-          clearedEncounters,
-          collectedLoot,
-          triggeredHazards
-        };
-      };
-
-      const saveData = {
-        version: '4.2',
-        timestamp: Date.now(),
-        playerPosition: state.playerPosition,
-        playerCharacter: state.playerCharacter?.toJSON(),
-        party: state.party?.toJSON(),
-        currentScene: state.currentScene, // Always save as is (only overworld scene exists now)
-        mapSeed: state.mapSeed,
-        exploredHexes: Array.from(state.exploredHexes),
-        discoveredPOIs: Array.from(state.discoveredPOIs),
-        mapData: state.mapData,
-        // Exploration system data (v4.0)
-        interiorMaps: state.interiorMaps,
-        explorationState: serializeExplorationState(),
-        // Time tracking (v4.1)
-        gameTime: state.gameTime,
-        // Quest system data (v4.1)
-        activeQuests: state.activeQuests.map(q => q.toJSON()),
-        completedQuests: state.completedQuests.map(q => q.toJSON()),
-        // Shop system data (v4.2)
-        shopInventories: Object.fromEntries(
-          Object.entries(state.shopInventories).map(([key, shop]) => [key, shop.toJSON()])
-        )
-      };
-
-      try {
-        localStorage.setItem('hexcrawl_save', JSON.stringify(saveData));
-      } catch (error) {
-        console.error('Failed to save game:', error);
-
-        // Check if it's a quota exceeded error
-        if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-          console.error('Save Failed: Storage Quota Exceeded');
-        } else {
-          console.error('Save Failed:', error.message);
+      return () => {
+        if (playtimeIntervalRef.current) {
+          clearInterval(playtimeIntervalRef.current);
         }
-      }
+      };
     }
-  }, [state]);
+  }, [state.currentScene, state.playerCharacter]);
+
+  // Event-based auto-save - triggers on specific state changes
+  useEffect(() => {
+    if (!state.playerCharacter || state.currentScene === 'title') {
+      return; // Don't save on title screen or without character
+    }
+
+    // Auto-save to AUTOSAVE slot
+    const shouldAutoSave = 
+      state.currentScene === 'overworld' || 
+      state.currentScene === 'exploration' ||
+      state.currentScene === 'town';
+
+    if (shouldAutoSave) {
+      // Debounce auto-save (wait 500ms after last state change)
+      const timeoutId = setTimeout(() => {
+        SaveManager.saveToSlot(SaveManager.SAVE_SLOTS.AUTOSAVE, state);
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    state.currentScene,
+    state.playerCharacter,
+    state.gameTime, // Saves on time advancement (rest, travel)
+    state.completedQuests.length, // Saves when quest completed
+    state.combatState.active // Saves when combat state changes (end of combat)
+  ]);
 
   // Helper functions
   const helpers = {
@@ -1374,33 +1366,24 @@ export function GameStateProvider({ children }) {
 
     getHexDistance,
 
-    hasSave: () => localStorage.getItem('hexcrawl_save') !== null,
+    hasSave: () => SaveManager.hasSaveData(),
 
     loadGame: () => {
+      // Note: This is kept for backward compatibility but SaveSlotManager handles loading now
       try {
-        const saveDataStr = localStorage.getItem('hexcrawl_save');
-        if (!saveDataStr) return false;
+        // Try to load from auto-save slot first
+        const gameData = SaveManager.loadFromSlot(SaveManager.SAVE_SLOTS.AUTOSAVE);
+        
+        if (!gameData) {
+          // Try slot 1 as fallback
+          const slot1Data = SaveManager.loadFromSlot(SaveManager.SAVE_SLOTS.SLOT_1);
+          if (!slot1Data) return false;
+          
+          dispatch({ type: ACTIONS.LOAD_GAME, payload: slot1Data });
+          return true;
+        }
 
-        const saveData = JSON.parse(saveDataStr);
-
-        // Reconstruct Character and Party from JSON
-        const playerCharacter = saveData.playerCharacter
-          ? Character.fromJSON(saveData.playerCharacter)
-          : null;
-
-        const party = saveData.party
-          ? Party.fromJSON(saveData.party)
-          : null;
-
-        dispatch({
-          type: ACTIONS.LOAD_GAME,
-          payload: {
-            ...saveData,
-            playerCharacter,
-            party
-          }
-        });
-
+        dispatch({ type: ACTIONS.LOAD_GAME, payload: gameData });
         return true;
       } catch (error) {
         console.error('Failed to load game:', error);
@@ -1409,6 +1392,7 @@ export function GameStateProvider({ children }) {
     },
 
     deleteSave: () => {
+      // Delete old save format if it exists
       localStorage.removeItem('hexcrawl_save');
     }
   };
