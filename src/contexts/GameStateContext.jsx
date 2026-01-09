@@ -742,6 +742,10 @@ function gameStateReducer(state, action) {
       combat.allies = updatedTurnOrder.filter(c => !c.isEnemy);
       combat.enemies = updatedTurnOrder.filter(c => c.isEnemy);
       
+      // Get first combatant's movement distance (default to 30 feet if not available)
+      const firstCombatant = updatedTurnOrder[0];
+      const moveDistance = firstCombatant?.character?.moveDistance || GAME_DEFAULTS.MOVE_DISTANCE;
+      
       return {
         ...state,
         combatState: {
@@ -753,8 +757,8 @@ function gameStateReducer(state, action) {
           round: 1,
           encounterName: encounterName || 'Combat',
           encounterType: encounterType || 'standard',
-          waitingForPlayerAction: !updatedTurnOrder[0].isEnemy,
-          movementRemaining: updatedTurnOrder[0].character.moveDistance * 5
+          waitingForPlayerAction: !firstCombatant?.isEnemy,
+          movementRemaining: moveDistance * 5 // Convert hexes to feet
         },
         currentScene: 'combat'
       };
