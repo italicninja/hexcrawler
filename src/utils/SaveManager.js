@@ -1,3 +1,5 @@
+import { SAVE } from '../constants/gameConstants.js';
+
 /**
  * SaveManager - Handles game save/load operations with multiple save slots
  * 
@@ -16,7 +18,7 @@ export class SaveManager {
   };
 
   static ACTIVE_SLOT_KEY = 'hexcrawl_active_slot';
-  static SAVE_VERSION = '5.0'; // Incremented for new save system
+  static SAVE_VERSION = SAVE.VERSION; // From constants
 
   /**
    * Save game state to a specific slot

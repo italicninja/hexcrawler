@@ -1,12 +1,11 @@
 /**
- * Combat - D&D 5e Combat Simulation System
- * Handles auto-resolved combat with full dice rolls and combat logs
- * Supports both automated combat simulation and turn-based hex grid tactical combat
+ * Combat.js - D&D 5e combat system
  */
-
 import { DiceRoller } from './DiceRoller.js';
+import { Character } from './Character.js';
 import { Enemy } from './Enemy.js';
 import { getHexDistance } from '../contexts/GameStateContext.jsx';
+import { DND, COMBAT } from '../constants/gameConstants.js';
 import { checkLineOfSight } from './LineOfSight.js';
 import { AbilityEffects } from './AbilityEffects.js';
 import { getSpell, hasSpellSlot, useSpellSlot } from './SpellManager.js';
@@ -249,8 +248,8 @@ export class Combat {
     const attackRoll = this.diceRoller.rollD20();
     const attackTotal = attackRoll + abilityMod + character.proficiencyBonus + attackBonus;
 
-    const hit = attackRoll === 20 || (attackRoll !== 1 && attackTotal >= target.ac);
-    const crit = attackRoll === 20;
+    const hit = attackRoll === DND.NATURAL_20 || (attackRoll !== DND.NATURAL_1 && attackTotal >= target.ac);
+    const crit = attackRoll === DND.NATURAL_20;
 
     if (hit) {
       // Roll damage
@@ -736,8 +735,8 @@ export class Combat {
     const targetDodging = target.statusEffects?.some(e => e.name === 'Dodge');
     const effectiveAC = targetDodging ? targetAC + 2 : targetAC;
 
-    const hit = attackRoll === 20 || (attackRoll !== 1 && attackTotal >= effectiveAC);
-    const critical = attackRoll === 20;
+    const hit = attackRoll === DND.NATURAL_20 || (attackRoll !== DND.NATURAL_1 && attackTotal >= effectiveAC);
+    const critical = attackRoll === DND.NATURAL_20;
 
     let damage = 0;
     let message = '';

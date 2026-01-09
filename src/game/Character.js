@@ -1,8 +1,8 @@
-/**
- * Character class - D&D 5e based character
- */
-import { Item } from './Item.js';
+import { GAME_DEFAULTS, DND, XP_TABLE } from '../constants/gameConstants.js';
 
+/**
+ * Character class representing player and NPC characters in D&D 5e
+ */
 export class Character {
     constructor(name, charClass) {
         this.name = name;
@@ -11,23 +11,23 @@ export class Character {
 
         // D&D 5e Ability Scores
         this.abilities = {
-            strength: 10,
-            dexterity: 10,
-            constitution: 10,
-            intelligence: 10,
-            wisdom: 10,
-            charisma: 10
+            strength: GAME_DEFAULTS.ABILITY_SCORE,
+            dexterity: GAME_DEFAULTS.ABILITY_SCORE,
+            constitution: GAME_DEFAULTS.ABILITY_SCORE,
+            intelligence: GAME_DEFAULTS.ABILITY_SCORE,
+            wisdom: GAME_DEFAULTS.ABILITY_SCORE,
+            charisma: GAME_DEFAULTS.ABILITY_SCORE
         };
 
         // Combat stats
-        this.maxHP = 10;
-        this.currentHP = 10;
-        this.armorClass = 10;
-        this.proficiencyBonus = 2;
+        this.maxHP = GAME_DEFAULTS.BASE_HP;
+        this.currentHP = GAME_DEFAULTS.BASE_HP;
+        this.armorClass = GAME_DEFAULTS.BASE_AC;
+        this.proficiencyBonus = GAME_DEFAULTS.PROFICIENCY_BONUS;
 
         // Movement and vision
-        this.moveDistance = 1;  // Can move 1 hex per turn
-        this.viewDistance = 2;  // Can see 2 hexes away
+        this.moveDistance = GAME_DEFAULTS.MOVE_DISTANCE;
+        this.viewDistance = GAME_DEFAULTS.VIEW_RADIUS;
 
         // Class-specific
         this.hitDie = 'd8';
@@ -144,7 +144,7 @@ export class Character {
      * @returns {boolean} True if ready to level up
      */
     shouldLevelUp() {
-        if (this.level >= 20) return false; // Max level
+        if (this.level >= XP_TABLE.length) return false; // Max level
         return this.xp >= this.xpToNextLevel;
     }
 
@@ -504,7 +504,8 @@ export class Character {
      */
     getModifier(ability) {
         const score = this.abilities[ability];
-        return Math.floor((score - 10) / 2);
+        // D&D 5e ability modifier formula
+        return Math.floor((score - GAME_DEFAULTS.ABILITY_SCORE) / 2);
     }
 
     /**
@@ -541,7 +542,8 @@ export class Character {
 
         const oldLevel = this.level;
         this.level++;
-        this.proficiencyBonus = Math.floor((this.level - 1) / 4) + 2;
+        // Update proficiency bonus based on level (from table)
+        this.proficiencyBonus = DND.PROFICIENCY_BONUS[this.level - 1] || GAME_DEFAULTS.PROFICIENCY_BONUS;
 
         // Roll for HP (using average for now)
         const hitDieValue = parseInt(this.hitDie.substring(1));

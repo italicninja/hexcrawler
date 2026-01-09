@@ -9,6 +9,7 @@ import { Combat } from '../game/Combat.js';
 import { CombatTerrainGenerator } from '../game/CombatTerrainGenerator.js';
 import { EncounterPositions } from '../game/EncounterPositions.js';
 import { SaveManager } from '../utils/SaveManager.js';
+import { GAME_DEFAULTS, TIME, COMBAT, SAVE } from '../constants/gameConstants.js';
 
 // Create context
 const GameStateContext = createContext(null);
@@ -85,7 +86,7 @@ const ACTIONS = {
 
 // Initial state
 const initialState = {
-  playerPosition: { col: 10, row: 7 },
+  playerPosition: GAME_DEFAULTS.START_POSITION,
   playerCharacter: null,
   party: null,
   mapData: null,
@@ -122,7 +123,7 @@ const initialState = {
     encounterName: '',
     encounterType: 'standard',
     waitingForPlayerAction: false,
-    movementRemaining: 30 // feet
+    movementRemaining: COMBAT.DEFAULT_MOVEMENT_FEET
   },
   // Quest state
   activeQuests: [],
@@ -433,7 +434,7 @@ function gameStateReducer(state, action) {
       return {
         ...state,
         playerCharacter: character,
-        gameTime: advanceTime(state.gameTime, 60) // Short rest takes 1 hour (60 minutes)
+        gameTime: advanceTime(state.gameTime, TIME.SHORT_REST_MINUTES)
       };
     }
 
@@ -457,7 +458,7 @@ function gameStateReducer(state, action) {
       return {
         ...state,
         playerCharacter: character,
-        gameTime: advanceTime(state.gameTime, 480) // Long rest takes 8 hours (480 minutes)
+        gameTime: advanceTime(state.gameTime, TIME.LONG_REST_MINUTES)
       };
     }
 
@@ -473,8 +474,8 @@ function gameStateReducer(state, action) {
 
       return {
         ...state,
-        playerCharacter: character,
-        gameTime: advanceTime(state.gameTime, 480) // Inn rest takes 8 hours (480 minutes)
+        playerCharacter: updatedCharacter,
+        gameTime: advanceTime(state.gameTime, TIME.INN_REST_MINUTES)
       };
     }
 
