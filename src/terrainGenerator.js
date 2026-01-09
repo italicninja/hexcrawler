@@ -298,14 +298,14 @@ export class TerrainGenerator {
                 col = Math.floor(this.random() * width);
                 row = Math.floor(this.random() * height);
                 
-                // Skip if already has POI or is water
-                if (grid[row][col].poi || grid[row][col].terrain.name === 'Water') {
+                // Skip if already has POI or is water/river
+                const terrainName = grid[row][col].terrain.name;
+                if (grid[row][col].poi || terrainName === 'Water' || terrainName === 'River') {
                     continue;
                 }
                 
                 // Skip if not on habitable terrain
-                const terrain = grid[row][col].terrain.name;
-                if (terrain !== 'Grassland' && terrain !== 'Forest' && terrain !== 'Hills') {
+                if (terrainName !== 'Grassland' && terrainName !== 'Forest' && terrainName !== 'Hills') {
                     continue;
                 }
             }
@@ -330,8 +330,9 @@ export class TerrainGenerator {
             const col = Math.floor(this.random() * width);
             const row = Math.floor(this.random() * height);
 
-            // Skip if already has POI or is water
-            if (grid[row][col].poi || grid[row][col].terrain.name === 'Water') {
+            // Skip if already has POI or is water/river
+            const terrainName = grid[row][col].terrain.name;
+            if (grid[row][col].poi || terrainName === 'Water' || terrainName === 'River') {
                 continue;
             }
 
@@ -352,8 +353,9 @@ export class TerrainGenerator {
             const col = Math.floor(this.random() * width);
             const row = Math.floor(this.random() * height);
 
-            // Skip if already has POI or is water
-            if (grid[row][col].poi || grid[row][col].terrain.name === 'Water') {
+            // Skip if already has POI or is water/river
+            const terrainName = grid[row][col].terrain.name;
+            if (grid[row][col].poi || terrainName === 'Water' || terrainName === 'River') {
                 continue;
             }
 
@@ -406,6 +408,9 @@ export class TerrainGenerator {
     scoreSettlementLocation(grid, width, height, row, col) {
         const terrain = grid[row][col].terrain.name;
         let score = 0;
+
+        // Never build on water or rivers
+        if (terrain === 'Water' || terrain === 'River') return 0;
 
         // Preferred terrains
         if (terrain === 'Grassland') score += 10;

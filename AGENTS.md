@@ -20,9 +20,38 @@ npm run build
 
 # Preview production build
 npm run preview
+
+# Version management
+npm run version:patch   # 0.1.0 -> 0.1.1 (bug fixes, small changes)
+npm run version:minor   # 0.1.0 -> 0.2.0 (new features, improvements)
+npm run version:major   # 0.1.0 -> 1.0.0 (breaking changes, major rewrites)
 ```
 
 **Note:** No test suite currently exists. For testing guidance, see CLAUDE.md.
+
+## Version Management
+
+The project uses semantic versioning (SemVer) in the format `MAJOR.MINOR.PATCH` (e.g., `0.1.0`).
+
+**When to increment versions:**
+- **Patch (0.0.1)**: Bug fixes, typos, small tweaks, minor adjustments
+- **Minor (0.1.0)**: New features, improvements, enhancements, non-breaking changes
+- **Major (1.0.0)**: Breaking changes, major rewrites, significant architectural changes
+
+**Workflow:**
+1. Make your changes and test them
+2. Run the appropriate version command: `npm run version:patch|minor|major`
+3. Commit all changes including the updated `package.json`
+4. Push to repository
+
+**Example:**
+```bash
+# Fixed POI spawning on water/rivers
+npm run version:patch
+git add .
+git commit -m "Fix: Prevent POIs from spawning on water/rivers (v0.1.1)"
+git push
+```
 
 ## Code Style & Conventions
 

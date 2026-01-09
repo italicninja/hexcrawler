@@ -20,6 +20,11 @@ export function generatePOIForHex(terrainGenerator, terrainType, col, row, chanc
     return null;
   }
 
+  // Never generate POIs on water or rivers
+  if (terrainType.name === 'Water' || terrainType.name === 'River') {
+    return null;
+  }
+
   // Check if POI should be generated based on chance
   if (terrainGenerator.random() >= chance) {
     return null;

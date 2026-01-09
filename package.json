@@ -1,12 +1,15 @@
 {
   "name": "hexcrawler",
-  "version": "2.0.0",
+  "version": "0.1.0",
   "description": "Hexcrawler - A D&D 5e Hexcrawl RPG",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version"
   },
   "devDependencies": {
     "@types/react": "^18.2.48",
