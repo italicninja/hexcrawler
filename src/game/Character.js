@@ -1,4 +1,4 @@
-import { GAME_DEFAULTS, DND, XP_TABLE } from '../constants/gameConstants.js';
+import { GAME_DEFAULTS, DND, XP_TABLE } from '../constants/gameConstants';
 
 /**
  * Character class representing player and NPC characters in D&D 5e

@@ -9,10 +9,10 @@ import { Combat } from '../game/Combat.js';
 import { CombatTerrainGenerator } from '../game/CombatTerrainGenerator.js';
 import { EncounterPositions } from '../game/EncounterPositions.js';
 import { SaveManager } from '../utils/SaveManager.js';
-import { HexGrid } from '../utils/HexGrid.js';
-import { getHexDistance, isHexReachable } from '../utils/hexMath.js';
-import { GAME_DEFAULTS, TIME, COMBAT, SAVE } from '../constants/gameConstants.js';
-import { combinedReducer } from './reducers/index.js';
+import { HexGrid } from '../utils/HexGrid';
+import { getHexDistance, isHexReachable } from '../utils/hexMath';
+import { GAME_DEFAULTS, TIME, COMBAT, SAVE } from '../constants/gameConstants';
+import { combinedReducer } from './reducers/index';
 
 // Create context
 const GameStateContext = createContext(null);
@@ -1267,7 +1267,7 @@ function _legacyGameStateReducer(state, action) {
 
 // Helper function - hex distance calculation
 // Re-export hex math functions for backward compatibility
-export { getHexDistance, isHexReachable } from '../utils/hexMath.js';
+export { getHexDistance, isHexReachable } from '../utils/hexMath';
 
 // Helper function - simple string hash
 function hashString(str) {

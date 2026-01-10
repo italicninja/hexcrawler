@@ -10,8 +10,8 @@
  * - DISCOVER_POI
  */
 
-import { HexGrid } from '../../utils/HexGrid.js';
-import { GAME_DEFAULTS } from '../../constants/gameConstants.js';
+import { HexGrid } from '../../utils/HexGrid';
+import { GAME_DEFAULTS } from '../../constants/gameConstants';
 
 export function mapReducer(state, action, ACTIONS) {
   switch (action.type) {

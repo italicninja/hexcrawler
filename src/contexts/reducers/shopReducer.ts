@@ -7,7 +7,7 @@
  * - SELL_ITEM
  */
 
-import { Shop } from '../../game/Shop.js';
+import { Shop } from '../../game/Shop';
 
 export function shopReducer(state, action, ACTIONS) {
   switch (action.type) {

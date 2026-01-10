@@ -13,23 +13,27 @@
  * - explorationReducer: Interior/dungeon exploration
  */
 
-import { gameReducer } from './gameReducer.js';
-import { mapReducer } from './mapReducer.js';
-import { characterReducer } from './characterReducer.js';
-import { inventoryReducer } from './inventoryReducer.js';
-import { combatReducer } from './combatReducer.js';
-import { questReducer } from './questReducer.js';
-import { shopReducer } from './shopReducer.js';
-import { explorationReducer } from './explorationReducer.js';
+import { gameReducer } from './gameReducer';
+import { mapReducer } from './mapReducer';
+import { characterReducer } from './characterReducer';
+import { inventoryReducer } from './inventoryReducer';
+import { combatReducer } from './combatReducer';
+import { questReducer } from './questReducer';
+import { shopReducer } from './shopReducer';
+import { explorationReducer } from './explorationReducer';
+
+import type { GameState, Action } from '../../types/state';
+
+type ReducerFunction = (state: GameState, action: Action, ACTIONS: Record<string, string>) => GameState | null;
 
 /**
  * Combined reducer that delegates to specialized reducers
- * @param {object} state - Current state
- * @param {object} action - Action to process
- * @param {object} ACTIONS - Action type constants
- * @returns {object} New state
+ * @param state - Current state
+ * @param action - Action to process
+ * @param ACTIONS - Action type constants
+ * @returns New state
  */
-export function combinedReducer(state, action, ACTIONS) {
+export function combinedReducer(state: GameState, action: Action, ACTIONS: Record<string, string>): GameState {
   // Try each reducer in order until one handles the action
   const reducers = [
     gameReducer,

@@ -13,8 +13,8 @@
  * - APPLY_EXHAUSTION
  */
 
-import { advanceTime } from '../../game/TimeManager.js';
-import { TIME } from '../../constants/gameConstants.js';
+import { advanceTime } from '../../game/TimeManager';
+import { TIME } from '../../constants/gameConstants';
 
 export function characterReducer(state, action, ACTIONS) {
   switch (action.type) {

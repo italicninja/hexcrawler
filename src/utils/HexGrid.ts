@@ -6,9 +6,19 @@
  */
 
 import { getHexDistance } from './hexMath';
+import type { Hex, MapBounds } from '../types/game';
+
+interface HexOffset {
+  dc: number;
+  dr: number;
+}
 
 export class HexGrid {
-  constructor(hexes = []) {
+  private grid: Map<string, Hex>;
+  private hexes: Hex[];
+  private bounds: MapBounds;
+
+  constructor(hexes: Hex[] = []) {
     this.grid = new Map();
     this.hexes = hexes;
     this.bounds = { minCol: Infinity, maxCol: -Infinity, minRow: Infinity, maxRow: -Infinity };
@@ -19,7 +29,7 @@ export class HexGrid {
    * Build spatial index from hex array
    * @private
    */
-  _buildIndex() {
+  private _buildIndex(): void {
     this.grid.clear();
     this.bounds = { minCol: Infinity, maxCol: -Infinity, minRow: Infinity, maxRow: -Infinity };
     
@@ -37,43 +47,43 @@ export class HexGrid {
 
   /**
    * Create string key from coordinates
-   * @param {number} col - Column
-   * @param {number} row - Row
-   * @returns {string} Key like "10,7"
+   * @param col - Column
+   * @param row - Row
+   * @returns Key like "10,7"
    */
-  static makeKey(col, row) {
+  static makeKey(col: number, row: number): string {
     return `${col},${row}`;
   }
 
   /**
    * Get hex at coordinates - O(1)
-   * @param {number} col - Column
-   * @param {number} row - Row
-   * @returns {object|undefined} Hex object or undefined
+   * @param col - Column
+   * @param row - Row
+   * @returns Hex object or undefined
    */
-  get(col, row) {
+  get(col: number, row: number): Hex | undefined {
     return this.grid.get(HexGrid.makeKey(col, row));
   }
 
   /**
    * Check if hex exists at coordinates
-   * @param {number} col - Column
-   * @param {number} row - Row
-   * @returns {boolean}
+   * @param col - Column
+   * @param row - Row
+   * @returns True if hex exists
    */
-  has(col, row) {
+  has(col: number, row: number): boolean {
     return this.grid.has(HexGrid.makeKey(col, row));
   }
 
   /**
    * Get all 6 neighboring hexes (offset coordinate system)
-   * @param {number} col - Center column
-   * @param {number} row - Center row
-   * @returns {object[]} Array of neighbor hexes
+   * @param col - Center column
+   * @param row - Center row
+   * @returns Array of neighbor hexes
    */
-  getNeighbors(col, row) {
+  getNeighbors(col: number, row: number): Hex[] {
     const offsets = this._getHexOffsets(row);
-    const neighbors = [];
+    const neighbors: Hex[] = [];
 
     for (const { dc, dr } of offsets) {
       const hex = this.get(col + dc, row + dr);
@@ -85,13 +95,13 @@ export class HexGrid {
 
   /**
    * Get all hexes within radius
-   * @param {number} col - Center column
-   * @param {number} row - Center row
-   * @param {number} radius - Radius in hexes
-   * @returns {object[]} Array of hexes within radius
+   * @param col - Center column
+   * @param row - Center row
+   * @param radius - Radius in hexes
+   * @returns Array of hexes within radius
    */
-  getInRadius(col, row, radius) {
-    const results = [];
+  getInRadius(col: number, row: number, radius: number): Hex[] {
+    const results: Hex[] = [];
 
     // Bounding box optimization
     for (let r = row - radius; r <= row + radius; r++) {
@@ -111,9 +121,9 @@ export class HexGrid {
 
   /**
    * Update or add hex to grid
-   * @param {object} hex - Hex to update/add
+   * @param hex - Hex to update/add
    */
-  set(hex) {
+  set(hex: Hex): void {
     const key = HexGrid.makeKey(hex.col, hex.row);
     this.grid.set(key, hex);
 
@@ -134,19 +144,19 @@ export class HexGrid {
 
   /**
    * Get map boundaries (O(1))
-   * @returns {object} { minCol, maxCol, minRow, maxRow }
+   * @returns Map boundaries
    */
-  getBounds() {
+  getBounds(): MapBounds {
     return { ...this.bounds };
   }
 
   /**
    * Get hex offsets for neighbors (depends on row parity for offset coordinates)
    * @private
-   * @param {number} row - Row number
-   * @returns {object[]} Array of {dc, dr} offsets
+   * @param row - Row number
+   * @returns Array of {dc, dr} offsets
    */
-  _getHexOffsets(row) {
+  private _getHexOffsets(row: number): HexOffset[] {
     const isEvenRow = row % 2 === 0;
     return isEvenRow
       ? [
@@ -169,16 +179,16 @@ export class HexGrid {
 
   /**
    * Get total number of hexes in grid
-   * @returns {number}
+   * @returns Number of hexes
    */
-  get size() {
+  get size(): number {
     return this.grid.size;
   }
 
   /**
    * Clear all hexes from grid
    */
-  clear() {
+  clear(): void {
     this.grid.clear();
     this.hexes = [];
   }

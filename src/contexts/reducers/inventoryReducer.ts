@@ -12,9 +12,9 @@
  * - FIND_WATER
  */
 
-import SurvivalManager from '../../game/SurvivalManager.js';
-import { advanceTime } from '../../game/TimeManager.js';
-import { TIME } from '../../constants/gameConstants.js';
+import SurvivalManager from '../../game/SurvivalManager';
+import { advanceTime } from '../../game/TimeManager';
+import { TIME } from '../../constants/gameConstants';
 
 export function inventoryReducer(state, action, ACTIONS) {
   switch (action.type) {

@@ -5,7 +5,7 @@ import { DiceRoller } from './DiceRoller.js';
 import { Character } from './Character.js';
 import { Enemy } from './Enemy.js';
 import { getHexDistance } from '../contexts/GameStateContext.jsx';
-import { DND, COMBAT } from '../constants/gameConstants.js';
+import { DND, COMBAT } from '../constants/gameConstants';
 import { checkLineOfSight } from './LineOfSight.js';
 import { AbilityEffects } from './AbilityEffects.js';
 import { getSpell, hasSpellSlot, useSpellSlot } from './SpellManager.js';

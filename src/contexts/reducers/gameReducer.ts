@@ -9,10 +9,10 @@
  * - UPDATE_PLAYTIME
  */
 
-import { Character } from '../../game/Character.js';
-import { Party } from '../../game/Party.js';
-import { createGameTime, advanceTime } from '../../game/TimeManager.js';
-import { GAME_DEFAULTS } from '../../constants/gameConstants.js';
+import { Character } from '../../game/Character';
+import { Party } from '../../game/Party';
+import { createGameTime, advanceTime } from '../../game/TimeManager';
+import { GAME_DEFAULTS } from '../../constants/gameConstants';
 
 export function gameReducer(state, action, ACTIONS) {
   switch (action.type) {

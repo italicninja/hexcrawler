@@ -1,4 +1,4 @@
-import { SAVE } from '../constants/gameConstants.js';
+import { SAVE } from '../constants/gameConstants';
 
 /**
  * SaveManager - Handles game save/load operations with multiple save slots

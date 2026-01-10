@@ -10,7 +10,7 @@
  * - REFRESH_QUESTS
  */
 
-import Quest from '../../game/Quest.js';
+import Quest from '../../game/Quest';
 
 export function questReducer(state, action, ACTIONS) {
   switch (action.type) {

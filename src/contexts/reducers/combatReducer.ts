@@ -11,10 +11,10 @@
  * - UPDATE_COMBAT_STATE
  */
 
-import { Combat } from '../../game/Combat.js';
-import { CombatTerrainGenerator } from '../../game/CombatTerrainGenerator.js';
-import { EncounterPositions } from '../../game/EncounterPositions.js';
-import { COMBAT } from '../../constants/gameConstants.js';
+import { Combat } from '../../game/Combat';
+import { CombatTerrainGenerator } from '../../game/CombatTerrainGenerator';
+import { EncounterPositions } from '../../game/EncounterPositions';
+import { COMBAT } from '../../constants/gameConstants';
 
 export function combatReducer(state, action, ACTIONS) {
   switch (action.type) {
