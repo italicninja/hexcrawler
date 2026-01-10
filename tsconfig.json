@@ -21,13 +21,14 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     
-    /* Type Checking - Start lenient, enable strict later */
+    /* Type Checking - Gradual strictness */
     "strict": false,
-    "noUnusedLocals": false,
+    "noUnusedLocals": true,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": false,
     "strictNullChecks": false,
+    "noImplicitReturns": true,
     
     /* Skip lib check for faster builds */
     "skipLibCheck": true,

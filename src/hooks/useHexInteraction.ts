@@ -8,7 +8,7 @@ const loadCaveGenerator = () => import('../game/CaveGenerator').then(m => m.Cave
 const loadRuinsGenerator = () => import('../game/RuinsGenerator').then(m => m.RuinsGenerator);
 const loadTowerGenerator = () => import('../game/TowerGenerator').then(m => m.TowerGenerator);
 const loadDungeonGenerator = () => import('../game/DungeonGenerator').then(m => m.DungeonGenerator);
-const loadTownGenerator = () => import('../game/TownGenerator.js').then(m => m.TownGenerator);
+const loadTownGenerator = () => import('../game/TownGenerator').then(m => m.TownGenerator);
 
 /**
  * useHexInteraction Hook
