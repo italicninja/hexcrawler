@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef, useMemo } from 'react';
 import { Character } from '../game/Character.js';
 import { Party } from '../game/Party.js';
 import { createGameTime, advanceTime } from '../game/TimeManager.js';
@@ -1286,7 +1286,8 @@ export function GameStateProvider({ children }) {
   const playtimeStartRef = useRef(Date.now());
   const playtimeIntervalRef = useRef(null);
 
-  // Playtime tracking - update every second
+  // Playtime tracking - update every 10 seconds to reduce re-renders
+  // During combat or other intensive scenes, frequent updates cause render loops
   useEffect(() => {
     if (state.currentScene !== 'title' && state.playerCharacter) {
       playtimeIntervalRef.current = setInterval(() => {
@@ -1297,7 +1298,7 @@ export function GameStateProvider({ children }) {
           type: ACTIONS.UPDATE_PLAYTIME,
           payload: elapsed
         });
-      }, 1000);
+      }, 10000); // Changed from 1000ms to 10000ms (10 seconds)
 
       return () => {
         if (playtimeIntervalRef.current) {
@@ -1335,8 +1336,8 @@ export function GameStateProvider({ children }) {
     state.combatState.active // Saves when combat state changes (end of combat)
   ]);
 
-  // Helper functions
-  const helpers = {
+  // Helper functions - memoized to prevent recreating on every render
+  const helpers = useMemo(() => ({
     isHexExplored: (col, row) => state.exploredHexes.has(`${col},${row}`),
 
     isHexVisible: (col, row) => {
@@ -1399,14 +1400,16 @@ export function GameStateProvider({ children }) {
       // Delete old save format if it exists
       localStorage.removeItem('hexcrawl_save');
     }
-  };
+  }), [state, dispatch]);
 
-  const value = {
+  // Memoize context value to prevent unnecessary re-renders
+  // Only update when state actually changes, not on every provider render
+  const value = useMemo(() => ({
     state,
     dispatch,
     actions: ACTIONS,
     ...helpers
-  };
+  }), [state, dispatch, helpers]);
 
   return (
     <GameStateContext.Provider value={value}>

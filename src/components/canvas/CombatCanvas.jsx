@@ -36,6 +36,8 @@ function CombatCanvas({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [lastTouchDistance, setLastTouchDistance] = useState(null);
   const animationFrameRef = useRef(null);
+  const lastHoveredHexRef = useRef(null);
+  const lastCameraRef = useRef({ offset: cameraOffset, zoom: cameraZoom });
 
   /**
    * Draw a tree obstacle
@@ -381,21 +383,12 @@ function CombatCanvas({
   ]);
 
   /**
-   * Animation loop for smooth rendering
+   * Render once when dependencies change (no animation loop)
+   * Combat scenes are turn-based, no need for continuous rendering
    */
   useEffect(() => {
-    const animate = () => {
-      draw();
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
+    draw();
+    // No animation loop - only redraw when dependencies change
   }, [draw]);
 
   /**
@@ -456,7 +449,17 @@ function CombatCanvas({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y
       };
-      onCameraChange(newOffset, cameraZoom);
+      
+      // Only call onCameraChange if offset actually changed significantly (throttle)
+      const lastCamera = lastCameraRef.current;
+      const offsetChanged = 
+        Math.abs(newOffset.x - lastCamera.offset.x) > 1 ||
+        Math.abs(newOffset.y - lastCamera.offset.y) > 1;
+      
+      if (offsetChanged) {
+        lastCameraRef.current = { offset: newOffset, zoom: cameraZoom };
+        onCameraChange(newOffset, cameraZoom);
+      }
     } else {
       // Hover detection
       const canvasPos = screenToCanvas(e.clientX, e.clientY);
@@ -467,8 +470,19 @@ function CombatCanvas({
         return { ...hex, x: pos.x, y: pos.y };
       });
 
-      const hoveredHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
-      onHexHover(hoveredHex);
+      const newHoveredHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
+      
+      // Only call onHexHover if the hovered hex actually changed
+      const lastHex = lastHoveredHexRef.current;
+      const hexChanged = 
+        (!lastHex && newHoveredHex) ||
+        (lastHex && !newHoveredHex) ||
+        (lastHex && newHoveredHex && (lastHex.col !== newHoveredHex.col || lastHex.row !== newHoveredHex.row));
+      
+      if (hexChanged) {
+        lastHoveredHexRef.current = newHoveredHex;
+        onHexHover(newHoveredHex);
+      }
     }
   }, [isDragging, dragStart, cameraZoom, battlefield.hexes, screenToCanvas, onCameraChange, onHexHover]);
 

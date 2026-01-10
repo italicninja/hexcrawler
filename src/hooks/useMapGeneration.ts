@@ -111,5 +111,8 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
       addMessage(`You start your adventure in ${startingHex.poi.name}, a safe haven.`, 'info');
     }
     addMessage(`Map generated with seed: ${state.mapSeed}`, 'system');
-  }, [state.mapSeed, state.mapData, state.playerPosition, dispatch, actions, viewportSize, terrainGeneratorRef, addMessage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.mapSeed]);
+  // NOTE: state.mapData excluded from deps - we check it in the guard clause but don't need to re-run when it changes
+  // mapGeneratedRef prevents duplicate generation even if effect re-runs
 }

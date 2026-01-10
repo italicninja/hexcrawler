@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
-import { useGameLog } from '../contexts/GameLogContext';
 import { generateHex } from '../utils/poiGenerationHelper';
 import { CANVAS, TERRAIN } from '../constants/gameConstants';
 
@@ -16,7 +15,7 @@ import { CANVAS, TERRAIN } from '../constants/gameConstants';
  */
 export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
   const { state, dispatch, actions } = useGameState();
-  const { addMessage } = useGameLog();
+  const lastExpansionRef = useRef({ col: null, row: null, direction: null });
 
   useEffect(() => {
     // Guard clause - don't expand if map isn't ready
@@ -77,6 +76,13 @@ export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
     }
 
     if (!needsExpansion || !expandDirection) return;
+    
+    // Prevent duplicate expansions in the same direction from the same position
+    const lastExp = lastExpansionRef.current;
+    if (lastExp.col === col && lastExp.row === row && lastExp.direction === expandDirection) {
+      return;
+    }
+    lastExpansionRef.current = { col, row, direction: expandDirection };
 
     console.log(`Expanding map to the ${expandDirection}...`);
 
@@ -97,9 +103,10 @@ export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
       payload: [...state.mapData, ...newHexes]
     });
 
-    // Log expansion
-    addMessage(`Explored new territory to the ${expandDirection}!`, 'info');
-  }, [state.playerPosition, state.mapData, state.mapSeed, dispatch, actions, viewportSize, terrainGeneratorRef, addMessage]);
+    // Log expansion to console only (not visible to player in GameLog)
+  }, [state.playerPosition.col, state.playerPosition.row, state.mapSeed, dispatch, actions, viewportSize.width, viewportSize.height]);
+  // NOTE: state.mapData intentionally excluded from deps to prevent infinite loop
+  // The effect only needs to run when player position changes, not when map expands
 }
 
 /**

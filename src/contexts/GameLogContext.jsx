@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 
 const GameLogContext = createContext(null);
@@ -36,11 +36,12 @@ export function GameLogProvider({ children }) {
     setMessages([]);
   }, []);
 
-  const value = {
+  // Memoize context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     messages,
     addMessage,
     clearMessages
-  };
+  }), [messages, addMessage, clearMessages]);
 
   return (
     <GameLogContext.Provider value={value}>

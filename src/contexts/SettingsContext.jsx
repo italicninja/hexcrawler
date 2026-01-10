@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 
 // Create context
 const SettingsContext = createContext(null);
@@ -47,23 +47,24 @@ export function SettingsProvider({ children }) {
     }
   }, [settings]);
 
-  // Helper functions
-  const get = (key) => settings[key];
+  // Helper functions - memoized to prevent recreation
+  const get = useCallback((key) => settings[key], [settings]);
 
-  const set = (key, value) => {
+  const set = useCallback((key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setSettings(defaultSettings);
-  };
+  }, []);
 
-  const value = {
+  // Memoize context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     settings,
     get,
     set,
     reset
-  };
+  }), [settings, get, set, reset]);
 
   return (
     <SettingsContext.Provider value={value}>

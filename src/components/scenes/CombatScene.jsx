@@ -57,13 +57,14 @@ function CombatScene() {
   /**
    * Get the current combatant from turnOrder
    * @returns {object|null} Current combatant or null
+   * Note: Not memoized - will be recreated on every render, but that's okay
    */
-  const getCurrentCombatant = useCallback(() => {
+  const getCurrentCombatant = () => {
     if (!state.combatState?.turnOrder || state.combatState.currentTurnIndex === undefined) {
       return null;
     }
     return state.combatState.turnOrder[state.combatState.currentTurnIndex];
-  }, [state.combatState]);
+  };
 
   /**
    * Handle action selection from ActionPanel
@@ -84,7 +85,7 @@ function CombatScene() {
     };
 
     addMessage(`Selected action: ${actionLabels[actionType] || actionType}`, 'action');
-  }, [addMessage]);
+  }, []);
 
   /**
    * Handle hex click - routes to movement or attack based on selectedAction
@@ -114,7 +115,7 @@ function CombatScene() {
       }));
       addMessage(`Targeting ${target.character?.name || target.enemy?.name}`, 'action');
     }
-  }, [localCombatState.selectedAction, state.combatState, getCurrentCombatant, addMessage]);
+  }, [localCombatState.selectedAction]);
 
   /**
    * Handle movement to target hex
@@ -181,7 +182,7 @@ function CombatScene() {
       console.error('PROCESS_COMBAT_MOVEMENT action not defined in GameStateContext');
       addMessage('Combat movement not yet implemented', 'error');
     }
-  }, [state.combatState, getCurrentCombatant, dispatch, actions, addMessage]);
+  }, [dispatch, actions]);
 
   /**
    * Handle attack action on target
@@ -263,7 +264,7 @@ function CombatScene() {
       console.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
       addMessage('Combat actions not yet implemented', 'error');
     }
-  }, [state.combatState, getCurrentCombatant, localCombatState.attacksUsedThisTurn, dispatch, actions, addMessage]);
+  }, [localCombatState.attacksUsedThisTurn, dispatch, actions]);
 
   /**
    * Handle ability selection from AbilityMenu
@@ -297,7 +298,7 @@ function CombatScene() {
       showAbilityMenu: false,
       selectedAction: null
     }));
-  }, [state.combatState, getCurrentCombatant, dispatch, actions, addMessage]);
+  }, [dispatch, actions]);
 
   /**
    * Handle spell selection from SpellMenu
@@ -333,7 +334,7 @@ function CombatScene() {
       showSpellMenu: false,
       selectedAction: null
     }));
-  }, [state.combatState, getCurrentCombatant, dispatch, actions, addMessage]);
+  }, [dispatch, actions]);
 
   /**
    * Handle Dodge action
@@ -364,7 +365,7 @@ function CombatScene() {
       ...prev,
       selectedAction: null
     }));
-  }, [state.combatState, getCurrentCombatant, dispatch, actions, addMessage]);
+  }, [dispatch, actions]);
 
   /**
    * Handle Dash action (double movement)
@@ -399,7 +400,7 @@ function CombatScene() {
       ...prev,
       selectedAction: null
     }));
-  }, [state.combatState, getCurrentCombatant, dispatch, actions, addMessage]);
+  }, [dispatch, actions]);
 
   /**
    * Handle end turn
@@ -440,16 +441,17 @@ function CombatScene() {
       console.error('ADVANCE_COMBAT_TURN action not defined in GameStateContext');
       addMessage('Turn advancement not yet implemented', 'error');
     }
-  }, [state.combatState, getCurrentCombatant, dispatch, actions, addMessage]);
+  }, [dispatch, actions]);
 
   /**
-   * Process AI turn
+   * Process AI turn - memoized to prevent recreation
    */
-  const processAITurn = useCallback((combatant) => {
+  const processAITurnRef = useRef();
+  processAITurnRef.current = (combatant) => {
     if (!combatant || !combatant.enemy) return;
 
     const enemy = combatant.enemy;
-    addMessage(`${enemy.name} is thinking...`, 'encounter');
+    addMessageRef.current(`${enemy.name} is thinking...`, 'encounter');
 
     // Use EnemyAI to decide action
     const action = EnemyAI.decideAction(
@@ -462,7 +464,7 @@ function CombatScene() {
     // Wait 800ms for player to see AI thinking
     setTimeout(() => {
       if (action.type === 'move') {
-        addMessage(`${enemy.name} moves to (${action.destination.col}, ${action.destination.row})`, 'encounter');
+        addMessageRef.current(`${enemy.name} moves to (${action.destination.col}, ${action.destination.row})`, 'encounter');
 
         if (actions.PROCESS_COMBAT_MOVEMENT) {
           dispatch({
@@ -475,7 +477,7 @@ function CombatScene() {
         }
       } else if (action.type === 'attack') {
         const targetName = action.target.character?.name || action.target.enemy?.name;
-        addMessage(`${enemy.name} attacks ${targetName}!`, 'encounter');
+        addMessageRef.current(`${enemy.name} attacks ${targetName}!`, 'encounter');
 
         if (actions.PROCESS_COMBAT_ACTION) {
           dispatch({
@@ -498,25 +500,62 @@ function CombatScene() {
         }
       }, 500);
     }, 800);
-  }, [state.combatState, dispatch, actions, addMessage]);
+  };
+  
+  const processAITurn = useCallback((combatant) => {
+    processAITurnRef.current(combatant);
+  }, []);
 
   /**
    * Auto-process AI turns when waitingForPlayerAction is false
+   * Track which turn has been processed to prevent infinite loops
    */
+  const lastProcessedTurnRef = useRef(null);
+  
   useEffect(() => {
-    if (!state.combatState?.waitingForPlayerAction) {
+    if (!state.combatState) return;
+    
+    const currentTurnIndex = state.combatState.currentTurnIndex;
+    const waitingForPlayer = state.combatState.waitingForPlayerAction;
+    
+    // Skip if already processed this turn
+    if (lastProcessedTurnRef.current === currentTurnIndex) {
+      return;
+    }
+    
+    // Only process AI turns
+    if (!waitingForPlayer) {
       const currentCombatant = getCurrentCombatant();
       if (currentCombatant && currentCombatant.type === 'enemy') {
+        lastProcessedTurnRef.current = currentTurnIndex;
         processAITurn(currentCombatant);
       }
     }
-  }, [state.combatState?.waitingForPlayerAction, state.combatState?.currentTurnIndex, getCurrentCombatant, processAITurn]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.combatState?.currentTurnIndex, state.combatState?.waitingForPlayerAction]);
+  // NOTE: Dependencies are primitive values that only change when turn actually advances
 
   /**
    * Check for victory/defeat after combat state changes
+   * Only check when turn order actually changes (HP updates)
    */
+  const combatEndHandledRef = useRef(false);
+  const turnOrderHashRef = useRef('');
+  
   useEffect(() => {
-    if (!state.combatState) return;
+    if (!state.combatState || combatEndHandledRef.current) return;
+
+    // Create a hash of HP values to detect actual changes
+    const hpHash = state.combatState.turnOrder
+      .map(c => {
+        const hp = c.type === 'character' ? c.character?.currentHP : c.enemy?.currentHP;
+        return `${c.id}:${hp}`;
+      })
+      .join('|');
+    
+    // Skip if HP values haven't changed
+    if (turnOrderHashRef.current === hpHash) return;
+    turnOrderHashRef.current = hpHash;
 
     const livingCharacters = state.combatState.turnOrder.filter(
       c => c.type === 'character' && c.character?.currentHP > 0
@@ -526,8 +565,8 @@ function CombatScene() {
     );
 
     if (livingEnemies.length === 0 && livingCharacters.length > 0) {
+      combatEndHandledRef.current = true;
       addMessageRef.current('Victory! All enemies defeated!', 'success');
-      // TODO: Transition to victory screen or back to overworld
       setTimeout(() => {
         dispatch({
           type: actions.SET_CURRENT_SCENE,
@@ -535,8 +574,8 @@ function CombatScene() {
         });
       }, 2000);
     } else if (livingCharacters.length === 0) {
+      combatEndHandledRef.current = true;
       addMessageRef.current('Defeat! All party members have fallen...', 'error');
-      // TODO: Transition to game over screen
       setTimeout(() => {
         dispatch({
           type: actions.SET_CURRENT_SCENE,
@@ -544,7 +583,10 @@ function CombatScene() {
         });
       }, 2000);
     }
-  }, [state.combatState?.turnOrder, dispatch, actions]); // Removed addMessage from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.combatState?.currentTurnIndex]);
+  // NOTE: Check on turn index change instead of turnOrder array reference
+  // This prevents checking on every render while still catching HP changes
 
   /**
    * ESC key to deselect action
@@ -581,16 +623,38 @@ function CombatScene() {
     );
   }
   
-  // Debug logging
-  console.log('CombatScene rendering with state:', {
-    hasCombatState: !!state.combatState,
-    hasBattlefield: !!state.combatState?.battlefield,
-    battlefieldHexes: state.combatState?.battlefield?.hexes?.length,
-    turnOrderLength: state.combatState?.turnOrder?.length,
-    currentTurn: state.combatState?.currentTurnIndex
-  });
+  // Debug logging - minimal tracking to catch infinite loops
+  const renderCountRef = useRef(0);
+  const renderTimestampRef = useRef(Date.now());
+  
+  renderCountRef.current++;
+  
+  // Reset counter every 5 seconds
+  const now = Date.now();
+  if (now - renderTimestampRef.current > 5000) {
+    if (renderCountRef.current > 50) {
+      console.warn(`CombatScene: ${renderCountRef.current} renders in 5 seconds (may indicate performance issue)`);
+    }
+    renderCountRef.current = 0;
+    renderTimestampRef.current = now;
+  }
+  
+  // Safety check - stop if truly infinite
+  if (renderCountRef.current > 200) {
+    console.error('CombatScene: Infinite render loop detected! Too many renders.');
+    throw new Error('Infinite render loop in CombatScene');
+  }
 
   const currentCombatant = getCurrentCombatant();
+  
+  // Memoize callbacks to prevent infinite loops in child components
+  const handleHexHover = useCallback((hex) => {
+    setLocalCombatState(prev => ({...prev, hoveredHex: hex}));
+  }, []);
+  
+  const handleCameraChange = useCallback((offset, zoom) => {
+    setLocalCombatState(prev => ({...prev, cameraOffset: offset, cameraZoom: zoom}));
+  }, []);
 
   return (
     <div className="combat-scene">
@@ -608,10 +672,10 @@ function CombatScene() {
           hoveredHex={localCombatState.hoveredHex}
           movementRemaining={state.combatState.movementRemaining}
           onHexClick={handleHexClick}
-          onHexHover={(hex) => setLocalCombatState(prev => ({...prev, hoveredHex: hex}))}
+          onHexHover={handleHexHover}
           cameraOffset={localCombatState.cameraOffset}
           cameraZoom={localCombatState.cameraZoom}
-          onCameraChange={(offset, zoom) => setLocalCombatState(prev => ({...prev, cameraOffset: offset, cameraZoom: zoom}))}
+          onCameraChange={handleCameraChange}
         />
         
         <TurnOrderPanel
