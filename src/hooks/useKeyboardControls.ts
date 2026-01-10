@@ -17,6 +17,7 @@ import { useSettings } from '../contexts/SettingsContext';
  * @param {function} callbacks.onInventory - Called when inventory key is pressed
  * @param {function} callbacks.onQuests - Called when quests key is pressed
  * @param {function} callbacks.onMap - Called when map key is pressed
+ * @param {function} callbacks.onQuickSave - Called when F5 is pressed
  * @param {boolean} enabled - Whether keyboard controls are enabled
  */
 export function useKeyboardControls(callbacks = {}, enabled = true) {
@@ -102,6 +103,13 @@ export function useKeyboardControls(callbacks = {}, enabled = true) {
     if (key === keybindings.map?.toLowerCase()) {
       event.preventDefault();
       callbacks.onMap?.();
+      return;
+    }
+
+    // Check for F5 (quick save)
+    if (event.key === 'F5') {
+      event.preventDefault();
+      callbacks.onQuickSave?.();
       return;
     }
   }, [enabled, keybindings, callbacks]);

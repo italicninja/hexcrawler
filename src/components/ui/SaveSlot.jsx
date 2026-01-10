@@ -5,7 +5,7 @@ import './SaveSlot.css';
  * Individual save slot display component
  * Shows save metadata and provides load/save/delete actions
  */
-function SaveSlot({ slotKey, metadata, slotNumber, isAutosave, mode, onLoad, onSave, onDelete }) {
+function SaveSlot({ slotKey, metadata, slotNumber, slotLetter, isAutosave, isQuicksave, mode, onLoad, onSave, onDelete }) {
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -40,7 +40,9 @@ function SaveSlot({ slotKey, metadata, slotNumber, isAutosave, mode, onLoad, onS
     return (
       <div className="save-slot empty-slot">
         <div className="slot-header">
-          {isAutosave ? '⚡ Auto-save' : `💾 Slot ${slotNumber}`}
+          {isAutosave ? '⚡ Auto-save' : 
+           isQuicksave ? `⚡ Quick Save ${slotLetter}` : 
+           `💾 Slot ${slotNumber}`}
         </div>
         <div className="slot-content">
           <div className="empty-slot-message">Empty Slot</div>
@@ -60,7 +62,9 @@ function SaveSlot({ slotKey, metadata, slotNumber, isAutosave, mode, onLoad, onS
   return (
     <div className="save-slot filled-slot">
       <div className="slot-header">
-        {isAutosave ? '⚡ Auto-save' : `💾 Slot ${slotNumber}`}
+        {isAutosave ? '⚡ Auto-save' : 
+         isQuicksave ? `⚡ Quick Save ${slotLetter}` : 
+         `💾 Slot ${slotNumber}`}
       </div>
       <div className="slot-content">
         <div className="character-info">
@@ -115,7 +119,9 @@ SaveSlot.propTypes = {
     timestamp: PropTypes.number
   }),
   slotNumber: PropTypes.number,
+  slotLetter: PropTypes.string,
   isAutosave: PropTypes.bool,
+  isQuicksave: PropTypes.bool,
   mode: PropTypes.oneOf(['load', 'save']).isRequired,
   onLoad: PropTypes.func,
   onSave: PropTypes.func,
@@ -124,6 +130,8 @@ SaveSlot.propTypes = {
 
 SaveSlot.defaultProps = {
   isAutosave: false,
+  isQuicksave: false,
+  slotLetter: null,
   onLoad: () => {},
   onSave: () => {},
   onDelete: () => {}

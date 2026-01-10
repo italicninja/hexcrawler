@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
@@ -9,8 +9,15 @@ import { useInfiniteTerrainExpansion } from '../../hooks/useInfiniteTerrainExpan
 import { useKeyboardControls } from '../../hooks/useKeyboardControls';
 import { useHexInteraction } from '../../hooks/useHexInteraction';
 import { TerrainGenerator } from '../../terrainGenerator.js';
-import { TIME_COSTS, formatTime, getCombatDuration } from '../../game/TimeManager.js';
+import { TIME_COSTS, formatTime, getCombatDuration, getTimeOfDay } from '../../game/TimeManager.js';
 import { DiceRoller } from '../../game/DiceRoller.js';
+import { 
+  generateHexEntryFlavor, 
+  generateTimeTransitionFlavor, 
+  generateWeatherFlavor,
+  generatePOIFlavor,
+  generateCombatIntro 
+} from '../../utils/flavorTextGenerator';
 import { Combat } from '../../game/Combat.js';
 import { Enemy } from '../../game/Enemy.js';
 import { Character } from '../../game/Character.js';
@@ -26,10 +33,12 @@ import Settings from '../ui/Settings';
 import RestMenu from '../ui/RestMenu';
 import SurvivalMenu from '../ui/SurvivalMenu';
 import QuestLog from '../ui/QuestLog';
+import SaveSlotManager from '../ui/SaveSlotManager';
 import HexGridCanvas from '../canvas/HexGridCanvas';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import MenuSidebar from '../ui/MenuSidebar';
 import MenuPanel from '../ui/MenuPanel';
+import { SaveManager } from '../../utils/SaveManager';
 
 function OverworldScene() {
   const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } = useGameState();
@@ -38,6 +47,7 @@ function OverworldScene() {
   // const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
   const isBlockingMovement = false;
   const [openPanel, setOpenPanel] = useState(null);
+  const [showSaveMenu, setShowSaveMenu] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState(state.playerCharacter);
   const [selectedHex, setSelectedHex] = useState(null);
   const [selectedInteriorHex, setSelectedInteriorHex] = useState(null);
@@ -121,6 +131,12 @@ function OverworldScene() {
       badge: state.activeQuests?.length || 0
     },
     {
+      id: 'save',
+      label: 'Save',
+      icon: '💾',
+      description: 'Save your game',
+    },
+    {
       id: 'config',
       label: 'Config',
       icon: '⚙️',
@@ -138,6 +154,13 @@ function OverworldScene() {
       }
       return;
     }
+    
+    // If save is clicked, open save menu modal
+    if (item.id === 'save') {
+      setShowSaveMenu(true);
+      return;
+    }
+    
     setOpenPanel(item.id);
   };
 
@@ -205,11 +228,6 @@ function OverworldScene() {
           type: actions.UPDATE_CHARACTER,
           payload: character
         });
-        
-        addMessage(
-          `Consumed 1 ration for travel. ${character.rations} days remaining.`,
-          'info'
-        );
       } else {
         character.daysWithoutFood++;
         
@@ -218,13 +236,11 @@ function OverworldScene() {
           type: actions.UPDATE_CHARACTER,
           payload: character
         });
-        
-        addMessage(
-          `No rations available! Days without food: ${character.daysWithoutFood}`,
-          'warning'
-        );
       }
     }
+
+    // Capture old time before advancing (for time-of-day transition detection)
+    const oldTime = { ...state.gameTime };
 
     // Update player position
     dispatch({
@@ -244,11 +260,18 @@ function OverworldScene() {
       payload: { col: hex.col, row: hex.row }
     });
 
-    // Log movement
-    addMessage(
-      `Moved to hex (${hex.col}, ${hex.row}) - ${hex.terrain.name} (1 day)`,
-      'action'
-    );
+    // Log movement to console only (not to GameLog)
+    console.log(`Moved to hex (${hex.col}, ${hex.row}) - ${hex.terrain.name} (1 day)`);
+
+    // Build and log consolidated hex entry message
+    const newTime = state.gameTime; // This will be updated after ADVANCE_TIME dispatch
+    const oldTimeOfDay = getTimeOfDay(oldTime.hour);
+    const newTimeOfDay = getTimeOfDay(newTime.hour);
+
+    const hexEntryMsg = buildHexEntryMessage(hex, oldTimeOfDay, newTimeOfDay);
+    if (hexEntryMsg) {
+      addMessage(hexEntryMsg.message, hexEntryMsg.type);
+    }
 
     // Check for POI discovery
     if (hex.poi) {
@@ -261,22 +284,75 @@ function OverworldScene() {
           payload: { col: hex.col, row: hex.row }
         });
 
-        // Log discovery
-        addMessage(
-          `You discovered: ${hex.poi.name}!`,
-          'discovery'
-        );
+        // Build discovery message with optional flavor (20% chance)
+        let discoveryMsg = `You discovered: ${hex.poi.name}!`;
+
+        // Add POI flavor inline (20% chance)
+        if (Math.random() < 0.2) {
+          const poiFlavor = generatePOIFlavor(hex.poi.type, hex.poi.cr || 1);
+          if (poiFlavor) {
+            discoveryMsg += ` - ${poiFlavor}`;
+          }
+        }
+
+        addMessage(discoveryMsg, 'discovery');
 
         // Trigger event based on type
         if (hex.poi.eventType === 'active') {
+          // Combat intro
+          const combatIntro = generateCombatIntro(hex.poi.type);
+          addMessage(combatIntro, 'encounter');
+          
           // Trigger combat encounter directly
           handleEngageCombat(hex.poi);
         }
       } else if (hex.poi.eventType === 'active') {
         // Already discovered active event - trigger combat again
+        const combatIntro = generateCombatIntro(hex.poi.type);
+        addMessage(combatIntro, 'encounter');
         handleEngageCombat(hex.poi);
       }
     }
+  };
+
+  /**
+   * Build consolidated hex entry message from multiple events
+   * @param {Object} hex - The hex being entered
+   * @param {string} oldTimeOfDay - Previous time of day
+   * @param {string} newTimeOfDay - Current time of day
+   * @returns {Object|null} { message: string, type: string } or null if no events
+   */
+  const buildHexEntryMessage = (hex, oldTimeOfDay, newTimeOfDay) => {
+    const parts = [];
+    let messageType = 'info';
+    
+    // Time transition (highest priority)
+    if (oldTimeOfDay !== newTimeOfDay) {
+      const timeFlavor = generateTimeTransitionFlavor(newTimeOfDay);
+      if (timeFlavor) parts.push(timeFlavor);
+    }
+    
+    // Weather warning (changes message type to 'warning')
+    if (hex.weather) {
+      const weatherFlavor = generateWeatherFlavor(hex.weather.condition);
+      if (weatherFlavor) {
+        parts.push(weatherFlavor);
+        messageType = 'warning'; // Weather is important, use warning type
+      }
+    }
+    
+    // Hex entry flavor (15% chance)
+    if (Math.random() < 0.15) {
+      const flavor = generateHexEntryFlavor(hex.terrain.key);
+      if (flavor) parts.push(flavor);
+    }
+    
+    if (parts.length === 0) return null;
+    
+    return {
+      message: parts.join(' - '), // Hyphen separator
+      type: messageType
+    };
   };
 
   // Get adjacent hexes (6 neighbors in hex grid) - Uses HexGrid spatial index for O(1) lookup
@@ -507,6 +583,26 @@ function OverworldScene() {
     return state.mapData.find(h => h.col === targetCol && h.row === targetRow);
   };
 
+  // Handle quick save (F5)
+  const handleQuickSave = () => {
+    try {
+      const nextSlot = SaveManager.getNextQuicksaveSlot();
+      const success = SaveManager.saveToSlot(nextSlot, state);
+      
+      if (success) {
+        // Get slot letter for display (A, B, or C)
+        const slotLetter = nextSlot === SaveManager.SAVE_SLOTS.QUICKSAVE_A ? 'A' :
+                          nextSlot === SaveManager.SAVE_SLOTS.QUICKSAVE_B ? 'B' : 'C';
+        addMessage(`Quick saved to slot ${slotLetter}`, 'system');
+      } else {
+        addMessage('Quick save failed', 'error');
+      }
+    } catch (error) {
+      console.error('Quick save error:', error);
+      addMessage('Quick save failed: ' + error.message, 'error');
+    }
+  };
+
   // Unified keyboard control callbacks (works for both overworld and interior)
   const keyboardCallbacks = {
     onMoveUp: () => {
@@ -564,10 +660,16 @@ function OverworldScene() {
     onInteract: () => {
       if (state.inInterior) {
         const currentHex = getInteriorHexAt(state.interiorPlayerPosition?.col, state.interiorPlayerPosition?.row);
+        
         if (currentHex && currentHex.terrain.isInteractive && currentHex.buildingType) {
           handleBuildingInteraction(currentHex);
-        } else if (currentHex && currentHex.terrain.key === 'gate') {
-          if (state.currentPOI?.poi.type === 'town') {
+        } else if (currentHex && (currentHex.content === 'entrance' || currentHex.terrain.key === 'gate')) {
+          // Player is on entrance/gate - exit the interior
+          // Check if current POI is a settlement (town, camp, village, etc.)
+          const settlementTypes = ['camp', 'village', 'town', 'city', 'metropolis'];
+          const isSettlement = settlementTypes.includes(state.currentPOI?.poi?.type);
+          
+          if (isSettlement) {
             dispatch({ type: actions.EXIT_TOWN });
           } else {
             dispatch({ type: actions.EXIT_EXPLORATION });
@@ -583,11 +685,11 @@ function OverworldScene() {
           const settlementTypes = ['camp', 'village', 'town', 'city', 'metropolis'];
           if (settlementTypes.includes(hex.poi.type)) {
             if (discovered || hex.poi.visibleWithoutDiscovery) {
-              // Enter settlement using handleEnterTown (generates interior first)
-              handleEnterTown();
+              // Enter settlement - use handleInteract which will route to the correct handler
+              handleInteract();
             }
           } else if (['cave', 'ruins', 'tower', 'dungeon'].includes(hex.poi.type)) {
-            handleExplore();
+            handleInteract();
           }
           // Note: shrines now use buttons in HexDetails panel
           // No spacebar action for them - player uses buttons
@@ -618,6 +720,9 @@ function OverworldScene() {
     },
     onMap: () => {
       addMessage('Map view not yet implemented', 'info');
+    },
+    onQuickSave: () => {
+      handleQuickSave();
     }
   };
 
@@ -999,6 +1104,15 @@ function OverworldScene() {
         <GameLog />
         {/* EventInfoBox positioned in bottom right */}
       </div>
+
+      {/* Save Menu Modal */}
+      {showSaveMenu && (
+        <div className="modal-overlay" onClick={() => setShowSaveMenu(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <SaveSlotManager mode="save" onClose={() => setShowSaveMenu(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

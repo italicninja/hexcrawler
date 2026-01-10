@@ -70,6 +70,23 @@ function SaveSlotManager({ mode, onClose }) {
     }
   };
 
+  const handleQuickSave = async (slotKey) => {
+    try {
+      // Quick save never asks for confirmation - just overwrites
+      const success = SaveManager.saveToSlot(slotKey, state);
+      
+      if (success) {
+        addMessage('Quick save successful', 'system');
+        refreshSlots();
+      } else {
+        addMessage('Failed to quick save', 'error');
+      }
+    } catch (error) {
+      console.error('Error quick saving:', error);
+      addMessage('Failed to quick save: ' + error.message, 'error');
+    }
+  };
+
   const handleDelete = async (slotKey) => {
     const slotMetadata = SaveManager.getSlotMetadata(slotKey);
     if (!slotMetadata) return;
@@ -97,6 +114,7 @@ function SaveSlotManager({ mode, onClose }) {
         </div>
 
         <div className="save-slots-container">
+          {/* Show autosave only in load mode */}
           {mode === 'load' && (
             <>
               <div className="slot-section">
@@ -113,6 +131,44 @@ function SaveSlotManager({ mode, onClose }) {
             </>
           )}
 
+          {/* Quick Save Section (A, B, C) */}
+          <div className="slot-section">
+            <h3>Quick Saves</h3>
+            <SaveSlot
+              slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_A}
+              metadata={slots.quicksaveA}
+              slotLetter="A"
+              isQuicksave={true}
+              mode={mode}
+              onLoad={handleLoad}
+              onSave={handleQuickSave}
+              onDelete={handleDelete}
+            />
+            <SaveSlot
+              slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_B}
+              metadata={slots.quicksaveB}
+              slotLetter="B"
+              isQuicksave={true}
+              mode={mode}
+              onLoad={handleLoad}
+              onSave={handleQuickSave}
+              onDelete={handleDelete}
+            />
+            <SaveSlot
+              slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_C}
+              metadata={slots.quicksaveC}
+              slotLetter="C"
+              isQuicksave={true}
+              mode={mode}
+              onLoad={handleLoad}
+              onSave={handleQuickSave}
+              onDelete={handleDelete}
+            />
+          </div>
+
+          <div className="slot-divider"></div>
+
+          {/* Manual Save Section (1, 2, 3) */}
           <div className="slot-section">
             <h3>Manual Saves</h3>
             <SaveSlot

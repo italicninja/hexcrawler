@@ -18,7 +18,8 @@ const defaultSettings = {
     forage: 'f',
     inventory: 'i',
     quests: 'q',
-    map: 'm'
+    map: 'm',
+    quicksave: 'F5'
   }
 };
 
