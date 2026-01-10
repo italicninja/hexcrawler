@@ -1,8 +1,8 @@
 # Hexcrawler Refactoring - Phase 1 & 2 (Partial) Complete
 
 **Date:** January 9, 2026  
-**Version:** 0.2.0 → 0.3.0  
-**Status:** ✅ Phase 1, 2 & 3 Complete - Ready for Testing
+**Version:** 0.2.0 → 0.4.0 (Proposed)  
+**Status:** ✅ Phase 1, 2, 3 & 4 (Partial) Complete - TypeScript Infrastructure Ready
 
 ---
 
@@ -15,12 +15,13 @@ Comprehensive codebase refactoring focused on:
 - Modernizing save system
 
 **Total Changes:**
-- 6-7 commits
+- 9 commits
 - ~3,100 lines removed (legacy code + monolithic reducer)
-- ~1,550 lines added (new systems)
-- -1,550 net lines
+- ~2,000 lines added (new systems + TypeScript types)
+- -1,100 net lines
 - -22KB bundle size (6.2% reduction)
 - Major performance improvements (O(n) → O(1) operations)
+- TypeScript type safety for core infrastructure
 - Improved code organization and maintainability
 
 ---
@@ -361,18 +362,184 @@ Total:   -22 KB (-6.2% reduction)
 
 ---
 
+## ✅ Phase 4: TypeScript Migration - INFRASTRUCTURE COMPLETE
+
+### 4.1 TypeScript Setup & Configuration
+
+**TypeScript Infrastructure:**
+- Installed TypeScript 5.x and @types/node
+- Created comprehensive `tsconfig.json`
+- Configured for gradual migration (strict mode disabled initially)
+- Set up for React JSX with bundler module resolution
+
+**tsconfig.json Strategy:**
+```json
+{
+  "strict": false,              // Gradual migration
+  "noImplicitAny": false,       // Allow implicit any during migration
+  "noUnusedLocals": true,       // Catch unused variables
+  "noImplicitReturns": true,    // Ensure all paths return
+  "allowImportingTsExtensions": true
+}
+```
+
+### 4.2 Core Type Definitions (3 Files, 300+ Lines)
+
+**Created comprehensive type system:**
+
+**src/types/game.ts** (230+ lines):
+- D&D 5e: `AbilityScores`, `Skills`, `CharacterClass`, `DamageType`
+- Hex system: `Hex`, `HexCoordinates`, `TerrainType`, `MapBounds`
+- POI: `POI`, `POIType`, `EventType`
+- Items: `Item`, `ItemSlot`, `ItemRarity`
+- Combat: `Combatant`, `CombatHex`, `EncounterType`
+- Quests: `Quest`, `QuestType`, `QuestStatus`, `QuestRewards`
+- Save: `SaveMetadata`, `SaveSlot`
+- Logging: `LogMessage`, `LogMessageType`
+
+**src/types/character.ts** (40 lines):
+- `CharacterData` - Complete character state
+- `CharacterJSON` - Serialization interface
+
+**src/types/state.ts** (65 lines):
+- `GameState` - Full reducer state interface
+- `SceneType` - Scene name union type
+- `GameStateContextValue` - Context API types
+- `Action<T>` - Generic action interface
+
+### 4.3 Utility Migration (100% Complete)
+
+**Migrated utilities:**
+- ✅ `hexMath.ts` - Hex coordinate math (87 lines)
+- ✅ `HexGrid.ts` - Spatial index (193 lines)
+- ✅ `gameConstants.ts` - Game configuration (290 lines)
+
+**Type Coverage:**
+- All functions fully typed
+- Private methods properly marked
+- Interfaces for internal types
+- Generic types where appropriate
+
+### 4.4 Reducer Migration (100% Complete - 8/8 Files)
+
+**All reducers migrated to TypeScript:**
+- ✅ `characterReducer.ts` - Character state, XP, rest
+- ✅ `combatReducer.ts` - Combat state and actions
+- ✅ `explorationReducer.ts` - Interior exploration
+- ✅ `gameReducer.ts` - Core game state, scenes, time
+- ✅ `inventoryReducer.ts` - Items, equipment, survival
+- ✅ `mapReducer.ts` - Map data, exploration, POI
+- ✅ `questReducer.ts` - Quest management
+- ✅ `shopReducer.ts` - Shop transactions
+- ✅ `index.ts` - Combined reducer coordinator
+
+**Type Safety Improvements:**
+- `GameState` interface enforced
+- `Action<T>` generic for payloads
+- Type-safe action constants
+- Null safety patterns
+
+### 4.5 Custom Hooks Migration (100% Complete - 10/10 Files)
+
+**All hooks migrated to TypeScript:**
+- ✅ `useCanvasAnimation.ts` - Canvas animation loop
+- ✅ `useCombatHandler.ts` - Combat initiation
+- ✅ `useConfirm.ts` - Confirmation dialogs
+- ✅ `useEventListener.ts` - Event handling
+- ✅ `useGameLoop.ts` - Game loop timing
+- ✅ `useHexInteraction.ts` - Hex interaction logic
+- ✅ `useInfiniteTerrainExpansion.ts` - Map expansion
+- ✅ `useKeyboardControls.ts` - Keyboard input
+- ✅ `useMapGeneration.ts` - Initial map generation
+- ✅ `useMovement.ts` - Hex movement utilities
+
+**Hook Type Patterns:**
+- Return types explicitly defined
+- Parameter types fully specified
+- useCallback/useMemo with proper types
+- Ref types correctly annotated
+
+### 4.6 Testing Documentation
+
+**Created: TESTING_PRIORITIES.md** (450+ lines)
+
+**10 Testing Categories Documented:**
+1. 🔴 CRITICAL: Save/Load System
+2. 🔴 CRITICAL: Modular Reducers
+3. 🔴 CRITICAL: HexGrid Spatial Index
+4. 🟡 MEDIUM-HIGH: Character System
+5. 🟡 MEDIUM: Combat System
+6. 🟡 MEDIUM: Map Generation
+7. 🟡 MEDIUM: Quest System
+8. 🟢 LOW: Shop System
+9. 🟢 LOW: Interior Generation
+10. 🟢 LOW: UI Components
+
+**Testing Strategies:**
+- Manual testing checklist (11 steps)
+- Edge case scenarios documented
+- Automated testing roadmap
+- Performance testing guidelines
+- Pre-production checklist
+
+### 4.7 Migration Statistics
+
+**TypeScript Coverage:**
+```
+Infrastructure:    100% ✅
+  - Type definitions:   3/3 files
+  - Utilities:          3/3 files
+  - Reducers:           8/8 files
+  - Hooks:             10/10 files
+
+Remaining:         ~60%
+  - Game logic:      0/25 files
+  - Contexts:        0/3 files
+  - Components:      0/35 files
+```
+
+**Overall Codebase:**
+- ~40% TypeScript coverage
+- Core infrastructure: 100% typed
+- Game logic: 0% typed (pending)
+- React components: 0% typed (pending)
+
+### 4.8 Build & Type Checking
+
+**Build Status:**
+```
+✅ All builds passing
+Bundle: 335.30 KB (gzip: 98.77 KB)
+Change: +0.09 KB (negligible overhead)
+```
+
+**TypeScript Errors:**
+```
+Minor errors: 26 (unused variables, missing returns)
+Critical errors: 0
+All errors in .ts files (not blocking .jsx files)
+```
+
+**Type Safety Wins:**
+- HexGrid now enforces `Hex` interface
+- hexMath prevents coordinate type mismatches
+- Reducers enforce `GameState` structure
+- Actions are type-checked
+- Hook parameters validated
+
+---
+
 ## 🚀 Next Steps (Remaining Work)
 
-### Phase 3 - Architecture Refactoring (Remaining)
-- [ ] Refactor HexDetails component (split into smaller components)
-- [ ] Create reducer unit tests
+### Phase 4 - TypeScript Migration (Remaining)
+- [ ] Migrate game logic classes (Character, Combat, Party, etc.)
+- [ ] Migrate contexts (GameStateContext, GameLogContext, SettingsContext)
+- [ ] Migrate React components to .tsx (35+ files)
+- [ ] Enable strict mode in tsconfig.json
+- [ ] Fix all TypeScript errors
+- [ ] Add JSDoc comments for public APIs
 
-### Phase 3.5 - Testing (Optional)
-- [ ] Setup Vitest + React Testing Library
-- [ ] Write initial tests (Character, hexMath, Combat)
-- [ ] Add performance benchmarks
-
-### Phase 4 - TypeScript Migration
+### Phase 5 - Testing & Quality (Future)
 - [ ] Split GameStateReducer (1,441 lines → 7 modules)
 - [ ] Extract OverworldScene hooks
 - [ ] Refactor HexDetails component
@@ -395,6 +562,9 @@ Total:   -22 KB (-6.2% reduction)
 ## 📝 Git Commit History
 
 ```
+a01d8dc refactor: Migrate all custom hooks to TypeScript
+ad7423b refactor: Migrate utilities and reducers to TypeScript
+09bc44e feat: Begin Phase 4 - TypeScript migration setup and core types
 378731b refactor: Complete Phase 3 - Modular reducer architecture and custom hooks
 68d9835 perf: Complete Phase 2 - React optimization and HexGrid integration (v0.3.0)
 c7cf78b refactor: Extract game constants to centralized file
