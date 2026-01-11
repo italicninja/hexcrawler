@@ -18,6 +18,13 @@
     --shadow: rgba(0, 0, 0, 0.3);
     --input-bg: #1e293b;
     --panel-bg: #2d3748;
+    
+    /* GameLog message type colors */
+    --log-discovery: #14b8a6;
+    --log-encounter: #f87171;
+    --log-action: #60a5fa;
+    --log-system: #94a3b8;
+    --log-poi-interaction: #c084fc;
 
     /* shadcn/ui CSS variables */
     --background: 222.2 84% 4.9%;
@@ -57,6 +64,13 @@
     --shadow: rgba(0, 0, 0, 0.5);
     --input-bg: rgba(0, 0, 0, 0.7);
     --panel-bg: rgba(0, 0, 0, 0.7);
+    
+    /* GameLog message type colors */
+    --log-discovery: #ffd700;
+    --log-encounter: #ff6b6b;
+    --log-action: #4dabf7;
+    --log-system: rgba(255, 255, 255, 0.5);
+    --log-poi-interaction: #da77f2;
   }
 
   /* Teal Dark Theme - Original theme */
@@ -74,6 +88,13 @@
     --shadow: rgba(0, 0, 0, 0.3);
     --input-bg: #1e293b;
     --panel-bg: #2d3748;
+    
+    /* GameLog message type colors */
+    --log-discovery: #14b8a6;
+    --log-encounter: #f87171;
+    --log-action: #60a5fa;
+    --log-system: #94a3b8;
+    --log-poi-interaction: #c084fc;
   }
 
   /* Light Theme */
@@ -91,6 +112,13 @@
     --shadow: rgba(0, 0, 0, 0.1);
     --input-bg: #ffffff;
     --panel-bg: #ffffff;
+    
+    /* GameLog message type colors */
+    --log-discovery: #0d9488;
+    --log-encounter: #dc2626;
+    --log-action: #2563eb;
+    --log-system: #64748b;
+    --log-poi-interaction: #9333ea;
   }
 
   /* Dark Blue Theme */
@@ -108,6 +136,13 @@
     --shadow: rgba(0, 0, 0, 0.4);
     --input-bg: #1e293b;
     --panel-bg: #1e293b;
+    
+    /* GameLog message type colors */
+    --log-discovery: #60a5fa;
+    --log-encounter: #f87171;
+    --log-action: #818cf8;
+    --log-system: #94a3b8;
+    --log-poi-interaction: #c084fc;
   }
 
   /* Forest Theme */
@@ -125,6 +160,13 @@
     --shadow: rgba(0, 0, 0, 0.5);
     --input-bg: #052e16;
     --panel-bg: #166534;
+    
+    /* GameLog message type colors */
+    --log-discovery: #4ade80;
+    --log-encounter: #fca5a5;
+    --log-action: #7dd3fc;
+    --log-system: #86efac;
+    --log-poi-interaction: #d8b4fe;
   }
 
   /* Purple Night Theme */
@@ -142,6 +184,13 @@
     --shadow: rgba(0, 0, 0, 0.4);
     --input-bg: #1e1b4b;
     --panel-bg: #312e81;
+    
+    /* GameLog message type colors */
+    --log-discovery: #c084fc;
+    --log-encounter: #f87171;
+    --log-action: #60a5fa;
+    --log-system: #c084fc;
+    --log-poi-interaction: #d8b4fe;
   }
 
   /* Crimson Theme */
@@ -159,6 +208,13 @@
     --shadow: rgba(0, 0, 0, 0.5);
     --input-bg: #1f1315;
     --panel-bg: #2d1519;
+    
+    /* GameLog message type colors */
+    --log-discovery: #fca5a5;
+    --log-encounter: #ef4444;
+    --log-action: #60a5fa;
+    --log-system: #fca5a5;
+    --log-poi-interaction: #d8b4fe;
   }
 }
 
@@ -1702,6 +1758,29 @@ button:active {
     color: #f87171;
 }
 
+.log-discovery .log-text {
+    color: var(--log-discovery);
+    font-weight: 600;
+}
+
+.log-encounter .log-text {
+    color: var(--log-encounter);
+    font-weight: 500;
+}
+
+.log-action .log-text {
+    color: var(--log-action);
+}
+
+.log-system .log-text {
+    color: var(--log-system);
+    font-style: italic;
+}
+
+.log-poi-interaction .log-text {
+    color: var(--log-poi-interaction);
+}
+
 .log-placeholder {
     color: var(--text-muted);
     font-style: italic;
@@ -1977,13 +2056,13 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 10000;
   backdrop-filter: blur(4px);
 }
 
 .modal-content {
   position: relative;
-  z-index: 1001;
+  z-index: 10001;
   animation: modalFadeIn 0.2s ease-out;
 }
 

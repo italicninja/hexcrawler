@@ -3,7 +3,7 @@
   border: 2px solid #555;
   border-radius: 12px;
   padding: 24px;
-  max-width: 600px;
+  max-width: 950px;
   max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -54,11 +54,7 @@
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin: 16px 0 12px 0;
-}
-
-.slot-section:first-child h3 {
-  margin-top: 0;
+  margin: 0 0 12px 0;
 }
 
 .slot-divider {
@@ -101,4 +97,33 @@
 
 .save-slot-manager::-webkit-scrollbar-thumb:hover {
   background: #666;
+}
+
+/* Two-column grid layout for Manual + Quick saves */
+.save-slots-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.save-slots-grid .slot-section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Remove slot-divider within grid (no longer needed) */
+.save-slots-grid .slot-divider {
+  display: none;
+}
+
+/* Responsive: Stack columns on smaller screens */
+@media (max-width: 768px) {
+  .save-slot-manager {
+    max-width: 600px;
+  }
+  
+  .save-slots-grid {
+    grid-template-columns: 1fr;
+  }
 }

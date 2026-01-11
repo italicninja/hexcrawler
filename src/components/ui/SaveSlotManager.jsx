@@ -114,90 +114,74 @@ function SaveSlotManager({ mode, onClose }) {
         </div>
 
         <div className="save-slots-container">
-          {/* Show autosave only in load mode */}
-          {mode === 'load' && (
-            <>
-              <div className="slot-section">
-                <h3>Auto-save</h3>
-                <SaveSlot
-                  slotKey={SaveManager.SAVE_SLOTS.AUTOSAVE}
-                  metadata={slots.autosave}
-                  isAutosave={true}
-                  mode={mode}
-                  onLoad={handleLoad}
-                />
-              </div>
-              <div className="slot-divider"></div>
-            </>
-          )}
+          {/* Two-column grid: Manual Saves (left) | Quick Saves (right) */}
+          <div className="save-slots-grid">
+            {/* LEFT COLUMN: Manual Save Section (1, 2, 3) */}
+            <div className="slot-section">
+              <h3>Manual Saves</h3>
+              <SaveSlot
+                slotKey={SaveManager.SAVE_SLOTS.SLOT_1}
+                metadata={slots.slot1}
+                slotNumber={1}
+                mode={mode}
+                onLoad={handleLoad}
+                onSave={handleSave}
+                onDelete={handleDelete}
+              />
+              <SaveSlot
+                slotKey={SaveManager.SAVE_SLOTS.SLOT_2}
+                metadata={slots.slot2}
+                slotNumber={2}
+                mode={mode}
+                onLoad={handleLoad}
+                onSave={handleSave}
+                onDelete={handleDelete}
+              />
+              <SaveSlot
+                slotKey={SaveManager.SAVE_SLOTS.SLOT_3}
+                metadata={slots.slot3}
+                slotNumber={3}
+                mode={mode}
+                onLoad={handleLoad}
+                onSave={handleSave}
+                onDelete={handleDelete}
+              />
+            </div>
 
-          {/* Quick Save Section (A, B, C) */}
-          <div className="slot-section">
-            <h3>Quick Saves</h3>
-            <SaveSlot
-              slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_A}
-              metadata={slots.quicksaveA}
-              slotLetter="A"
-              isQuicksave={true}
-              mode={mode}
-              onLoad={handleLoad}
-              onSave={handleQuickSave}
-              onDelete={handleDelete}
-            />
-            <SaveSlot
-              slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_B}
-              metadata={slots.quicksaveB}
-              slotLetter="B"
-              isQuicksave={true}
-              mode={mode}
-              onLoad={handleLoad}
-              onSave={handleQuickSave}
-              onDelete={handleDelete}
-            />
-            <SaveSlot
-              slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_C}
-              metadata={slots.quicksaveC}
-              slotLetter="C"
-              isQuicksave={true}
-              mode={mode}
-              onLoad={handleLoad}
-              onSave={handleQuickSave}
-              onDelete={handleDelete}
-            />
-          </div>
-
-          <div className="slot-divider"></div>
-
-          {/* Manual Save Section (1, 2, 3) */}
-          <div className="slot-section">
-            <h3>Manual Saves</h3>
-            <SaveSlot
-              slotKey={SaveManager.SAVE_SLOTS.SLOT_1}
-              metadata={slots.slot1}
-              slotNumber={1}
-              mode={mode}
-              onLoad={handleLoad}
-              onSave={handleSave}
-              onDelete={handleDelete}
-            />
-            <SaveSlot
-              slotKey={SaveManager.SAVE_SLOTS.SLOT_2}
-              metadata={slots.slot2}
-              slotNumber={2}
-              mode={mode}
-              onLoad={handleLoad}
-              onSave={handleSave}
-              onDelete={handleDelete}
-            />
-            <SaveSlot
-              slotKey={SaveManager.SAVE_SLOTS.SLOT_3}
-              metadata={slots.slot3}
-              slotNumber={3}
-              mode={mode}
-              onLoad={handleLoad}
-              onSave={handleSave}
-              onDelete={handleDelete}
-            />
+            {/* RIGHT COLUMN: Quick Save Section (A, B, C) */}
+            <div className="slot-section">
+              <h3>Quick Saves</h3>
+              <SaveSlot
+                slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_A}
+                metadata={slots.quicksaveA}
+                slotLetter="A"
+                isQuicksave={true}
+                mode={mode}
+                onLoad={handleLoad}
+                onSave={handleQuickSave}
+                onDelete={handleDelete}
+              />
+              <SaveSlot
+                slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_B}
+                metadata={slots.quicksaveB}
+                slotLetter="B"
+                isQuicksave={true}
+                mode={mode}
+                onLoad={handleLoad}
+                onSave={handleQuickSave}
+                onDelete={handleDelete}
+              />
+              <SaveSlot
+                slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_C}
+                metadata={slots.quicksaveC}
+                slotLetter="C"
+                isQuicksave={true}
+                mode={mode}
+                onLoad={handleLoad}
+                onSave={handleQuickSave}
+                onDelete={handleDelete}
+              />
+            </div>
           </div>
         </div>
 
