@@ -13,6 +13,7 @@ import { HexGrid } from '../utils/HexGrid';
 import { getHexDistance, isHexReachable } from '../utils/hexMath';
 import { GAME_DEFAULTS, TIME, COMBAT, SAVE } from '../constants/gameConstants';
 import { combinedReducer } from './reducers/index';
+import logger from '../utils/logger.js';
 
 // Create context
 const GameStateContext = createContext(null);
@@ -41,6 +42,9 @@ const ACTIONS = {
   DEFEAT_ENCOUNTER: 'DEFEAT_ENCOUNTER',
   COLLECT_LOOT: 'COLLECT_LOOT',
   TRIGGER_HAZARD: 'TRIGGER_HAZARD',
+  DISCOVER_ENCOUNTER: 'DISCOVER_ENCOUNTER',
+  DISCOVER_HAZARD: 'DISCOVER_HAZARD',
+  DISCOVER_LOOT: 'DISCOVER_LOOT',
   UPDATE_CHARACTER: 'UPDATE_CHARACTER',
   // Time tracking
   ADVANCE_TIME: 'ADVANCE_TIME',
@@ -606,7 +610,7 @@ function _legacyGameStateReducer(state, action) {
       const success = updatedCharacter.equipItem(itemId, slot);
 
       if (!success) {
-        console.warn('Failed to equip item');
+        logger.items.warn('Failed to equip item', { itemId, slot });
         return state;
       }
 
@@ -624,7 +628,7 @@ function _legacyGameStateReducer(state, action) {
       const success = updatedCharacter.unequipItem(slot);
 
       if (!success) {
-        console.warn('Failed to unequip item');
+        logger.items.warn('Failed to unequip item', { slot });
         return state;
       }
 
@@ -714,7 +718,7 @@ function _legacyGameStateReducer(state, action) {
       const { allies, enemies, encounterName, encounterType, terrainType } = action.payload;
       
       if (!allies || !enemies) {
-        console.error('START_COMBAT requires allies and enemies');
+        logger.combat.error('START_COMBAT requires allies and enemies', { allies, enemies });
         return state;
       }
       
@@ -802,7 +806,7 @@ function _legacyGameStateReducer(state, action) {
       const { combatantId, path, cost } = action.payload;
       
       if (!state.combatState.combat) {
-        console.error('No active combat for movement');
+        logger.combat.error('No active combat for movement', { combatantId, path, cost });
         return state;
       }
       
@@ -826,7 +830,7 @@ function _legacyGameStateReducer(state, action) {
       const { actionType, attacker, target, ability, spell, spellLevel } = action.payload;
       
       if (!state.combatState.combat) {
-        console.error('No active combat for action');
+        logger.combat.error('No active combat for action', { actionType, attacker: attacker?.id, target: target?.id });
         return state;
       }
       
@@ -856,7 +860,7 @@ function _legacyGameStateReducer(state, action) {
 
     case ACTIONS.ADVANCE_COMBAT_TURN: {
       if (!state.combatState.combat) {
-        console.error('No active combat for turn advancement');
+        logger.combat.error('No active combat for turn advancement');
         return state;
       }
       
@@ -892,7 +896,7 @@ function _legacyGameStateReducer(state, action) {
       const { victory, xp } = action.payload;
       
       if (!state.combatState.combat || !state.party) {
-        console.error('No active combat or party to end combat');
+        logger.combat.error('No active combat or party to end combat', { hasCombat: !!state.combatState.combat, hasParty: !!state.party });
         return state;
       }
       
@@ -1238,7 +1242,7 @@ function _legacyGameStateReducer(state, action) {
       const townInterior = state.interiorMaps[poiKey];
       
       if (!townInterior) {
-        console.error('ENTER_TOWN called but interior not found! This should not happen.');
+        logger.state.error('ENTER_TOWN called but interior not found! This should not happen.', { poiKey, col, row });
         return state;
       }
 
@@ -1391,7 +1395,7 @@ export function GameStateProvider({ children }) {
         dispatch({ type: ACTIONS.LOAD_GAME, payload: gameData });
         return true;
       } catch (error) {
-        console.error('Failed to load game:', error);
+        logger.storage.error('Failed to load game', { error });
         return false;
       }
     },

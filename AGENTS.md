@@ -34,8 +34,8 @@ npm run version:major   # 0.1.0 -> 1.0.0 (breaking changes, major rewrites)
 netstat -ano | findstr :300 | findstr LISTENING
 taskkill //F //PID <process_id>
 
-# Or kill all Node processes
-taskkill //F //IM node.exe
+# WARNING: Do NOT use `taskkill //F //IM node.exe` as it will kill ALL node processes,
+# including AI agents and other background services. Only kill specific PIDs for the dev server.
 ```
 
 **Note:** No test suite currently exists. For testing guidance, see CLAUDE.md.
@@ -253,6 +253,223 @@ const z1 = row1;
 const y1 = -x1 - z1;
 ```
 
+### Development Logging
+
+**CRITICAL: Use the logger utility for ALL development logging** - Never use `console.*` directly.
+
+The project uses a categorized logging system that is **automatically enabled in dev mode** and **completely removed in production builds** (zero runtime cost).
+
+**Importing the logger:**
+```javascript
+import logger from '../utils/logger.js';
+```
+
+**Log Categories:**
+
+| Category | Color | Usage |
+|----------|-------|-------|
+| `combat` | 🔴 Red | Combat flow, AI decisions, turn order, attack calculations |
+| `mapgen` | 🟢 Green | Terrain generation, room placement, POI spawning, dungeon creation |
+| `movement` | 🔵 Blue | Player movement, pathfinding, hex distance calculations |
+| `state` | 🟡 Yellow | GameState reducer actions, state transitions, context updates |
+| `storage` | 🟣 Purple | Save/load operations, localStorage, serialization |
+| `render` | 🟠 Orange | Canvas redraws, React renders, performance metrics |
+| `items` | 🟢 Teal | Inventory changes, equipment, loot generation |
+| `general` | ⚪ Gray | Uncategorized logs, utilities, misc operations |
+
+**Log Levels:**
+- `debug()` - Detailed diagnostics (shown by default in dev)
+- `info()` - General information
+- `warn()` - Warnings, recoverable issues
+- `error()` - Errors, failures, exceptions
+
+**Basic Logging Examples:**
+
+```javascript
+// Combat logging
+logger.combat.info('Starting combat', { allies: 1, enemies: 3 });
+logger.combat.debug('AI selecting target', { 
+  enemyId: enemy.id, 
+  possibleTargets: targets.length,
+  chosen: selectedTarget.id 
+});
+logger.combat.warn('No valid targets found, skipping turn');
+
+// MapGen logging
+logger.mapgen.info('Generating terrain', { seed: mapSeed, algorithm: 'perlin' });
+logger.mapgen.debug('Placing POI', { type: 'ruins', hex: [col, row], cr: 3 });
+logger.mapgen.warn('Failed to place river, retrying with new path');
+
+// Movement logging
+logger.movement.info('Player moved', { from: [10,5], to: [11,5], terrain: 'forest' });
+logger.movement.debug('Calculating path', { start, end, distance: hexDist });
+logger.movement.warn('Destination too far', { distance: 5, maxMove: 3 });
+
+// State logging (reducer actions)
+logger.state.info('SET_PLAYER_POSITION', { payload: { col, row } });
+logger.state.debug('State updated', { exploredHexes: state.exploredHexes.size });
+logger.state.error('Invalid action type', action.type);
+
+// Storage logging
+logger.storage.info('Saving game', { slot: 1, characterName: player.name });
+logger.storage.debug('Serializing state', { stateSize: JSON.stringify(state).length });
+logger.storage.error('Save failed', error);
+
+// Render logging
+logger.render.debug('Canvas redraw triggered', { width, height });
+logger.render.warn('Canvas ref not ready, skipping draw');
+
+// Items logging
+logger.items.info('Item equipped', { item: item.name, slot: 'mainHand' });
+logger.items.debug('Generated loot', { items: loot.length, totalValue: totalGold });
+logger.items.warn('Inventory full, cannot add item');
+
+// General logging (fallback for uncategorized)
+logger.general.info('Game initialized');
+logger.general.error('Unexpected error', error);
+```
+
+**Performance Timing:**
+
+Use `time()` and `timeEnd()` to measure performance of expensive operations:
+
+```javascript
+// Time a single operation
+logger.mapgen.time('terrain-generation');
+generateTerrain(mapSeed, algorithm);
+logger.mapgen.timeEnd('terrain-generation');
+// Output: [mapgen] terrain-generation: 45.2ms
+
+// Time canvas rendering
+logger.render.time('hex-canvas-draw');
+drawHexGrid();
+logger.render.timeEnd('hex-canvas-draw');
+// Output: [render] hex-canvas-draw: 8.3ms
+```
+
+**Grouped Logging:**
+
+For related log messages, use `group()` or `groupCollapsed()`:
+
+```javascript
+logger.combat.group('Turn Processing', () => {
+  logger.combat.info('Current combatant:', combatant.name);
+  logger.combat.debug('Available actions:', actions);
+  logger.combat.debug('Target selection:', targetInfo);
+});
+
+// Collapsed by default (useful for large data dumps)
+logger.state.groupCollapsed('Full State Dump', () => {
+  logger.state.debug('Player:', state.playerCharacter);
+  logger.state.debug('Party:', state.party);
+  logger.state.debug('Map:', state.hexGrid);
+});
+```
+
+**Table Logging:**
+
+Display arrays or objects as tables for easy inspection:
+
+```javascript
+logger.combat.table(turnOrder); // Show turn order as table
+logger.items.table(inventory);  // Show inventory as table
+```
+
+**Best Practices:**
+
+1. **Log at decision points** - Help future debugging by logging why something happened:
+   ```javascript
+   logger.combat.debug('Target selected', { 
+     reason: 'lowest HP', 
+     targetHP: target.hp,
+     allTargets: enemies.map(e => ({ id: e.id, hp: e.hp }))
+   });
+   ```
+
+2. **Include context** - Always log relevant identifiers and values:
+   ```javascript
+   // Good
+   logger.movement.info('Movement blocked', { 
+     from: [10,5], 
+     to: [11,5], 
+     reason: 'water', 
+     hasRaft: false 
+   });
+   
+   // Bad
+   logger.movement.info('Cannot move');
+   ```
+
+3. **Use structured data** - Pass objects instead of concatenating strings:
+   ```javascript
+   // Good
+   logger.mapgen.debug('Room placed', { col, row, width, height, type: 'corridor' });
+   
+   // Bad
+   logger.mapgen.debug('Room placed at ' + col + ',' + row + ' size ' + width + 'x' + height);
+   ```
+
+4. **Performance timing for expensive operations** - Always time operations that might be slow:
+   ```javascript
+   logger.mapgen.time('dungeon-generation');
+   const dungeon = generateDungeon(width, height, cr);
+   logger.mapgen.timeEnd('dungeon-generation');
+   ```
+
+5. **Log errors with full context** - Include the error object and relevant state:
+   ```javascript
+   try {
+     saveGame(state);
+   } catch (error) {
+     logger.storage.error('Save failed', { 
+       error, 
+       slot: saveSlot, 
+       stateSize: JSON.stringify(state).length 
+     });
+   }
+   ```
+
+6. **Never use `console.*` directly** - Always use the logger:
+   ```javascript
+   // ❌ WRONG
+   console.log('Player moved');
+   console.error('Save failed', error);
+   
+   // ✅ CORRECT
+   logger.movement.info('Player moved', { from, to });
+   logger.storage.error('Save failed', { error, slot });
+   ```
+
+**Migration Guide:**
+
+When updating existing code, replace `console.*` calls with appropriate logger calls:
+
+| Old Code | New Code |
+|----------|----------|
+| `console.log(...)` | `logger.general.info(...)` or category-specific |
+| `console.warn(...)` | `logger.category.warn(...)` |
+| `console.error(...)` | `logger.category.error(...)` |
+| `console.debug(...)` | `logger.category.debug(...)` |
+
+**Environment Control:**
+
+- **Dev mode (`npm run dev`)**: All logs enabled by default at `debug` level
+- **Production (`npm run build`)**: All logs completely removed (tree-shaken)
+- **URL override**: Add `?logLevel=info` to URL to change log level on-the-fly
+- **Environment variable**: Set `VITE_LOG_LEVEL=info` to change default level
+
+**Logger Configuration:**
+
+Check logger config in console:
+```javascript
+logger.logConfig();
+// Outputs:
+// Dev mode: true
+// Log level: debug
+// Categories: combat, mapgen, movement, state, storage, render, items, general
+// Tip: Add ?logLevel=info to URL to change log level
+```
+
 ## Critical Architecture Patterns
 
 ### Canvas + React Integration
@@ -406,13 +623,51 @@ Uses **cube coordinates** converted to offset coordinates:
 6. **DO NOT** use routing libraries (use scene-based navigation)
 7. **DO NOT** create modal dialogs or popups - use GameLog for all feedback
 8. **DO NOT** use EventInfoBox (removed system) - use GameLog
-9. **ALWAYS** check for null/undefined before accessing nested properties
-10. **ALWAYS** use `actions.ACTION_NAME` constants, not string literals
-11. **ALWAYS** create new Set/Array when updating collections in state
-12. **ALWAYS** log user actions and outcomes to GameLog
+9. **DO NOT** use `console.*` directly - use the logger utility for all dev logging
+10. **ALWAYS** check for null/undefined before accessing nested properties
+11. **ALWAYS** use `actions.ACTION_NAME` constants, not string literals
+12. **ALWAYS** create new Set/Array when updating collections in state
+13. **ALWAYS** log user actions and outcomes to GameLog
+14. **ALWAYS** import and use logger for development debugging
 
 ## Additional Resources
 
 - **CLAUDE.md** - Comprehensive project overview and architecture details
 - **package.json** - Full dependency list and npm scripts
 - **vite.config.js** - Build configuration and git info injection
+
+## D&D 5e Rules Reference
+
+**System Reference Document (SRD) v5.2.1** - `docs/SRD_CC_v5.2.1.pdf`
+
+The SRD contains official D&D 5e rules and mechanics that this project implements:
+
+- **Character Creation** - Classes, races, backgrounds, ability scores
+- **Combat Rules** - Attack rolls, saving throws, damage types, conditions
+- **Spells** - Spell lists, spell descriptions, spell slots
+- **Magic Items** - Item rarities, properties, attunement rules
+- **Monsters** - Creature stat blocks, challenge ratings
+- **Treasure** - Treasure tables (Individual and Hoard by CR)
+- **Traps** - Official trap types with scaling by character level
+- **Environmental Rules** - Travel, exploration, resting, time tracking
+
+**Note:** This file is excluded from version control (.gitignore) due to licensing.
+
+**Using the SRD:**
+- Extract text using `pdftotext`: `pdftotext -f <page> -l <page> docs/SRD_CC_v5.2.1.pdf -`
+- Search for rules: `pdftotext docs/SRD_CC_v5.2.1.pdf - | grep -i "keyword"`
+- Reference page numbers from the Table of Contents (page 3-5)
+
+**Key Sections for Game Development:**
+- **Pages 199-202**: Traps (8 official trap types with level scaling)
+- **Pages 133-144**: Treasure Tables (Individual & Hoard by CR 0-4, 5-10, 11-16, 17+)
+- **Pages 134-135**: Gemstones and Art Objects tables
+- **Pages 144-149**: Magic Item Tables (A through I)
+- **Pages 192-202**: Gameplay Toolbox (travel, environments, hazards)
+
+**Implementation Status:**
+- ✅ Treasure Hoard Tables - Implemented in `src/game/data/GameTableData.js`
+- ✅ SRD Traps - Implemented in `src/game/data/GameTableData.js`
+- 🚧 Magic Items - Tables stored, not yet implemented
+- 📋 Spells - Planned for future magic system
+- 📋 Monster Stat Blocks - Planned for combat system

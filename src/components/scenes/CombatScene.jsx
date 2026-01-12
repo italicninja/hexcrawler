@@ -10,6 +10,7 @@ import SpellMenu from '../ui/combat/SpellMenu';
 import { findPath } from '../../game/Pathfinding';
 import { checkLineOfSight } from '../../game/LineOfSight';
 import { EnemyAI } from '../../game/EnemyAI';
+import logger from '../../utils/logger.js';
 import './CombatScene.css';
 
 /**
@@ -179,7 +180,7 @@ function CombatScene() {
         selectedAction: null
       }));
     } else {
-      console.error('PROCESS_COMBAT_MOVEMENT action not defined in GameStateContext');
+      logger.combat.error('PROCESS_COMBAT_MOVEMENT action not defined in GameStateContext');
       addMessage('Combat movement not yet implemented', 'error');
     }
   }, [dispatch, actions]);
@@ -261,7 +262,7 @@ function CombatScene() {
         addMessage('Extra Attack available! Select target again', 'info');
       }
     } else {
-      console.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
+      logger.combat.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
       addMessage('Combat actions not yet implemented', 'error');
     }
   }, [localCombatState.attacksUsedThisTurn, dispatch, actions]);
@@ -289,7 +290,7 @@ function CombatScene() {
 
       addMessage(`Used ability: ${ability.name}`, 'action');
     } else {
-      console.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
+      logger.combat.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
       addMessage('Ability actions not yet implemented', 'error');
     }
 
@@ -325,7 +326,7 @@ function CombatScene() {
 
       addMessage(`Cast ${spell.name} (Level ${level})`, 'action');
     } else {
-      console.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
+      logger.combat.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
       addMessage('Spell actions not yet implemented', 'error');
     }
 
@@ -357,7 +358,7 @@ function CombatScene() {
 
       addMessage('Taking Dodge action - disadvantage on attacks against you until next turn', 'action');
     } else {
-      console.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
+      logger.combat.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
       addMessage('Dodge action not yet implemented', 'error');
     }
 
@@ -392,7 +393,7 @@ function CombatScene() {
 
       addMessage(`Dashing! Movement doubled to ${character.moveDistance * 2} hexes`, 'action');
     } else {
-      console.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
+      logger.combat.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
       addMessage('Dash action not yet implemented', 'error');
     }
 
@@ -438,7 +439,7 @@ function CombatScene() {
         addMessage(`${nextCombatant.enemy?.name}'s turn`, 'encounter');
       }
     } else {
-      console.error('ADVANCE_COMBAT_TURN action not defined in GameStateContext');
+      logger.combat.error('ADVANCE_COMBAT_TURN action not defined in GameStateContext');
       addMessage('Turn advancement not yet implemented', 'error');
     }
   }, [dispatch, actions]);
@@ -448,7 +449,16 @@ function CombatScene() {
    */
   const processAITurnRef = useRef();
   processAITurnRef.current = (combatant) => {
-    if (!combatant || !combatant.enemy) return;
+    if (!combatant || !combatant.enemy) {
+      logger.combat.error('processAITurn called with invalid combatant', { combatant });
+      return;
+    }
+    
+    // Null check combat state (might be undefined if component unmounted)
+    if (!state.combatState || !state.combatState.battlefield) {
+      logger.combat.error('processAITurn called but combat state is invalid');
+      return;
+    }
 
     const enemy = combatant.enemy;
     addMessageRef.current(`${enemy.name} is thinking...`, 'encounter');
@@ -463,6 +473,12 @@ function CombatScene() {
 
     // Wait 800ms for player to see AI thinking
     setTimeout(() => {
+      // Check again that combat is still active before dispatching
+      if (!state.combatState) {
+        logger.combat.warn('Combat ended during AI turn processing');
+        return;
+      }
+      
       if (action.type === 'move') {
         addMessageRef.current(`${enemy.name} moves to (${action.destination.col}, ${action.destination.row})`, 'encounter');
 
@@ -493,6 +509,12 @@ function CombatScene() {
 
       // Wait 500ms more, then advance turn
       setTimeout(() => {
+        // Final check that combat is still active
+        if (!state.combatState) {
+          logger.combat.warn('Combat ended during AI turn advancement');
+          return;
+        }
+        
         if (actions.ADVANCE_COMBAT_TURN) {
           dispatch({
             type: actions.ADVANCE_COMBAT_TURN
@@ -611,7 +633,7 @@ function CombatScene() {
 
   // Null check - combat state not initialized
   if (!state.combatState) {
-    console.error('CombatScene: state.combatState is null');
+    logger.combat.error('CombatScene: state.combatState is null');
     return (
       <div className="combat-scene error-state">
         <h2>Combat state not initialized</h2>
@@ -623,6 +645,22 @@ function CombatScene() {
     );
   }
   
+  // Null check - battlefield not generated
+  if (!state.combatState.battlefield || !state.combatState.battlefield.hexes) {
+    logger.combat.error('CombatScene: battlefield not generated', { combatState: state.combatState });
+    return (
+      <div className="combat-scene error-state">
+        <h2>Battlefield not generated</h2>
+        <p>Failed to generate combat battlefield. This is a bug.</p>
+        <button onClick={() => dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'overworld' })}>
+          Return to Overworld
+        </button>
+      </div>
+    );
+  }
+  
+  // Removed debug logging (combat rendering normally)
+  
   // Debug logging - minimal tracking to catch infinite loops
   const renderCountRef = useRef(0);
   const renderTimestampRef = useRef(Date.now());
@@ -633,15 +671,16 @@ function CombatScene() {
   const now = Date.now();
   if (now - renderTimestampRef.current > 5000) {
     if (renderCountRef.current > 50) {
-      console.warn(`CombatScene: ${renderCountRef.current} renders in 5 seconds (may indicate performance issue)`);
+      logger.render.warn('CombatScene: excessive renders', { renderCount: renderCountRef.current, timeWindow: '5s' });
     }
     renderCountRef.current = 0;
     renderTimestampRef.current = now;
   }
   
-  // Safety check - stop if truly infinite
-  if (renderCountRef.current > 200) {
-    console.error('CombatScene: Infinite render loop detected! Too many renders.');
+  // Safety check - stop if truly infinite (increased threshold from 200 to 500)
+  if (renderCountRef.current > 500) {
+    logger.render.error('CombatScene: Infinite render loop detected!', { renderCount: renderCountRef.current });
+    logger.combat.error('Combat state during infinite loop', { combatState: state.combatState });
     throw new Error('Infinite render loop in CombatScene');
   }
 

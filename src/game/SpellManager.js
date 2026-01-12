@@ -4,6 +4,7 @@
  */
 
 import { SPELL_LISTS } from './SpellList.js';
+import logger from '../utils/logger.js';
 
 /**
  * D&D 5e Spell Slots per Level
@@ -155,7 +156,7 @@ export function getSpell(className, spellName) {
   const classList = SPELL_LISTS[classKey];
   
   if (!classList) {
-    console.warn(`No spell list found for class: ${className}`);
+    logger.combat.warn('No spell list found for class', { class: className });
     return null;
   }
   
@@ -168,7 +169,7 @@ export function getSpell(className, spellName) {
     }
   }
   
-  console.warn(`Spell "${spellName}" not found for class ${className}`);
+  logger.combat.warn('Spell not found for class', { spell: spellName, class: className });
   return null;
 }
 

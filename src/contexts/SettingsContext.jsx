@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import logger from '../utils/logger.js';
 
 // Create context
 const SettingsContext = createContext(null);
@@ -35,7 +36,7 @@ export function SettingsProvider({ children }) {
         setSettings({ ...defaultSettings, ...JSON.parse(saved) });
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      logger.general.error('Failed to load settings:', { error });
     }
   }, []);
 
@@ -44,7 +45,7 @@ export function SettingsProvider({ children }) {
     try {
       localStorage.setItem('hexcrawl_settings', JSON.stringify(settings));
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      logger.general.error('Failed to save settings:', { error });
     }
   }, [settings]);
 

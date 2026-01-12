@@ -19,38 +19,102 @@ import { COMBAT } from '../../constants/gameConstants';
 export function combatReducer(state, action, ACTIONS) {
   switch (action.type) {
     case ACTIONS.START_COMBAT: {
-      const { poi, enemies } = action.payload;
+      // Legacy combat log support (keep for backward compatibility)
+      if (action.payload.combatLog) {
+        return {
+          ...state,
+          combatLog: action.payload.combatLog
+        };
+      }
+      
+      // New tactical combat system
+      const { allies, enemies, encounterName, encounterType, terrainType } = action.payload;
+      
+      if (!allies || !enemies) {
+        console.error('START_COMBAT requires allies and enemies');
+        return state;
+      }
+      
+      // Generate battlefield
+      const battlefield = CombatTerrainGenerator.generate(encounterType, terrainType, state.mapSeed);
       
       // Create combat instance
-      const combat = new Combat(
-        state.playerCharacter,
-        state.party,
-        enemies,
-        poi
-      );
-
-      // Generate battlefield terrain
-      const terrainGen = new CombatTerrainGenerator();
-      const battlefield = terrainGen.generate(
-        COMBAT.BATTLEFIELD_WIDTH,
-        COMBAT.BATTLEFIELD_HEIGHT,
-        poi.terrainType || 'grassland'
-      );
-
-      // Position combatants
-      const positionManager = new EncounterPositions();
-      const combatants = combat.getCombatants();
-      const positioned = positionManager.positionCombatants(combatants, battlefield);
-
+      const combat = new Combat(allies, enemies, battlefield);
+      
       // Roll initiative
-      combat.rollInitiative();
-
+      const initiativeOrder = combat.rollInitiative();
+      
+      // Transform initiative order into combat-ready format
+      // rollInitiative() returns { type, combatant, initiative, roll }
+      // We need { id, name, currentHP, maxHP, isAlly, character/enemy, position }
+      const turnOrder = initiativeOrder.map((init, index) => {
+        const isAlly = init.type === 'character';
+        const combatant = init.combatant;
+        
+        return {
+          id: isAlly ? `ally-${index}` : `enemy-${index}`,
+          name: combatant.name,
+          currentHP: combatant.currentHP,
+          maxHP: combatant.maxHP,
+          isAlly: isAlly,
+          isEnemy: !isAlly,
+          character: isAlly ? combatant : null,
+          enemy: !isAlly ? combatant : null,
+          characterClass: combatant.class || combatant.type || 'Fighter',
+          initiative: init.initiative,
+          position: null, // Will be set by EncounterPositions
+          statusEffects: []
+        };
+      });
+      
+      // Place combatants on battlefield
+      const alliesToPlace = turnOrder.filter(c => c.isAlly);
+      const enemiesToPlace = turnOrder.filter(c => c.isEnemy);
+      
+      const { allies: placedAllies, enemies: placedEnemies } = EncounterPositions.placeForEncounter(
+        encounterType,
+        alliesToPlace,
+        enemiesToPlace,
+        battlefield
+      );
+      
+      // Merge positions back into turnOrder
+      const updatedTurnOrder = turnOrder.map(combatant => {
+        const placed = combatant.isAlly 
+          ? placedAllies.find(a => a.id === combatant.id)
+          : placedEnemies.find(e => e.id === combatant.id);
+        
+        if (!placed || !placed.position) {
+          console.error('Failed to place combatant:', combatant.name);
+          return { ...combatant, position: { col: 0, row: 0 } }; // Fallback position
+        }
+        
+        return { ...combatant, position: placed.position };
+      });
+      
+      // Update combat instance with positioned combatants
+      combat.turnOrder = updatedTurnOrder;
+      combat.allies = updatedTurnOrder.filter(c => !c.isEnemy);
+      combat.enemies = updatedTurnOrder.filter(c => c.isEnemy);
+      
+      // Get first combatant's movement distance
+      const firstCombatant = updatedTurnOrder[0];
+      const moveDistance = firstCombatant?.character?.moveDistance || 6;
+      
       return {
         ...state,
-        inCombat: true,
-        combat,
-        battlefield,
-        combatPositions: positioned,
+        combatState: {
+          active: true,
+          combat,
+          battlefield,
+          turnOrder: updatedTurnOrder,
+          currentTurnIndex: 0,
+          round: 1,
+          encounterName: encounterName || 'Combat',
+          encounterType: encounterType || 'standard',
+          waitingForPlayerAction: !firstCombatant?.isEnemy,
+          movementRemaining: moveDistance * 5 // Convert hexes to feet
+        },
         currentScene: 'combat'
       };
     }

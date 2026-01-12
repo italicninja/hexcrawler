@@ -6,6 +6,7 @@
 import { InteriorGenerator } from './InteriorGenerator.js';
 import { LootGenerator } from './LootGenerator.js';
 import { HazardGenerator } from './HazardGenerator.js';
+import { TreasureGenerator } from './TreasureGenerator.js';
 
 export class DungeonGenerator extends InteriorGenerator {
   constructor() {
@@ -393,6 +394,7 @@ export class DungeonGenerator extends InteriorGenerator {
           ? `Boss: CR ${encounterCR} ${poiData.creatures || 'dungeon lord'}`
           : poiData.creatures || `CR ${encounterCR} enemies`,
         defeated: false,
+        discovered: false,
         isBoss: isBoss
       });
     }
@@ -403,15 +405,17 @@ export class DungeonGenerator extends InteriorGenerator {
   /**
    * Place loot in the dungeon (concentrated in later rooms)
    * @param {object} interiorMap - Interior map data
+   * @param {number} partySize - Party size for treasure hoard generation
    * @returns {Array} Array of loot objects
    */
-  placeLoot(interiorMap) {
+  placeLoot(interiorMap, partySize = 4) {
     const cr = interiorMap.cr;
     const rooms = interiorMap.rooms;
 
     // More loot in dungeons (CR-based, 3-8 pieces)
     const lootCount = Math.max(3, Math.floor(3 + cr * 0.8));
 
+    const treasureGenerator = new TreasureGenerator();
     const loot = [];
 
     for (let i = 0; i < lootCount; i++) {
@@ -435,20 +439,37 @@ export class DungeonGenerator extends InteriorGenerator {
 
       const tile = this.randomChoice(roomTiles);
 
-      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
-      if (hexIndex !== -1) {
-        interiorMap.hexes[hexIndex].content = 'loot';
+      // 25% chance of treasure chest, 75% regular loot
+      const isChest = this.random() < 0.25;
+      
+      let lootData;
+      let contentType;
+      
+      if (isChest) {
+        // Generate DMG treasure hoard
+        lootData = treasureGenerator.generateTreasureHoard(cr, partySize, () => this.random());
+        contentType = 'chest';
+      } else {
+        // Generate regular loot
+        lootData = this.lootGenerator.generateLoot(cr, () => this.random());
+        contentType = 'loot';
       }
 
-      const generatedLoot = this.lootGenerator.generateLoot(cr, () => this.random());
+      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
+      if (hexIndex !== -1) {
+        interiorMap.hexes[hexIndex].content = contentType;
+      }
 
       loot.push({
         col: tile.col,
         row: tile.row,
-        gold: generatedLoot.gold,
-        items: generatedLoot.items,
-        rarity: generatedLoot.rarity,
-        collected: false
+        type: contentType,
+        gold: lootData.gold,
+        items: lootData.items || [],
+        consumables: lootData.consumables || [],
+        rarity: lootData.rarity,
+        collected: false,
+        discovered: false
       });
     }
 
@@ -489,7 +510,9 @@ export class DungeonGenerator extends InteriorGenerator {
       hazards.push({
         col: tile.col,
         row: tile.row,
-        ...generatedHazard
+        ...generatedHazard,
+        triggered: false,
+        discovered: false
       });
     }
 

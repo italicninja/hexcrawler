@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
+import { useGameLog } from '../../contexts/GameLogContext';
 import { Character } from '../../game/Character';
 import { Party } from '../../game/Party';
+import { generateCharacterWelcome } from '../../utils/flavorTextGenerator';
 
 // D&D 5e Standard Array: [15, 14, 13, 12, 10, 8]
 const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
@@ -143,6 +145,7 @@ const CLASS_DATA = {
 
 function CharacterCreationScene() {
   const { state, dispatch, actions } = useGameState();
+  const { addMessage } = useGameLog();
   const [characterName, setCharacterName] = useState('');
   const [selectedClass, setSelectedClass] = useState('paladin');
   const [error, setError] = useState('');
@@ -174,6 +177,10 @@ function CharacterCreationScene() {
     dispatch({ type: actions.SET_PLAYER_CHARACTER, payload: playerChar });
     dispatch({ type: actions.SET_PARTY, payload: party });
 
+    // Welcome message
+    const welcome = generateCharacterWelcome(trimmedName, selectedClass);
+    addMessage(welcome, 'system');
+
     // Transition to overworld scene
     dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'overworld' });
   };
@@ -191,6 +198,10 @@ function CharacterCreationScene() {
     // Update state with character and party
     dispatch({ type: actions.SET_PLAYER_CHARACTER, payload: playerChar });
     dispatch({ type: actions.SET_PARTY, payload: party });
+
+    // Welcome message
+    const welcome = generateCharacterWelcome(randomName, randomClass);
+    addMessage(welcome, 'system');
 
     // Transition to overworld scene
     dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'overworld' });

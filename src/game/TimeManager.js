@@ -4,6 +4,8 @@
  * Time is tracked in days, hours, and minutes.
  */
 
+import logger from '../utils/logger.js';
+
 /**
  * Creates a new game time object
  * @returns {{day: number, hour: number, minute: number}}
@@ -24,7 +26,7 @@ export function createGameTime() {
  */
 export function advanceTime(gameTime, minutes) {
   if (!gameTime || typeof minutes !== 'number' || minutes < 0) {
-    console.error('Invalid parameters for advanceTime', { gameTime, minutes });
+    logger.general.error('Invalid parameters for advanceTime', { gameTime, minutes });
     return gameTime || createGameTime();
   }
 

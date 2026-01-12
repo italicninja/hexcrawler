@@ -3,6 +3,8 @@
  * Represents a spell with its properties and effects
  */
 
+import logger from '../utils/logger.js';
+
 export class Spell {
   /**
    * Create a new spell
@@ -60,7 +62,7 @@ export class Spell {
         ...result
       };
     } catch (error) {
-      console.error(`Error casting ${this.name}:`, error);
+      logger.combat.error('Error casting spell', { spell: this.name, error: error.message, caster: caster.name });
       return {
         success: false,
         message: `Failed to cast ${this.name}: ${error.message}`

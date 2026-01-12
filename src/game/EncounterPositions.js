@@ -3,6 +3,8 @@
  * Handles different tactical formations for various encounter scenarios
  */
 
+import logger from '../utils/logger.js';
+
 /**
  * Get hex neighbors using flat-top hex offset coordinates
  * @param {number} col - Column coordinate
@@ -270,7 +272,7 @@ export class EncounterPositions {
     }
 
     // Fallback: return target position (should never happen on valid battlefield)
-    console.warn('Could not find free hex, using target position');
+    logger.combat.warn('Could not find free hex, using target position', { target });
     return { col: target.col, row: target.row };
   }
 }

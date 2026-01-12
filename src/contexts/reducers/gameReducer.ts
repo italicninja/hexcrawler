@@ -12,7 +12,7 @@
 import { Character } from '../../game/Character';
 import { Party } from '../../game/Party';
 import { createGameTime, advanceTime } from '../../game/TimeManager';
-import { GAME_DEFAULTS } from '../../constants/gameConstants';
+import { GAME_DEFAULTS, COMBAT } from '../../constants/gameConstants';
 
 export function gameReducer(state, action, ACTIONS) {
   switch (action.type) {
@@ -23,32 +23,52 @@ export function gameReducer(state, action, ACTIONS) {
       };
 
     case ACTIONS.NEW_GAME: {
-      const { character, seed } = action.payload;
-      
+      const mapSeed = action.payload;
+
+      // Transition to character creation scene instead of creating default character
+      // This matches the expected flow: Title -> CharacterCreation -> Overworld
       return {
         ...state,
-        playerCharacter: character,
-        party: new Party(character),
-        mapSeed: seed,
-        gameTime: createGameTime(),
-        playtime: 0,
+        playerPosition: GAME_DEFAULTS.START_POSITION,
+        playerCharacter: null,
+        party: null,
+        mapData: null,
+        mapSeed,
+        hexGrid: null,
         exploredHexes: new Set(),
         discoveredPOIs: new Set(),
+        currentScene: 'characterCreation',
+        characterCreationSeed: mapSeed,
+        hasActiveEvent: false,
+        interiorMaps: {},
+        currentPOI: null,
+        interiorPlayerPosition: null,
+        inInterior: false,
+        explorationState: {
+          searchedPOIs: new Set(),
+          clearedEncounters: {},
+          collectedLoot: {},
+          triggeredHazards: {}
+        },
+        gameTime: createGameTime(),
+        playtime: 0,
+        combatLog: [],
+        combatState: {
+          active: false,
+          combat: null,
+          battlefield: null,
+          turnOrder: [],
+          currentTurnIndex: 0,
+          round: 1,
+          encounterName: '',
+          encounterType: 'standard',
+          waitingForPlayerAction: false,
+          movementRemaining: COMBAT.DEFAULT_MOVEMENT_FEET
+        },
         activeQuests: [],
         completedQuests: [],
-        failedQuests: [],
-        availableQuests: [],
-        inCombat: false,
-        inInterior: false,
-        inTown: false,
-        currentPOI: null,
-        currentShop: null,
-        combat: null,
-        battlefield: null,
-        combatPositions: null,
-        interiorMap: null,
-        interiorPlayerPosition: null,
-        currentScene: 'overworld'
+        townQuests: {},
+        shopInventories: {}
       };
     }
 

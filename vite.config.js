@@ -45,6 +45,7 @@ export default defineConfig({
     'import.meta.env.VITE_GIT_COMMIT': JSON.stringify(gitInfo.commit),
     'import.meta.env.VITE_GIT_BRANCH': JSON.stringify(gitInfo.branch),
     'import.meta.env.VITE_GIT_LOG': JSON.stringify(gitInfo.gitLog),
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion)
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    'import.meta.env.VITE_LOG_LEVEL': JSON.stringify(process.env.VITE_LOG_LEVEL || 'debug')
   }
 });

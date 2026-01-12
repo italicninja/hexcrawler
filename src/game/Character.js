@@ -1,4 +1,5 @@
 import { GAME_DEFAULTS, DND, XP_TABLE } from '../constants/gameConstants';
+import logger from '../utils/logger.js';
 
 /**
  * Character class representing player and NPC characters in D&D 5e
@@ -204,26 +205,26 @@ export class Character {
         // Find item in inventory
         const item = this.inventory.find(i => i.id === itemId);
         if (!item) {
-            console.warn(`Item ${itemId} not found in inventory`);
+            logger.items.warn('Item not found in inventory', { itemId, character: this.name });
             return false;
         }
 
         // Check if item is equippable
         if (!item.isEquippable()) {
-            console.warn(`Item ${item.name} is not equippable`);
+            logger.items.warn('Item is not equippable', { item: item.name, character: this.name });
             return false;
         }
 
         // Determine target slot
         const targetSlot = slot || item.slot;
         if (!targetSlot) {
-            console.warn(`No slot specified for ${item.name}`);
+            logger.items.warn('No slot specified for item', { item: item.name, character: this.name });
             return false;
         }
 
         // Validate slot compatibility
         if (!item.canEquipToSlot(targetSlot)) {
-            console.warn(`Item ${item.name} cannot be equipped to slot ${targetSlot}`);
+            logger.items.warn('Item cannot be equipped to slot', { item: item.name, slot: targetSlot, character: this.name });
             return false;
         }
 
@@ -237,7 +238,7 @@ export class Character {
 
         // If slot is mainHand and offHand has a two-handed weapon, can't equip
         if (targetSlot === 'offHand' && this.equipment.mainHand?.twoHanded) {
-            console.warn('Cannot equip to offhand while wielding a two-handed weapon');
+            logger.items.warn('Cannot equip to offhand while wielding two-handed weapon', { character: this.name });
             return false;
         }
 
@@ -263,7 +264,7 @@ export class Character {
      */
     unequipItem(slot) {
         if (!this.equipment[slot]) {
-            console.warn(`No item equipped in slot ${slot}`);
+            logger.items.warn('No item equipped in slot', { slot, character: this.name });
             return false;
         }
 
@@ -475,7 +476,7 @@ export class Character {
 
         const config = classConfigs[classKey];
         if (!config) {
-            console.warn(`Unknown class: ${charClass}. Defaulting to Fighter.`);
+            logger.general.warn('Unknown class, defaulting to Fighter', { class: charClass, character: this.name });
             this.applyClassModifiers('fighter');
             return;
         }
@@ -536,7 +537,7 @@ export class Character {
      */
     levelUp() {
         if (this.level >= 20) {
-            console.warn('Character is already max level (20)');
+            logger.general.warn('Character is already max level', { character: this.name, level: 20 });
             return null;
         }
 
@@ -627,7 +628,7 @@ export class Character {
      */
     increasePiety(amount = 1) {
         this.hiddenStats.piety += amount;
-        console.log(`${this.name} - Piety increased by ${amount}. Total Piety: ${this.hiddenStats.piety}`);
+        logger.items.info('Piety increased', { character: this.name, amount, totalPiety: this.hiddenStats.piety });
         return this.hiddenStats.piety;
     }
 
@@ -651,8 +652,13 @@ export class Character {
         const generosityGain = Math.max(1, Math.floor(goldOffered / 10));
         this.hiddenStats.generosity += generosityGain;
 
-        console.log(`${this.name} - Generosity increased by ${generosityGain}. Total Generosity: ${this.hiddenStats.generosity}`);
-        console.log(`${this.name} - Offered ${goldOffered} gold. Remaining gold: ${this.gold}`);
+        logger.items.info('Generosity increased', { 
+            character: this.name, 
+            goldOffered, 
+            generosityGain, 
+            totalGenerosity: this.hiddenStats.generosity,
+            remainingGold: this.gold
+        });
 
         return { 
             success: true, 

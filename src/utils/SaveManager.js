@@ -1,4 +1,5 @@
 import { SAVE } from '../constants/gameConstants';
+import logger from './logger.js';
 
 /**
  * SaveManager - Handles game save/load operations with multiple save slots
@@ -35,7 +36,7 @@ export class SaveManager {
   static saveToSlot(slotKey, gameState) {
     try {
       if (!gameState.playerCharacter) {
-        console.warn('Cannot save: no player character');
+        logger.storage.warn('Cannot save: no player character', { slotKey });
         return false;
       }
 
@@ -117,10 +118,10 @@ export class SaveManager {
 
       return true;
     } catch (error) {
-      console.error('Failed to save game:', error);
+      logger.storage.error('Failed to save game', { error, slotKey });
       
-      if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-        console.error('Save Failed: Storage Quota Exceeded');
+      if (error.name === 'QuotaExceededError') {
+        logger.storage.error('Save Failed: Storage Quota Exceeded', { slotKey });
       }
       
       return false;
@@ -143,7 +144,7 @@ export class SaveManager {
       
       // Version check (for future migrations)
       if (saveData.version !== this.SAVE_VERSION) {
-        console.warn(`Save version mismatch: ${saveData.version} vs ${this.SAVE_VERSION}`);
+        logger.storage.warn('Save version mismatch', { savedVersion: saveData.version, currentVersion: this.SAVE_VERSION, slotKey });
         // For now, we don't support migration (fresh start required)
         return null;
       }
@@ -155,7 +156,7 @@ export class SaveManager {
 
       return saveData.gameData;
     } catch (error) {
-      console.error('Failed to load save:', error);
+      logger.storage.error('Failed to load save', { error, slotKey });
       return null;
     }
   }
@@ -179,7 +180,7 @@ export class SaveManager {
         version: saveData.version
       };
     } catch (error) {
-      console.error('Failed to read slot metadata:', error);
+      logger.storage.error('Failed to read slot metadata', { error, slotKey });
       return null;
     }
   }
@@ -197,7 +198,7 @@ export class SaveManager {
         localStorage.removeItem(this.ACTIVE_SLOT_KEY);
       }
     } catch (error) {
-      console.error('Failed to delete save slot:', error);
+      logger.storage.error('Failed to delete save slot', { error, slotKey });
     }
   }
 

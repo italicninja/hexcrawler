@@ -1,10 +1,13 @@
 import { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
+import { useGameLog } from '../../contexts/GameLogContext';
 import { RestManager } from '../../game/RestManager';
+import { generateRestFlavor } from '../../utils/flavorTextGenerator';
 
 function RestMenu({ onClose }) {
   const { state, dispatch, actions } = useGameState();
+  const { addMessage } = useGameLog();
   const [hitDiceToSpend, setHitDiceToSpend] = useState(1);
   const [isResting, setIsResting] = useState(false);
 
@@ -42,7 +45,16 @@ function RestMenu({ onClose }) {
       payload: { character }
     });
 
-    // Rest complete - logged to game log
+    // Log rest result
+    if (result.success) {
+      addMessage(result.message, 'info');
+      
+      // Optional flavor (30% chance)
+      if (Math.random() < 0.3) {
+        const flavor = generateRestFlavor('short');
+        if (flavor) addMessage(flavor, 'info');
+      }
+    }
 
     setIsResting(false);
   };
@@ -73,7 +85,15 @@ function RestMenu({ onClose }) {
         payload: { character }
       });
 
-      // Rest interrupted - logged to game log
+      // Log interruption
+      addMessage('Your rest is interrupted by hostile creatures!', 'warning');
+      
+      // Optional interrupted flavor (30% chance)
+      if (Math.random() < 0.3) {
+        const flavor = generateRestFlavor('long', true);
+        if (flavor) addMessage(flavor, 'warning');
+      }
+
       // TODO: Trigger random encounter here
       setIsResting(false);
       return;
@@ -88,7 +108,16 @@ function RestMenu({ onClose }) {
       payload: { character }
     });
 
-    // Rest complete - logged to game log
+    // Log rest result
+    if (result.success) {
+      addMessage(result.message, 'info');
+      
+      // Optional peaceful flavor (30% chance)
+      if (Math.random() < 0.3) {
+        const flavor = generateRestFlavor('long', false);
+        if (flavor) addMessage(flavor, 'info');
+      }
+    }
 
     setIsResting(false);
   };
@@ -113,7 +142,16 @@ function RestMenu({ onClose }) {
       payload: { character }
     });
 
-    // Inn rest complete - logged to game log
+    // Log rest result
+    if (result.success) {
+      addMessage(result.message, 'info');
+      
+      // Optional inn flavor (30% chance)
+      if (Math.random() < 0.3) {
+        const flavor = generateRestFlavor('inn');
+        if (flavor) addMessage(flavor, 'info');
+      }
+    }
 
     setIsResting(false);
   };

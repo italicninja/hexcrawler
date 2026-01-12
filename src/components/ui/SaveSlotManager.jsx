@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
+import logger from '../../utils/logger.js';
 import { SaveManager } from '../../utils/SaveManager';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -39,7 +40,7 @@ function SaveSlotManager({ mode, onClose }) {
       
       if (onClose) onClose();
     } catch (error) {
-      console.error('Error loading game:', error);
+      logger.storage.error('Error loading game:', { error, slotKey, message: error.message });
       addMessage('Failed to load game: ' + error.message, 'error');
     }
   };
@@ -65,7 +66,7 @@ function SaveSlotManager({ mode, onClose }) {
         addMessage('Failed to save game', 'error');
       }
     } catch (error) {
-      console.error('Error saving game:', error);
+      logger.storage.error('Error saving game:', { error, slotKey, message: error.message });
       addMessage('Failed to save game: ' + error.message, 'error');
     }
   };
@@ -82,7 +83,7 @@ function SaveSlotManager({ mode, onClose }) {
         addMessage('Failed to quick save', 'error');
       }
     } catch (error) {
-      console.error('Error quick saving:', error);
+      logger.storage.error('Error quick saving:', { error, slotKey, message: error.message });
       addMessage('Failed to quick save: ' + error.message, 'error');
     }
   };

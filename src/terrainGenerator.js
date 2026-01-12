@@ -220,11 +220,11 @@ export class TerrainGenerator {
         const totalHexes = width * height;
         
         // Calculate numbers for each settlement tier (independent spawn rates)
-        const numCamps = Math.floor((10 / 100) * totalHexes * 0.2);
-        const numVillages = Math.floor((5 / 100) * totalHexes * 0.2);
-        const numTowns = Math.floor((2.5 / 100) * totalHexes * 0.2);
-        const numCities = Math.floor((1.25 / 100) * totalHexes * 0.2);
-        const numMetropolises = Math.floor((0.625 / 100) * totalHexes * 0.2);
+        const numCamps = Math.floor((10 / 100) * totalHexes * 0.1);
+        const numVillages = Math.floor((5 / 100) * totalHexes * 0.1);
+        const numTowns = Math.floor((2.5 / 100) * totalHexes * 0.1);
+        const numCities = Math.floor((1.25 / 100) * totalHexes * 0.1);
+        const numMetropolises = Math.floor((0.625 / 100) * totalHexes * 0.1);
         
         let locationIndex = 0;
         

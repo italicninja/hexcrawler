@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
+import logger from '../../utils/logger.js';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -260,8 +261,13 @@ function OverworldScene() {
       payload: { col: hex.col, row: hex.row }
     });
 
-    // Log movement to console only (not to GameLog)
-    console.log(`Moved to hex (${hex.col}, ${hex.row}) - ${hex.terrain.name} (1 day)`);
+    // Log movement to debug console (not to GameLog)
+    logger.movement.debug('Player moved to hex', { 
+      col: hex.col, 
+      row: hex.row, 
+      terrain: hex.terrain.name, 
+      timeCost: '1 day' 
+    });
 
     // Build and log consolidated hex entry message
     const newTime = state.gameTime; // This will be updated after ADVANCE_TIME dispatch
@@ -467,7 +473,7 @@ function OverworldScene() {
     });
 
     // Log for debugging
-    console.log('Foraging complete:', {
+    logger.items.debug('Foraging complete', {
       currentDay,
       hexesForaged: result.hexesForaged,
       foragedHexes: updatedCharacter.foragedHexes
@@ -598,7 +604,7 @@ function OverworldScene() {
         addMessage('Quick save failed', 'error');
       }
     } catch (error) {
-      console.error('Quick save error:', error);
+      logger.storage.error('Quick save error:', { error, message: error.message });
       addMessage('Quick save failed: ' + error.message, 'error');
     }
   };
@@ -769,8 +775,7 @@ function OverworldScene() {
   };
 
   const handleInteriorHexDoubleClick = (hex) => {
-    console.log('Interior hex double click:', hex);
-    console.log('Interior player position:', state.interiorPlayerPosition);
+    logger.movement.debug('Interior hex double click', { hex, playerPosition: state.interiorPlayerPosition });
     
     if (!hex.terrain.walkable) {
       addMessage('Cannot move to unwalkable terrain', 'warning');
@@ -778,7 +783,7 @@ function OverworldScene() {
     }
 
     if (!state.interiorPlayerPosition) {
-      console.error('No interior player position set!');
+      logger.movement.error('No interior player position set!');
       return;
     }
 
@@ -790,7 +795,7 @@ function OverworldScene() {
       hex.row
     );
 
-    console.log('Distance:', distance);
+    logger.movement.debug('Distance check', { distance });
 
     if (distance > 1) {
       addMessage('Too far to move in one turn', 'warning');

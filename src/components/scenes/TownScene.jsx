@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import logger from '../../utils/logger.js';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { useKeyboardControls } from '../../hooks/useKeyboardControls';
@@ -43,7 +44,7 @@ function TownScene() {
   // Handle hex movement
   const handleHexDoubleClick = (hex) => {
     if (!hex.terrain.walkable) {
-      console.log('Cannot move to unwalkable hex');
+      logger.movement.debug('Cannot move to unwalkable hex', { hex });
       return;
     }
 
@@ -56,7 +57,7 @@ function TownScene() {
     );
 
     if (distance > 1) {
-      console.log('Too far to move in one turn');
+      logger.movement.debug('Too far to move in one turn', { distance });
       return;
     }
 
@@ -125,7 +126,7 @@ function TownScene() {
         break;
       
       default:
-        console.log('Unknown building type:', buildingType);
+        logger.general.warn('Unknown building type:', { buildingType });
     }
   };
 

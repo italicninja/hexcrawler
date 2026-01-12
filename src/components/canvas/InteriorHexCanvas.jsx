@@ -29,12 +29,25 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
     });
   }, [interiorMap, hexSize]);
 
+  // Check if content should be visible
+  const shouldRenderEncounter = useCallback((encounter) => {
+    return encounter.discovered || encounter.defeated;
+  }, []);
+
+  const shouldRenderHazard = useCallback((hazard) => {
+    return hazard.discovered || hazard.triggered;
+  }, []);
+
+  const shouldRenderLoot = useCallback((loot) => {
+    return loot.discovered || loot.collected;
+  }, []);
+
   // Check if content is collected/defeated
   const isContentCollected = useCallback((hex) => {
     if (!interiorMap) return false;
 
     // Check if loot is collected
-    if (hex.content === 'loot') {
+    if (hex.content === 'loot' || hex.content === 'chest') {
       const lootItem = interiorMap.loot?.find(l => l.col === hex.col && l.row === hex.row);
       return lootItem?.collected || false;
     }
@@ -43,6 +56,12 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
     if (hex.content === 'encounter') {
       const encounterItem = interiorMap.encounters?.find(e => e.col === hex.col && e.row === hex.row);
       return encounterItem?.defeated || false;
+    }
+
+    // Check if hazard is triggered
+    if (hex.content === 'hazard') {
+      const hazardItem = interiorMap.hazards?.find(h => h.col === hex.col && h.row === hex.row);
+      return hazardItem?.triggered || false;
     }
 
     return false;
@@ -57,12 +76,31 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
     const lineWidth = terrain.walkable ? 1 : 2;
     drawHexShape(ctx, x, y, hexSize, terrain.color, strokeColor, lineWidth);
 
-    // Draw content markers
+    // Draw content markers (only if discovered)
     if (content) {
-      const isCollected = isContentCollected(hex);
-      drawContentMarker(ctx, x, y, content, isCollected);
+      // Check visibility based on content type
+      let shouldRender = false;
+      
+      if (content === 'encounter') {
+        const encounter = interiorMap?.encounters?.find(e => e.col === hex.col && e.row === hex.row);
+        shouldRender = encounter && shouldRenderEncounter(encounter);
+      } else if (content === 'hazard') {
+        const hazard = interiorMap?.hazards?.find(h => h.col === hex.col && h.row === hex.row);
+        shouldRender = hazard && shouldRenderHazard(hazard);
+      } else if (content === 'loot' || content === 'chest') {
+        const loot = interiorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
+        shouldRender = loot && shouldRenderLoot(loot);
+      } else {
+        // Always render non-hidden content (entrance, stairs, etc.)
+        shouldRender = true;
+      }
+
+      if (shouldRender) {
+        const isCollected = isContentCollected(hex);
+        drawContentMarker(ctx, x, y, content, isCollected);
+      }
     }
-  }, [hexSize, isContentCollected]);
+  }, [hexSize, isContentCollected, interiorMap, shouldRenderEncounter, shouldRenderHazard, shouldRenderLoot]);
 
   // Draw content marker icons
   const drawContentMarker = (ctx, x, y, content, isCollected = false) => {
@@ -86,8 +124,8 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
         break;
 
       case 'encounter':
-        // Red skull icon
-        ctx.fillStyle = '#e74c3c';
+        // Red/gray skull icon (gray if defeated)
+        ctx.fillStyle = isCollected ? '#666666' : '#e74c3c';
         ctx.beginPath();
         ctx.arc(x, y, iconSize * 0.6, 0, Math.PI * 2);
         ctx.fill();
@@ -103,8 +141,9 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
         break;
 
       case 'loot':
-        // Gold chest icon
-        ctx.fillStyle = '#f39c12';
+      case 'chest':
+        // Gold/gray chest icon (gray if collected)
+        ctx.fillStyle = isCollected ? '#666666' : '#f39c12';
         ctx.fillRect(x - iconSize/2, y - iconSize/2, iconSize, iconSize * 0.7);
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
@@ -117,8 +156,8 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
         break;
 
       case 'hazard':
-        // Orange warning triangle
-        ctx.fillStyle = '#e67e22';
+        // Orange/gray warning triangle (gray if triggered)
+        ctx.fillStyle = isCollected ? '#666666' : '#e67e22';
         ctx.beginPath();
         ctx.moveTo(x, y - iconSize * 0.6);
         ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.4);

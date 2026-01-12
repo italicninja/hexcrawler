@@ -6,6 +6,7 @@
 import { InteriorGenerator } from './InteriorGenerator.js';
 import { LootGenerator } from './LootGenerator.js';
 import { HazardGenerator } from './HazardGenerator.js';
+import { TreasureGenerator } from './TreasureGenerator.js';
 
 export class TowerGenerator extends InteriorGenerator {
   constructor() {
@@ -263,6 +264,7 @@ export class TowerGenerator extends InteriorGenerator {
           ? `Boss: CR ${encounterCR} ${poiData.creatures || 'guardian'}`
           : poiData.creatures || `CR ${encounterCR} enemies`,
         defeated: false,
+        discovered: false,
         isBoss: isBoss
       });
     }
@@ -273,9 +275,10 @@ export class TowerGenerator extends InteriorGenerator {
   /**
    * Place loot in the tower (concentrated on upper floors)
    * @param {object} interiorMap - Interior map data
+   * @param {number} partySize - Party size for treasure hoard generation
    * @returns {Array} Array of loot objects
    */
-  placeLoot(interiorMap) {
+  placeLoot(interiorMap, partySize = 4) {
     const cr = interiorMap.cr;
     const floorCount = interiorMap.floorCount;
     const floorWidth = Math.floor(interiorMap.width / floorCount);
@@ -283,6 +286,7 @@ export class TowerGenerator extends InteriorGenerator {
     // More loot on higher floors
     const lootCount = Math.max(3, Math.floor(2 + cr * 0.7));
 
+    const treasureGenerator = new TreasureGenerator();
     const loot = [];
 
     for (let i = 0; i < lootCount; i++) {
@@ -307,21 +311,38 @@ export class TowerGenerator extends InteriorGenerator {
       const index = floorTiles.indexOf(tile);
       floorTiles.splice(index, 1);
 
-      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
-      if (hexIndex !== -1) {
-        interiorMap.hexes[hexIndex].content = 'loot';
+      // 25% chance of treasure chest, 75% regular loot
+      const isChest = this.random() < 0.25;
+      
+      let lootData;
+      let contentType;
+      
+      if (isChest) {
+        // Generate DMG treasure hoard
+        lootData = treasureGenerator.generateTreasureHoard(cr, partySize, () => this.random());
+        contentType = 'chest';
+      } else {
+        // Generate regular loot
+        lootData = this.lootGenerator.generateLoot(cr, () => this.random());
+        contentType = 'loot';
       }
 
-      const generatedLoot = this.lootGenerator.generateLoot(cr, () => this.random());
+      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
+      if (hexIndex !== -1) {
+        interiorMap.hexes[hexIndex].content = contentType;
+      }
 
       loot.push({
         col: tile.col,
         row: tile.row,
         floor: targetFloor,
-        gold: generatedLoot.gold,
-        items: generatedLoot.items,
-        rarity: generatedLoot.rarity,
-        collected: false
+        type: contentType,
+        gold: lootData.gold,
+        items: lootData.items || [],
+        consumables: lootData.consumables || [],
+        rarity: lootData.rarity,
+        collected: false,
+        discovered: false
       });
     }
 
@@ -362,7 +383,9 @@ export class TowerGenerator extends InteriorGenerator {
       hazards.push({
         col: tile.col,
         row: tile.row,
-        ...generatedHazard
+        ...generatedHazard,
+        triggered: false,
+        discovered: false
       });
     }
 

@@ -3,6 +3,8 @@
  * Handles d20 rolls, skill checks, saving throws, and damage rolls
  */
 
+import logger from '../utils/logger.js';
+
 export class DiceRoller {
   constructor(seed = null) {
     this.seed = seed;
@@ -214,7 +216,7 @@ export class DiceRoller {
     // Parse dice string (e.g., "2d6+3")
     const match = diceString.match(/(\d+)d(\d+)([+-]\d+)?/);
     if (!match) {
-      console.error('Invalid dice string:', diceString);
+      logger.general.error('Invalid dice string', { diceString });
       return 0;
     }
 

@@ -6,6 +6,8 @@
 import { InteriorGenerator } from './InteriorGenerator.js';
 import { LootGenerator } from './LootGenerator.js';
 import { HazardGenerator } from './HazardGenerator.js';
+import { TreasureGenerator } from './TreasureGenerator.js';
+import logger from '../utils/logger.js';
 
 export class RuinsGenerator extends InteriorGenerator {
   constructor() {
@@ -68,6 +70,8 @@ export class RuinsGenerator extends InteriorGenerator {
 
     // Determine room count based on CR (3-7 rooms)
     const roomCount = Math.min(7, Math.max(3, 3 + Math.floor(cr / 2)));
+    
+    logger.mapgen.info('Generating ruins', { width, height, cr, roomCount, seedSet: !!this.rng });
 
     // Generate rooms
     const rooms = [];
@@ -82,26 +86,56 @@ export class RuinsGenerator extends InteriorGenerator {
       const roomHeight = this.randomInt(3, 5);
 
       // Random position (ensure room fits within bounds)
-      const roomCol = this.randomInt(1, width - roomWidth - 1);
-      const roomRow = this.randomInt(1, height - roomHeight - 1);
+      const maxCol = width - roomWidth - 1;
+      const maxRow = height - roomHeight - 1;
 
-      // Check if room overlaps with existing rooms
+      // Check if room can even fit
+      if (maxCol < 1 || maxRow < 1) {
+        logger.mapgen.warn('Map too small for room', { width, height, roomWidth, roomHeight });
+        break;
+      }
+
+      const roomCol = this.randomInt(1, maxCol);
+      const roomRow = this.randomInt(1, maxRow);
+
+      // Check if room overlaps with existing rooms (with 1-hex buffer)
+      const buffer = 1;
       const overlaps = rooms.some(room => {
-        return !(roomCol + roomWidth < room.col ||
-                roomCol > room.col + room.width ||
-                roomRow + roomHeight < room.row ||
-                roomRow > room.row + room.height);
+        return !(roomCol + roomWidth + buffer <= room.col ||
+                roomCol >= room.col + room.width + buffer ||
+                roomRow + roomHeight + buffer <= room.row ||
+                roomRow >= room.row + room.height + buffer);
       });
 
       if (!overlaps) {
+        logger.mapgen.debug('Placed room', { roomNum: rooms.length + 1, col: roomCol, row: roomRow, width: roomWidth, height: roomHeight });
         rooms.push({
           col: roomCol,
           row: roomRow,
           width: roomWidth,
           height: roomHeight
         });
+      } else {
+        logger.mapgen.debug('Room placement failed (overlap)', { col: roomCol, row: roomRow, width: roomWidth, height: roomHeight });
       }
     }
+
+    logger.mapgen.info('Generated rooms', { roomCount: rooms.length, attempts });
+
+    // Failsafe: if no rooms were created, add a fallback room in the center
+    if (rooms.length === 0) {
+      logger.mapgen.warn('No rooms created! Adding fallback room in center');
+      const fallbackWidth = Math.min(5, Math.floor(width / 2));
+      const fallbackHeight = Math.min(5, Math.floor(height / 2));
+      rooms.push({
+        col: Math.floor((width - fallbackWidth) / 2),
+        row: Math.floor((height - fallbackHeight) / 2),
+        width: fallbackWidth,
+        height: fallbackHeight
+      });
+    }
+
+    logger.mapgen.debug('Carving rooms', { rooms });
 
     // Carve out rooms
     for (const room of rooms) {
@@ -113,6 +147,17 @@ export class RuinsGenerator extends InteriorGenerator {
         }
       }
     }
+    
+    logger.mapgen.debug('Rooms carved, checking floor tiles');
+    let floorCount = 0;
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        if (grid[row][col].terrain.key === 'floor') {
+          floorCount++;
+        }
+      }
+    }
+    logger.mapgen.debug('Floor tiles after carving', { floorCount });
 
     // Connect rooms with corridors
     for (let i = 0; i < rooms.length - 1; i++) {
@@ -160,6 +205,20 @@ export class RuinsGenerator extends InteriorGenerator {
 
     // Add occasional chasms (collapsed floors)
     this.addChasms(grid, 0.02, 0.05);
+    
+    // Final verification
+    let finalFloorCount = 0;
+    let finalWallCount = 0;
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        if (grid[row][col].terrain.key === 'floor') {
+          finalFloorCount++;
+        } else if (grid[row][col].terrain.key === 'wall') {
+          finalWallCount++;
+        }
+      }
+    }
+    logger.mapgen.info('Final terrain counts', { floor: finalFloorCount, wall: finalWallCount, total: width * height });
 
     return grid;
   }
@@ -349,7 +408,8 @@ export class RuinsGenerator extends InteriorGenerator {
         row: tile.row,
         cr: cr,
         creatures: poiData.creatures || `CR ${cr} guardians`,
-        defeated: false
+        defeated: false,
+        discovered: false
       });
     }
 
@@ -359,9 +419,10 @@ export class RuinsGenerator extends InteriorGenerator {
   /**
    * Place loot in the ruins (ancient treasures)
    * @param {object} interiorMap - Interior map data
+   * @param {number} partySize - Party size for treasure hoard generation
    * @returns {Array} Array of loot objects
    */
-  placeLoot(interiorMap) {
+  placeLoot(interiorMap, partySize = 4) {
     const floorTiles = interiorMap.hexes.filter(
       hex => hex.terrain.walkable && hex.content === null
     );
@@ -371,6 +432,7 @@ export class RuinsGenerator extends InteriorGenerator {
     // Ruins have more loot than caves (ancient treasures)
     const lootCount = Math.max(3, Math.floor(3 + cr * 0.6));
 
+    const treasureGenerator = new TreasureGenerator();
     const loot = [];
 
     for (let i = 0; i < lootCount && floorTiles.length > 0; i++) {
@@ -379,20 +441,37 @@ export class RuinsGenerator extends InteriorGenerator {
       const index = floorTiles.indexOf(tile);
       floorTiles.splice(index, 1);
 
-      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
-      if (hexIndex !== -1) {
-        interiorMap.hexes[hexIndex].content = 'loot';
+      // 25% chance of treasure chest, 75% regular loot
+      const isChest = this.random() < 0.25;
+      
+      let lootData;
+      let contentType;
+      
+      if (isChest) {
+        // Generate DMG treasure hoard
+        lootData = treasureGenerator.generateTreasureHoard(cr, partySize, () => this.random());
+        contentType = 'chest';
+      } else {
+        // Generate regular loot
+        lootData = this.lootGenerator.generateLoot(cr, () => this.random());
+        contentType = 'loot';
       }
 
-      const generatedLoot = this.lootGenerator.generateLoot(cr, () => this.random());
+      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
+      if (hexIndex !== -1) {
+        interiorMap.hexes[hexIndex].content = contentType;
+      }
 
       loot.push({
         col: tile.col,
         row: tile.row,
-        gold: generatedLoot.gold,
-        items: generatedLoot.items,
-        rarity: generatedLoot.rarity,
-        collected: false
+        type: contentType,
+        gold: lootData.gold,
+        items: lootData.items || [],
+        consumables: lootData.consumables || [],
+        rarity: lootData.rarity,
+        collected: false,
+        discovered: false
       });
     }
 
@@ -433,7 +512,9 @@ export class RuinsGenerator extends InteriorGenerator {
       hazards.push({
         col: tile.col,
         row: tile.row,
-        ...generatedHazard
+        ...generatedHazard,
+        triggered: false,
+        discovered: false
       });
     }
 

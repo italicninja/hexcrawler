@@ -12,7 +12,7 @@ import GameLog from '../ui/GameLog';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import InteriorHexDetails from '../ui/InteriorHexDetails';
 import { DiceRoller } from '../../game/DiceRoller';
-import { formatTime } from '../../game/TimeManager';
+import { formatTime, getCombatDuration, TIME_COSTS } from '../../game/TimeManager';
 import './ExplorationScene.css';
 
 function ExplorationScene() {
@@ -66,9 +66,107 @@ function ExplorationScene() {
     setPlayerPosition({ col: hex.col, row: hex.row });
     setSelectedHex(hex);
 
+    // Check for encounters on entered hex
+    if (hex.content === 'encounter') {
+      handleEncounterTrigger(hex);
+    }
+
+    // Check for loot/chests and mark as discovered
+    if (hex.content === 'loot' || hex.content === 'chest') {
+      handleLootDiscovery(hex);
+    }
+
     // Check for hazards on entered hex
     if (hex.content === 'hazard') {
       handleHazardTrigger(hex);
+    }
+  };
+
+  // Handle encounter auto-trigger
+  const handleEncounterTrigger = (hex) => {
+    if (!interiorMap) return;
+
+    if (!state.playerCharacter) {
+      addMessage('No player character found', 'error');
+      return;
+    }
+
+    const encounter = interiorMap.encounters.find(
+      e => e.col === hex.col && e.row === hex.row && !e.defeated
+    );
+
+    if (encounter) {
+      // Mark as discovered
+      dispatch({
+        type: actions.DISCOVER_ENCOUNTER,
+        payload: {
+          poiKey,
+          encounterKey: `${hex.col},${hex.row}`
+        }
+      });
+
+      // Auto-resolve combat (simplified for now)
+      const diceRoller = new DiceRoller();
+      diceRoller.setSeed(`${state.mapSeed}-encounter-${hex.col}-${hex.row}`);
+
+      // TODO: Implement full combat system
+      const damageReceived = diceRoller.rollDice(1, 6);
+      state.playerCharacter.damage(damageReceived);
+
+      const combatTime = getCombatDuration();
+
+      addMessage(
+        `Ambush! You were attacked by ${encounter.creatures}!\n\n` +
+        `[Combat Auto-Resolved]\n` +
+        `You took ${damageReceived} damage!\n` +
+        `You defeated the enemies!\n\n` +
+        `HP: ${state.playerCharacter.currentHP}/${state.playerCharacter.maxHP}\n` +
+        `Time elapsed: ${combatTime} minutes`,
+        'encounter'
+      );
+
+      // Update character
+      dispatch({
+        type: actions.UPDATE_CHARACTER,
+        payload: state.playerCharacter
+      });
+
+      // Advance time
+      dispatch({
+        type: actions.ADVANCE_TIME,
+        payload: combatTime
+      });
+
+      // Mark as defeated
+      dispatch({
+        type: actions.DEFEAT_ENCOUNTER,
+        payload: {
+          poiKey,
+          encounterKey: `${hex.col},${hex.row}`
+        }
+      });
+    }
+  };
+
+  // Handle loot discovery
+  const handleLootDiscovery = (hex) => {
+    if (!interiorMap) return;
+
+    const loot = interiorMap.loot.find(
+      l => l.col === hex.col && l.row === hex.row && !l.discovered
+    );
+
+    if (loot) {
+      dispatch({
+        type: actions.DISCOVER_LOOT,
+        payload: {
+          poiKey,
+          lootKey: `${hex.col},${hex.row}`
+        }
+      });
+
+      const lootType = loot.type === 'chest' ? 'treasure chest' : 'loot';
+      addMessage(`You discovered a ${lootType}!`, 'discovery');
     }
   };
 
@@ -87,6 +185,14 @@ function ExplorationScene() {
     );
 
     if (hazard) {
+      // Mark as discovered
+      dispatch({
+        type: actions.DISCOVER_HAZARD,
+        payload: {
+          poiKey,
+          hazardKey: `${hex.col},${hex.row}`
+        }
+      });
       // Create dice roller with map seed for consistency
       const diceRoller = new DiceRoller();
       diceRoller.setSeed(`${state.mapSeed}-hazard-${hex.col}-${hex.row}`);
@@ -101,16 +207,17 @@ function ExplorationScene() {
       if (saveResult.success) {
         // Saved!
         addMessage(
-          `Hazard Avoided! ${hazard.description}\n\nRolled ${saveResult.total} (needed ${hazard.dc}). Successfully dodged the ${hazard.type}!`,
+          `${hazard.saveType.toUpperCase()} ${saveResult.roll}+${saveResult.modifier}=${saveResult.total} vs DC ${hazard.dc}: Success!\n\n${hazard.description}\n\nSuccessfully dodged the ${hazard.type}!`,
           'success'
         );
       } else {
         // Failed save - take damage
         const character = state.playerCharacter;
-        character.damage(hazard.damage);
+        const damageDealt = hazard.damage;
+        character.damage(damageDealt);
 
         addMessage(
-          `Hazard Triggered! ${hazard.description}\n\nRolled ${saveResult.total} (needed ${hazard.dc}). Took ${hazard.damage} ${hazard.damageType} damage! HP: ${character.currentHP}/${character.maxHP}`,
+          `${hazard.saveType.toUpperCase()} ${saveResult.roll}+${saveResult.modifier}=${saveResult.total} vs DC ${hazard.dc}: Failed!\n\n${hazard.description}\n\nTook ${damageDealt} ${hazard.damageType} damage\n\nHP: ${character.currentHP}/${character.maxHP}`,
           'encounter'
         );
 
@@ -212,6 +319,17 @@ function ExplorationScene() {
           onMoveToHex={(hex) => {
             setPlayerPosition({ col: hex.col, row: hex.row });
             setSelectedHex(hex);
+            
+            // Check for encounters on entered hex
+            if (hex.content === 'encounter') {
+              handleEncounterTrigger(hex);
+            }
+
+            // Check for loot/chests and mark as discovered
+            if (hex.content === 'loot' || hex.content === 'chest') {
+              handleLootDiscovery(hex);
+            }
+
             // Check for hazards on entered hex
             if (hex.content === 'hazard') {
               handleHazardTrigger(hex);

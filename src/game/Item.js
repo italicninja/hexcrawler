@@ -3,6 +3,8 @@
  * D&D 5e inspired item system with effects and rarity
  */
 
+import logger from '../utils/logger.js';
+
 export class Item {
   /**
    * Create a new item
@@ -55,13 +57,13 @@ export class Item {
   validate() {
     const validTypes = ['weapon', 'armor', 'consumable', 'quest', 'misc'];
     if (!validTypes.includes(this.type)) {
-      console.warn(`Invalid item type: ${this.type}. Defaulting to 'misc'.`);
+      logger.items.warn('Invalid item type, defaulting to misc', { item: this.name, type: this.type });
       this.type = 'misc';
     }
 
     const validRarities = ['common', 'uncommon', 'rare', 'very rare', 'legendary'];
     if (!validRarities.includes(this.rarity)) {
-      console.warn(`Invalid rarity: ${this.rarity}. Defaulting to 'common'.`);
+      logger.items.warn('Invalid rarity, defaulting to common', { item: this.name, rarity: this.rarity });
       this.rarity = 'common';
     }
 
@@ -70,7 +72,7 @@ export class Item {
       'ring1', 'ring2', 'mainHand', 'offHand', null
     ];
     if (!validSlots.includes(this.slot)) {
-      console.warn(`Invalid slot: ${this.slot}. Setting to null.`);
+      logger.items.warn('Invalid slot, setting to null', { item: this.name, slot: this.slot });
       this.slot = null;
     }
   }

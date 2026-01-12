@@ -43,10 +43,16 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
     ? getHexDistance(hex.col, hex.row, playerPosition.col, playerPosition.row)
     : null;
 
-  // Find content data
-  const encounter = interiorMap?.encounters?.find(e => e.col === hex.col && e.row === hex.row);
-  const loot = interiorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
-  const hazard = interiorMap?.hazards?.find(h => h.col === hex.col && h.row === hex.row);
+  // Find content data (only show discovered content)
+  const encounter = interiorMap?.encounters?.find(
+    e => e.col === hex.col && e.row === hex.row && e.discovered
+  );
+  const loot = interiorMap?.loot?.find(
+    l => l.col === hex.col && l.row === hex.row && l.discovered
+  );
+  const hazard = interiorMap?.hazards?.find(
+    h => h.col === hex.col && h.row === hex.row && h.discovered
+  );
 
   // Handle encounter engagement
   const handleEngageEncounter = () => {
@@ -120,19 +126,10 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
 
     return (
       <div className="content-section encounter-section">
-        <h4>Encounter</h4>
+        <h4>Encounter (Defeated)</h4>
         <p><strong>CR:</strong> {encounter.cr}</p>
         <p><strong>Creatures:</strong> {encounter.creatures}</p>
-        {encounter.defeated ? (
-          <p className="status-defeated">Defeated</p>
-        ) : distance === 0 && (
-          <button
-            className="btn-danger"
-            onClick={handleEngageEncounter}
-          >
-            Engage
-          </button>
-        )}
+        <p className="status-defeated">Defeated</p>
       </div>
     );
   };
@@ -141,11 +138,25 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
   const renderLootInfo = () => {
     if (!loot) return null;
 
+    const isChest = loot.type === 'chest';
+
     return (
-      <div className="content-section loot-section">
-        <h4>Loot</h4>
+      <div className={`content-section ${isChest ? 'chest-section' : 'loot-section'}`}>
+        <h4>{isChest ? '💰 Treasure Chest' : 'Loot'}</h4>
         <p><strong>Gold:</strong> {loot.gold} gp</p>
-        {loot.items.length > 0 && (
+        
+        {loot.consumables && loot.consumables.length > 0 && (
+          <div className="loot-consumables">
+            <p><strong>Consumables:</strong></p>
+            <ul>
+              {loot.consumables.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {loot.items && loot.items.length > 0 && (
           <div className="loot-items">
             <p><strong>Items:</strong></p>
             <ul>
@@ -157,9 +168,11 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
             </ul>
           </div>
         )}
+        
         <p className="rarity-badge" style={{ color: getRarityColor(loot.rarity) }}>
           {loot.rarity.toUpperCase()}
         </p>
+        
         {loot.collected ? (
           <p className="status-collected">Collected</p>
         ) : distance === 0 && (

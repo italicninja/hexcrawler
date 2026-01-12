@@ -1,6 +1,7 @@
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import DiceRoller from '../game/DiceRoller';
+import { generateSettlementFlavor } from '../utils/flavorTextGenerator';
 
 // Lazy load generators to reduce initial bundle size
 // These are loaded dynamically when entering POIs
@@ -338,6 +339,13 @@ export function useHexInteraction(hex) {
 
     // Log entry
     addMessage(`Entering ${poi.name}...`, 'action');
+
+    // Settlement entry flavor (50% chance)
+    if (Math.random() < 0.5) {
+      const settlementSize = poi.settlementSize || poi.type;
+      const flavor = generateSettlementFlavor(settlementSize);
+      if (flavor) addMessage(flavor, 'info');
+    }
 
     // Dispatch enter town action
     dispatch({

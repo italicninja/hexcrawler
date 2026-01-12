@@ -3,3 +3,4 @@ dist/
 .DS_Store
 *.log
 .env
+docs/SRD_CC_v5.2.1.pdf

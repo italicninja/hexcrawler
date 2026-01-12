@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
+import logger from '../../utils/logger.js';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -32,7 +33,7 @@ function TitleScene() {
       // NEW_GAME action sets mapSeed and currentScene automatically
       dispatch({ type: actions.NEW_GAME, payload: gameSeed });
     } catch (error) {
-      console.error('Error starting new game:', error);
+      logger.general.error('Error starting new game:', { error, message: error.message });
       addMessage('Failed to start new game: ' + error.message, 'error');
     }
   };

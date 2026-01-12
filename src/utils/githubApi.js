@@ -4,6 +4,8 @@
  * Requires VITE_GITHUB_PAT environment variable
  */
 
+import logger from './logger.js';
+
 const GITHUB_REPO = 'italicninja/hexcrawler';
 const GITHUB_API_URL = 'https://api.github.com';
 
@@ -61,7 +63,7 @@ export async function submitBugReport(description, gameLog) {
       url: issue.html_url
     };
   } catch (error) {
-    console.error('Failed to submit bug report:', error);
+    logger.general.error('Failed to submit bug report:', { error, message: error.message });
     return {
       success: false,
       error: error.message || 'Failed to submit bug report'

@@ -9,6 +9,7 @@ import {
   drawHexOutline,
   findHexAtPoint
 } from '../../utils/hexRenderer';
+import logger from '../../utils/logger.js';
 
 const HEX_SIZE = 25;
 const MIN_ZOOM = 0.5;
@@ -261,7 +262,7 @@ function CombatCanvas({
     
     // Null check for battlefield
     if (!battlefield || !battlefield.hexes) {
-      console.warn('CombatCanvas: battlefield or battlefield.hexes is null');
+      logger.render.warn('CombatCanvas: battlefield not ready', { hasBattlefield: !!battlefield, hasHexes: !!battlefield?.hexes });
       return;
     }
 
@@ -404,6 +405,9 @@ function CombatCanvas({
 
       canvas.width = parent.clientWidth;
       canvas.height = parent.clientHeight;
+      
+      // Redraw after resize (canvas clears on resize)
+      draw();
     };
 
     resizeCanvas();
@@ -412,7 +416,7 @@ function CombatCanvas({
     return () => {
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, []);
+  }, [draw]);
 
   /**
    * Convert screen coordinates to canvas coordinates (accounting for camera transform)
@@ -461,7 +465,9 @@ function CombatCanvas({
         onCameraChange(newOffset, cameraZoom);
       }
     } else {
-      // Hover detection
+      // Hover detection - null check battlefield
+      if (!battlefield || !battlefield.hexes) return;
+      
       const canvasPos = screenToCanvas(e.clientX, e.clientY);
       
       // Create positioned hexes for hit detection
@@ -484,7 +490,7 @@ function CombatCanvas({
         onHexHover(newHoveredHex);
       }
     }
-  }, [isDragging, dragStart, cameraZoom, battlefield.hexes, screenToCanvas, onCameraChange, onHexHover]);
+  }, [isDragging, dragStart, cameraZoom, battlefield, screenToCanvas, onCameraChange, onHexHover]);
 
   /**
    * Handle mouse up (stop dragging)
@@ -499,6 +505,9 @@ function CombatCanvas({
   const handleClick = useCallback((e) => {
     // Don't register clicks if we were dragging
     if (isDragging) return;
+    
+    // Null check battlefield
+    if (!battlefield || !battlefield.hexes) return;
 
     const canvasPos = screenToCanvas(e.clientX, e.clientY);
 
@@ -512,7 +521,7 @@ function CombatCanvas({
     if (clickedHex) {
       onHexClick(clickedHex);
     }
-  }, [isDragging, battlefield.hexes, screenToCanvas, onHexClick]);
+  }, [isDragging, battlefield, screenToCanvas, onHexClick]);
 
   /**
    * Handle mouse wheel (zoom)

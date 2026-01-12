@@ -13,13 +13,13 @@ export class InteriorGenerator {
       floor: {
         key: 'floor',
         name: 'Stone Floor',
-        color: '#4a4a4a',
+        color: '#6a6a6a', // Lighter gray for better contrast
         walkable: true
       },
       wall: {
         key: 'wall',
         name: 'Wall',
-        color: '#2a2a2a',
+        color: '#1a1a1a', // Darker for better contrast
         walkable: false
       },
       water: {
