@@ -1,0 +1,263 @@
+name: QA Tests
+
+on:
+  # Run on pushes to main branch
+  push:
+    branches:
+      - main
+      - develop
+  
+  # Run on pull requests
+  pull_request:
+    branches:
+      - main
+      - develop
+  
+  # Daily scheduled run at 2 AM UTC (configurable)
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Specific test suite to run (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - all
+          - character-creation
+          - overworld-movement
+          - poi-interactions
+          - survival-mechanics
+          - combat-system
+          - exploration-interiors
+          - state-management
+          - ui-ux
+
+jobs:
+  qa-tests:
+    name: QA Tests - ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    strategy:
+      # Don't cancel other browsers if one fails
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
+    
+    steps:
+      # 1. Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm ci
+      
+      # 4. Install Playwright browsers
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      
+      # 5. Build the application
+      - name: Build application
+        run: npm run build
+      
+      # 6. Start preview server in background
+      - name: Start preview server
+        run: |
+          npm run preview &
+          echo "Waiting for server to start..."
+          npx wait-on http://localhost:4173 -t 30000
+          echo "Server is ready!"
+      
+      # 7. Run QA tests
+      - name: Run QA tests
+        run: |
+          # Set environment variables
+          export HEADLESS=true
+          export GAME_URL=http://localhost:4173
+          export TEST_SUITE=${{ github.event.inputs.test_suite || 'all' }}
+          
+          # Run tests with timeout
+          timeout 50m npm run test:qa:headless || exit_code=$?
+          
+          # Check exit code
+          if [ $exit_code -eq 124 ]; then
+            echo "Tests timed out after 50 minutes"
+            exit 1
+          elif [ $exit_code -ne 0 ]; then
+            echo "Tests failed with exit code $exit_code"
+            exit $exit_code
+          fi
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      
+      # 8. Upload HTML reports
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-reports-${{ matrix.browser }}
+          path: tests/reports/
+          retention-days: 30
+      
+      # 9. Upload screenshots (only if tests failed)
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-screenshots-${{ matrix.browser }}
+          path: tests/screenshots/
+          retention-days: 14
+      
+      # 10. Upload videos (if enabled)
+      - name: Upload test videos
+        if: always() && hashFiles('tests/videos/*.webm') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-videos-${{ matrix.browser }}
+          path: tests/videos/
+          retention-days: 7
+      
+      # 11. Comment on PR with results (only on PRs)
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Find the latest JSON report
+            const reportsDir = 'tests/reports';
+            const files = fs.readdirSync(reportsDir);
+            const jsonFiles = files.filter(f => f.endsWith('.json'));
+            
+            if (jsonFiles.length === 0) {
+              console.log('No test reports found');
+              return;
+            }
+            
+            const reportPath = path.join(reportsDir, jsonFiles[jsonFiles.length - 1]);
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            
+            // Format comment
+            const passRate = report.totalTests > 0 
+              ? ((report.passed / report.totalTests) * 100).toFixed(1)
+              : '0';
+            
+            const status = report.failed === 0 ? '✅' : '❌';
+            
+            let comment = `## ${status} QA Test Results - ${{ matrix.browser }}\n\n`;
+            comment += `**Summary:**\n`;
+            comment += `- Total Tests: ${report.totalTests}\n`;
+            comment += `- Passed: ${report.passed} (${passRate}%)\n`;
+            comment += `- Failed: ${report.failed}\n`;
+            comment += `- Skipped: ${report.skipped}\n`;
+            comment += `- Duration: ${Math.floor(report.duration / 60000)}m ${Math.floor((report.duration % 60000) / 1000)}s\n\n`;
+            
+            if (report.bugs.length > 0) {
+              comment += `**Bugs Found (${report.bugs.length}):**\n\n`;
+              report.bugs.slice(0, 5).forEach(bug => {
+                comment += `- **[${bug.severity.toUpperCase()}]** ${bug.testName}\n`;
+                comment += `  \`${bug.error}\`\n\n`;
+              });
+              
+              if (report.bugs.length > 5) {
+                comment += `_...and ${report.bugs.length - 5} more bugs_\n\n`;
+              }
+            }
+            
+            comment += `\n📊 [View full HTML report in artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Summary job to check overall status
+  qa-summary:
+    name: QA Test Summary
+    needs: qa-tests
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.qa-tests.result }}" == "failure" ]; then
+            echo "❌ QA tests failed"
+            exit 1
+          elif [ "${{ needs.qa-tests.result }}" == "cancelled" ]; then
+            echo "⚠️ QA tests were cancelled"
+            exit 1
+          else
+            echo "✅ QA tests passed"
+          fi
+      
+      - name: Post status to Discord
+        if: always() && env.DISCORD_WEBHOOK_URL != ''
+        run: |
+          # Determine status emoji and color
+          if [ "${{ needs.qa-tests.result }}" == "success" ]; then
+            status_emoji="✅"
+            status_text="Success"
+            color=3066993
+          else
+            status_emoji="❌"
+            status_text="Failed"
+            color=15158332
+          fi
+          
+          # Create Discord webhook payload
+          payload=$(cat <<EOF
+          {
+            "embeds": [{
+              "title": "${status_emoji} QA Tests ${status_text}",
+              "description": "GitHub Actions CI test run completed",
+              "color": ${color},
+              "fields": [
+                {
+                  "name": "Repository",
+                  "value": "${{ github.repository }}",
+                  "inline": true
+                },
+                {
+                  "name": "Branch",
+                  "value": "${{ github.ref_name }}",
+                  "inline": true
+                },
+                {
+                  "name": "Trigger",
+                  "value": "${{ github.event_name }}",
+                  "inline": true
+                },
+                {
+                  "name": "Run URL",
+                  "value": "[View Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+                }
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+          )
+          
+          # Send to Discord
+          curl -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

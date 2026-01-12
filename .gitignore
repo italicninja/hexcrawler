@@ -4,3 +4,10 @@ dist/
 *.log
 .env
 docs/SRD_CC_v5.2.1.pdf
+
+# QA Test Artifacts
+tests/screenshots/
+tests/reports/
+tests/videos/
+test-results/
+playwright-report/

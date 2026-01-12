@@ -1,0 +1,29 @@
+{
+  "characters": [
+    {
+      "name": "QA-Tester",
+      "class": "Paladin",
+      "description": "Default test character - well-rounded"
+    },
+    {
+      "name": "QA-Fighter",
+      "class": "Fighter",
+      "description": "Melee combat specialist"
+    },
+    {
+      "name": "QA-Wizard",
+      "class": "Wizard",
+      "description": "Spellcasting and magic testing"
+    },
+    {
+      "name": "QA-Rogue",
+      "class": "Rogue",
+      "description": "Stealth and skill checks"
+    },
+    {
+      "name": "QA-Cleric",
+      "class": "Cleric",
+      "description": "Healing and support abilities"
+    }
+  ]
+}

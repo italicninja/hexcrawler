@@ -1,0 +1,16 @@
+{
+  "seeds": {
+    "default": "qa-test-seed-12345",
+    "combat-heavy": "combat-test-9876",
+    "exploration-rich": "explore-test-5432",
+    "town-focused": "town-test-1111",
+    "survival-challenge": "survival-test-2222"
+  },
+  "descriptions": {
+    "default": "Balanced map with variety of POIs and terrain",
+    "combat-heavy": "More combat encounters and dangerous POIs",
+    "exploration-rich": "Many dungeons, ruins, caves, and towers",
+    "town-focused": "Multiple towns and settlements for quest testing",
+    "survival-challenge": "Sparse resources, harsh terrain"
+  }
+}
