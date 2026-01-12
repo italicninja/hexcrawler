@@ -10,6 +10,7 @@
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
+    "test:smoke": "node tests/smoke-test.js",
     "test:qa": "node tests/qa-agent/run.js",
     "test:qa:headless": "HEADLESS=true node tests/qa-agent/run.js",
     "test:qa:debug": "DEBUG=true node tests/qa-agent/run.js",

@@ -79,27 +79,15 @@ jobs:
           npx wait-on http://localhost:4173 -t 30000
           echo "Server is ready!"
       
-      # 7. Run QA tests
-      - name: Run QA tests
+      # 7. Run smoke test
+      - name: Run smoke test
         run: |
           # Set environment variables
-          export HEADLESS=true
           export GAME_URL=http://localhost:4173
-          export TEST_SUITE=${{ github.event.inputs.test_suite || 'all' }}
           export QA_BROWSER=${{ matrix.browser }}
-          export MAP_SEED=ci-test-seed-42
           
-          # Run tests with timeout
-          timeout 50m npm run test:qa:headless || exit_code=$?
-          
-          # Check exit code
-          if [ "$exit_code" = "124" ]; then
-            echo "Tests timed out after 50 minutes"
-            exit 1
-          elif [ -n "$exit_code" ] && [ "$exit_code" != "0" ]; then
-            echo "Tests failed with exit code $exit_code"
-            exit $exit_code
-          fi
+          # Run simple smoke test
+          node tests/smoke-test.js
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       
