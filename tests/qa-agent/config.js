@@ -7,7 +7,11 @@
 export const QA_CONFIG = {
   // Browser configuration
   browser: {
-    browsers: ['chromium', 'firefox'],  // Test on both browsers
+    // If QA_BROWSER env var is set, use only that browser (for CI)
+    // Otherwise test on both browsers (for local testing)
+    browsers: process.env.QA_BROWSER 
+      ? [process.env.QA_BROWSER] 
+      : ['chromium', 'firefox'],
     headless: process.env.HEADLESS === 'true',
     slowMo: process.env.DEBUG === 'true' ? 1000 : 100,
     viewport: { width: 1920, height: 1080 },
@@ -32,7 +36,8 @@ export const QA_CONFIG = {
   testData: {
     characterName: 'QA-Tester',
     characterClass: 'Paladin',
-    mapSeed: 'qa-test-seed-12345',  // Reproducible map
+    // Use MAP_SEED env var if set (for CI), otherwise use default
+    mapSeed: process.env.MAP_SEED || 'qa-test-seed-12345',
     freshStart: true,                // Clear localStorage before test
     
     // Alternative test characters for variety
@@ -95,5 +100,7 @@ export const ENV_VARS = {
   GAME_URL: 'Base URL of the game (default: http://localhost:3000)',
   DISCORD_WEBHOOK_URL: 'Discord webhook for notifications',
   TEST_SUITE: 'Run specific test suite (combat, exploration, etc.)',
-  SKIP_SUITES: 'Comma-separated list of suites to skip'
+  SKIP_SUITES: 'Comma-separated list of suites to skip',
+  QA_BROWSER: 'Run on single browser (chromium/firefox) instead of both',
+  MAP_SEED: 'Map seed for reproducible terrain (default: qa-test-seed-12345)'
 };
