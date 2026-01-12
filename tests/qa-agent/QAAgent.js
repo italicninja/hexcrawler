@@ -9,6 +9,7 @@ import { GameDriver } from './GameDriver.js';
 import { Validators } from './Validators.js';
 import { ReportGenerator } from './ReportGenerator.js';
 import { TEST_SUITES, getTotalTestCount } from './TestSuites.js';
+import { SMOKE_TESTS } from './SmokeTests.js';
 import { QA_CONFIG } from './config.js';
 
 export class QAAgent {
@@ -147,6 +148,12 @@ export class QAAgent {
    * Filter test suites based on configuration
    */
   filterSuites(allSuites) {
+    // If smoke tests only, use those
+    if (this.config.testSuites.smokeOnly) {
+      console.log('  Running smoke tests only (CI mode)');
+      return SMOKE_TESTS;
+    }
+
     let filtered = allSuites;
 
     // If specific suites requested, only run those

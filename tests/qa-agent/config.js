@@ -86,9 +86,13 @@ export const QA_CONFIG = {
 
   // Test suite selection
   testSuites: {
-    runAll: process.env.TEST_SUITE !== 'specific',
-    specific: process.env.TEST_SUITE ? [process.env.TEST_SUITE] : [],
-    skip: process.env.SKIP_SUITES ? process.env.SKIP_SUITES.split(',') : []
+    // In CI, default to smoke tests unless specified
+    runAll: process.env.TEST_SUITE === 'all',
+    specific: process.env.TEST_SUITE && process.env.TEST_SUITE !== 'all' 
+      ? [process.env.TEST_SUITE] 
+      : [],
+    skip: process.env.SKIP_SUITES ? process.env.SKIP_SUITES.split(',') : [],
+    smokeOnly: process.env.SMOKE_TESTS === 'true' || (!process.env.TEST_SUITE && process.env.HEADLESS === 'true')
   }
 };
 
