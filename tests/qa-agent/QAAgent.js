@@ -23,7 +23,11 @@ export class QAAgent {
    */
   async run() {
     console.log('🤖 QA Agent Starting...\n');
-    console.log(`Running ${getTotalTestCount()} tests across ${this.config.browser.browsers.length} browser(s)\n`);
+    
+    // Determine test mode
+    const testMode = this.config.testSuites.smokeOnly ? 'Smoke Tests' : 'Full Test Suite';
+    console.log(`Mode: ${testMode}`);
+    console.log(`Browsers: ${this.config.browser.browsers.join(', ')}\n`);
 
     const allReports = [];
 
@@ -150,7 +154,8 @@ export class QAAgent {
   filterSuites(allSuites) {
     // If smoke tests only, use those
     if (this.config.testSuites.smokeOnly) {
-      console.log('  Running smoke tests only (CI mode)');
+      console.log('  ✨ Running SMOKE TESTS only (4 tests, ~10 seconds)');
+      console.log('  💡 For full suite, set TEST_SUITE=all\n');
       return SMOKE_TESTS;
     }
 
@@ -161,6 +166,9 @@ export class QAAgent {
       filtered = allSuites.filter(suite => 
         this.config.testSuites.specific.includes(suite.id)
       );
+      console.log(`  Running specific suites: ${filtered.map(s => s.name).join(', ')}\n`);
+    } else {
+      console.log(`  Running full test suite (${allSuites.length} suites)\n`);
     }
 
     // Remove skipped suites
