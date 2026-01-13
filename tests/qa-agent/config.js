@@ -92,7 +92,8 @@ export const QA_CONFIG = {
       ? [process.env.TEST_SUITE] 
       : [],
     skip: process.env.SKIP_SUITES ? process.env.SKIP_SUITES.split(',') : [],
-    smokeOnly: process.env.SMOKE_TESTS === 'true' || (!process.env.TEST_SUITE && process.env.HEADLESS === 'true')
+    smokeOnly: process.env.SMOKE_TESTS === 'true' || (!process.env.TEST_SUITE && process.env.HEADLESS === 'true'),
+    realTests: process.env.REAL_TESTS === 'true' || process.env.TEST_SUITE === 'real'
   }
 };
 

@@ -10,6 +10,7 @@ import { Validators } from './Validators.js';
 import { ReportGenerator } from './ReportGenerator.js';
 import { TEST_SUITES, getTotalTestCount } from './TestSuites.js';
 import { SMOKE_TESTS } from './SmokeTests.js';
+import { REAL_TESTS, getRealTestCount } from './RealTests.js';
 import { QA_CONFIG } from './config.js';
 
 export class QAAgent {
@@ -153,10 +154,17 @@ export class QAAgent {
    */
   filterSuites(allSuites) {
     // If smoke tests only, use those
-    if (this.config.testSuites.smokeOnly) {
+    if (this.config.testSuites.smokeOnly && !this.config.testSuites.realTests) {
       console.log('  ✨ Running SMOKE TESTS only (4 tests, ~10 seconds)');
-      console.log('  💡 For full suite, set TEST_SUITE=all\n');
+      console.log('  💡 For real tests, set REAL_TESTS=true or TEST_SUITE=real\n');
       return SMOKE_TESTS;
+    }
+    
+    // If real tests requested, use those
+    if (this.config.testSuites.realTests) {
+      console.log(`  🧪 Running REAL TESTS (${getRealTestCount()} tests, ~2-3 minutes)`);
+      console.log('  These tests validate actual game functionality\n');
+      return REAL_TESTS;
     }
 
     let filtered = allSuites;
