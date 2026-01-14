@@ -67,7 +67,7 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
               </div>
             )}
           </div>
-          {item.badge && (
+          {item.badge !== undefined && item.badge > 0 && (
             <div style={{
               padding: '0.25rem 0.5rem',
               backgroundColor: 'var(--accent-color)',
