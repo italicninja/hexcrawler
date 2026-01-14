@@ -4,7 +4,9 @@ import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
 import { POIRenderer } from '../../poiRenderer.js';
+import { HexTextureGenerator } from '../../utils/hexTextureGenerator.js';
 import { calculateHexPosition, drawHexShape, drawHexOutline as renderHexOutline, findHexAtPoint } from '../../utils/hexRenderer';
+import { PerlinNoise } from '../../noise.js';
 
 /**
  * HexGridCanvas component - renders hex grid on canvas
@@ -22,6 +24,15 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
   const [selectedHex, setSelectedHex] = useState(null);
 
   const poiRenderer = useRef(new POIRenderer());
+  const textureGenerator = useRef(null);
+  
+  // Initialize texture generator once
+  useEffect(() => {
+    if (!textureGenerator.current) {
+      const noise = new PerlinNoise(state.mapSeed || Date.now());
+      textureGenerator.current = new HexTextureGenerator(noise);
+    }
+  }, [state.mapSeed]);
 
   // Calculate hex position (using utility function)
   const getHexX = useCallback((col, row) => {
@@ -54,8 +65,14 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
       return;
     }
 
-    // Draw explored hex with terrain color
-    drawHexShape(ctx, x, y, hexSize, hex.terrain.color, '#333', 1);
+    // Draw explored hex with textured pattern (pass col/row for per-hex variation)
+    if (textureGenerator.current) {
+      const pattern = textureGenerator.current.getPattern(ctx, hex.terrain, hexSize, hex.col, hex.row);
+      drawHexShape(ctx, x, y, hexSize, pattern, '#333', 1);
+    } else {
+      // Fallback to solid color if texture generator not ready
+      drawHexShape(ctx, x, y, hexSize, hex.terrain.color, '#333', 1);
+    }
 
     // Draw POI icon if present AND visible (towns always, others only if discovered)
     if (hex.poi && shouldShowPOI(hex.poi, hex.col, hex.row)) {
