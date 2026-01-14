@@ -904,7 +904,7 @@ function OverworldScene() {
   return (
     <div className="game-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       {/* Game Header with Time Display */}
-      <div style={{
+      <div className="overworld-header" style={{
         backgroundColor: 'var(--panel-bg)',
         borderBottom: '1px solid var(--border-color)',
         padding: '0.75rem 1.5rem',

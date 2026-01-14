@@ -648,14 +648,15 @@ button:active {
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100vh;
+    min-height: 100vh;
     background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-light) 100%);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 9999;
     margin: 0;
-    padding: 0;
+    padding: 2rem 0;
+    overflow-y: auto;
 }
 
 .title-content {
@@ -666,6 +667,7 @@ button:active {
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin: auto;
 }
 
 .title-logo {
@@ -753,14 +755,15 @@ button:active {
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100vh;
+    min-height: 100vh;
     background: linear-gradient(135deg, #1a0000 0%, #330000 100%);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 9999;
     margin: 0;
-    padding: 0;
+    padding: 2rem 0;
+    overflow-y: auto;
 }
 
 .game-over-logo {
@@ -843,14 +846,14 @@ button:active {
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100vh;
+    min-height: 100vh;
     background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-light) 100%);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 9999;
     margin: 0;
-    padding: 0;
+    padding: 2rem 0;
     overflow-y: auto;
 }
 
@@ -862,6 +865,7 @@ button:active {
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin: auto;
 }
 
 .btn-begin-adventure {
@@ -1185,12 +1189,28 @@ button:active {
 
 /* Responsive adjustments for character creation */
 @media (max-width: 768px) {
+    .character-creation-screen {
+        padding: 1rem 0;
+    }
+    
+    .character-creation-content {
+        padding: 1rem;
+    }
+    
     .class-selection-grid {
         grid-template-columns: repeat(3, 1fr);
     }
 }
 
 @media (max-width: 640px) {
+    .character-creation-screen {
+        padding: 0.5rem 0;
+    }
+    
+    .character-creation-content {
+        padding: 0.75rem;
+    }
+    
     .ability-scores-grid {
         grid-template-columns: repeat(3, 1fr);
     }
@@ -1199,12 +1219,9 @@ button:active {
         grid-template-columns: repeat(2, 1fr);
     }
     
-    .character-creation-content {
-        padding: 1rem;
-    }
-    
     .title-logo {
-        font-size: 3rem;
+        font-size: 2.5rem !important;
+        margin-bottom: 1rem;
     }
     
     .class-button {
@@ -1214,6 +1231,47 @@ button:active {
     
     .class-button-name {
         font-size: 0.875rem;
+    }
+    
+    .btn-begin-adventure,
+    .btn-quick-start {
+        font-size: 0.9rem;
+        padding: 0.65rem 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .character-creation-screen {
+        padding: 0.25rem 0;
+    }
+    
+    .character-creation-content {
+        padding: 0.5rem;
+    }
+    
+    .title-logo {
+        font-size: 2rem !important;
+        margin-bottom: 0.75rem;
+    }
+    
+    .class-selection-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .ability-scores-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .class-info-compact {
+        padding: 0.75rem;
+    }
+    
+    .btn-begin-adventure,
+    .btn-quick-start {
+        font-size: 0.85rem;
+        padding: 0.6rem 0.9rem;
     }
 }
 
@@ -2075,6 +2133,398 @@ button:active {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
+
+/* Touch-friendly interactions for all mobile devices */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch target sizes */
+  button,
+  .tab-button,
+  .menu-sidebar-item {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Disable hover effects on touch devices */
+  button:hover,
+  .tab-button:hover,
+  .menu-sidebar-item:hover {
+    transform: none;
+  }
+  
+  /* Active state for touch feedback */
+  button:active,
+  .tab-button:active,
+  .menu-sidebar-item:active {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+/* Tablet & Mobile (1024px and below) */
+@media (max-width: 1024px) {
+  /* Reduce sidebar widths on tablets */
+  .container {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  /* Make canvas container more flexible */
+  .canvas-container {
+    padding: 1rem;
+  }
+  
+  /* Game log adjustments */
+  .log-messages {
+    font-size: 0.7rem;
+    padding-bottom: 36px;
+  }
+}
+
+/* Mobile (768px and below) */
+@media (max-width: 768px) {
+  /* Stack layout vertically */
+  .container {
+    flex-direction: column !important;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+  
+  /* Remove fixed widths on mobile - allow full width */
+  .container > div {
+    width: 100% !important;
+    flex-shrink: 1 !important;
+  }
+  
+  /* Header adjustments */
+  .overworld-header {
+    padding: 0.5rem !important;
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+  }
+  
+  .overworld-header > div:last-child {
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+    justify-content: space-between;
+  }
+  
+  .overworld-header > div:last-child > div {
+    font-size: 0.8rem !important;
+    padding: 0.2rem 0.5rem !important;
+  }
+  
+  /* Canvas takes more space on mobile */
+  .canvas-container {
+    min-height: 50vh;
+    padding: 0.75rem;
+  }
+  
+  /* Hex detail panel full width */
+  .hex-detail-panel {
+    width: 100% !important;
+    max-height: 40vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+  
+  /* Game log improvements */
+  .log-messages {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Title screen mobile adjustments */
+  .title-screen {
+    padding: 1rem 0;
+  }
+  
+  .title-content {
+    padding: 1.5rem;
+  }
+  
+  .title-logo {
+    font-size: 3rem;
+  }
+  
+  .title-subtitle {
+    font-size: 1.2rem;
+  }
+  
+  /* Menu sidebar adjustments */
+  .menu-sidebar {
+    padding: 0.5rem !important;
+  }
+  
+  .menu-sidebar-item {
+    padding: 0.75rem 1rem !important;
+    gap: 0.75rem !important;
+  }
+  
+  .menu-sidebar-item span {
+    font-size: 1.25rem !important;
+  }
+  
+  .menu-sidebar-item > div > div:first-child {
+    font-size: 0.9rem !important;
+  }
+  
+  .menu-sidebar-item > div > div:last-child {
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Small Mobile (640px and below) */
+@media (max-width: 640px) {
+  /* Further reduce padding and font sizes */
+  body {
+    font-size: 14px;
+  }
+  
+  .container {
+    padding: 0.25rem;
+    gap: 0.25rem;
+  }
+  
+  /* Header becomes more compact */
+  .overworld-header {
+    padding: 0.25rem !important;
+  }
+  
+  .overworld-header h1 {
+    font-size: 1.25rem !important;
+  }
+  
+  .overworld-header > div:last-child > div {
+    font-size: 0.7rem !important;
+    padding: 0.15rem 0.4rem !important;
+  }
+  
+  /* Canvas takes most of the screen */
+  .canvas-container {
+    min-height: 45vh;
+    padding: 0.5rem;
+  }
+  
+  #hexCanvas {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  /* Compact menu sidebar */
+  .menu-sidebar {
+    padding: 0.25rem !important;
+    gap: 0.25rem !important;
+  }
+  
+  .menu-sidebar-item {
+    padding: 0.5rem 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+  
+  .menu-sidebar-item span {
+    font-size: 1rem !important;
+  }
+  
+  .menu-sidebar-item > div > div:first-child {
+    font-size: 0.8rem !important;
+  }
+  
+  .menu-sidebar-item > div > div:last-child {
+    display: none; /* Hide descriptions on very small screens */
+  }
+  
+  /* Hex detail panel compact */
+  .hex-detail-panel {
+    max-height: 35vh;
+  }
+  
+  .hex-detail-display {
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+  
+  .hex-detail-display h2 {
+    font-size: 1rem !important;
+  }
+  
+  .hex-detail-display p,
+  .hex-detail-display div {
+    font-size: 0.8rem !important;
+  }
+  
+  /* Buttons more touch-friendly */
+  button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    min-height: 44px; /* iOS touch target recommendation */
+  }
+  
+  /* Modal panels take full screen on mobile */
+  .menu-panel {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+  }
+  
+  /* Title screen compact */
+  .title-screen {
+    padding: 0.5rem 0;
+  }
+  
+  .title-content {
+    padding: 1rem;
+  }
+  
+  .title-logo {
+    font-size: 2.5rem;
+  }
+  
+  .title-subtitle {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .title-btn {
+    min-width: auto;
+    width: 100%;
+    font-size: 1rem;
+    padding: 0.85rem 1.5rem;
+  }
+  
+  /* Game over screen compact */
+  .game-over-screen {
+    padding: 0.5rem 0;
+  }
+  
+  .game-over-logo {
+    font-size: 2.5rem;
+  }
+  
+  .game-over-subtitle {
+    font-size: 1rem;
+  }
+}
+
+/* Extra Small Mobile (480px and below) */
+@media (max-width: 480px) {
+  /* Position indicator more compact */
+  .overworld-header > div:last-child > div {
+    font-size: 0.65rem !important;
+  }
+  
+  /* Canvas optimized for portrait */
+  .canvas-container {
+    min-height: 40vh;
+  }
+  
+  /* Stack header items vertically */
+  .overworld-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  
+  .overworld-header > div:last-child {
+    width: 100%;
+  }
+  
+  /* Extra compact title screen */
+  .title-screen {
+    padding: 0.25rem 0;
+  }
+  
+  .title-content {
+    padding: 0.75rem;
+  }
+  
+  .title-logo {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .title-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+  
+  .title-btn {
+    font-size: 0.9rem;
+    padding: 0.75rem 1.25rem;
+  }
+  
+  /* Extra compact game over screen */
+  .game-over-screen {
+    padding: 0.25rem 0;
+  }
+  
+  .game-over-logo {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .game-over-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+}
+
+/* Landscape orientation optimization for mobile */
+@media (max-width: 900px) and (orientation: landscape) {
+  /* In landscape, prioritize canvas and minimize chrome */
+  .overworld-header {
+    padding: 0.25rem 0.5rem !important;
+  }
+  
+  .overworld-header h1 {
+    font-size: 1rem !important;
+  }
+  
+  .overworld-header > div:last-child > div {
+    font-size: 0.65rem !important;
+    padding: 0.15rem 0.4rem !important;
+  }
+  
+  /* Canvas takes majority of screen in landscape */
+  .canvas-container {
+    min-height: 60vh;
+  }
+  
+  /* Reduce sidebar/panel heights */
+  .hex-detail-panel {
+    max-height: 30vh;
+  }
+  
+  .menu-panel {
+    max-height: 95vh !important;
+  }
+}
+
+/* Portrait orientation - optimize for scrolling */
+@media (max-width: 768px) and (orientation: portrait) {
+  /* Allow more vertical scrolling in portrait */
+  .container {
+    min-height: auto;
+  }
+  
+  /* Canvas smaller in portrait to leave room for controls */
+  .canvas-container {
+    min-height: 35vh;
+    max-height: 50vh;
+  }
+  
+  /* Hex details can take more space in portrait */
+  .hex-detail-panel {
+    max-height: 45vh;
   }
 }
 

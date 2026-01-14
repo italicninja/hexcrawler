@@ -32,7 +32,7 @@ function MenuPanel({ title, isOpen, onClose, children, width = '600px', maxWidth
       }}
     >
       <div
-        className="menu-panel-container"
+        className="menu-panel menu-panel-container"
         style={{
           backgroundColor: 'var(--panel-bg)',
           border: '2px solid var(--border-color)',
