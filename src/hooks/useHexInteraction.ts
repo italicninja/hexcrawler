@@ -274,9 +274,6 @@ export function useHexInteraction(hex) {
 
     // Check if interior already exists
     if (!state.interiorMaps[poiKey]) {
-      // Log loading message
-      addMessage(`Preparing to enter ${poi.name}...`, 'action');
-
       // Dynamically load TownGenerator
       let TownGeneratorClass;
       try {
