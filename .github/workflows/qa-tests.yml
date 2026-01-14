@@ -79,15 +79,17 @@ jobs:
           npx wait-on http://localhost:4173 -t 30000
           echo "Server is ready!"
       
-      # 7. Run smoke test
-      - name: Run smoke test
+      # 7. Run QA tests
+      - name: Run QA tests
         run: |
-          # Set environment variables
+          # Set environment variables for CI
           export GAME_URL=http://localhost:4173
           export QA_BROWSER=${{ matrix.browser }}
+          export HEADLESS=true
+          export REAL_TESTS=true
           
-          # Run simple smoke test
-          node tests/smoke-test.js
+          # Run comprehensive QA test suite
+          node tests/qa-agent/run.js
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       

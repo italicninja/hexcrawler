@@ -16,19 +16,8 @@ function TitleScene() {
   const [showLoadMenu, setShowLoadMenu] = useState(false);
   const { confirm, dialogProps } = useConfirm();
 
-  const handleNewGame = async () => {
+  const handleNewGame = () => {
     try {
-      if (hasSave()) {
-        const confirmed = await confirm(
-          'Starting a new game will overwrite your current save. Continue?',
-          'This action cannot be undone.'
-        );
-        if (!confirmed) {
-          return;
-        }
-        deleteSave();
-      }
-
       const gameSeed = seed.trim() || Date.now().toString();
       // NEW_GAME action sets mapSeed and currentScene automatically
       dispatch({ type: actions.NEW_GAME, payload: gameSeed });
