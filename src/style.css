@@ -1722,6 +1722,7 @@ button:active {
     flex: 1;
     overflow-y: auto;
     padding: 0.5rem 1rem;
+    padding-bottom: 32px; /* Space for bottom toolbar (28px + 4px margin) */
     font-family: 'Courier New', monospace;
     font-size: 0.75rem;
     line-height: 1.4;
