@@ -6,6 +6,8 @@
 import PropTypes from 'prop-types';
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { calculateHexPosition, drawHexShape, drawHexOutline as renderHexOutline, findHexAtPoint, drawPlayerMarker } from '../../utils/hexRenderer';
+import { HexTextureGenerator } from '../../utils/hexTextureGenerator.js';
+import { PerlinNoise } from '../../noise.js';
 
 function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClick, onHexDoubleClick }) {
   const canvasRef = useRef(null);
@@ -18,6 +20,15 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
   const playerAnimationRef = useRef(null);
   const playerVisualPosRef = useRef(null);
   const previousPlayerPosRef = useRef(playerPosition);
+  const textureGenerator = useRef(null);
+
+  // Initialize texture generator once
+  useEffect(() => {
+    if (!textureGenerator.current) {
+      const noise = new PerlinNoise(Date.now());
+      textureGenerator.current = new HexTextureGenerator(noise);
+    }
+  }, []);
 
   // Convert grid to positioned hexes (using utility function)
   const positionedHexes = useCallback(() => {
@@ -71,10 +82,17 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
   const drawHex = useCallback((ctx, hex) => {
     const { x, y, terrain, content } = hex;
 
-    // Draw hex shape with terrain-specific styling
+    // Draw hex shape with procedural texture or solid color fallback
     const strokeColor = terrain.walkable ? '#555' : '#111';
     const lineWidth = terrain.walkable ? 1 : 2;
-    drawHexShape(ctx, x, y, hexSize, terrain.color, strokeColor, lineWidth);
+    
+    if (textureGenerator.current) {
+      const pattern = textureGenerator.current.getPattern(ctx, terrain, hexSize, hex.col, hex.row);
+      drawHexShape(ctx, x, y, hexSize, pattern, strokeColor, lineWidth);
+    } else {
+      // Fallback to solid color if texture generator not ready
+      drawHexShape(ctx, x, y, hexSize, terrain.color, strokeColor, lineWidth);
+    }
 
     // Draw content markers (only if discovered)
     if (content) {

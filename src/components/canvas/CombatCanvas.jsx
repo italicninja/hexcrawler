@@ -9,6 +9,8 @@ import {
   drawHexOutline,
   findHexAtPoint
 } from '../../utils/hexRenderer';
+import { HexTextureGenerator } from '../../utils/hexTextureGenerator.js';
+import { PerlinNoise } from '../../noise.js';
 import logger from '../../utils/logger.js';
 
 const HEX_SIZE = 25;
@@ -39,6 +41,15 @@ function CombatCanvas({
   const animationFrameRef = useRef(null);
   const lastHoveredHexRef = useRef(null);
   const lastCameraRef = useRef({ offset: cameraOffset, zoom: cameraZoom });
+  const textureGenerator = useRef(null);
+
+  // Initialize texture generator once
+  useEffect(() => {
+    if (!textureGenerator.current) {
+      const noise = new PerlinNoise(Date.now());
+      textureGenerator.current = new HexTextureGenerator(noise);
+    }
+  }, []);
 
   /**
    * Draw a tree obstacle
@@ -284,9 +295,15 @@ function CombatCanvas({
     positionedHexes.forEach(hex => {
       const { x, y } = hex;
 
-      // Base terrain color
-      const terrainColor = hex.terrain?.color || '#6B8E23';
-      drawHexShape(ctx, x, y, HEX_SIZE, terrainColor, '#444', 1);
+      // Draw terrain with procedural texture
+      if (textureGenerator.current && hex.terrain) {
+        const pattern = textureGenerator.current.getPattern(ctx, hex.terrain, HEX_SIZE, hex.col, hex.row);
+        drawHexShape(ctx, x, y, HEX_SIZE, pattern, '#444', 1);
+      } else {
+        // Fallback to solid color
+        const terrainColor = hex.terrain?.color || '#6B8E23';
+        drawHexShape(ctx, x, y, HEX_SIZE, terrainColor, '#444', 1);
+      }
 
       // Difficult terrain overlay
       if (hex.difficultTerrain) {
