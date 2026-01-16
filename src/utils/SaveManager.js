@@ -1,5 +1,6 @@
 import { SAVE } from '../constants/gameConstants';
 import logger from './logger.js';
+import { WeatherSystem } from '../WeatherSystem.js';
 
 /**
  * SaveManager - Handles game save/load operations with multiple save slots
@@ -74,6 +75,26 @@ export class SaveManager {
         playtime: gameState.playtime || 0
       };
 
+      // Serialize region and weather data
+      const serializeRegions = () => {
+        if (!gameState.regions || gameState.regions.length === 0) return null;
+        
+        return gameState.regions.map(region => ({
+          ...region,
+          boundaries: Array.from(region.boundaries)
+        }));
+      };
+
+      const serializeHexToRegion = () => {
+        if (!gameState.hexToRegion) return null;
+        return Object.fromEntries(gameState.hexToRegion);
+      };
+
+      const serializeWeatherSystem = () => {
+        if (!gameState.weatherSystem) return null;
+        return gameState.weatherSystem.toJSON();
+      };
+
       const saveData = {
         version: this.SAVE_VERSION,
         timestamp: Date.now(),
@@ -87,6 +108,9 @@ export class SaveManager {
           exploredHexes: Array.from(gameState.exploredHexes),
           discoveredPOIs: Array.from(gameState.discoveredPOIs),
           mapData: gameState.mapData,
+          regions: serializeRegions(),
+          hexToRegion: serializeHexToRegion(),
+          weatherSystem: serializeWeatherSystem(),
           interiorMaps: gameState.interiorMaps,
           explorationState: serializeExplorationState(),
           gameTime: gameState.gameTime,

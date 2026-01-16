@@ -9,12 +9,25 @@
  * - ADVANCE_COMBAT_TURN
  * - END_COMBAT
  * - UPDATE_COMBAT_STATE
+ * - USE_COMBAT_ACTION
+ * - USE_COMBAT_BONUS_ACTION
+ * - USE_COMBAT_REACTION
+ * - USE_COMBAT_MOVEMENT
+ * - USE_FREE_OBJECT_INTERACTION
+ * - RESET_COMBAT_TURN_STATE
+ * - SET_COMBAT_TURN_STATE
+ * - INCREMENT_ATTACK_COUNT
+ * - ADD_COMBAT_CONDITION
+ * - REMOVE_COMBAT_CONDITION
+ * - SET_READY_ACTION
+ * - TRIGGER_READY_ACTION
  */
 
 import { Combat } from '../../game/Combat';
 import { CombatTerrainGenerator } from '../../game/CombatTerrainGenerator';
 import { EncounterPositions } from '../../game/EncounterPositions';
 import { COMBAT } from '../../constants/gameConstants';
+import logger from '../../utils/logger.js';
 
 export function combatReducer(state, action, ACTIONS) {
   switch (action.type) {
@@ -30,13 +43,29 @@ export function combatReducer(state, action, ACTIONS) {
       // New tactical combat system
       const { allies, enemies, encounterName, encounterType, terrainType } = action.payload;
       
+      console.log('[START_COMBAT] Payload:', { allies, enemies, encounterName, encounterType, terrainType });
+      
       if (!allies || !enemies) {
         console.error('START_COMBAT requires allies and enemies');
         return state;
       }
       
+      if (allies.length === 0) {
+        console.error('START_COMBAT: allies array is empty');
+        return state;
+      }
+      
+      if (enemies.length === 0) {
+        console.error('START_COMBAT: enemies array is empty');
+        return state;
+      }
+      
+      console.log('[START_COMBAT] Generating battlefield...', { encounterType, terrainType, seed: state.mapSeed });
+      
       // Generate battlefield
       const battlefield = CombatTerrainGenerator.generate(encounterType, terrainType, state.mapSeed);
+      
+      console.log('[START_COMBAT] Battlefield generated:', { width: battlefield.width, height: battlefield.height, hexCount: battlefield.hexes.length });
       
       // Create combat instance
       const combat = new Combat(allies, enemies, battlefield);
@@ -92,6 +121,14 @@ export function combatReducer(state, action, ACTIONS) {
         return { ...combatant, position: placed.position };
       });
       
+      console.log('[START_COMBAT] Turn order created:', updatedTurnOrder.map(c => ({ 
+        name: c.name, 
+        position: c.position, 
+        isAlly: c.isAlly,
+        currentHP: c.currentHP,
+        maxHP: c.maxHP
+      })));
+      
       // Update combat instance with positioned combatants
       combat.turnOrder = updatedTurnOrder;
       combat.allies = updatedTurnOrder.filter(c => !c.isEnemy);
@@ -99,23 +136,53 @@ export function combatReducer(state, action, ACTIONS) {
       
       // Get first combatant's movement distance
       const firstCombatant = updatedTurnOrder[0];
-      const moveDistance = firstCombatant?.character?.moveDistance || 6;
+      const moveDistance = firstCombatant?.character?.moveDistance 
+        || firstCombatant?.enemy?.moveDistance 
+        || 6;
+      
+      // Determine if first turn is player-controlled
+      const waitingForPlayer = firstCombatant?.isAlly || false;
+      
+      const newCombatState = {
+        active: true,
+        combat,
+        battlefield,
+        turnOrder: updatedTurnOrder,
+        currentTurnIndex: 0,
+        round: 1,
+        encounterName: encounterName || 'Combat',
+        encounterType: encounterType || 'standard',
+        waitingForPlayerAction: waitingForPlayer,
+        movementRemaining: moveDistance * 5, // Convert hexes to feet
+        // D&D 5e Action Economy
+        turnState: {
+          actionUsed: false,
+          bonusActionUsed: false,
+          reactionUsed: false,
+          movementUsed: 0,
+          freeObjectUsed: false,
+          attacksMade: 0,
+          conditions: [],
+          readyAction: null
+        }
+      };
+      
+      console.log('[START_COMBAT] Combat state created:', {
+        hasBattlefield: !!newCombatState.battlefield,
+        hasHexes: !!newCombatState.battlefield?.hexes,
+        hexCount: newCombatState.battlefield?.hexes?.length,
+        turnOrderCount: newCombatState.turnOrder.length,
+        firstCombatant: firstCombatant?.name,
+        firstIsAlly: firstCombatant?.isAlly,
+        waitingForPlayer: waitingForPlayer
+      });
+      
+      console.log('[START_COMBAT] Combat initialized (staying on overworld scene)');
       
       return {
         ...state,
-        combatState: {
-          active: true,
-          combat,
-          battlefield,
-          turnOrder: updatedTurnOrder,
-          currentTurnIndex: 0,
-          round: 1,
-          encounterName: encounterName || 'Combat',
-          encounterType: encounterType || 'standard',
-          waitingForPlayerAction: !firstCombatant?.isEnemy,
-          movementRemaining: moveDistance * 5 // Convert hexes to feet
-        },
-        currentScene: 'combat'
+        combatState: newCombatState
+        // No scene transition - combat overlays on overworld
       };
     }
 
@@ -138,17 +205,77 @@ export function combatReducer(state, action, ACTIONS) {
     }
 
     case ACTIONS.PROCESS_COMBAT_MOVEMENT: {
-      const { combatantId, targetHex } = action.payload;
-      
-      if (!state.combat) return state;
+      if (!state.combatState) return state;
 
-      // Update combatant position
-      const newPositions = new Map(state.combatPositions);
-      newPositions.set(combatantId, targetHex);
+      const { path, cost } = action.payload;
+      
+      if (!path || path.length === 0) {
+        console.warn('[PROCESS_COMBAT_MOVEMENT] No path provided');
+        return state;
+      }
+
+      // Get the destination (last hex in path)
+      const destination = path[path.length - 1];
+      
+      // Ensure destination has col and row properties
+      if (!destination || typeof destination.col !== 'number' || typeof destination.row !== 'number') {
+        console.error('[PROCESS_COMBAT_MOVEMENT] Invalid destination:', destination);
+        return state;
+      }
+      
+      // Update current combatant's position in turnOrder
+      const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
+      if (!currentCombatant) {
+        console.warn('[PROCESS_COMBAT_MOVEMENT] No current combatant at index:', state.combatState.currentTurnIndex);
+        return state;
+      }
+
+      console.log('[PROCESS_COMBAT_MOVEMENT] Updating position:', {
+        combatant: currentCombatant.name,
+        oldPosition: currentCombatant.position,
+        newPosition: destination,
+        currentTurnIndex: state.combatState.currentTurnIndex,
+        costInFeet: cost,
+        pathLength: path.length,
+        fullPath: path
+      });
+
+      const updatedTurnOrder = state.combatState.turnOrder.map((combatant, idx) => {
+        if (idx === state.combatState.currentTurnIndex) {
+          console.log('[PROCESS_COMBAT_MOVEMENT] Updating combatant:', combatant.name, 'from', combatant.position, 'to', destination);
+          return {
+            ...combatant,
+            position: { col: destination.col, row: destination.row }
+          };
+        }
+        return combatant;
+      });
+
+      logger.combat.info('Movement processed', { 
+        combatant: currentCombatant.name, 
+        from: currentCombatant.position, 
+        to: destination,
+        costInFeet: cost,
+        movementRemaining: state.combatState.movementRemaining,
+        newMovementRemaining: Math.max(0, state.combatState.movementRemaining - cost),
+        newTurnOrder: updatedTurnOrder.map(c => ({ name: c.name, position: c.position }))
+      });
+
+      const newCombatState = {
+        ...state.combatState,
+        turnOrder: updatedTurnOrder,
+        movementRemaining: Math.max(0, state.combatState.movementRemaining - cost)
+      };
+
+      console.log('[PROCESS_COMBAT_MOVEMENT] New combat state:', {
+        turnOrderCount: newCombatState.turnOrder.length,
+        updatedCombatant: newCombatState.turnOrder[state.combatState.currentTurnIndex],
+        movementRemaining: newCombatState.movementRemaining
+      });
 
       return {
         ...state,
-        combatPositions: newPositions
+        combatState: newCombatState
       };
     }
 
@@ -162,13 +289,50 @@ export function combatReducer(state, action, ACTIONS) {
     }
 
     case ACTIONS.ADVANCE_COMBAT_TURN: {
-      if (!state.combat) return state;
+      if (!state.combatState) return state;
 
-      state.combat.nextTurn();
+      const nextIndex = (state.combatState.currentTurnIndex + 1) % state.combatState.turnOrder.length;
+      const nextCombatant = state.combatState.turnOrder[nextIndex];
+      
+      // Increment round if we've wrapped back to index 0
+      const newRound = nextIndex === 0 
+        ? state.combatState.round + 1 
+        : state.combatState.round;
+      
+      // Reset movement for new turn
+      const moveDistance = nextCombatant?.character?.moveDistance || nextCombatant?.enemy?.moveDistance || 6;
+      
+      // Set waitingForPlayerAction based on whether next combatant is an ally
+      const waitingForPlayer = nextCombatant?.isAlly || false;
+      
+      console.log('[ADVANCE_COMBAT_TURN]', {
+        nextIndex,
+        nextCombatant: nextCombatant?.name,
+        isAlly: nextCombatant?.isAlly,
+        waitingForPlayer,
+        newRound
+      });
 
       return {
         ...state,
-        combat: state.combat // Trigger re-render
+        combatState: {
+          ...state.combatState,
+          currentTurnIndex: nextIndex,
+          round: newRound,
+          movementRemaining: moveDistance * 5, // Convert hexes to feet
+          waitingForPlayerAction: waitingForPlayer,
+          // Reset turn state for new turn
+          turnState: {
+            actionUsed: false,
+            bonusActionUsed: false,
+            reactionUsed: false,
+            movementUsed: 0,
+            freeObjectUsed: false,
+            attacksMade: 0,
+            conditions: state.combatState.turnState.conditions.filter(c => c.duration !== 'end_of_turn'),
+            readyAction: null
+          }
+        }
       };
     }
 
@@ -177,11 +341,8 @@ export function combatReducer(state, action, ACTIONS) {
 
       return {
         ...state,
-        inCombat: false,
-        combat: null,
-        battlefield: null,
-        combatPositions: null,
-        currentScene: state.inInterior ? 'exploration' : 'overworld'
+        combatState: null
+        // No scene transition - already on overworld
       };
     }
 
@@ -189,6 +350,268 @@ export function combatReducer(state, action, ACTIONS) {
       return {
         ...state,
         ...action.payload
+      };
+    }
+
+    // ============================================
+    // D&D 5e Action Economy Actions
+    // ============================================
+
+    case ACTIONS.USE_COMBAT_ACTION: {
+      if (!state.combatState) return state;
+      
+      const { actionType, actionName, target, data } = action.payload;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            actionUsed: actionType === 'action' ? true : state.combatState.turnState.actionUsed,
+            bonusActionUsed: actionType === 'bonusAction' ? true : state.combatState.turnState.bonusActionUsed
+          }
+        }
+      };
+    }
+
+    case ACTIONS.USE_COMBAT_BONUS_ACTION: {
+      if (!state.combatState) return state;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            bonusActionUsed: true
+          }
+        }
+      };
+    }
+
+    case ACTIONS.USE_COMBAT_REACTION: {
+      if (!state.combatState) return state;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            reactionUsed: true
+          }
+        }
+      };
+    }
+
+    case ACTIONS.USE_COMBAT_MOVEMENT: {
+      if (!state.combatState) return state;
+      
+      const { moveCost } = action.payload;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          movementRemaining: Math.max(0, state.combatState.movementRemaining - moveCost),
+          turnState: {
+            ...state.combatState.turnState,
+            movementUsed: state.combatState.turnState.movementUsed + moveCost
+          }
+        }
+      };
+    }
+
+    case ACTIONS.USE_FREE_OBJECT_INTERACTION: {
+      if (!state.combatState) return state;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            freeObjectUsed: true
+          }
+        }
+      };
+    }
+
+    case ACTIONS.RESET_COMBAT_TURN_STATE: {
+      if (!state.combatState) return state;
+      
+      const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
+      const moveDistance = currentCombatant?.character?.moveDistance || currentCombatant?.enemy?.moveDistance || 6;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          movementRemaining: moveDistance * 5,
+          turnState: {
+            actionUsed: false,
+            bonusActionUsed: false,
+            reactionUsed: false, // Reactions reset at start of YOUR turn, not others'
+            movementUsed: 0,
+            freeObjectUsed: false,
+            attacksMade: 0,
+            conditions: state.combatState.turnState.conditions.filter(c => c.duration !== 'end_of_turn'),
+            readyAction: null
+          }
+        }
+      };
+    }
+
+    case ACTIONS.SET_COMBAT_TURN_STATE: {
+      if (!state.combatState) return state;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            ...action.payload
+          }
+        }
+      };
+    }
+
+    case ACTIONS.INCREMENT_ATTACK_COUNT: {
+      if (!state.combatState) return state;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            attacksMade: state.combatState.turnState.attacksMade + 1
+          }
+        }
+      };
+    }
+
+    case ACTIONS.ADD_COMBAT_CONDITION: {
+      if (!state.combatState) return state;
+      
+      const { condition, duration, targetId, data } = action.payload;
+      
+      // If targetId specified, add to specific combatant
+      if (targetId) {
+        const updatedTurnOrder = state.combatState.turnOrder.map(combatant => {
+          if (combatant.id === targetId) {
+            return {
+              ...combatant,
+              conditions: [
+                ...(combatant.conditions || []),
+                { type: condition, duration, data }
+              ]
+            };
+          }
+          return combatant;
+        });
+        
+        return {
+          ...state,
+          combatState: {
+            ...state.combatState,
+            turnOrder: updatedTurnOrder
+          }
+        };
+      }
+      
+      // Otherwise add to current combatant's turnState
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            conditions: [
+              ...state.combatState.turnState.conditions,
+              { type: condition, duration, data }
+            ]
+          }
+        }
+      };
+    }
+
+    case ACTIONS.REMOVE_COMBAT_CONDITION: {
+      if (!state.combatState) return state;
+      
+      const { condition, targetId } = action.payload;
+      
+      // If targetId specified, remove from specific combatant
+      if (targetId) {
+        const updatedTurnOrder = state.combatState.turnOrder.map(combatant => {
+          if (combatant.id === targetId) {
+            return {
+              ...combatant,
+              conditions: (combatant.conditions || []).filter(c => c.type !== condition)
+            };
+          }
+          return combatant;
+        });
+        
+        return {
+          ...state,
+          combatState: {
+            ...state.combatState,
+            turnOrder: updatedTurnOrder
+          }
+        };
+      }
+      
+      // Otherwise remove from current combatant's turnState
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            conditions: state.combatState.turnState.conditions.filter(c => c.type !== condition)
+          }
+        }
+      };
+    }
+
+    case ACTIONS.SET_READY_ACTION: {
+      if (!state.combatState) return state;
+      
+      const { actionType, trigger, data } = action.payload;
+      
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            readyAction: {
+              actionType,
+              trigger,
+              data
+            }
+          }
+        }
+      };
+    }
+
+    case ACTIONS.TRIGGER_READY_ACTION: {
+      if (!state.combatState || !state.combatState.turnState.readyAction) return state;
+      
+      // Ready action is triggered - clear it and mark reaction as used
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          turnState: {
+            ...state.combatState.turnState,
+            readyAction: null,
+            reactionUsed: true
+          }
+        }
       };
     }
 

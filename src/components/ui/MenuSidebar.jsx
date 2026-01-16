@@ -22,31 +22,39 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
         <button
           key={item.id}
           onClick={() => onItemClick(item)}
-          className={`menu-sidebar-item ${selectedItem?.id === item.id ? 'selected' : ''}`}
+          className={`menu-sidebar-item ${selectedItem?.id === item.id ? 'selected' : ''} ${item.isDev ? 'dev-item' : ''}`}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '1rem',
             padding: '1rem 1.25rem',
-            backgroundColor: selectedItem?.id === item.id ? 'var(--bg-lighter)' : 'var(--bg-color)',
-            border: selectedItem?.id === item.id ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
+            backgroundColor: item.isDev 
+              ? 'rgba(255, 69, 0, 0.2)' 
+              : selectedItem?.id === item.id ? 'var(--bg-lighter)' : 'var(--bg-color)',
+            border: item.isDev 
+              ? '2px solid rgba(255, 69, 0, 0.6)' 
+              : selectedItem?.id === item.id ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
             borderRadius: '6px',
-            color: 'var(--text-color)',
+            color: item.isDev ? '#ff4500' : 'var(--text-color)',
             fontSize: '1rem',
-            fontWeight: '500',
+            fontWeight: item.isDev ? '700' : '500',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             textAlign: 'left',
             fontFamily: 'inherit'
           }}
           onMouseEnter={(e) => {
-            if (selectedItem?.id !== item.id) {
+            if (item.isDev) {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 69, 0, 0.4)';
+            } else if (selectedItem?.id !== item.id) {
               e.currentTarget.style.backgroundColor = 'var(--bg-lighter)';
               e.currentTarget.style.borderColor = 'var(--text-muted)';
             }
           }}
           onMouseLeave={(e) => {
-            if (selectedItem?.id !== item.id) {
+            if (item.isDev) {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 69, 0, 0.2)';
+            } else if (selectedItem?.id !== item.id) {
               e.currentTarget.style.backgroundColor = 'var(--bg-color)';
               e.currentTarget.style.borderColor = 'var(--border-color)';
             }

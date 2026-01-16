@@ -44,11 +44,8 @@ function getHexNeighbors(col, row, width, height) {
 export function findPath(start, goal, battlefield, maxDistance) {
   const { hexes, width, height } = battlefield;
 
-  // Check if goal is within max distance
-  const directDistance = getHexDistance(start.col, start.row, goal.col, goal.row);
-  if (directDistance > maxDistance) {
-    return null; // Goal too far
-  }
+  // Note: We don't check if goal is within maxDistance - pathfinding should work
+  // even for distant goals. The caller will truncate the path to their movement range.
 
   // Create hex lookup map
   const hexMap = new Map();
@@ -56,7 +53,7 @@ export function findPath(start, goal, battlefield, maxDistance) {
     hexMap.set(`${hex.col},${hex.row}`, hex);
   });
 
-  // Check if goal is blocked
+  // Check if goal is blocked (but not if occupied - caller should check that)
   const goalHex = hexMap.get(`${goal.col},${goal.row}`);
   if (!goalHex || goalHex.blocked) {
     return null; // Goal blocked or doesn't exist
@@ -132,10 +129,8 @@ export function findPath(start, goal, battlefield, maxDistance) {
       const moveCost = neighborHex.difficultTerrain ? 2 : 1;
       const tentativeG = gScore.get(currentKey) + moveCost;
 
-      // Skip if this path is too long
-      if (tentativeG > maxDistance) {
-        continue;
-      }
+      // Note: We don't limit by maxDistance here - find the full path
+      // The caller will truncate it to their actual movement range
 
       // Check if this is a better path
       if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)) {

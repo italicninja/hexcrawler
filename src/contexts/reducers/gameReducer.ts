@@ -35,6 +35,9 @@ export function gameReducer(state, action, ACTIONS) {
         mapData: null,
         mapSeed,
         hexGrid: null,
+        regions: [],
+        hexToRegion: null,
+        weatherSystem: null,
         exploredHexes: new Set(),
         discoveredPOIs: new Set(),
         currentScene: 'characterCreation',
@@ -90,6 +93,30 @@ export function gameReducer(state, action, ACTIONS) {
       const exploredHexes = new Set(loadedState.exploredHexes || []);
       const discoveredPOIs = new Set(loadedState.discoveredPOIs || []);
       
+      // Reconstruct regions (convert boundaries back to Sets)
+      let regions = [];
+      if (loadedState.regions) {
+        regions = loadedState.regions.map(region => ({
+          ...region,
+          boundaries: new Set(region.boundaries || [])
+        }));
+      }
+      
+      // Reconstruct hexToRegion Map
+      let hexToRegion = null;
+      if (loadedState.hexToRegion) {
+        hexToRegion = new Map(Object.entries(loadedState.hexToRegion));
+      }
+      
+      // Reconstruct weather system
+      // Note: WeatherSystem import will be needed at top of file
+      let weatherSystem = null;
+      if (loadedState.weatherSystem && regions.length > 0) {
+        // Import WeatherSystem dynamically to avoid circular deps
+        // For now, we'll regenerate weather on load
+        weatherSystem = null; // TODO: Implement WeatherSystem.fromJSON(loadedState.weatherSystem, regions)
+      }
+      
       return {
         ...state,
         ...loadedState,
@@ -97,6 +124,9 @@ export function gameReducer(state, action, ACTIONS) {
         party,
         exploredHexes,
         discoveredPOIs,
+        regions,
+        hexToRegion,
+        weatherSystem,
         // Don't restore combat state
         inCombat: false,
         combat: null,

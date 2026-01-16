@@ -23,6 +23,7 @@ import { Combat } from '../../game/Combat.js';
 import { Enemy } from '../../game/Enemy.js';
 import { Character } from '../../game/Character.js';
 import { Party } from '../../game/Party.js';
+import { findPath } from '../../game/Pathfinding.js';
 import SurvivalManager from '../../game/SurvivalManager';
 import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
@@ -37,9 +38,13 @@ import QuestLog from '../ui/QuestLog';
 import SaveSlotManager from '../ui/SaveSlotManager';
 import HexGridCanvas from '../canvas/HexGridCanvas';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
+import CombatCanvas from '../canvas/CombatCanvas';
+import ActionPanel from '../ui/combat/ActionPanel';
+import TurnOrderDisplay from '../ui/combat/TurnOrderDisplay';
 import MenuSidebar from '../ui/MenuSidebar';
 import MenuPanel from '../ui/MenuPanel';
 import { SaveManager } from '../../utils/SaveManager';
+import { EnemyAI } from '../../game/EnemyAI';
 
 function OverworldScene() {
   const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } = useGameState();
@@ -53,6 +58,16 @@ function OverworldScene() {
   const [selectedHex, setSelectedHex] = useState(null);
   const [selectedInteriorHex, setSelectedInteriorHex] = useState(null);
   const [viewportSize, setViewportSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  
+  // Combat UI state
+  const [combatUIState, setCombatUIState] = useState({
+    selectedAction: null,
+    selectedTarget: null,
+    hoveredHex: null,
+    cameraOffset: { x: 50, y: 50 },
+    cameraZoom: 1.0, // Locked at 1.0 - zoom disabled in combat
+    attacksUsedThisTurn: 0
+  });
 
   const terrainGeneratorRef = useRef(null);
 
@@ -92,58 +107,62 @@ function OverworldScene() {
   };
 
   // Define menu items (memoized to prevent re-renders)
-  const menuItems = useMemo(() => [
-    {
-      id: 'character',
-      label: 'Character',
-      icon: '👤',
-      description: 'View character stats',
-    },
-    {
-      id: 'party',
-      label: 'Party',
-      icon: '👥',
-      description: 'Manage party members',
-      badge: state.party?.npcs?.filter(npc => npc).length || 0
-    },
-    {
-      id: 'equipment',
-      label: 'Equipment',
-      icon: '⚔️',
-      description: 'Manage inventory & gear',
-    },
-    {
-      id: 'rest',
-      label: 'Rest',
-      icon: '🏕️',
-      description: 'Rest and recover',
-    },
-    {
-      id: 'survival',
-      label: 'Survival',
-      icon: '🌲',
-      description: 'Forage and hunt',
-    },
-    {
-      id: 'quests',
-      label: 'Quests',
-      icon: '📜',
-      description: 'Track your quests',
-      badge: state.activeQuests?.length || 0
-    },
-    {
-      id: 'save',
-      label: 'Save',
-      icon: '💾',
-      description: 'Save your game',
-    },
-    {
-      id: 'config',
-      label: 'Config',
-      icon: '⚙️',
-      description: 'Game settings',
-    }
-  ], [state.party?.npcs, state.activeQuests?.length]);
+  const menuItems = useMemo(() => {
+    const items = [
+      {
+        id: 'character',
+        label: 'Character',
+        icon: '👤',
+        description: 'View character stats',
+      },
+      {
+        id: 'party',
+        label: 'Party',
+        icon: '👥',
+        description: 'Manage party members',
+        badge: state.party?.npcs?.filter(npc => npc).length || 0
+      },
+      {
+        id: 'equipment',
+        label: 'Equipment',
+        icon: '⚔️',
+        description: 'Manage inventory & gear',
+      },
+      {
+        id: 'rest',
+        label: 'Rest',
+        icon: '🏕️',
+        description: 'Rest and recover',
+      },
+      {
+        id: 'survival',
+        label: 'Survival',
+        icon: '🌲',
+        description: 'Forage and hunt',
+      },
+      {
+        id: 'quests',
+        label: 'Quests',
+        icon: '📜',
+        description: 'Track your quests',
+        badge: state.activeQuests?.length || 0
+      },
+      {
+        id: 'save',
+        label: 'Save',
+        icon: '💾',
+        description: 'Save your game',
+      },
+      {
+        id: 'config',
+        label: 'Config',
+        icon: '⚙️',
+        description: 'Game settings',
+      }
+    ];
+    
+    return items;
+  }, [state.party?.npcs, state.activeQuests?.length]);
 
   const handleMenuItemClick = (item) => {
     // If survival is clicked, trigger foraging directly instead of opening panel
@@ -497,6 +516,49 @@ function OverworldScene() {
     } else {
       addMessage(`Survival ${result.roll.roll}+${result.roll.modifier}=${result.roll.total} vs DC ${result.roll.dc}: No food found`, 'warning');
     }
+  };
+
+  // DEV ONLY: Force combat for rapid testing
+  const handleForceCombat = () => {
+    addMessage('[DEV] Starting test combat...', 'system');
+    
+    // Get party members
+    const allies = state.party.getAllMembers().filter(m => m);
+    
+    if (allies.length === 0) {
+      addMessage('[DEV] No party members found!', 'error');
+      return;
+    }
+    
+    // Create test enemies (3 goblins CR 1)
+    const diceRoller = new DiceRoller();
+    const enemies = [
+      new Enemy('Goblin Warrior', 1, 'humanoid'),
+      new Enemy('Goblin Archer', 1, 'humanoid'),
+      new Enemy('Goblin Shaman', 1, 'humanoid')
+    ];
+    
+    // Get terrain type from current hex
+    const currentHex = state.mapData.find(h => h.col === state.playerPosition.col && h.row === state.playerPosition.row);
+    const terrainType = currentHex?.terrain?.name || 'plains';
+    
+    console.log('[DEV] Force Combat:', {
+      allies: allies.map(a => a.name),
+      enemies: enemies.map(e => e.name),
+      terrainType
+    });
+    
+    // Dispatch START_COMBAT
+    dispatch({
+      type: actions.START_COMBAT,
+      payload: {
+        allies,
+        enemies,
+        encounterName: 'Test Combat (DEV)',
+        encounterType: 'standard',
+        terrainType
+      }
+    });
   };
 
   // Handle engaging in combat with a POI
@@ -901,6 +963,314 @@ function OverworldScene() {
 
   const forageStatus = getForageStatus();
 
+  // Check for victory/defeat in combat
+  const combatEndHandledRef = useRef(false);
+  const combatStartRoundRef = useRef(null);
+  
+  useEffect(() => {
+    if (!state.combatState) {
+      combatEndHandledRef.current = false;
+      combatStartRoundRef.current = null;
+      return;
+    }
+    
+    // Don't check on the very first round/turn (combat just started)
+    if (combatStartRoundRef.current === null) {
+      combatStartRoundRef.current = state.combatState.round;
+      console.log('[Combat] Combat started, skipping initial victory check');
+      return;
+    }
+    
+    // Already handled combat end
+    if (combatEndHandledRef.current) return;
+    
+    const livingAllies = state.combatState.turnOrder.filter(c => c.isAlly && c.currentHP > 0);
+    const livingEnemies = state.combatState.turnOrder.filter(c => c.isEnemy && c.currentHP > 0);
+    
+    console.log('[Combat] Victory check:', {
+      livingAllies: livingAllies.length,
+      livingEnemies: livingEnemies.length,
+      allAllies: state.combatState.turnOrder.filter(c => c.isAlly).map(c => ({name: c.name, hp: c.currentHP})),
+      allEnemies: state.combatState.turnOrder.filter(c => c.isEnemy).map(c => ({name: c.name, hp: c.currentHP}))
+    });
+    
+    if (livingEnemies.length === 0 && livingAllies.length > 0) {
+      combatEndHandledRef.current = true;
+      addMessage('Victory! All enemies defeated!', 'success');
+      setTimeout(() => {
+        dispatch({ type: actions.END_COMBAT, payload: { victory: true } });
+      }, 2000);
+    } else if (livingAllies.length === 0) {
+      combatEndHandledRef.current = true;
+      addMessage('Defeat! All party members have fallen...', 'error');
+      setTimeout(() => {
+        dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'gameover' });
+      }, 2000);
+    }
+  }, [state.combatState?.currentTurnIndex, state.combatState?.round, dispatch, actions, addMessage]);
+  
+  // Log initiative rolls when combat starts
+  const initiativeLoggedRef = useRef(false);
+  
+  useEffect(() => {
+    if (!state.combatState || !state.combatState.turnOrder) {
+      initiativeLoggedRef.current = false;
+      return;
+    }
+    
+    // Only log once when combat starts
+    if (initiativeLoggedRef.current) return;
+    initiativeLoggedRef.current = true;
+    
+    // Log initiative header
+    addMessage('=== INITIATIVE ===', 'system');
+    
+    // Log each combatant's initiative
+    state.combatState.turnOrder.forEach(combatant => {
+      const dexMod = combatant.character 
+        ? Math.floor((combatant.character.abilities.dexterity - 10) / 2)
+        : Math.floor((combatant.enemy.abilities.dexterity - 10) / 2);
+      
+      // Calculate the d20 roll from initiative total (initiative - dex mod)
+      const roll = combatant.initiative - dexMod;
+      
+      addMessage(
+        `${combatant.name}: ${combatant.initiative} (rolled ${roll}+${dexMod})`,
+        'system'
+      );
+    });
+    
+    addMessage('', 'system'); // Blank line for spacing
+  }, [state.combatState, addMessage]);
+  
+  // Process AI turn
+  const processAITurn = useCallback((combatant) => {
+    if (!combatant || !combatant.enemy) {
+      console.error('[AI] Invalid combatant for AI turn', combatant);
+      return;
+    }
+    
+    if (!state.combatState || !state.combatState.battlefield) {
+      console.error('[AI] Combat state invalid');
+      return;
+    }
+    
+    const enemy = combatant.enemy;
+    addMessage(`${enemy.name} is thinking...`, 'encounter');
+    
+    console.log('[AI] Processing turn for:', enemy.name);
+    
+    // Use EnemyAI to decide action
+    const action = EnemyAI.decideAction(
+      combatant,
+      state.combatState.battlefield,
+      state.combatState.turnOrder,
+      state.combatState.movementRemaining
+    );
+    
+    console.log('[AI] Action decided:', action);
+    
+    // Wait 800ms for player to see AI thinking
+    setTimeout(() => {
+      if (!state.combatState) {
+        console.warn('[AI] Combat ended during AI turn');
+        return;
+      }
+      
+      if (action.type === 'move') {
+        addMessage(`${enemy.name} moves to (${action.destination.col}, ${action.destination.row})`, 'encounter');
+        
+        if (actions.PROCESS_COMBAT_MOVEMENT) {
+          dispatch({
+            type: actions.PROCESS_COMBAT_MOVEMENT,
+            payload: {
+              path: action.path,
+              cost: action.moveCost * 5 // Convert hexes to feet
+            }
+          });
+        }
+      } else if (action.type === 'attack') {
+        const targetName = action.target.character?.name || action.target.enemy?.name;
+        addMessage(`${enemy.name} attacks ${targetName}!`, 'encounter');
+        
+        if (actions.PROCESS_COMBAT_ACTION) {
+          dispatch({
+            type: actions.PROCESS_COMBAT_ACTION,
+            payload: {
+              actionType: 'attack',
+              target: action.target,
+              attacker: combatant
+            }
+          });
+        }
+      } else if (action.type === 'wait') {
+        addMessage(`${enemy.name} waits`, 'encounter');
+      }
+      
+      // Wait 500ms more, then advance turn
+      setTimeout(() => {
+        if (!state.combatState) return;
+        dispatch({ type: actions.ADVANCE_COMBAT_TURN });
+      }, 500);
+    }, 800);
+  }, [state.combatState, dispatch, actions, addMessage]);
+  
+  // Auto-process AI turns
+  const lastProcessedTurnRef = useRef(null);
+  
+  useEffect(() => {
+    if (!state.combatState) return;
+    
+    const currentTurnIndex = state.combatState.currentTurnIndex;
+    const waitingForPlayer = state.combatState.waitingForPlayerAction;
+    
+    // Skip if already processed this turn
+    if (lastProcessedTurnRef.current === currentTurnIndex) {
+      return;
+    }
+    
+    const currentCombatant = state.combatState.turnOrder[currentTurnIndex];
+    if (!currentCombatant) return;
+    
+    console.log('[AI] Turn check:', {
+      combatant: currentCombatant.name,
+      isAlly: currentCombatant.isAlly,
+      isEnemy: currentCombatant.isEnemy,
+      waitingForPlayer,
+      currentTurnIndex
+    });
+    
+    // Only process AI turns (enemies)
+    if (currentCombatant.isEnemy && !waitingForPlayer) {
+      lastProcessedTurnRef.current = currentTurnIndex;
+      processAITurn(currentCombatant);
+    }
+  }, [state.combatState?.currentTurnIndex, state.combatState?.waitingForPlayerAction, processAITurn]);
+  
+  // Combat handlers
+  const handleCombatHexClick = useCallback((hex) => {
+    logger.combat.debug('Combat hex clicked', { hex, hasCombatState: !!state.combatState });
+    
+    if (!state.combatState) return;
+    
+    const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
+    if (!currentCombatant) {
+      logger.combat.warn('No current combatant');
+      return;
+    }
+    
+    logger.combat.debug('Current combatant', {
+      name: currentCombatant.name,
+      isAlly: currentCombatant.isAlly,
+      position: currentCombatant.position
+    });
+    
+    if (!currentCombatant.isAlly) {
+      addMessage("It's not your turn!", 'warning');
+      return;
+    }
+    
+    // Check if hex is occupied by a combatant
+    const targetCombatant = state.combatState.turnOrder.find(
+      c => c.position.col === hex.col && c.position.row === hex.row
+    );
+    
+    logger.combat.debug('Hex click routing', {
+      selectedAction: combatUIState.selectedAction,
+      hasTarget: !!targetCombatant,
+      targetHex: { col: hex.col, row: hex.row }
+    });
+    
+    // If "move" action is selected, try to move
+    if (combatUIState.selectedAction === 'move') {
+      logger.combat.info('Processing movement action');
+      
+      if (targetCombatant) {
+        addMessage('Hex is occupied', 'warning');
+        return;
+      }
+      
+      // Calculate path using Pathfinding
+      const path = findPath(
+        currentCombatant.position,
+        hex,
+        state.combatState.battlefield,
+        state.combatState.turnOrder
+      );
+      
+      if (!path || path.length === 0) {
+        addMessage('No valid path to destination', 'warning');
+        return;
+      }
+      
+      const moveCost = path.length - 1; // First hex is current position
+      const moveCostFeet = moveCost * 5;
+      
+      if (moveCostFeet > state.combatState.movementRemaining) {
+        addMessage(`Not enough movement (need ${moveCostFeet} ft, have ${state.combatState.movementRemaining} ft)`, 'warning');
+        return;
+      }
+      
+      logger.combat.info('Dispatching PROCESS_COMBAT_MOVEMENT', {
+        combatantId: currentCombatant.id,
+        path,
+        moveCost,
+        moveCostFeet
+      });
+      
+      dispatch({
+        type: actions.PROCESS_COMBAT_MOVEMENT,
+        payload: {
+          combatantId: currentCombatant.id,
+          path,
+          cost: moveCostFeet
+        }
+      });
+      
+      addMessage(`Moved ${moveCost} hex${moveCost !== 1 ? 'es' : ''} to (${hex.col}, ${hex.row})`, 'action');
+      
+      // Clear selection
+      setCombatUIState(prev => ({
+        ...prev,
+        selectedAction: null
+      }));
+    } else if (targetCombatant && !targetCombatant.isAlly) {
+      // Clicking an enemy without action selected - auto-select attack
+      logger.combat.info('Auto-selecting attack for enemy click');
+      setCombatUIState(prev => ({
+        ...prev,
+        selectedAction: 'attack',
+        selectedTarget: targetCombatant
+      }));
+      addMessage(`Targeting ${targetCombatant.enemy?.name || targetCombatant.name}`, 'action');
+    } else {
+      logger.combat.debug('No action taken for hex click');
+    }
+  }, [state.combatState, combatUIState.selectedAction, dispatch, actions, addMessage]);
+  
+  const handleCombatEndTurn = useCallback(() => {
+    if (!state.combatState) return;
+    
+    const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
+    addMessage(`${currentCombatant.name} ended their turn`, 'action');
+    
+    setCombatUIState(prev => ({
+      ...prev,
+      attacksUsedThisTurn: 0,
+      selectedAction: null,
+      selectedTarget: null
+    }));
+    
+    dispatch({ type: actions.ADVANCE_COMBAT_TURN });
+  }, [state.combatState, dispatch, actions, addMessage]);
+  
+  const getCurrentCombatant = () => {
+    if (!state.combatState?.turnOrder || state.combatState.currentTurnIndex === undefined) {
+      return null;
+    }
+    return state.combatState.turnOrder[state.combatState.currentTurnIndex];
+  };
+
   return (
     <div className="game-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       {/* Game Header with Time Display */}
@@ -912,9 +1282,92 @@ function OverworldScene() {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <h2 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.25rem' }}>
-          hexcrawler
-        </h2>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.25rem' }}>
+            hexcrawler
+          </h2>
+          
+          {/* Dev Tools Dropdown */}
+          {import.meta.env.DEV && (
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenPanel(openPanel === 'dev-tools' ? null : 'dev-tools');
+                }}
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  fontSize: '0.85rem',
+                  backgroundColor: openPanel === 'dev-tools' ? 'var(--primary-color)' : 'var(--accent-color)',
+                  color: 'var(--bg-color)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  transition: 'background-color 0.2s'
+                }}
+              >
+                🛠️ Dev Tools
+              </button>
+              
+              {openPanel === 'dev-tools' && (
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '0.25rem',
+                    backgroundColor: 'var(--panel-bg)',
+                    border: '2px solid var(--border-color)',
+                    borderRadius: '4px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                    minWidth: '200px',
+                    zIndex: 1000
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      handleForceCombat();
+                      setOpenPanel(null);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      fontSize: '0.9rem',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-color)',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      transition: 'background-color 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-lighter)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <span>⚔️</span>
+                    <span>Force Combat</span>
+                  </button>
+                  
+                  {/* Placeholder for future dev tools */}
+                  <div style={{
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted)',
+                    fontStyle: 'italic',
+                    borderTop: '1px solid var(--border-color)'
+                  }}>
+                    More dev tools coming soon...
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        
         <div style={{
           display: 'flex',
           gap: '1.5rem',
@@ -979,8 +1432,24 @@ function OverworldScene() {
         </div>
 
         {/* Canvas Container */}
-        <main className="canvas-container" style={{ flex: 1 }}>
-          {state.inInterior && interiorMap ? (
+        <main className="canvas-container" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {state.combatState?.battlefield ? (
+            /* Combat Mode - Show battlefield fullscreen */
+            <CombatCanvas
+              battlefield={state.combatState.battlefield}
+              combatants={state.combatState.turnOrder}
+              currentTurnIndex={state.combatState.currentTurnIndex}
+              selectedAction={combatUIState.selectedAction}
+              hoveredHex={combatUIState.hoveredHex}
+              movementRemaining={state.combatState.movementRemaining}
+              onHexClick={handleCombatHexClick}
+              onHexHover={(hex) => setCombatUIState(prev => ({...prev, hoveredHex: hex}))}
+              cameraOffset={combatUIState.cameraOffset}
+              cameraZoom={combatUIState.cameraZoom}
+              onCameraChange={(offset, zoom) => setCombatUIState(prev => ({...prev, cameraOffset: offset, cameraZoom: zoom}))}
+            />
+          ) : state.inInterior && interiorMap ? (
+            /* Interior Mode */
             <InteriorHexCanvas
               interiorMap={interiorMap}
               playerPosition={state.interiorPlayerPosition}
@@ -989,6 +1458,7 @@ function OverworldScene() {
               onHexDoubleClick={handleInteriorHexDoubleClick}
             />
           ) : state.mapData && state.mapData.length > 0 ? (
+            /* Overworld Mode */
             <HexGridCanvas
               hexes={state.mapData}
               onHexClick={handleHexClick}
@@ -1012,22 +1482,66 @@ function OverworldScene() {
           )}
         </main>
 
-        {/* Right Panel - Hex Info or Interior Info */}
+        {/* Right Panel - Combat Actions, Hex Info, or Interior Info */}
         <aside style={{
           width: '280px',
           flexShrink: 0,
           backgroundColor: 'var(--bg-color)',
           borderRadius: '8px',
-          padding: state.inInterior ? 0 : '0.5rem',
-          overflowY: 'auto'
+          padding: '0.5rem',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem'
         }}>
-          {state.inInterior && interiorMap ? (
+          {state.combatState?.battlefield ? (
+            /* Combat Actions Panel */
+            <>
+              {getCurrentCombatant() && getCurrentCombatant().isAlly ? (
+                <ActionPanel
+                  combatant={getCurrentCombatant()}
+                  selectedAction={combatUIState.selectedAction}
+                  movementRemaining={state.combatState.movementRemaining}
+                  attacksUsedThisTurn={combatUIState.attacksUsedThisTurn}
+                  onActionSelect={(action) => setCombatUIState(prev => ({...prev, selectedAction: action}))}
+                  onAbilityClick={() => addMessage('Abilities not yet implemented', 'info')}
+                  onSpellClick={() => addMessage('Spells not yet implemented', 'info')}
+                  onDodgeClick={() => addMessage('Dodge not yet implemented', 'info')}
+                  onDashClick={() => addMessage('Dash not yet implemented', 'info')}
+                  onEndTurn={handleCombatEndTurn}
+                />
+              ) : getCurrentCombatant() && getCurrentCombatant().isEnemy ? (
+                <div style={{
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                  backgroundColor: 'var(--bg-lighter)',
+                  border: '2px solid var(--border-color)',
+                  borderRadius: '8px'
+                }}>
+                  <h3 style={{ margin: '0 0 0.5rem 0', color: '#ff6b6b', fontSize: '1.2rem' }}>
+                    {getCurrentCombatant().name}'s Turn
+                  </h3>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                    Enemy is taking their turn...
+                  </p>
+                </div>
+              ) : null}
+              
+              {/* Turn Order Display */}
+              <TurnOrderDisplay
+                turnOrder={state.combatState.turnOrder}
+                currentTurnIndex={state.combatState.currentTurnIndex}
+              />
+            </>
+          ) : state.inInterior && interiorMap ? (
+            /* Interior Info */
             <InteriorInfoPane
               selectedHex={selectedInteriorHex}
               playerPosition={state.interiorPlayerPosition}
               interiorMap={interiorMap}
             />
           ) : (
+            /* Hex Details */
             <HexDetails
               hex={selectedHex}
               terrainGenerator={terrainGeneratorRef.current}
@@ -1104,10 +1618,14 @@ function OverworldScene() {
         <Settings />
       </MenuPanel>
 
-      {/* Game Log */}
-      <div className="game-log-container" style={{ display: 'flex', position: 'relative' }}>
+      {/* Game Log - Always shown at bottom with fixed height */}
+      <div className="game-log-container" style={{ 
+        display: 'flex', 
+        position: 'relative',
+        height: '150px',
+        flexShrink: 0
+      }}>
         <GameLog />
-        {/* EventInfoBox positioned in bottom right */}
       </div>
 
       {/* Save Menu Modal */}

@@ -393,14 +393,14 @@ export class Character {
                 abilities: { strength: 15, dexterity: 13, constitution: 14, intelligence: 8, wisdom: 12, charisma: 10 },
                 armorClass: 13, // Unarmored defense (10 + DEX + CON)
                 proficiencies: ['Light Armor', 'Medium Armor', 'Shields', 'Simple Weapons', 'Martial Weapons', 'Strength Saves', 'Constitution Saves'],
-                abilities_list: [{ name: 'Rage', uses: 2, maxUses: 2 }]
+                abilities_list: [{ name: 'Rage', uses: 2, maxUses: 2, actionType: 'bonusAction' }]
             },
             bard: {
                 hitDie: 'd8',
                 abilities: { strength: 8, dexterity: 14, constitution: 12, intelligence: 10, wisdom: 13, charisma: 15 },
                 armorClass: 14, // Light armor
                 proficiencies: ['Light Armor', 'Simple Weapons', 'Hand Crossbows', 'Longswords', 'Rapiers', 'Shortswords', 'Dexterity Saves', 'Charisma Saves'],
-                abilities_list: [{ name: 'Bardic Inspiration', uses: 2, maxUses: 2 }]
+                abilities_list: [{ name: 'Bardic Inspiration', uses: 2, maxUses: 2, actionType: 'bonusAction' }]
             },
             cleric: {
                 hitDie: 'd8',
@@ -421,14 +421,17 @@ export class Character {
                 abilities: { strength: 15, dexterity: 14, constitution: 13, intelligence: 8, wisdom: 10, charisma: 12 },
                 armorClass: 18, // Chain mail + shield
                 proficiencies: ['All Armor', 'All Shields', 'Simple Weapons', 'Martial Weapons', 'Strength Saves', 'Constitution Saves'],
-                abilities_list: [{ name: 'Second Wind', uses: 1, maxUses: 1 }]
+                abilities_list: [{ name: 'Second Wind', uses: 1, maxUses: 1, actionType: 'bonusAction' }]
             },
             monk: {
                 hitDie: 'd8',
                 abilities: { strength: 10, dexterity: 15, constitution: 13, intelligence: 8, wisdom: 14, charisma: 12 },
                 armorClass: 14, // Unarmored defense (10 + DEX + WIS)
                 proficiencies: ['Simple Weapons', 'Shortswords', 'Strength Saves', 'Dexterity Saves'],
-                abilities_list: [{ name: 'Ki Points', uses: 1, maxUses: 1 }, { name: 'Martial Arts', uses: -1, maxUses: -1 }]
+                abilities_list: [
+                    { name: 'Ki Points', uses: 1, maxUses: 1, actionType: 'action' }, 
+                    { name: 'Martial Arts', uses: -1, maxUses: -1, actionType: 'bonusAction' }
+                ]
             },
             paladin: {
                 hitDie: 'd10',
@@ -575,6 +578,91 @@ export class Character {
         const diceToUse = Math.min(count, this.hitDiceRemaining);
         this.hitDiceRemaining -= diceToUse;
         return diceToUse;
+    }
+
+    /**
+     * Get number of attacks per Attack action (Extra Attack feature)
+     * @returns {number} Number of attacks (1, 2, 3, or 4)
+     */
+    getAttacksPerAction() {
+        const classKey = this.class.toLowerCase();
+        
+        // Fighter gets more attacks than other classes
+        if (classKey === 'fighter') {
+            if (this.level >= 20) return 4;
+            if (this.level >= 11) return 3;
+            if (this.level >= 5) return 2;
+            return 1;
+        }
+        
+        // Martial classes get 2 attacks at level 5
+        if (['barbarian', 'paladin', 'ranger', 'monk'].includes(classKey)) {
+            return this.level >= 5 ? 2 : 1;
+        }
+        
+        // Casters, rogues, etc. only get 1 attack
+        return 1;
+    }
+
+    /**
+     * Check if character has a specific ability/feature
+     * @param {string} abilityName - Name of ability to check
+     * @returns {boolean} True if character has the ability
+     */
+    hasAbility(abilityName) {
+        return this.abilities_list.some(ability => 
+            ability.name.toLowerCase() === abilityName.toLowerCase()
+        );
+    }
+
+    /**
+     * Get available bonus actions for this character
+     * @returns {Array} Array of bonus action abilities
+     */
+    getAvailableBonusActions() {
+        const bonusActions = [];
+        
+        // Rogue: Cunning Action (level 2+)
+        if (this.class.toLowerCase() === 'rogue' && this.level >= 2) {
+            bonusActions.push({
+                name: 'Cunning Action',
+                actionType: 'bonusAction',
+                description: 'Dash, Disengage, or Hide as bonus action',
+                uses: -1,
+                maxUses: -1
+            });
+        }
+        
+        // Monk: Martial Arts (level 1+) - bonus action unarmed strike
+        if (this.class.toLowerCase() === 'monk') {
+            bonusActions.push({
+                name: 'Martial Arts',
+                actionType: 'bonusAction',
+                description: 'Make unarmed strike as bonus action after Attack action',
+                uses: -1,
+                maxUses: -1
+            });
+        }
+        
+        // Barbarian: Rage (level 1+)
+        if (this.class.toLowerCase() === 'barbarian') {
+            const rageAbility = this.abilities_list.find(a => a.name === 'Rage');
+            if (rageAbility && rageAbility.uses > 0) {
+                bonusActions.push({
+                    ...rageAbility,
+                    actionType: 'bonusAction'
+                });
+            }
+        }
+        
+        // Add any custom bonus action abilities
+        const customBonusActions = this.abilities_list.filter(ability => 
+            ability.actionType === 'bonusAction' && 
+            (!ability.maxUses || ability.maxUses === -1 || ability.uses > 0)
+        );
+        bonusActions.push(...customBonusActions);
+        
+        return bonusActions;
     }
 
     /**

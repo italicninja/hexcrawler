@@ -51,6 +51,9 @@ export class Enemy {
     // Attack configuration
     this.attacks = statTable.attacks;
     this.multiattack = statTable.multiattack || 1;
+    
+    // Movement (most monsters have 30 feet = 6 hexes)
+    this.moveDistance = statTable.moveDistance || 6;
   }
 
   /**
@@ -72,7 +75,8 @@ export class Enemy {
         charisma: 8,
         attacks: [{ name: 'Slam', damage: '1d4', damageType: 'bludgeoning' }],
         multiattack: 1,
-        range: 1
+        range: 1,
+        moveDistance: 6 // 30 feet
       },
       1: {
         hp: 36,
@@ -88,7 +92,8 @@ export class Enemy {
         charisma: 8,
         attacks: [{ name: 'Strike', damage: '1d8+1', damageType: 'slashing' }],
         multiattack: 1,
-        range: 1
+        range: 1,
+        moveDistance: 6 // 30 feet
       },
       2: {
         hp: 52,
@@ -104,7 +109,8 @@ export class Enemy {
         charisma: 8,
         attacks: [{ name: 'Weapon Attack', damage: '1d8+2', damageType: 'slashing' }],
         multiattack: 1,
-        range: 1
+        range: 1,
+        moveDistance: 6 // 30 feet
       },
       3: {
         hp: 66,
@@ -120,7 +126,8 @@ export class Enemy {
         charisma: 10,
         attacks: [{ name: 'Claw', damage: '2d6+2', damageType: 'slashing' }],
         multiattack: 1,
-        range: 1
+        range: 1,
+        moveDistance: 6 // 30 feet
       },
       4: {
         hp: 84,

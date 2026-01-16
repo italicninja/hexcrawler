@@ -1,18 +1,26 @@
 import PropTypes from 'prop-types';
+import ActionEconomyDisplay from './ActionEconomyDisplay';
 
 /**
  * ActionPanel - Display available actions for current combatant
  * Dynamically generates action buttons based on combatant class and state
- * Actions: Move, Attack, Dodge, Dash, Abilities, Cast Spell, End Turn
+ * Actions: Move, Attack, Dodge, Dash, Disengage, Help, Hide, Search, Abilities, Cast Spell, End Turn
  */
 function ActionPanel({
   combatant,
   selectedAction,
   movementRemaining,
   attacksUsedThisTurn,
+  turnState,
   onActionSelect,
   onAbilityClick,
   onSpellClick,
+  onDodgeClick,
+  onDashClick,
+  onDisengageClick,
+  onHelpClick,
+  onHideClick,
+  onSearchClick,
   onEndTurn
 }) {
   if (!combatant) {
@@ -37,6 +45,8 @@ function ActionPanel({
 
   // Check for spell slots (simplified - just check if they have spells)
   const hasSpells = combatant.spells && combatant.spells.length > 0;
+
+  const actionUsed = turnState?.actionUsed || false;
 
   /**
    * Render an action button
@@ -69,6 +79,15 @@ function ActionPanel({
     );
   };
 
+  ActionButton.propTypes = {
+    action: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    icon: PropTypes.string.isRequired,
+    disabled: PropTypes.bool,
+    color: PropTypes.string,
+    onClick: PropTypes.func.isRequired
+  };
+
   return (
     <div
       className="rounded-lg p-4"
@@ -77,8 +96,16 @@ function ActionPanel({
         border: '2px solid var(--border-color)'
       }}
     >
+      {/* Action Economy Display */}
+      {turnState && (
+        <ActionEconomyDisplay 
+          turnState={turnState} 
+          character={combatant.character} 
+        />
+      )}
+
       {/* Header */}
-      <h3 className="font-bold text-lg mb-1" style={{ color: 'var(--text-color)' }}>
+      <h3 className="font-bold text-lg mb-1 mt-3" style={{ color: 'var(--text-color)' }}>
         Actions
       </h3>
       <div className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
@@ -100,8 +127,8 @@ function ActionPanel({
         </div>
       )}
 
-      {/* Action Grid */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      {/* Action Grid - 3 columns */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
         {/* Move */}
         <ActionButton
           action="move"
@@ -127,8 +154,9 @@ function ActionPanel({
           action="dodge"
           label="Dodge"
           icon="🛡️"
+          disabled={actionUsed}
           color="#3498db"
-          onClick={() => onActionSelect('dodge')}
+          onClick={onDodgeClick}
         />
 
         {/* Dash */}
@@ -136,8 +164,49 @@ function ActionPanel({
           action="dash"
           label="Dash"
           icon="💨"
+          disabled={actionUsed}
           color="#2ecc71"
-          onClick={() => onActionSelect('dash')}
+          onClick={onDashClick}
+        />
+
+        {/* Disengage */}
+        <ActionButton
+          action="disengage"
+          label="Disengage"
+          icon="🏃"
+          disabled={actionUsed}
+          color="#f39c12"
+          onClick={onDisengageClick}
+        />
+
+        {/* Help */}
+        <ActionButton
+          action="help"
+          label="Help"
+          icon="🤝"
+          disabled={actionUsed}
+          color="#3498db"
+          onClick={onHelpClick}
+        />
+
+        {/* Hide */}
+        <ActionButton
+          action="hide"
+          label="Hide"
+          icon="🥷"
+          disabled={actionUsed}
+          color="#9b59b6"
+          onClick={onHideClick}
+        />
+
+        {/* Search */}
+        <ActionButton
+          action="search"
+          label="Search"
+          icon="🔍"
+          disabled={actionUsed}
+          color="#95a5a6"
+          onClick={onSearchClick}
         />
 
         {/* Abilities */}
@@ -204,6 +273,7 @@ ActionPanel.propTypes = {
     name: PropTypes.string.isRequired,
     class: PropTypes.string,
     level: PropTypes.number,
+    character: PropTypes.object,
     abilities_list: PropTypes.arrayOf(
       PropTypes.shape({
         name: PropTypes.string.isRequired,
@@ -216,9 +286,20 @@ ActionPanel.propTypes = {
   selectedAction: PropTypes.string,
   movementRemaining: PropTypes.number,
   attacksUsedThisTurn: PropTypes.number,
+  turnState: PropTypes.shape({
+    actionUsed: PropTypes.bool,
+    bonusActionUsed: PropTypes.bool,
+    reactionUsed: PropTypes.bool
+  }),
   onActionSelect: PropTypes.func.isRequired,
   onAbilityClick: PropTypes.func,
   onSpellClick: PropTypes.func,
+  onDodgeClick: PropTypes.func,
+  onDashClick: PropTypes.func,
+  onDisengageClick: PropTypes.func,
+  onHelpClick: PropTypes.func,
+  onHideClick: PropTypes.func,
+  onSearchClick: PropTypes.func,
   onEndTurn: PropTypes.func.isRequired
 };
 

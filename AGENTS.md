@@ -606,12 +606,22 @@ Uses **cube coordinates** converted to offset coordinates:
 
 ### Map Generation
 
-**Seeded random generation** ensures reproducible maps:
-- Seed stored in `mapSeed` state
-- Same seed = same map every time
-- 4 terrain algorithms available (see `terrainAlgorithms.js`)
+**Region-based generation** creates coherent biomes and weather:
+- **Regions** (`RegionGenerator.js`): 8-15 large regions per map using Voronoi partitioning
+- **Biome clustering**: Hexes within regions share biome types (temperate forest, desert, tundra, etc.)
+- **Regional weather** (`WeatherSystem.js`): Weather patterns affect entire regions, not individual hexes
+- **Weather fronts**: Moving weather systems that cross region boundaries over time
+- **Seeded random**: Same seed = same regions, biomes, and initial weather
 - Rivers generated after terrain using `riverGenerator.js`
 - POIs placed with terrain-appropriate logic
+
+**Region Types:**
+- Temperate Forest, Tropical Jungle, Arid Desert, Arctic Tundra, Alpine Highlands, Wetlands, Coastal
+
+**Data structures:**
+- `state.regions`: Array of region objects with biome, climate, elevation, moisture, temperature
+- `state.hexToRegion`: Map of hex coordinates to region IDs
+- `state.weatherSystem`: WeatherSystem instance managing regional weather patterns
 
 ## Common Pitfalls
 

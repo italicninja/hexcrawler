@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
+import { logRegionStats } from '../utils/regionDebug.js';
 
 /**
  * useMapGeneration Hook
@@ -34,12 +35,21 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
     const initialRows = Math.ceil((viewportSize.height * 0.8) / (hexSize * 1.5)) + 30; // +30 buffer (increased from 20)
 
     // Generate terrain data - always start from (0, 0) for deterministic terrain
-    const terrainData = terrainGeneratorRef.current.generate(
+    // New region-based generation returns { grid, regions, hexToRegion, weatherSystem }
+    const generationResult = terrainGeneratorRef.current.generate(
       Math.max(initialCols, 60),  // Minimum 60 cols (increased from 40)
       Math.max(initialRows, 60),  // Minimum 60 rows (increased from 50)
       0.5, // terrainVariety
       5    // poiFrequency
     );
+
+    const terrainData = generationResult.grid;
+    const regions = generationResult.regions;
+    const hexToRegion = generationResult.hexToRegion;
+    const weatherSystem = generationResult.weatherSystem;
+
+    // Log region statistics for debugging
+    logRegionStats(regions, hexToRegion);
 
     // Convert terrain data to hex objects with col/row coordinates
     const generatedHexes = [];
@@ -53,7 +63,8 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
           col,
           terrain: terrainData[row][col].terrain,
           poi: terrainData[row][col].poi,
-          weather: terrainData[row][col].weather
+          weather: terrainData[row][col].weather,
+          regionId: terrainData[row][col].regionId
         });
       }
     }
@@ -85,10 +96,15 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
       terrainGeneratorRef.current.seed = savedSeed;
     }
 
-    // Store map in game state
+    // Store map in game state (includes regions and weather system)
     dispatch({
       type: actions.SET_MAP_DATA,
-      payload: generatedHexes
+      payload: {
+        hexes: generatedHexes,
+        regions,
+        hexToRegion,
+        weatherSystem
+      }
     });
 
     // Auto-discover the starting town

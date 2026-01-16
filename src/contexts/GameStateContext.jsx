@@ -72,6 +72,19 @@ const ACTIONS = {
   ADVANCE_COMBAT_TURN: 'ADVANCE_COMBAT_TURN',
   END_COMBAT: 'END_COMBAT',
   UPDATE_COMBAT_STATE: 'UPDATE_COMBAT_STATE',
+  // Combat action economy (D&D 5e)
+  USE_COMBAT_ACTION: 'USE_COMBAT_ACTION',
+  USE_COMBAT_BONUS_ACTION: 'USE_COMBAT_BONUS_ACTION',
+  USE_COMBAT_REACTION: 'USE_COMBAT_REACTION',
+  USE_COMBAT_MOVEMENT: 'USE_COMBAT_MOVEMENT',
+  USE_FREE_OBJECT_INTERACTION: 'USE_FREE_OBJECT_INTERACTION',
+  RESET_COMBAT_TURN_STATE: 'RESET_COMBAT_TURN_STATE',
+  SET_COMBAT_TURN_STATE: 'SET_COMBAT_TURN_STATE',
+  INCREMENT_ATTACK_COUNT: 'INCREMENT_ATTACK_COUNT',
+  ADD_COMBAT_CONDITION: 'ADD_COMBAT_CONDITION',
+  REMOVE_COMBAT_CONDITION: 'REMOVE_COMBAT_CONDITION',
+  SET_READY_ACTION: 'SET_READY_ACTION',
+  TRIGGER_READY_ACTION: 'TRIGGER_READY_ACTION',
   // XP and leveling actions
   AWARD_XP: 'AWARD_XP',
   LEVEL_UP_CHARACTER: 'LEVEL_UP_CHARACTER',
@@ -99,6 +112,9 @@ const initialState = {
   mapData: null,
   mapSeed: '',
   hexGrid: null, // Spatial index for O(1) hex lookups
+  regions: [], // Region data for biome clustering
+  hexToRegion: null, // Map of hex coords to region IDs
+  weatherSystem: null, // WeatherSystem instance for regional weather
   exploredHexes: new Set(),
   discoveredPOIs: new Set(),
   currentScene: 'title',
@@ -131,7 +147,18 @@ const initialState = {
     encounterName: '',
     encounterType: 'standard',
     waitingForPlayerAction: false,
-    movementRemaining: COMBAT.DEFAULT_MOVEMENT_FEET
+    movementRemaining: COMBAT.DEFAULT_MOVEMENT_FEET,
+    // D&D 5e Action Economy
+    turnState: {
+      actionUsed: false,        // Has main Action been used?
+      bonusActionUsed: false,   // Has Bonus Action been used?
+      reactionUsed: false,      // Has Reaction been used this round?
+      movementUsed: 0,          // Feet of movement used
+      freeObjectUsed: false,    // Has free object interaction been used?
+      attacksMade: 0,           // Number of attacks made (for Extra Attack)
+      conditions: [],           // Active conditions on current combatant [{type, duration, data}]
+      readyAction: null         // Ready action waiting to trigger {actionType, trigger, data}
+    }
   },
   // Quest state
   activeQuests: [],

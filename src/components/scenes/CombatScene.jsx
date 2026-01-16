@@ -10,6 +10,9 @@ import SpellMenu from '../ui/combat/SpellMenu';
 import { findPath } from '../../game/Pathfinding';
 import { checkLineOfSight } from '../../game/LineOfSight';
 import { EnemyAI } from '../../game/EnemyAI';
+import { DiceRoller } from '../../game/DiceRoller';
+import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
+import OpportunityAttackPrompt from '../ui/combat/OpportunityAttackPrompt';
 import logger from '../../utils/logger.js';
 import './CombatScene.css';
 
@@ -48,12 +51,31 @@ function CombatScene() {
     selectedAction: null,  // 'move' | 'attack' | 'spell' | 'ability' | null
     selectedTarget: null,
     hoveredHex: null,
-    cameraOffset: { x: 100, y: 50 }, // Initial offset to center battlefield
+    cameraOffset: { x: 0, y: 0 }, // Will be auto-centered on mount
     cameraZoom: 1.0,
     showAbilityMenu: false,
     showSpellMenu: false,
-    attacksUsedThisTurn: 0
+    attacksUsedThisTurn: 0,
+    cameraInitialized: false,
+    opportunityAttackPrompt: null // {attackers, target, movement}
   });
+  
+  // Auto-center camera on battlefield when combat starts
+  useEffect(() => {
+    if (!state.combatState || !state.combatState.battlefield || localCombatState.cameraInitialized) {
+      return;
+    }
+    
+    // Start with camera showing top-left of battlefield
+    // Player can pan/zoom to see combatants
+    setLocalCombatState(prev => ({
+      ...prev,
+      cameraOffset: { x: 50, y: 50 },
+      cameraInitialized: true
+    }));
+    
+    console.log('[CombatScene] Camera initialized');
+  }, [state.combatState, localCombatState.cameraInitialized]);
 
   /**
    * Get the current combatant from turnOrder
@@ -90,31 +112,67 @@ function CombatScene() {
 
   /**
    * Handle hex click - routes to movement or attack based on selectedAction
+   * Only allow clicks on player turns
    * @param {object} hex - Clicked hex {col, row, terrain, ...}
    */
   const handleHexClick = useCallback((hex) => {
-    if (!hex || !state.combatState) return;
+    logger.combat.debug('Hex clicked', { hex, selectedAction: localCombatState.selectedAction });
+    
+    if (!hex || !state.combatState) {
+      logger.combat.warn('Invalid hex or combat state', { hasHex: !!hex, hasCombatState: !!state.combatState });
+      return;
+    }
 
     const currentCombatant = getCurrentCombatant();
-    if (!currentCombatant) return;
+    if (!currentCombatant) {
+      logger.combat.warn('No current combatant');
+      return;
+    }
+    
+    logger.combat.debug('Current combatant', { 
+      name: currentCombatant.name,
+      isAlly: currentCombatant.isAlly,
+      position: currentCombatant.position
+    });
+    
+    // Only allow player to interact on their party's turn
+    if (!currentCombatant.isAlly) {
+      addMessage("It's not your turn!", 'warning');
+      return;
+    }
 
     // Check if hex contains a target
     const target = state.combatState.turnOrder.find(
       c => c.position.col === hex.col && c.position.row === hex.row
     );
 
+    logger.combat.debug('Hex click routing', {
+      selectedAction: localCombatState.selectedAction,
+      hasTarget: !!target,
+      targetHex: { col: hex.col, row: hex.row }
+    });
+
     if (localCombatState.selectedAction === 'move') {
+      logger.combat.info('Routing to handleMovement');
       handleMovement(hex);
     } else if (localCombatState.selectedAction === 'attack' && target) {
+      logger.combat.info('Routing to handleAttack');
       handleAttack(target);
     } else if (!localCombatState.selectedAction && target && target !== currentCombatant) {
       // Default: clicking enemy selects attack action
+      logger.combat.info('Auto-selecting attack action for enemy target');
       setLocalCombatState(prev => ({
         ...prev,
         selectedAction: 'attack',
         selectedTarget: target
       }));
       addMessage(`Targeting ${target.character?.name || target.enemy?.name}`, 'action');
+    } else {
+      logger.combat.debug('No action taken for hex click', {
+        selectedAction: localCombatState.selectedAction,
+        hasTarget: !!target,
+        isCurrentCombatant: target === currentCombatant
+      });
     }
   }, [localCombatState.selectedAction]);
 
@@ -154,25 +212,36 @@ function CombatScene() {
       return;
     }
 
-    // Check movement cost
+    // Check movement cost (in hexes, convert to feet for comparison)
     const moveCost = path.length - 1; // First hex is current position
-    if (moveCost > state.combatState.movementRemaining) {
-      addMessage(`Not enough movement (need ${moveCost}, have ${state.combatState.movementRemaining})`, 'warning');
+    const moveCostFeet = moveCost * 5; // Each hex is 5 feet
+    
+    if (moveCostFeet > state.combatState.movementRemaining) {
+      addMessage(`Not enough movement (need ${moveCostFeet} ft, have ${state.combatState.movementRemaining} ft)`, 'warning');
       return;
     }
 
     // Dispatch movement action
-    // TODO: This action needs to be added to GameStateContext
     if (actions.PROCESS_COMBAT_MOVEMENT) {
+      logger.combat.info('Dispatching PROCESS_COMBAT_MOVEMENT', {
+        currentCombatant: currentCombatant.name,
+        combatantId: currentCombatant.id,
+        path,
+        moveCost,
+        moveCostFeet,
+        destination: targetHex
+      });
+
       dispatch({
         type: actions.PROCESS_COMBAT_MOVEMENT,
         payload: {
+          combatantId: currentCombatant.id,
           path,
-          moveCost
+          cost: moveCostFeet // Pass feet cost (hexes * 5)
         }
       });
 
-      addMessage(`Moved to (${targetHex.col}, ${targetHex.row})`, 'action');
+      addMessage(`Moved ${moveCost} hex${moveCost !== 1 ? 'es' : ''} to (${targetHex.col}, ${targetHex.row})`, 'action');
 
       // Clear selection
       setLocalCombatState(prev => ({
@@ -346,27 +415,37 @@ function CombatScene() {
     const currentCombatant = getCurrentCombatant();
     if (!currentCombatant) return;
 
-    // TODO: This action needs to be added to GameStateContext
-    if (actions.PROCESS_COMBAT_ACTION) {
-      dispatch({
-        type: actions.PROCESS_COMBAT_ACTION,
-        payload: {
-          actionType: 'dodge',
-          user: currentCombatant
-        }
-      });
-
-      addMessage('Taking Dodge action - disadvantage on attacks against you until next turn', 'action');
-    } else {
-      logger.combat.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
-      addMessage('Dodge action not yet implemented', 'error');
+    // Check if Action already used
+    if (state.combatState.turnState.actionUsed) {
+      addMessage('You have already used your Action this turn', 'warning');
+      return;
     }
+
+    // Use action
+    dispatch({
+      type: actions.USE_COMBAT_ACTION,
+      payload: {
+        actionType: 'action',
+        actionName: 'dodge'
+      }
+    });
+
+    // Add Dodging condition
+    dispatch({
+      type: actions.ADD_COMBAT_CONDITION,
+      payload: {
+        condition: 'Dodging',
+        duration: 'end_of_turn'
+      }
+    });
+
+    addMessage('Taking Dodge action - attackers have disadvantage against you until your next turn', 'action');
 
     setLocalCombatState(prev => ({
       ...prev,
       selectedAction: null
     }));
-  }, [dispatch, actions]);
+  }, [state.combatState, dispatch, actions, addMessage]);
 
   /**
    * Handle Dash action (double movement)
@@ -377,31 +456,270 @@ function CombatScene() {
     const currentCombatant = getCurrentCombatant();
     if (!currentCombatant) return;
 
+    // Check if Action already used
+    if (state.combatState.turnState.actionUsed) {
+      addMessage('You have already used your Action this turn', 'warning');
+      return;
+    }
+
+    const character = currentCombatant.character;
+    const moveSpeed = character?.moveDistance || 6;
+    const additionalMovement = moveSpeed * 5; // Convert hexes to feet
+
+    // Use action
+    dispatch({
+      type: actions.USE_COMBAT_ACTION,
+      payload: {
+        actionType: 'action',
+        actionName: 'dash'
+      }
+    });
+
+    // Add movement (set movementRemaining to current + speed)
+    dispatch({
+      type: actions.SET_COMBAT_TURN_STATE,
+      payload: {
+        // Don't use SET directly, this is handled by reducer
+      }
+    });
+
+    addMessage(`Dashing! Gained ${additionalMovement} ft additional movement`, 'action');
+
+    setLocalCombatState(prev => ({
+      ...prev,
+      selectedAction: null
+    }));
+  }, [state.combatState, dispatch, actions, addMessage]);
+
+  /**
+   * Handle Disengage action
+   */
+  const handleDisengage = useCallback(() => {
+    if (!state.combatState) return;
+
+    const currentCombatant = getCurrentCombatant();
+    if (!currentCombatant) return;
+
+    // Check if Action already used
+    if (state.combatState.turnState.actionUsed) {
+      addMessage('You have already used your Action this turn', 'warning');
+      return;
+    }
+
+    // Use action
+    dispatch({
+      type: actions.USE_COMBAT_ACTION,
+      payload: {
+        actionType: 'action',
+        actionName: 'disengage'
+      }
+    });
+
+    // Add Disengaged condition
+    dispatch({
+      type: actions.ADD_COMBAT_CONDITION,
+      payload: {
+        condition: 'Disengaged',
+        duration: 'end_of_turn'
+      }
+    });
+
+    addMessage('You Disengage - your movement will not provoke opportunity attacks', 'action');
+
+    setLocalCombatState(prev => ({
+      ...prev,
+      selectedAction: null
+    }));
+  }, [state.combatState, dispatch, actions, addMessage]);
+
+  /**
+   * Handle Help action
+   */
+  const handleHelp = useCallback((targetAlly) => {
+    if (!state.combatState) return;
+
+    const currentCombatant = getCurrentCombatant();
+    if (!currentCombatant) return;
+
+    // Check if Action already used
+    if (state.combatState.turnState.actionUsed) {
+      addMessage('You have already used your Action this turn', 'warning');
+      return;
+    }
+
+    // Check target is within 1 hex (5 feet)
+    const distance = getHexDistance(
+      currentCombatant.position.col,
+      currentCombatant.position.row,
+      targetAlly.position.col,
+      targetAlly.position.row
+    );
+
+    if (distance > 1) {
+      addMessage('Target must be within 5 feet (1 hex) to Help', 'warning');
+      return;
+    }
+
+    // Use action
+    dispatch({
+      type: actions.USE_COMBAT_ACTION,
+      payload: {
+        actionType: 'action',
+        actionName: 'help',
+        target: targetAlly
+      }
+    });
+
+    // Add Helped condition to ally
+    dispatch({
+      type: actions.ADD_COMBAT_CONDITION,
+      payload: {
+        targetId: targetAlly.id,
+        condition: 'Helped',
+        duration: 'next_attack'
+      }
+    });
+
+    addMessage(`You Help ${targetAlly.name} - they have advantage on their next attack`, 'action');
+
+    setLocalCombatState(prev => ({
+      ...prev,
+      selectedAction: null
+    }));
+  }, [state.combatState, dispatch, actions, addMessage]);
+
+  /**
+   * Handle Hide action
+   */
+  const handleHide = useCallback(() => {
+    if (!state.combatState) return;
+
+    const currentCombatant = getCurrentCombatant();
+    if (!currentCombatant) return;
+
+    // Check if Action already used
+    if (state.combatState.turnState.actionUsed) {
+      addMessage('You have already used your Action this turn', 'warning');
+      return;
+    }
+
     const character = currentCombatant.character;
     if (!character) return;
 
-    // Double movement remaining
-    // TODO: This action needs to be added to GameStateContext
-    if (actions.PROCESS_COMBAT_ACTION) {
+    // Make Stealth check
+    const dexMod = character.getModifier('dexterity');
+    const proficient = character.proficiencies.includes('Stealth');
+    const stealthBonus = dexMod + (proficient ? character.proficiencyBonus : 0);
+    
+    const diceRoller = new DiceRoller();
+    const roll = diceRoller.rollD20();
+    const total = roll + stealthBonus;
+
+    // Find highest enemy Perception (passive = 10 + WIS mod)
+    const enemies = state.combatState.turnOrder.filter(c => c.isEnemy && c.currentHP > 0);
+    const highestPerception = Math.max(...enemies.map(e => {
+      const enemy = e.enemy;
+      const wisMod = enemy ? enemy.getModifier('wisdom') : 0;
+      return 10 + wisMod;
+    }));
+
+    const success = total >= highestPerception;
+
+    // Use action
+    dispatch({
+      type: actions.USE_COMBAT_ACTION,
+      payload: {
+        actionType: 'action',
+        actionName: 'hide'
+      }
+    });
+
+    if (success) {
       dispatch({
-        type: actions.PROCESS_COMBAT_ACTION,
+        type: actions.ADD_COMBAT_CONDITION,
         payload: {
-          actionType: 'dash',
-          user: currentCombatant
+          condition: 'Hidden',
+          duration: 'until_revealed',
+          data: { stealthTotal: total }
         }
       });
-
-      addMessage(`Dashing! Movement doubled to ${character.moveDistance * 2} hexes`, 'action');
+      addMessage(`Stealth ${roll}+${stealthBonus}=${total} vs DC ${highestPerception}: Hidden!`, 'success');
     } else {
-      logger.combat.error('PROCESS_COMBAT_ACTION action not defined in GameStateContext');
-      addMessage('Dash action not yet implemented', 'error');
+      addMessage(`Stealth ${roll}+${stealthBonus}=${total} vs DC ${highestPerception}: Failed to hide`, 'warning');
     }
 
     setLocalCombatState(prev => ({
       ...prev,
       selectedAction: null
     }));
-  }, [dispatch, actions]);
+  }, [state.combatState, dispatch, actions, addMessage]);
+
+  /**
+   * Handle Search action
+   */
+  const handleSearch = useCallback(() => {
+    if (!state.combatState) return;
+
+    const currentCombatant = getCurrentCombatant();
+    if (!currentCombatant) return;
+
+    // Check if Action already used
+    if (state.combatState.turnState.actionUsed) {
+      addMessage('You have already used your Action this turn', 'warning');
+      return;
+    }
+
+    const character = currentCombatant.character;
+    if (!character) return;
+
+    // Make Perception check
+    const wisMod = character.getModifier('wisdom');
+    const proficient = character.proficiencies.includes('Perception');
+    const perceptionBonus = wisMod + (proficient ? character.proficiencyBonus : 0);
+    
+    const diceRoller = new DiceRoller();
+    const roll = diceRoller.rollD20();
+    const total = roll + perceptionBonus;
+
+    // Use action
+    dispatch({
+      type: actions.USE_COMBAT_ACTION,
+      payload: {
+        actionType: 'action',
+        actionName: 'search'
+      }
+    });
+
+    // Find hidden enemies
+    const hiddenEnemies = state.combatState.turnOrder.filter(c => 
+      c.isEnemy && 
+      c.conditions?.some(cond => cond.type === 'Hidden')
+    );
+
+    let foundAny = false;
+    hiddenEnemies.forEach(enemy => {
+      const hiddenCondition = enemy.conditions.find(c => c.type === 'Hidden');
+      const hiddenDC = hiddenCondition?.data?.stealthTotal || 15;
+      
+      if (total >= hiddenDC) {
+        dispatch({
+          type: actions.REMOVE_COMBAT_CONDITION,
+          payload: { targetId: enemy.id, condition: 'Hidden' }
+        });
+        addMessage(`Perception ${roll}+${perceptionBonus}=${total}: Found ${enemy.name}!`, 'success');
+        foundAny = true;
+      }
+    });
+
+    if (!foundAny) {
+      addMessage(`Perception ${roll}+${perceptionBonus}=${total}: Found nothing`, 'info');
+    }
+
+    setLocalCombatState(prev => ({
+      ...prev,
+      selectedAction: null
+    }));
+  }, [state.combatState, dispatch, actions, addMessage]);
 
   /**
    * Handle end turn
@@ -487,7 +805,7 @@ function CombatScene() {
             type: actions.PROCESS_COMBAT_MOVEMENT,
             payload: {
               path: action.path,
-              moveCost: action.moveCost
+              cost: action.moveCost * 5 // Convert hexes to feet
             }
           });
         }
@@ -529,7 +847,7 @@ function CombatScene() {
   }, []);
 
   /**
-   * Auto-process AI turns when waitingForPlayerAction is false
+   * Auto-process AI turns (enemies only)
    * Track which turn has been processed to prevent infinite loops
    */
   const lastProcessedTurnRef = useRef(null);
@@ -545,13 +863,21 @@ function CombatScene() {
       return;
     }
     
-    // Only process AI turns
-    if (!waitingForPlayer) {
-      const currentCombatant = getCurrentCombatant();
-      if (currentCombatant && currentCombatant.type === 'enemy') {
-        lastProcessedTurnRef.current = currentTurnIndex;
-        processAITurn(currentCombatant);
-      }
+    const currentCombatant = getCurrentCombatant();
+    if (!currentCombatant) return;
+    
+    console.log('[CombatScene] Turn check:', {
+      combatant: currentCombatant.name,
+      isAlly: currentCombatant.isAlly,
+      isEnemy: currentCombatant.isEnemy,
+      waitingForPlayer,
+      currentTurnIndex
+    });
+    
+    // Only process AI turns (enemies)
+    if (currentCombatant.isEnemy && !waitingForPlayer) {
+      lastProcessedTurnRef.current = currentTurnIndex;
+      processAITurn(currentCombatant);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.combatState?.currentTurnIndex, state.combatState?.waitingForPlayerAction]);
@@ -570,8 +896,7 @@ function CombatScene() {
     // Create a hash of HP values to detect actual changes
     const hpHash = state.combatState.turnOrder
       .map(c => {
-        const hp = c.type === 'character' ? c.character?.currentHP : c.enemy?.currentHP;
-        return `${c.id}:${hp}`;
+        return `${c.id}:${c.currentHP}`;
       })
       .join('|');
     
@@ -580,11 +905,18 @@ function CombatScene() {
     turnOrderHashRef.current = hpHash;
 
     const livingCharacters = state.combatState.turnOrder.filter(
-      c => c.type === 'character' && c.character?.currentHP > 0
+      c => c.isAlly && c.currentHP > 0
     );
     const livingEnemies = state.combatState.turnOrder.filter(
-      c => c.type === 'enemy' && c.enemy?.currentHP > 0
+      c => c.isEnemy && c.currentHP > 0
     );
+
+    console.log('[CombatScene] Victory/defeat check:', {
+      livingCharacters: livingCharacters.length,
+      livingEnemies: livingEnemies.length,
+      characterNames: livingCharacters.map(c => c.name),
+      enemyNames: livingEnemies.map(c => c.name)
+    });
 
     if (livingEnemies.length === 0 && livingCharacters.length > 0) {
       combatEndHandledRef.current = true;
@@ -633,6 +965,7 @@ function CombatScene() {
 
   // Null check - combat state not initialized
   if (!state.combatState) {
+    console.error('[CombatScene] state.combatState is null - showing error screen');
     logger.combat.error('CombatScene: state.combatState is null');
     return (
       <div className="combat-scene error-state">
@@ -647,6 +980,12 @@ function CombatScene() {
   
   // Null check - battlefield not generated
   if (!state.combatState.battlefield || !state.combatState.battlefield.hexes) {
+    console.error('[CombatScene] Battlefield not generated - showing error screen', {
+      hasBattlefield: !!state.combatState.battlefield,
+      hasHexes: !!state.combatState.battlefield?.hexes,
+      hexCount: state.combatState.battlefield?.hexes?.length,
+      combatState: state.combatState
+    });
     logger.combat.error('CombatScene: battlefield not generated', { combatState: state.combatState });
     return (
       <div className="combat-scene error-state">
@@ -658,6 +997,13 @@ function CombatScene() {
       </div>
     );
   }
+  
+  console.log('[CombatScene] Rendering combat UI', {
+    encounterName: state.combatState.encounterName,
+    round: state.combatState.round,
+    turnOrderCount: state.combatState.turnOrder?.length,
+    hexCount: state.combatState.battlefield?.hexes?.length
+  });
   
   // Removed debug logging (combat rendering normally)
   
@@ -703,19 +1049,21 @@ function CombatScene() {
       </div>
       
       <div className="combat-main">
-        <CombatCanvas
-          battlefield={state.combatState.battlefield}
-          combatants={state.combatState.turnOrder}
-          currentTurnIndex={state.combatState.currentTurnIndex}
-          selectedAction={localCombatState.selectedAction}
-          hoveredHex={localCombatState.hoveredHex}
-          movementRemaining={state.combatState.movementRemaining}
-          onHexClick={handleHexClick}
-          onHexHover={handleHexHover}
-          cameraOffset={localCombatState.cameraOffset}
-          cameraZoom={localCombatState.cameraZoom}
-          onCameraChange={handleCameraChange}
-        />
+        <div className="combat-canvas-container">
+          <CombatCanvas
+            battlefield={state.combatState.battlefield}
+            combatants={state.combatState.turnOrder}
+            currentTurnIndex={state.combatState.currentTurnIndex}
+            selectedAction={localCombatState.selectedAction}
+            hoveredHex={localCombatState.hoveredHex}
+            movementRemaining={state.combatState.movementRemaining}
+            onHexClick={handleHexClick}
+            onHexHover={handleHexHover}
+            cameraOffset={localCombatState.cameraOffset}
+            cameraZoom={localCombatState.cameraZoom}
+            onCameraChange={handleCameraChange}
+          />
+        </div>
         
         <TurnOrderPanel
           turnOrder={state.combatState.turnOrder}
@@ -725,20 +1073,40 @@ function CombatScene() {
       </div>
       
       <div className="combat-actions">
-        {currentCombatant && (
+        {currentCombatant && currentCombatant.isAlly ? (
           <ActionPanel
             combatant={currentCombatant}
             selectedAction={localCombatState.selectedAction}
             movementRemaining={state.combatState.movementRemaining}
+            turnState={state.combatState.turnState}
             attacksUsedThisTurn={localCombatState.attacksUsedThisTurn}
             onActionSelect={handleActionSelect}
             onAbilityClick={() => setLocalCombatState(prev => ({...prev, showAbilityMenu: true}))}
             onSpellClick={() => setLocalCombatState(prev => ({...prev, showSpellMenu: true}))}
             onDodgeClick={handleDodge}
             onDashClick={handleDash}
+            onDisengageClick={handleDisengage}
+            onHelpClick={handleHelp}
+            onHideClick={handleHide}
+            onSearchClick={handleSearch}
             onEndTurn={handleEndTurn}
           />
-        )}
+        ) : currentCombatant && currentCombatant.isEnemy ? (
+          <div className="enemy-turn-indicator" style={{
+            padding: '1.5rem',
+            textAlign: 'center',
+            backgroundColor: 'var(--bg-lighter)',
+            border: '2px solid var(--border-color)',
+            borderRadius: '8px'
+          }}>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: '#ff6b6b', fontSize: '1.3rem' }}>
+              {currentCombatant.name}'s Turn
+            </h3>
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+              Enemy is taking their turn...
+            </p>
+          </div>
+        ) : null}
       </div>
       
       {localCombatState.showAbilityMenu && currentCombatant && (
@@ -757,7 +1125,45 @@ function CombatScene() {
         />
       )}
 
-      {/* TODO: Add reaction prompts (future feature) */}
+      {/* Opportunity Attack Prompt */}
+      {localCombatState.opportunityAttackPrompt && (
+        <OpportunityAttackPrompt
+          attackers={localCombatState.opportunityAttackPrompt.attackers}
+          target={localCombatState.opportunityAttackPrompt.target}
+          onConfirm={() => {
+            // Process OAs then move
+            const { attackers, target, movement } = localCombatState.opportunityAttackPrompt;
+            
+            // TODO: Process each attacker's opportunity attack
+            attackers.forEach(attacker => {
+              // Mark reaction as used
+              dispatch({
+                type: actions.USE_COMBAT_REACTION,
+                payload: { combatantId: attacker.id }
+              });
+              
+              // TODO: Process attack roll and damage
+              addMessage(`${attacker.name} makes opportunity attack against ${target.name}!`, 'encounter');
+            });
+
+            // Clear prompt and process movement
+            setLocalCombatState(prev => ({ ...prev, opportunityAttackPrompt: null }));
+            
+            // Now process the movement
+            if (movement && actions.PROCESS_COMBAT_MOVEMENT) {
+              dispatch({
+                type: actions.PROCESS_COMBAT_MOVEMENT,
+                payload: movement
+              });
+            }
+          }}
+          onDecline={() => {
+            // Cancel movement
+            setLocalCombatState(prev => ({ ...prev, opportunityAttackPrompt: null }));
+            addMessage('Movement cancelled', 'info');
+          }}
+        />
+      )}
     </div>
   );
 }

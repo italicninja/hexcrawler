@@ -2,6 +2,9 @@ import { PerlinNoise, SimpleNoise } from './noise.js';
 import { TerrainAlgorithms } from './terrainAlgorithms.js';
 import { RiverGenerator } from './riverGenerator.js';
 import { POISystem, POI_TYPES } from './poiSystem.js';
+import { RegionGenerator } from './RegionGenerator.js';
+import { WeatherSystem } from './WeatherSystem.js';
+import logger from './utils/logger.js';
 
 export class TerrainGenerator {
     constructor() {
@@ -109,11 +112,34 @@ export class TerrainGenerator {
         this.riverGenerator = new RiverGenerator(this.noise);
         this.poiSystem = new POISystem();
         this.algorithm = 'biome'; // default algorithm
+        
+        // Region-based generation components
+        this.regionGenerator = null;
+        this.weatherSystem = null;
+        this.regions = [];
+        this.hexToRegion = null;
     }
 
     setSeed(seed) {
         this.seed = seed ? parseInt(seed) : Date.now();
         this.noise.setSeed(this.seed);
+    }
+
+    initializeRegions(width, height) {
+        logger.mapgen.info('Initializing region-based generation', { width, height, seed: this.seed });
+        this.regionGenerator = new RegionGenerator(this.seed, width, height);
+        const { regions, hexToRegion } = this.regionGenerator.generate();
+        this.regions = regions;
+        this.hexToRegion = hexToRegion;
+        
+        // Initialize weather system
+        this.weatherSystem = new WeatherSystem(this.regions, this.seed + 1000);
+        this.weatherSystem.initializeWeather();
+        
+        logger.mapgen.info('Regions initialized', { 
+            count: regions.length,
+            types: regions.map(r => r.biome.key)
+        });
     }
 
     setAlgorithm(algorithm) {
@@ -127,30 +153,48 @@ export class TerrainGenerator {
     }
 
     generate(width, height, terrainVariety, poiFrequency) {
+        logger.mapgen.time('full-map-generation');
+        
+        // Initialize regions first
+        this.initializeRegions(width, height);
+        
         const grid = [];
 
-        // Generate base terrain using selected algorithm
+        // Generate base terrain using region-aware algorithm
+        logger.mapgen.time('terrain-generation');
         for (let row = 0; row < height; row++) {
             grid[row] = [];
             for (let col = 0; col < width; col++) {
-                const terrainType = this.generateTerrain(col, row, width, height, terrainVariety);
+                const terrainType = this.generateRegionBasedTerrain(col, row, width, height, terrainVariety);
 
                 grid[row][col] = {
                     terrain: terrainType,
                     poi: null,
-                    weather: this.generateWeather(terrainType),
-                    elevation: 0 // Will be set during generation
+                    weather: null, // Will be set by weather system
+                    elevation: 0, // Will be set during generation
+                    regionId: this.hexToRegion.get(`${col},${row}`)
                 };
             }
         }
+        logger.mapgen.timeEnd('terrain-generation');
 
         // Generate rivers
         this.generateRivers(grid, width, height, terrainVariety);
 
+        // Apply regional weather to all hexes
+        this.applyRegionalWeather(grid, width, height);
+
         // Generate POIs with smart placement and CR scaling
         this.generateSmartPOIs(grid, width, height, poiFrequency);
 
-        return grid;
+        logger.mapgen.timeEnd('full-map-generation');
+
+        return {
+            grid,
+            regions: this.regions,
+            hexToRegion: this.hexToRegion,
+            weatherSystem: this.weatherSystem
+        };
     }
 
     generateTerrain(x, y, width, height, variety) {
@@ -185,6 +229,158 @@ export class TerrainGenerator {
         return null;
     }
 
+
+    generateRegionBasedTerrain(col, row, width, height, variety) {
+        const regionId = this.hexToRegion.get(`${col},${row}`);
+        if (regionId === undefined) {
+            // Fallback to old algorithm if no region
+            return this.generateTerrain(col, row, width, height, variety);
+        }
+
+        const region = this.regions[regionId];
+        const distanceFromCenter = this.regionGenerator.hexDistance(
+            col, row,
+            region.centerHex.col, region.centerHex.row
+        );
+        const edgeFactor = distanceFromCenter / region.radius;
+
+        // Use noise for local elevation variation
+        const scale = variety * 3;
+        const localElevation = this.noise.octaveNoise2D(
+            col / scale,
+            row / scale,
+            3,
+            0.5,
+            2.0
+        );
+        const normalizedElevation = (localElevation + 1) / 2;
+
+        // Select terrain based on region biome and local variation
+        return this.selectTerrainForRegion(
+            region,
+            normalizedElevation,
+            edgeFactor,
+            col,
+            row
+        );
+    }
+
+    selectTerrainForRegion(region, elevation, edgeFactor, col, row) {
+        const biomeTypes = region.biome.biomes;
+        
+        // Core region (< 40% of radius)
+        if (edgeFactor < 0.4) {
+            return this.selectByElevation(biomeTypes, elevation, 'core');
+        }
+        
+        // Mid region (40-70% of radius)
+        if (edgeFactor < 0.7) {
+            return this.selectByElevation(biomeTypes, elevation, 'mid');
+        }
+        
+        // Edge region - blend with neighbors
+        const neighborRegions = this.regionGenerator.getNeighborRegions(
+            col, row, this.hexToRegion
+        );
+        
+        if (neighborRegions.length > 1) {
+            // Blend with neighboring region biomes
+            const allBiomes = new Set([...biomeTypes]);
+            neighborRegions.forEach(nrId => {
+                if (nrId !== this.hexToRegion.get(`${col},${row}`)) {
+                    const nr = this.regions[nrId];
+                    nr.biome.biomes.forEach(b => allBiomes.add(b));
+                }
+            });
+            return this.selectByElevation(Array.from(allBiomes), elevation, 'edge');
+        }
+        
+        return this.selectByElevation(biomeTypes, elevation, 'edge');
+    }
+
+    selectByElevation(biomeTypes, elevation, zone) {
+        // Map biome types to elevation preferences
+        const elevationMap = {
+            'water': [0, 0.2],
+            'swamp': [0.15, 0.35],
+            'grassland': [0.25, 0.55],
+            'forest': [0.35, 0.65],
+            'desert': [0.30, 0.60],
+            'hills': [0.50, 0.75],
+            'mountains': [0.65, 0.90],
+            'tundra': [0.70, 1.0]
+        };
+
+        // Filter biome types to those matching current elevation
+        const suitable = biomeTypes.filter(type => {
+            const range = elevationMap[type];
+            if (!range) return false;
+            return elevation >= range[0] && elevation <= range[1];
+        });
+
+        if (suitable.length === 0) {
+            // Fallback: pick closest match
+            let bestType = biomeTypes[0];
+            let bestDist = Infinity;
+            
+            biomeTypes.forEach(type => {
+                const range = elevationMap[type];
+                if (range) {
+                    const mid = (range[0] + range[1]) / 2;
+                    const dist = Math.abs(elevation - mid);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestType = type;
+                    }
+                }
+            });
+            
+            return this.terrainTypes[bestType] || this.terrainTypes.grassland;
+        }
+
+        // Pick random from suitable types
+        const selectedType = suitable[Math.floor(this.random() * suitable.length)];
+        return this.terrainTypes[selectedType] || this.terrainTypes.grassland;
+    }
+
+    applyRegionalWeather(grid, width, height) {
+        logger.mapgen.time('weather-application');
+        
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                const weather = this.weatherSystem.getWeatherForHex(
+                    col, row, this.hexToRegion
+                );
+                
+                // Convert new weather format to old format for compatibility
+                grid[row][col].weather = {
+                    condition: weather.name,
+                    effect: this.formatWeatherEffect(weather)
+                };
+            }
+        }
+        
+        logger.mapgen.timeEnd('weather-application');
+    }
+
+    formatWeatherEffect(weather) {
+        const effects = [];
+        
+        if (weather.effects.visibility !== 0) {
+            effects.push(`Visibility ${weather.effects.visibility > 0 ? '+' : ''}${weather.effects.visibility}`);
+        }
+        if (weather.effects.movementCost !== 0) {
+            effects.push(`Movement +${weather.effects.movementCost}`);
+        }
+        if (weather.effects.temperature) {
+            effects.push(`Temp ${weather.effects.temperature > 0 ? '+' : ''}${weather.effects.temperature}°C`);
+        }
+        if (weather.effects.description) {
+            effects.push(weather.effects.description);
+        }
+        
+        return effects.length > 0 ? effects.join(', ') : 'Normal conditions';
+    }
 
     generateWeather(terrain) {
         const terrainKey = Object.keys(this.terrainTypes).find(

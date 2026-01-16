@@ -14,10 +14,11 @@ import { getHexDistance } from '../contexts/GameStateContext';
 export class EnemyAI {
   /**
    * Decide what action the enemy should take
-   * @param {Object} enemy - Enemy combatant
-   * @param {Object} combat - Combat instance with battlefield state
+   * @param {Object} enemyCombatant - Enemy combatant object from turnOrder
    * @param {Object} battlefield - Battlefield object {hexes, width, height}
-   * @returns {Object} {action, target?, ability?, spell?, position?}
+   * @param {Array} turnOrder - All combatants in turn order
+   * @param {number} movementRemaining - Movement remaining for this turn
+   * @returns {Object} {type, target?, destination?, path?, moveCost?}
    * 
    * Action types:
    * - 'attack': Attack a target (melee or ranged)
@@ -25,79 +26,145 @@ export class EnemyAI {
    * - 'ability': Use special ability
    * - 'wait': Do nothing
    */
-  static decideAction(enemy, combat, battlefield) {
-    // Get all living enemy characters (player characters)
-    const livingChars = combat.characters.filter(c => c && c.currentHP > 0);
+  static decideAction(enemyCombatant, battlefield, turnOrder, movementRemaining) {
+    const enemy = enemyCombatant.enemy;
+    if (!enemy) {
+      console.error('[EnemyAI] No enemy object found on combatant');
+      return { type: 'wait' };
+    }
     
-    if (livingChars.length === 0) {
-      return { action: 'wait' };
+    // Get all living ally characters (player party)
+    const livingAllies = turnOrder.filter(c => c.isAlly && c.currentHP > 0);
+    
+    if (livingAllies.length === 0) {
+      return { type: 'wait' };
     }
 
-    // Get enemy position (assume stored on enemy object)
-    const enemyPos = enemy.position || { col: 0, row: 0 };
+    // Get enemy position from combatant
+    const enemyPos = enemyCombatant.position;
+    if (!enemyPos) {
+      console.error('[EnemyAI] Enemy has no position');
+      return { type: 'wait' };
+    }
 
     // Decision tree:
     // 1. If HP < 25% and not in backline → Reposition to backline
-    const hpPercent = enemy.currentHP / enemy.maxHP;
+    const hpPercent = enemyCombatant.currentHP / enemyCombatant.maxHP;
     if (hpPercent < 0.25 && !this._isInBackline(enemyPos, battlefield)) {
-      return this._repositionToBackline(enemy, enemyPos, battlefield, combat);
+      return this._repositionToBackline(enemyCombatant, enemyPos, battlefield, turnOrder, movementRemaining);
     }
 
     // 2. If has special ability and 30% random chance → Use ability
     if (enemy.specialAbilities && enemy.specialAbilities.length > 0 && Math.random() < 0.3) {
       const ability = enemy.specialAbilities[0]; // Use first special ability
-      const target = this._chooseTarget(livingChars, 'lowestHp');
+      const target = this._chooseTarget(livingAllies, 'lowestHp');
       
       return {
-        action: 'ability',
+        type: 'ability',
         ability: ability.name,
         target: target
       };
     }
 
     // 3. If in melee range (1 hex) → Attack nearest
-    const nearestEnemy = this._findNearestEnemy(enemyPos, livingChars);
-    const distanceToNearest = getHexDistance(enemyPos.col, enemyPos.row, nearestEnemy.position.col, nearestEnemy.position.row);
+    const nearestAlly = this._findNearestEnemy(enemyPos, livingAllies);
+    const distanceToNearest = getHexDistance(enemyPos.col, enemyPos.row, nearestAlly.position.col, nearestAlly.position.row);
     
     if (distanceToNearest <= 1) {
       return {
-        action: 'attack',
-        target: nearestEnemy,
+        type: 'attack',
+        target: nearestAlly,
         attackType: 'melee'
       };
     }
 
     // 4. If ranged weapon/spell and LoS → Attack lowest HP target
     if (this._hasRangedAttack(enemy)) {
-      const target = this._chooseTarget(livingChars, 'lowestHp');
+      const target = this._chooseTarget(livingAllies, 'lowestHp');
       const hasLOS = checkLineOfSight(enemyPos, target.position, battlefield);
       const inRange = isInRange(enemyPos, target.position, 12); // 12 hex range for ranged
 
       if (hasLOS && inRange) {
         return {
-          action: 'attack',
+          type: 'attack',
           target: target,
           attackType: 'ranged'
         };
       }
     }
 
-    // 5. Otherwise → Move toward nearest enemy using pathfinding
-    const moveTarget = this._findNearestEnemy(enemyPos, livingChars);
-    const path = findPath(enemyPos, moveTarget.position, battlefield, enemy.moveDistance || 6);
+    // 5. Otherwise → Move toward nearest ally using pathfinding
+    const moveTarget = this._findNearestEnemy(enemyPos, livingAllies);
+    const maxMoveHexes = Math.floor(movementRemaining / 5); // Convert feet to hexes
+    
+    // Try to find a path to an adjacent hex near the target
+    // If target position is occupied, find best adjacent hex
+    let targetPosition = moveTarget.position;
+    let path = findPath(enemyPos, targetPosition, battlefield, maxMoveHexes);
+    
+    // If no direct path (target occupied), try adjacent hexes
+    if (!path) {
+      const adjacentHexes = this._getAdjacentHexes(targetPosition, battlefield);
+      
+      // Filter to unoccupied hexes
+      const validAdjacent = adjacentHexes.filter(hex => {
+        const occupied = turnOrder.some(c => 
+          c.position && c.position.col === hex.col && c.position.row === hex.row
+        );
+        return !occupied && !hex.blocked;
+      });
+      
+      // Try each adjacent hex, find closest one we can path to
+      let bestPath = null;
+      let shortestDistance = Infinity;
+      
+      for (const adjHex of validAdjacent) {
+        const adjPath = findPath(enemyPos, adjHex, battlefield, maxMoveHexes);
+        if (adjPath && adjPath.length < shortestDistance) {
+          bestPath = adjPath;
+          shortestDistance = adjPath.length;
+        }
+      }
+      
+      path = bestPath;
+    }
 
     if (path && path.length > 1) {
-      // Move along path (skip first position which is current position)
-      const nextPosition = path[1];
+      // Move along path up to movement remaining
+      const movableDistance = Math.min(path.length - 1, maxMoveHexes);
       
-      return {
-        action: 'move',
-        position: nextPosition
-      };
+      // Find furthest unoccupied hex along the path
+      let destination = null;
+      let actualDistance = 0;
+      
+      for (let i = 1; i <= movableDistance && i < path.length; i++) {
+        const hex = path[i];
+        const occupied = turnOrder.some(c => 
+          c.position && c.position.col === hex.col && c.position.row === hex.row
+        );
+        
+        if (occupied) {
+          // Stop before occupied hex
+          break;
+        }
+        
+        destination = hex;
+        actualDistance = i;
+      }
+      
+      // If we found a valid destination, move there
+      if (destination && actualDistance > 0) {
+        return {
+          type: 'move',
+          destination: destination,
+          path: path.slice(0, actualDistance + 1),
+          moveCost: actualDistance
+        };
+      }
     }
 
     // Can't do anything useful
-    return { action: 'wait' };
+    return { type: 'wait' };
   }
 
   /**
@@ -156,6 +223,40 @@ export class EnemyAI {
   }
 
   /**
+   * Get adjacent hexes to a position (hex neighbors)
+   * @param {Object} position - {col, row}
+   * @param {Object} battlefield - Battlefield object with {hexes, width, height}
+   * @returns {Array} Array of adjacent hex objects
+   */
+  static _getAdjacentHexes(position, battlefield) {
+    const { col, row } = position;
+    const { width, height, hexes } = battlefield;
+    
+    // Hex grid neighbor offsets (flat-top orientation)
+    const offsets = Math.abs(row % 2) === 0
+      ? [[-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]] // Even row
+      : [[0, -1], [1, -1], [-1, 0], [1, 0], [0, 1], [1, 1]]; // Odd row
+    
+    const adjacent = [];
+    
+    for (const [dc, dr] of offsets) {
+      const newCol = col + dc;
+      const newRow = row + dr;
+      
+      // Check bounds
+      if (newCol >= 0 && newCol < width && newRow >= 0 && newRow < height) {
+        // Find the hex object
+        const hex = hexes.find(h => h.col === newCol && h.row === newRow);
+        if (hex) {
+          adjacent.push(hex);
+        }
+      }
+    }
+    
+    return adjacent;
+  }
+
+  /**
    * Check if enemy has ranged attacks
    * @param {Object} enemy - Enemy object
    * @returns {boolean}
@@ -184,29 +285,36 @@ export class EnemyAI {
 
   /**
    * Reposition to backline to avoid danger
-   * @param {Object} enemy - Enemy object
+   * @param {Object} enemyCombatant - Enemy combatant object
    * @param {Object} currentPos - Current position
    * @param {Object} battlefield - Battlefield object
-   * @param {Object} combat - Combat instance
+   * @param {Array} turnOrder - All combatants
+   * @param {number} movementRemaining - Movement remaining
    * @returns {Object} Move action
    */
-  static _repositionToBackline(enemy, currentPos, battlefield, combat) {
+  static _repositionToBackline(enemyCombatant, currentPos, battlefield, turnOrder, movementRemaining) {
     // Find furthest unoccupied hex in backline
     const backlineRow = battlefield.height - 1;
     const targetCol = Math.floor(battlefield.width / 2); // Center column
 
     const targetPos = { col: targetCol, row: backlineRow };
-    const path = findPath(currentPos, targetPos, battlefield, enemy.moveDistance || 6);
+    const maxMoveHexes = Math.floor(movementRemaining / 5);
+    const path = findPath(currentPos, targetPos, battlefield, turnOrder);
 
     if (path && path.length > 1) {
+      const movableDistance = Math.min(path.length - 1, maxMoveHexes);
+      const destination = path[movableDistance];
+      
       return {
-        action: 'move',
-        position: path[1]
+        type: 'move',
+        destination: destination,
+        path: path.slice(0, movableDistance + 1),
+        moveCost: movableDistance
       };
     }
 
     // Can't reach backline, just wait
-    return { action: 'wait' };
+    return { type: 'wait' };
   }
 }
 

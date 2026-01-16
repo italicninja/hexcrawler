@@ -22,13 +22,31 @@ export function mapReducer(state, action, ACTIONS) {
       };
 
     case ACTIONS.SET_MAP_DATA: {
-      // Create HexGrid spatial index for O(1) lookups
-      const hexGrid = new HexGrid(action.payload);
-      return {
-        ...state,
-        mapData: action.payload,
-        hexGrid
-      };
+      // New format: { hexes, regions, hexToRegion, weatherSystem }
+      // Old format: just array of hexes
+      const isNewFormat = action.payload && action.payload.hexes;
+      
+      if (isNewFormat) {
+        const { hexes, regions, hexToRegion, weatherSystem } = action.payload;
+        const hexGrid = new HexGrid(hexes);
+        
+        return {
+          ...state,
+          mapData: hexes,
+          hexGrid,
+          regions: regions || [],
+          hexToRegion: hexToRegion || null,
+          weatherSystem: weatherSystem || null
+        };
+      } else {
+        // Legacy format for backwards compatibility
+        const hexGrid = new HexGrid(action.payload);
+        return {
+          ...state,
+          mapData: action.payload,
+          hexGrid
+        };
+      }
     }
 
     case ACTIONS.SET_MAP_SEED:
