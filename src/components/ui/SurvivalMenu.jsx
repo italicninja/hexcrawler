@@ -57,8 +57,8 @@ function SurvivalMenu({ onClose }) {
     return adjacent;
   };
 
-  // Create dice roller (no seed - we want random rolls for gameplay)
-  const diceRoller = new DiceRoller();
+  // Create dice roller with logger (no seed - we want random rolls for gameplay)
+  const diceRoller = new DiceRoller(null, addMessage);
 
   const handleForage = () => {
     if (!currentHex) return;
@@ -115,11 +115,11 @@ function SurvivalMenu({ onClose }) {
       payload: TIME_COSTS.FORAGE
     });
 
-    // Show result in game log
+    // Show foraging result (dice roll is already logged by DiceRoller)
     if (result.success) {
-      addMessage(`Survival ${result.roll.roll}+${result.roll.modifier}=${result.roll.total} vs DC ${result.roll.dc}: Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`, 'success');
+      addMessage(`Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`, 'info');
     } else {
-      addMessage(`Survival ${result.roll.roll}+${result.roll.modifier}=${result.roll.total} vs DC ${result.roll.dc}: No food found`, 'warning');
+      addMessage(`No food found`, 'info');
     }
 
     setIsForaging(false);

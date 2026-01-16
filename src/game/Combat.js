@@ -98,7 +98,8 @@ export class Combat {
     this.currentTurnIndex = 0;
     
     // Shared properties
-    this.diceRoller = new DiceRoller();
+    this.logger = options.logger || null; // Optional GameLog callback (message, type) => void
+    this.diceRoller = new DiceRoller(null, this.logger);
     this.combatLog = [];
     this.round = 0;
     this.canFlee = options.canFlee !== false; // Default true

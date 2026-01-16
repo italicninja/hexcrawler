@@ -173,7 +173,8 @@ export function forage(character, hexes, diceRoller, currentDay) {
     'wisdom',
     true, // Proficient in Survival
     averageDC,
-    'normal'
+    'normal',
+    'Survival'
   );
 
   // Create list of hex keys for cooldown tracking

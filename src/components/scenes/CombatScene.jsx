@@ -611,7 +611,7 @@ function CombatScene() {
     const proficient = character.proficiencies.includes('Stealth');
     const stealthBonus = dexMod + (proficient ? character.proficiencyBonus : 0);
     
-    const diceRoller = new DiceRoller();
+    const diceRoller = new DiceRoller(null, addMessage);
     const roll = diceRoller.rollD20();
     const total = roll + stealthBonus;
 
@@ -677,7 +677,7 @@ function CombatScene() {
     const proficient = character.proficiencies.includes('Perception');
     const perceptionBonus = wisMod + (proficient ? character.proficiencyBonus : 0);
     
-    const diceRoller = new DiceRoller();
+    const diceRoller = new DiceRoller(null, addMessage);
     const roll = diceRoller.rollD20();
     const total = roll + perceptionBonus;
 

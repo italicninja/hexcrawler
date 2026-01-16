@@ -6,9 +6,10 @@
 import logger from '../utils/logger.js';
 
 export class DiceRoller {
-  constructor(seed = null) {
+  constructor(seed = null, logger = null) {
     this.seed = seed;
     this.rng = seed !== null ? this.createSeededRNG(seed) : null;
+    this.logger = logger; // Optional callback function (message, type) => void
   }
 
   /**
@@ -34,6 +35,17 @@ export class DiceRoller {
    */
   random() {
     return this.rng ? this.rng() : Math.random();
+  }
+
+  /**
+   * Log a dice roll result to the logger if available
+   * @param {string} message - Log message
+   * @param {string} type - Message type ('info', 'success', 'warning', 'error')
+   */
+  log(message, type = 'info') {
+    if (this.logger) {
+      this.logger(message, type);
+    }
   }
 
   /**
@@ -92,10 +104,12 @@ export class DiceRoller {
    * @param {object} character - Character object with ability scores
    * @param {string} ability - Ability name ('strength', 'dexterity', etc.)
    * @param {boolean} proficient - Whether character is proficient in this skill
+   * @param {number} dc - Difficulty class
    * @param {string} rollType - 'normal', 'advantage', 'disadvantage'
-   * @returns {object} { roll, modifier, total, success }
+   * @param {string} skillName - Optional skill name for logging (e.g., 'Perception', 'Stealth')
+   * @returns {object} { roll, modifier, total, success, dc }
    */
-  skillCheck(character, ability, proficient = false, dc = 10, rollType = 'normal') {
+  skillCheck(character, ability, proficient = false, dc = 10, rollType = 'normal', skillName = null) {
     // Validate character object
     if (!character) {
       throw new Error('DiceRoller.skillCheck: character is required');
@@ -108,16 +122,29 @@ export class DiceRoller {
 
     // Roll d20
     let roll;
+    let rollText = '';
     if (rollType === 'advantage') {
       roll = this.rollWithAdvantage();
+      rollText = ' (advantage)';
     } else if (rollType === 'disadvantage') {
       roll = this.rollWithDisadvantage();
+      rollText = ' (disadvantage)';
     } else {
       roll = this.rollD20();
     }
 
     const total = roll + modifier + proficiencyBonus;
     const success = total >= dc;
+
+    // Log if logger is available and DC > 0 (DC=0 means manual logging is handled elsewhere)
+    if (this.logger && skillName && dc > 0) {
+      const displayName = skillName || ability.charAt(0).toUpperCase() + ability.slice(1);
+      const result = success ? 'Success' : 'Failed';
+      this.log(
+        `${displayName}${rollText} ${roll}+${modifier + proficiencyBonus}=${total} vs DC ${dc}: ${result}`,
+        success ? 'success' : 'warning'
+      );
+    }
 
     return {
       roll,
@@ -136,7 +163,7 @@ export class DiceRoller {
    * @returns {object} Check result
    */
   perceptionCheck(character, dc = 10, rollType = 'normal') {
-    return this.skillCheck(character, 'wisdom', true, dc, rollType);
+    return this.skillCheck(character, 'wisdom', true, dc, rollType, 'Perception');
   }
 
   /**
@@ -147,7 +174,7 @@ export class DiceRoller {
    * @returns {object} Check result
    */
   investigationCheck(character, dc = 10, rollType = 'normal') {
-    return this.skillCheck(character, 'intelligence', true, dc, rollType);
+    return this.skillCheck(character, 'intelligence', true, dc, rollType, 'Investigation');
   }
 
   /**
@@ -168,7 +195,8 @@ export class DiceRoller {
     const saveProficiencies = character.saveProficiencies || [];
     const proficient = saveProficiencies.includes(ability);
 
-    return this.skillCheck(character, ability, proficient, dc, rollType);
+    const saveName = ability.charAt(0).toUpperCase() + ability.slice(1) + ' Save';
+    return this.skillCheck(character, ability, proficient, dc, rollType, saveName);
   }
 
   /**
@@ -176,9 +204,10 @@ export class DiceRoller {
    * @param {object} character - Character object
    * @param {string} attackType - 'melee' or 'ranged'
    * @param {number} targetAC - Target armor class
+   * @param {string} attackName - Optional attack name for logging (e.g., 'Longsword', 'Shortbow')
    * @returns {object} Attack result
    */
-  attackRoll(character, attackType = 'melee', targetAC = 10) {
+  attackRoll(character, attackType = 'melee', targetAC = 10, attackName = null) {
     // Validate character object
     if (!character) {
       throw new Error('DiceRoller.attackRoll: character is required');
@@ -197,6 +226,18 @@ export class DiceRoller {
     const hit = roll === 20 || (roll !== 1 && total >= targetAC);
     const crit = roll === 20;
 
+    // Log if logger is available
+    if (this.logger && attackName) {
+      const displayName = attackName || (attackType === 'melee' ? 'Melee Attack' : 'Ranged Attack');
+      if (crit) {
+        this.log(`${displayName} CRITICAL HIT! ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}`, 'success');
+      } else if (hit) {
+        this.log(`${displayName} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Hit`, 'success');
+      } else {
+        this.log(`${displayName} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Miss`, 'warning');
+      }
+    }
+
     return {
       roll,
       modifier: modifier + proficiencyBonus,
@@ -210,9 +251,10 @@ export class DiceRoller {
   /**
    * Damage roll
    * @param {string} diceString - Dice notation (e.g., "2d6+3", "1d8")
+   * @param {string} damageType - Optional damage type for logging (e.g., 'slashing', 'fire')
    * @returns {number} Total damage
    */
-  damageRoll(diceString) {
+  damageRoll(diceString, damageType = null) {
     // Parse dice string (e.g., "2d6+3")
     const match = diceString.match(/(\d+)d(\d+)([+-]\d+)?/);
     if (!match) {
@@ -224,7 +266,14 @@ export class DiceRoller {
     const sides = parseInt(match[2]);
     const bonus = match[3] ? parseInt(match[3]) : 0;
 
-    return this.rollDice(sides, count) + bonus;
+    const damage = this.rollDice(sides, count) + bonus;
+
+    // Log if logger is available
+    if (this.logger && damageType) {
+      this.log(`${damage} ${damageType} damage (${diceString})`, 'info');
+    }
+
+    return damage;
   }
 }
 

@@ -51,8 +51,8 @@ export function useHexInteraction(hex) {
       return;
     }
 
-    // Roll perception check
-    const diceRoller = new DiceRoller();
+    // Roll perception check with logger
+    const diceRoller = new DiceRoller(null, addMessage);
     const result = diceRoller.perceptionCheck(state.playerCharacter, 0); // DC 0, we check thresholds manually
 
     // Generate hints based on roll thresholds

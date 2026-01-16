@@ -742,7 +742,7 @@ function _legacyGameStateReducer(state, action) {
       }
       
       // New tactical combat system
-      const { allies, enemies, encounterName, encounterType, terrainType } = action.payload;
+      const { allies, enemies, encounterName, encounterType, terrainType, gameLogger } = action.payload;
       
       if (!allies || !enemies) {
         logger.combat.error('START_COMBAT requires allies and enemies', { allies, enemies });
@@ -752,8 +752,8 @@ function _legacyGameStateReducer(state, action) {
       // Generate battlefield
       const battlefield = CombatTerrainGenerator.generate(encounterType, terrainType, state.mapSeed);
       
-      // Create combat instance
-      const combat = new Combat(allies, enemies, battlefield);
+      // Create combat instance with logger
+      const combat = new Combat(allies, enemies, battlefield, { logger: gameLogger });
       
       // Roll initiative
       const turnOrder = combat.rollInitiative();

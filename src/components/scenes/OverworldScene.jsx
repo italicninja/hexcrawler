@@ -480,8 +480,8 @@ function OverworldScene() {
     // Create a proper copy of the character
     const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
 
-    // Create dice roller (no seed - we want random rolls, not deterministic)
-    const diceRoller = new DiceRoller();
+    // Create dice roller with logger (no seed - we want random rolls, not deterministic)
+    const diceRoller = new DiceRoller(null, addMessage);
 
     // Perform forage check
     const result = SurvivalManager.forage(updatedCharacter, allHexes, diceRoller, currentDay);
@@ -510,11 +510,11 @@ function OverworldScene() {
       payload: TIME_COSTS.FORAGE
     });
 
-    // Show result in game log
+    // Show foraging result (dice roll is already logged by DiceRoller)
     if (result.success) {
-      addMessage(`Survival ${result.roll.roll}+${result.roll.modifier}=${result.roll.total} vs DC ${result.roll.dc}: Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`, 'success');
+      addMessage(`Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`, 'info');
     } else {
-      addMessage(`Survival ${result.roll.roll}+${result.roll.modifier}=${result.roll.total} vs DC ${result.roll.dc}: No food found`, 'warning');
+      addMessage(`No food found`, 'info');
     }
   };
 
@@ -556,7 +556,8 @@ function OverworldScene() {
         enemies,
         encounterName: 'Test Combat (DEV)',
         encounterType: 'standard',
-        terrainType
+        terrainType,
+        gameLogger: addMessage
       }
     });
   };
@@ -589,7 +590,8 @@ function OverworldScene() {
         enemies,
         encounterName: poi.name,
         encounterType,
-        terrainType
+        terrainType,
+        gameLogger: addMessage
       }
     });
   };

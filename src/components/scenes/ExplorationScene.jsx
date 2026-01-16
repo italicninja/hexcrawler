@@ -106,8 +106,8 @@ function ExplorationScene() {
       });
 
       // Auto-resolve combat (simplified for now)
-      const diceRoller = new DiceRoller();
-      diceRoller.setSeed(`${state.mapSeed}-encounter-${hex.col}-${hex.row}`);
+      const seed = `${state.mapSeed}-encounter-${hex.col}-${hex.row}`;
+      const diceRoller = new DiceRoller(seed, addMessage);
 
       // TODO: Implement full combat system
       const damageReceived = diceRoller.rollDice(1, 6);
