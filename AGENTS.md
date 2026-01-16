@@ -498,6 +498,71 @@ dispatch({
 });
 ```
 
+### Dice Rolling System
+
+**CRITICAL: Use DiceRoller with logger callback for ALL dice rolls** - Ensures consistent logging to GameLog.
+
+**Creating DiceRoller with logger:**
+```javascript
+import { DiceRoller } from '../../game/DiceRoller.js';
+import { useGameLog } from '../../contexts/GameLogContext';
+
+const { addMessage } = useGameLog();
+const diceRoller = new DiceRoller(null, addMessage); // (seed, logger)
+```
+
+**DiceRoller automatically logs:**
+- **Skill checks**: `Survival 10+3=13 vs DC 12: Success`
+- **Attack rolls**: `Longsword 15+5=20 vs AC 16: Hit`
+- **Critical hits**: `Greatsword CRITICAL HIT! 20+5=25 vs AC 16`
+- **Saving throws**: `Dexterity Save 8+2=10 vs DC 15: Failed`
+- **Damage rolls**: `8 slashing damage (1d8+3)` (when damage type provided)
+
+**Using DiceRoller methods:**
+```javascript
+// Skill checks (automatically logs with skill name)
+const result = diceRoller.skillCheck(
+  character,
+  'wisdom',          // ability name
+  true,              // proficient
+  15,                // DC
+  'normal',          // 'normal', 'advantage', 'disadvantage'
+  'Survival'         // skill name for logging
+);
+
+// Built-in skill checks
+const perceptionResult = diceRoller.perceptionCheck(character, 15);
+const investigationResult = diceRoller.investigationCheck(character, 12);
+
+// Saving throws (automatically logs)
+const saveResult = diceRoller.savingThrow(character, 'dexterity', 15);
+
+// Attack rolls (automatically logs)
+const attackResult = diceRoller.attackRoll(
+  character,
+  'melee',           // 'melee' or 'ranged'
+  16,                // target AC
+  'Longsword'        // weapon name for logging
+);
+
+// Damage rolls (automatically logs when damageType provided)
+const damage = diceRoller.damageRoll('1d8+3', 'slashing');
+
+// Generic dice rolls (no logging)
+const d20 = diceRoller.rollD20();
+const d6Result = diceRoller.rollDice(6, 2); // 2d6
+```
+
+**When to pass logger:**
+- ✅ **Combat actions** - Pass `addMessage` from useGameLog
+- ✅ **Skill checks** - Pass `addMessage` for player actions
+- ✅ **Foraging/survival** - Pass `addMessage` for gameplay rolls
+- ❌ **Procedural generation** - Use seeded DiceRoller without logger: `new DiceRoller(seed)`
+
+**Special cases:**
+- **DC=0 checks**: DiceRoller won't auto-log (for manual threshold checks like POI search)
+- **Combat instance**: Pass logger via options: `new Combat(allies, enemies, battlefield, { logger: addMessage })`
+
 ### User Notifications & Feedback
 
 **CRITICAL: Use GameLog for ALL user feedback** - Never create modal dialogs, popups, or blocking UI.
@@ -528,7 +593,7 @@ addMessage('Your message here', 'info');
 4. **Multi-line for complex data** - Use `\n` for structured info
 5. **Always log user actions** - Movement, searches, interactions
 6. **Log outcomes** - Success/failure, rewards, consequences
-7. **Put dice rolls first** - Always show roll results at the start of messages (e.g., `Survival 10+3=13 vs DC 12: Found 9 rations`)
+7. **Dice rolls auto-log** - DiceRoller handles roll formatting automatically
 
 **Examples:**
 ```javascript
@@ -541,20 +606,20 @@ addMessage('Discovered: Ancient Ruins (CR 3)', 'discovery');
 // POI interaction
 addMessage('Prayed at Shrine of Pelor. +1 Piety', 'poi-interaction');
 
-// Skill check with result (dice rolls FIRST)
-addMessage('Survival 10+3=13 vs DC 12: Found 9 rations (6 rich hexes)', 'success');
+// Skill check result (dice roll auto-logged by DiceRoller)
+const result = diceRoller.skillCheck(character, 'wisdom', true, 12, 'normal', 'Survival');
+// DiceRoller logs: "Survival 10+3=13 vs DC 12: Success"
+if (result.success) {
+  addMessage('Found 9 rations (6 rich hexes)', 'info');
+}
 
-// Search result (multi-line with roll first)
-addMessage(
-  `Perception 18+2=20 vs DC 15: Success\n\nChallenge Rating: 3\nExpect goblins and traps\nEstimated size: 15x10 hexes`,
-  'info'
-);
-
-// Combat
-addMessage('Attack 15+5=20 vs AC 16: Hit! 8 damage', 'success');
-
-// Failed check (dice rolls FIRST)
-addMessage('Stealth 3+2=5 vs DC 12: Failed! Guards are alerted', 'warning');
+// Combat (dice roll auto-logged by DiceRoller)
+const attackResult = diceRoller.attackRoll(character, 'melee', 16, 'Longsword');
+// DiceRoller logs: "Longsword 15+5=20 vs AC 16: Hit"
+if (attackResult.hit) {
+  const damage = diceRoller.damageRoll('1d8+3', 'slashing');
+  // DiceRoller logs: "8 slashing damage (1d8+3)"
+}
 
 // Blocked action
 addMessage('You need a raft to cross the river!', 'warning');
