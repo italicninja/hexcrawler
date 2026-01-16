@@ -14,9 +14,7 @@ import { PerlinNoise } from '../../noise.js';
 import logger from '../../utils/logger.js';
 
 const HEX_SIZE = 25;
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 2.0;
-const ZOOM_SPEED = 0.1;
+const FIXED_ZOOM = 1.0; // Zoom is disabled - always use 1.0
 
 /**
  * CombatCanvas - Renders 20x20 hex grid battlefield with combatants and interactive controls
@@ -37,10 +35,11 @@ function CombatCanvas({
   const canvasRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasDragged, setHasDragged] = useState(false); // Track if mouse actually moved
   const [lastTouchDistance, setLastTouchDistance] = useState(null);
   const animationFrameRef = useRef(null);
   const lastHoveredHexRef = useRef(null);
-  const lastCameraRef = useRef({ offset: cameraOffset, zoom: cameraZoom });
+  const lastCameraRef = useRef({ offset: cameraOffset, zoom: FIXED_ZOOM });
   const textureGenerator = useRef(null);
 
   // Initialize texture generator once
@@ -202,10 +201,15 @@ function CombatCanvas({
    * @param {boolean} isCurrentTurn - Whether it's this combatant's turn
    */
   const drawCombatant = useCallback((ctx, combatant, isCurrentTurn) => {
-    if (!combatant.position) return;
+    if (!combatant.position) {
+      console.warn('[CombatCanvas] drawCombatant called but no position:', combatant.name);
+      return;
+    }
 
     const { x, y } = calculateHexPosition(combatant.position.col, combatant.position.row, HEX_SIZE);
     const radius = HEX_SIZE * 0.4;
+    
+    console.log(`[CombatCanvas] Drawing ${combatant.name} at (${combatant.position.col}, ${combatant.position.row}) => screen (${x}, ${y}), isAlly: ${combatant.isAlly}`);
 
     ctx.save();
 
@@ -266,24 +270,43 @@ function CombatCanvas({
    */
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('[CombatCanvas] Canvas ref not ready');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('[CombatCanvas] Context not ready');
+      return;
+    }
     
     // Null check for battlefield
     if (!battlefield || !battlefield.hexes) {
+      console.warn('[CombatCanvas] Battlefield not ready', { 
+        hasBattlefield: !!battlefield, 
+        hasHexes: !!battlefield?.hexes,
+        hexCount: battlefield?.hexes?.length
+      });
       logger.render.warn('CombatCanvas: battlefield not ready', { hasBattlefield: !!battlefield, hasHexes: !!battlefield?.hexes });
       return;
     }
 
+    console.log('[CombatCanvas] Drawing battlefield', {
+      canvasSize: `${canvas.width}x${canvas.height}`,
+      hexCount: battlefield.hexes.length,
+      combatantCount: combatants.length,
+      cameraOffset,
+      zoom: FIXED_ZOOM
+    });
+
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Apply camera transform
+    // Apply camera transform (zoom is always 1.0)
     ctx.save();
     ctx.translate(cameraOffset.x, cameraOffset.y);
-    ctx.scale(cameraZoom, cameraZoom);
+    ctx.scale(FIXED_ZOOM, FIXED_ZOOM);
 
     // Create positioned hexes with screen coordinates
     const positionedHexes = battlefield.hexes.map(hex => {
@@ -374,10 +397,33 @@ function CombatCanvas({
     }
 
     // Draw combatants
-    combatants.forEach((combatant, index) => {
-      const isCurrentTurn = index === currentTurnIndex;
-      drawCombatant(ctx, combatant, isCurrentTurn);
+    const combatantDebug = combatants.map(c => ({
+      name: c.name,
+      position: c.position,
+      hasPosition: !!c.position,
+      isAlly: c.isAlly,
+      currentHP: c.currentHP,
+      maxHP: c.maxHP,
+      characterClass: c.characterClass
+    }));
+    
+    console.log('[CombatCanvas] Drawing combatants:', {
+      count: combatants.length,
+      combatants: combatantDebug
     });
+    
+    let drawnCount = 0;
+    combatants.forEach((combatant, index) => {
+      if (combatant.position) {
+        const isCurrentTurn = index === currentTurnIndex;
+        drawCombatant(ctx, combatant, isCurrentTurn);
+        drawnCount++;
+      } else {
+        console.warn('[CombatCanvas] Combatant has no position:', combatant.name);
+      }
+    });
+    
+    console.log(`[CombatCanvas] Drew ${drawnCount}/${combatants.length} combatants`);
 
     // Draw hovered hex
     if (hoveredHex) {
@@ -410,28 +456,46 @@ function CombatCanvas({
   }, [draw]);
 
   /**
-   * Resize canvas to fill parent container
+   * Initial canvas size setup (runs once on mount)
    */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const resizeCanvas = () => {
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    canvas.width = parent.clientWidth;
+    canvas.height = parent.clientHeight;
+  }, []);
+
+  /**
+   * Handle window resize (independent of draw)
+   */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleResize = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
 
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
+      const newWidth = parent.clientWidth;
+      const newHeight = parent.clientHeight;
       
-      // Redraw after resize (canvas clears on resize)
-      draw();
+      // Only resize if dimensions actually changed
+      if (canvas.width !== newWidth || canvas.height !== newHeight) {
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        // Trigger redraw by changing a state value
+        draw();
+      }
     };
 
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('resize', handleResize);
     };
   }, [draw]);
 
@@ -446,17 +510,18 @@ function CombatCanvas({
     if (!canvas) return { x: 0, y: 0 };
 
     const rect = canvas.getBoundingClientRect();
-    const x = (clientX - rect.left - cameraOffset.x) / cameraZoom;
-    const y = (clientY - rect.top - cameraOffset.y) / cameraZoom;
+    const x = (clientX - rect.left - cameraOffset.x) / FIXED_ZOOM;
+    const y = (clientY - rect.top - cameraOffset.y) / FIXED_ZOOM;
 
     return { x, y };
-  }, [cameraOffset, cameraZoom]);
+  }, [cameraOffset]);
 
   /**
    * Handle mouse down (start dragging)
    */
   const handleMouseDown = useCallback((e) => {
     setIsDragging(true);
+    setHasDragged(false); // Reset drag flag
     setDragStart({ x: e.clientX - cameraOffset.x, y: e.clientY - cameraOffset.y });
   }, [cameraOffset]);
 
@@ -471,15 +536,16 @@ function CombatCanvas({
         y: e.clientY - dragStart.y
       };
       
-      // Only call onCameraChange if offset actually changed significantly (throttle)
+      // Check if mouse moved significantly (more than 3 pixels)
       const lastCamera = lastCameraRef.current;
-      const offsetChanged = 
-        Math.abs(newOffset.x - lastCamera.offset.x) > 1 ||
-        Math.abs(newOffset.y - lastCamera.offset.y) > 1;
+      const movedSignificantly = 
+        Math.abs(newOffset.x - lastCamera.offset.x) > 3 ||
+        Math.abs(newOffset.y - lastCamera.offset.y) > 3;
       
-      if (offsetChanged) {
-        lastCameraRef.current = { offset: newOffset, zoom: cameraZoom };
-        onCameraChange(newOffset, cameraZoom);
+      if (movedSignificantly) {
+        setHasDragged(true); // Mark as actual drag
+        lastCameraRef.current = { offset: newOffset, zoom: FIXED_ZOOM };
+        onCameraChange(newOffset, FIXED_ZOOM);
       }
     } else {
       // Hover detection - null check battlefield
@@ -520,13 +586,22 @@ function CombatCanvas({
    * Handle mouse click (hex selection)
    */
   const handleClick = useCallback((e) => {
-    // Don't register clicks if we were dragging
-    if (isDragging) return;
+    console.log('[CombatCanvas] Click event', { isDragging, hasDragged, hasBattlefield: !!battlefield });
+    
+    // Don't register clicks if we actually dragged (moved camera)
+    if (hasDragged) {
+      console.log('[CombatCanvas] Click ignored - was dragging camera');
+      return;
+    }
     
     // Null check battlefield
-    if (!battlefield || !battlefield.hexes) return;
+    if (!battlefield || !battlefield.hexes) {
+      console.log('[CombatCanvas] Click ignored - no battlefield');
+      return;
+    }
 
     const canvasPos = screenToCanvas(e.clientX, e.clientY);
+    console.log('[CombatCanvas] Canvas position', canvasPos);
 
     // Create positioned hexes for hit detection
     const positionedHexes = battlefield.hexes.map(hex => {
@@ -535,22 +610,23 @@ function CombatCanvas({
     });
 
     const clickedHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
+    console.log('[CombatCanvas] Clicked hex', clickedHex);
+    
     if (clickedHex) {
+      console.log('[CombatCanvas] Calling onHexClick with', clickedHex);
       onHexClick(clickedHex);
+    } else {
+      console.log('[CombatCanvas] No hex found at click position');
     }
-  }, [isDragging, battlefield, screenToCanvas, onHexClick]);
+  }, [hasDragged, battlefield, screenToCanvas, onHexClick]);
 
   /**
-   * Handle mouse wheel (zoom)
+   * Handle mouse wheel (zoom) - DISABLED for combat
    */
   const handleWheel = useCallback((e) => {
-    e.preventDefault();
-
-    const delta = e.deltaY > 0 ? (1 - ZOOM_SPEED) : (1 + ZOOM_SPEED);
-    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, cameraZoom * delta));
-
-    onCameraChange(cameraOffset, newZoom);
-  }, [cameraZoom, cameraOffset, onCameraChange]);
+    // Note: preventDefault on wheel events can cause warnings
+    // Zoom is disabled for combat, so we just ignore the event
+  }, []);
 
   /**
    * Calculate distance between two touch points
@@ -572,19 +648,16 @@ function CombatCanvas({
         x: e.touches[0].clientX - cameraOffset.x,
         y: e.touches[0].clientY - cameraOffset.y
       });
-    } else if (e.touches.length === 2) {
-      // Two touches: start zooming
-      setIsDragging(false);
-      const distance = getTouchDistance(e.touches[0], e.touches[1]);
-      setLastTouchDistance(distance);
     }
+    // Two-finger zoom disabled for combat
   }, [cameraOffset]);
 
   /**
-   * Handle touch move (pan or zoom)
+   * Handle touch move (pan only, zoom disabled)
    */
   const handleTouchMove = useCallback((e) => {
-    e.preventDefault();
+    // Note: Don't call e.preventDefault() here - use touchAction: 'none' in CSS instead
+    // to avoid "passive event listener" warnings
 
     if (e.touches.length === 1 && isDragging) {
       // Single touch: pan
@@ -592,17 +665,10 @@ function CombatCanvas({
         x: e.touches[0].clientX - dragStart.x,
         y: e.touches[0].clientY - dragStart.y
       };
-      onCameraChange(newOffset, cameraZoom);
-    } else if (e.touches.length === 2 && lastTouchDistance !== null) {
-      // Two touches: zoom
-      const distance = getTouchDistance(e.touches[0], e.touches[1]);
-      const delta = distance / lastTouchDistance;
-      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, cameraZoom * delta));
-
-      onCameraChange(cameraOffset, newZoom);
-      setLastTouchDistance(distance);
+      onCameraChange(newOffset, FIXED_ZOOM);
     }
-  }, [isDragging, dragStart, cameraZoom, cameraOffset, lastTouchDistance, onCameraChange]);
+    // Two-finger zoom disabled for combat
+  }, [isDragging, dragStart, onCameraChange]);
 
   /**
    * Handle touch end
