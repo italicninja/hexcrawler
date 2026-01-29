@@ -5,6 +5,14 @@ dist/
 .env
 docs/SRD_CC_v5.2.1.pdf
 
+# Backup files
+*.backup
+*.emergency_backup
+*.bak
+*.bak2
+*.old
+*~
+
 # QA Test Artifacts
 tests/screenshots/
 tests/reports/

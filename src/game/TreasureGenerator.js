@@ -6,14 +6,13 @@
  */
 
 import { BaseGenerator } from './BaseGenerator.js';
-
-// TODO: Create GameTableData.js with these exports:
-// - TREASURE_HOARD_TABLES (DMG treasure tables by CR bracket)
-// - GEMSTONE_TABLES (gemstone values and varieties)
-// - ART_OBJECT_TABLES (art object values and descriptions)
-// - MAGIC_ITEM_TABLES (magic item tables A-I)
-// - getCRBracket(cr) (helper to get CR bracket: 0-4, 5-10, 11-16, 17+)
-// import { TREASURE_HOARD_TABLES, GEMSTONE_TABLES, ART_OBJECT_TABLES, MAGIC_ITEM_TABLES, getCRBracket } from './data/GameTableData.js';
+import {
+  TREASURE_HOARD_TABLES,
+  GEMSTONE_TABLES,
+  ART_OBJECT_TABLES,
+  MAGIC_ITEM_TABLES,
+  getCRBracket,
+} from './data/GameTableData.js';
 
 export class TreasureGenerator extends BaseGenerator {
   constructor() {
@@ -21,11 +20,11 @@ export class TreasureGenerator extends BaseGenerator {
 
     // Coin conversion rates to gold pieces
     this.COIN_TO_GOLD = {
-      cp: 0.01,  // 100 CP = 1 GP
-      sp: 0.1,   // 10 SP = 1 GP
-      ep: 0.5,   // 2 EP = 1 GP
-      gp: 1,     // 1 GP = 1 GP
-      pp: 10     // 1 PP = 10 GP
+      cp: 0.01, // 100 CP = 1 GP
+      sp: 0.1, // 10 SP = 1 GP
+      ep: 0.5, // 2 EP = 1 GP
+      gp: 1, // 1 GP = 1 GP
+      pp: 10, // 1 PP = 10 GP
     };
   }
 
@@ -39,7 +38,7 @@ export class TreasureGenerator extends BaseGenerator {
   generateTreasureHoard(cr, partySize = 4, random = Math.random) {
     // TODO: Replace with actual implementation once GameTableData.js is created
     // For now, return a placeholder structure
-    
+
     // Determine rarity based on CR
     const rarity = this._determineRarity(cr);
 
@@ -61,7 +60,7 @@ export class TreasureGenerator extends BaseGenerator {
 
     // Scale treasure to party size (DMG assumes 4 party members)
     const partyScalar = partySize / 4.0;
-    
+
     // Placeholder gold calculation
     const baseGold = this.randomInt(10, 100, random) * (cr + 1);
     const totalGold = Math.floor(baseGold * partyScalar);
@@ -70,7 +69,7 @@ export class TreasureGenerator extends BaseGenerator {
       type: 'chest',
       gold: totalGold,
       consumables: [], // TODO: Replace with actual consumables
-      rarity
+      rarity,
     };
   }
 
@@ -90,11 +89,11 @@ export class TreasureGenerator extends BaseGenerator {
 
       // Roll the dice for this coin type
       const coinAmount = this._parseDiceRoll(diceString, 1, random);
-      
+
       // Convert to gold pieces
       const coinTypeKey = coinType.toLowerCase();
       const goldValue = coinAmount * (this.COIN_TO_GOLD[coinTypeKey] || 0);
-      
+
       totalGold += goldValue;
     }
 
@@ -117,7 +116,7 @@ export class TreasureGenerator extends BaseGenerator {
 
     // TODO: Look up gem value from GEMSTONE_TABLES
     // const gemValue = GEMSTONE_TABLES[gemData.valueTable];
-    
+
     // Placeholder: Assume 50gp per gem
     const gemValue = 50;
 
@@ -140,7 +139,7 @@ export class TreasureGenerator extends BaseGenerator {
 
     // TODO: Look up art object value from ART_OBJECT_TABLES
     // const artValue = ART_OBJECT_TABLES[artData.valueTable];
-    
+
     // Placeholder: Assume 250gp per art object
     const artValue = 250;
 
@@ -161,17 +160,15 @@ export class TreasureGenerator extends BaseGenerator {
 
     // Roll magic item count
     const itemCount = this._parseDiceRoll(magicItemData.count, 1, random);
-    
+
     for (let i = 0; i < itemCount; i++) {
       // TODO: Roll on magic item table and filter for consumables
       // const magicItemTable = MAGIC_ITEM_TABLES[magicItemData.table];
       // const rolledItem = this.randomChoice(magicItemTable, random);
-      
       // Filter for consumables only (potions, scrolls, etc.)
       // if (this._isConsumable(rolledItem)) {
       //   consumables.push(rolledItem.name);
       // }
-      
       // TODO: Full magic item implementation for weapons, armor, wondrous items
     }
 
@@ -213,7 +210,7 @@ export class TreasureGenerator extends BaseGenerator {
 
     // Roll dice using base class method
     const rolled = this.rollDice(diceCount, diceSides, random);
-    
+
     return Math.floor((rolled + modifier) * finalMultiplier);
   }
 
