@@ -36,18 +36,18 @@ export default function QuestLog() {
   }
 
   // Handle quest completion check
-  const handleCompleteQuest = (questId) => {
+  const handleCompleteQuest = questId => {
     const quest = activeQuests.find(q => q.id === questId);
     if (quest && quest.isComplete()) {
       dispatch({
         type: actions.COMPLETE_QUEST,
-        payload: { questId }
+        payload: { questId },
       });
     }
   };
 
   // Render quest objective with progress
-  const renderObjective = (objective) => {
+  const renderObjective = objective => {
     const percentage = Math.min((objective.current / objective.required) * 100, 100);
     const isComplete = objective.current >= objective.required;
 
@@ -59,10 +59,7 @@ export default function QuestLog() {
         </div>
         <div className="objective-progress">
           <div className="progress-bar">
-            <div
-              className="progress-fill"
-              style={{ width: `${percentage}%` }}
-            />
+            <div className="progress-fill" style={{ width: `${percentage}%` }} />
           </div>
           <span className="progress-text">
             {objective.current} / {objective.required}
@@ -73,7 +70,7 @@ export default function QuestLog() {
   };
 
   // Render quest details
-  const renderQuestDetails = (quest) => {
+  const renderQuestDetails = quest => {
     if (!quest) {
       return (
         <div className="quest-details-empty">
@@ -133,22 +130,19 @@ export default function QuestLog() {
                 <span>{quest.rewards.gold} Gold</span>
               </div>
             )}
-            {quest.rewards.items && quest.rewards.items.length > 0 && (
+            {quest.rewards.items &&
+              quest.rewards.items.length > 0 &&
               quest.rewards.items.map((item, idx) => (
                 <div key={idx} className="reward-item">
                   <span className="reward-icon">🎁</span>
                   <span>{item.name || item}</span>
                 </div>
-              ))
-            )}
+              ))}
           </div>
         </div>
 
         {isActive && isComplete && (
-          <button
-            className="complete-quest-button"
-            onClick={() => handleCompleteQuest(quest.id)}
-          >
+          <button className="complete-quest-button" onClick={() => handleCompleteQuest(quest.id)}>
             Complete Quest
           </button>
         )}
@@ -198,21 +192,15 @@ export default function QuestLog() {
               >
                 <div className="quest-list-title">{quest.title}</div>
                 <div className="quest-list-meta">
-                  <span className={`status-badge status-${quest.status}`}>
-                    {quest.status}
-                  </span>
-                  <span className="progress-badge">
-                    {quest.getProgress()}%
-                  </span>
+                  <span className={`status-badge status-${quest.status}`}>{quest.status}</span>
+                  <span className="progress-badge">{quest.getProgress()}%</span>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        <div className="quest-details-panel">
-          {renderQuestDetails(selectedQuest)}
-        </div>
+        <div className="quest-details-panel">{renderQuestDetails(selectedQuest)}</div>
       </div>
 
       <style>{`

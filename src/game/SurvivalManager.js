@@ -14,10 +14,30 @@ export function getExhaustionEffects(level) {
     0: { description: 'No exhaustion', penalties: [] },
     1: { description: 'Disadvantage on ability checks', penalties: ['disadvantage_checks'] },
     2: { description: 'Speed halved', penalties: ['disadvantage_checks', 'speed_halved'] },
-    3: { description: 'Disadvantage on attack rolls and saving throws', penalties: ['disadvantage_checks', 'speed_halved', 'disadvantage_attacks_saves'] },
-    4: { description: 'Hit point maximum halved', penalties: ['disadvantage_checks', 'speed_halved', 'disadvantage_attacks_saves', 'hp_max_halved'] },
-    5: { description: 'Speed reduced to 0', penalties: ['disadvantage_checks', 'speed_halved', 'disadvantage_attacks_saves', 'hp_max_halved', 'speed_zero'] },
-    6: { description: 'Death', penalties: ['death'] }
+    3: {
+      description: 'Disadvantage on attack rolls and saving throws',
+      penalties: ['disadvantage_checks', 'speed_halved', 'disadvantage_attacks_saves'],
+    },
+    4: {
+      description: 'Hit point maximum halved',
+      penalties: [
+        'disadvantage_checks',
+        'speed_halved',
+        'disadvantage_attacks_saves',
+        'hp_max_halved',
+      ],
+    },
+    5: {
+      description: 'Speed reduced to 0',
+      penalties: [
+        'disadvantage_checks',
+        'speed_halved',
+        'disadvantage_attacks_saves',
+        'hp_max_halved',
+        'speed_zero',
+      ],
+    },
+    6: { description: 'Death', penalties: ['death'] },
   };
 
   return effects[level] || effects[0];
@@ -39,14 +59,14 @@ export function consumeRations(character) {
     return {
       success: true,
       message: `Consumed 1 day's ration. ${character.rations} days remaining.`,
-      remaining: character.rations
+      remaining: character.rations,
     };
   } else {
     character.daysWithoutFood++;
     return {
       success: false,
       message: `No rations available! Days without food: ${character.daysWithoutFood}`,
-      daysWithout: character.daysWithoutFood
+      daysWithout: character.daysWithoutFood,
     };
   }
 }
@@ -61,7 +81,7 @@ export function consumeWater(character) {
   return {
     success: true,
     message: 'Water consumption removed from survival system.',
-    remaining: 0
+    remaining: 0,
   };
 }
 
@@ -92,7 +112,7 @@ export function applyStarvation(character) {
       exhaustionGained: exhaustionToGain,
       message: `Starvation! Exhaustion level ${oldLevel} → ${character.exhaustionLevel}. ${effects.description}`,
       newLevel: character.exhaustionLevel,
-      effects: effects.description
+      effects: effects.description,
     };
   }
 
@@ -136,7 +156,7 @@ export function forage(character, hexes, diceRoller, currentDay) {
     swamp: 12,
     tundra: 15,
     water: 20,
-    river: 12
+    river: 12,
   };
 
   // Filter out water/impassable hexes and calculate average DC
@@ -146,18 +166,23 @@ export function forage(character, hexes, diceRoller, currentDay) {
   });
 
   if (validHexes.length === 0) {
-    return { success: false, rationsGained: 0, message: 'No valid terrain to forage', hexesForaged: [] };
+    return {
+      success: false,
+      rationsGained: 0,
+      message: 'No valid terrain to forage',
+      hexesForaged: [],
+    };
   }
 
   // Calculate average DC
   let totalDC = 0;
   let goodHexCount = 0; // Hexes with DC <= 10
-  
+
   validHexes.forEach(hex => {
     const terrainKey = hex.terrain.key;
     const hexDC = forageDCs[terrainKey] || 15;
     totalDC += hexDC;
-    
+
     if (hexDC <= 10) {
       goodHexCount++;
     }
@@ -193,7 +218,7 @@ export function forage(character, hexes, diceRoller, currentDay) {
       roll: result,
       hexesForaged,
       hexCount: validHexes.length,
-      goodHexCount
+      goodHexCount,
     };
   } else {
     // Failure - no food found
@@ -203,7 +228,7 @@ export function forage(character, hexes, diceRoller, currentDay) {
       message: `Foraging failed. No food found in ${validHexes.length} hexes.`,
       roll: result,
       hexesForaged,
-      hexCount: validHexes.length
+      hexCount: validHexes.length,
     };
   }
 }
@@ -220,7 +245,7 @@ export function findWater(character, terrainKey, diceRoller) {
     success: false,
     waterGained: 0,
     message: 'Water finding removed from survival system.',
-    roll: null
+    roll: null,
   };
 }
 
@@ -245,7 +270,7 @@ export function reduceExhaustion(character) {
       reduced: true,
       message: `Exhaustion reduced: Level ${oldLevel} → ${character.exhaustionLevel}. ${effects.description}`,
       newLevel: character.exhaustionLevel,
-      effects: effects.description
+      effects: effects.description,
     };
   }
 
@@ -267,7 +292,7 @@ export function getActiveExhaustionPenalties(character) {
   return {
     level: character.exhaustionLevel,
     penalties: effects.penalties,
-    description: effects.description
+    description: effects.description,
   };
 }
 
@@ -280,5 +305,5 @@ export default {
   forage,
   findWater,
   reduceExhaustion,
-  getActiveExhaustionPenalties
+  getActiveExhaustionPenalties,
 };

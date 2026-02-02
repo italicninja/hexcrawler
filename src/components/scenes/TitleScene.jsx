@@ -35,7 +35,7 @@ function TitleScene() {
     <>
       {showLoadMenu && (
         <div className="modal-overlay" onClick={() => setShowLoadMenu(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
             <SaveSlotManager mode="load" onClose={() => setShowLoadMenu(false)} />
           </div>
         </div>
@@ -48,10 +48,7 @@ function TitleScene() {
 
           <div className="title-form">
             <div className="title-buttons">
-              <button
-                className="title-btn btn-primary"
-                onClick={handleNewGame}
-              >
+              <button className="title-btn btn-primary" onClick={handleNewGame}>
                 New Game
               </button>
               <button
@@ -81,16 +78,20 @@ function TitleScene() {
                     id="game-seed"
                     placeholder="Leave blank for random"
                     value={seed}
-                    onChange={(e) => setSeed(e.target.value)}
+                    onChange={e => setSeed(e.target.value)}
                   />
-                  <small className="input-hint">Use the same seed to generate identical worlds</small>
+                  <small className="input-hint">
+                    Use the same seed to generate identical worlds
+                  </small>
                 </div>
               </div>
             )}
           </div>
 
           <div className="title-footer">
-            <strong>Controls:</strong> Click hex to view details • Click "Move Here" or double-click to travel<br />
+            <strong>Controls:</strong> Click hex to view details • Click "Move Here" or double-click
+            to travel
+            <br />
             Game auto-saves on rest, combat victory, quest completion, and scene changes
           </div>
         </div>

@@ -13,36 +13,33 @@ function ActionEconomyDisplay({ turnState, character }) {
   const objectInteractionUsed = turnState?.freeObjectUsed || false;
 
   const EconomyItem = ({ icon, label, isUsed, showMovement, movementData }) => (
-    <div 
+    <div
       className="flex items-center gap-2 px-3 py-2 rounded-lg"
       style={{
         backgroundColor: 'var(--bg-lighter)',
-        border: '1px solid var(--border-color)'
+        border: '1px solid var(--border-color)',
       }}
     >
       <span className="text-xl" role="img" aria-label={label}>
         {icon}
       </span>
-      <span 
-        className="text-sm font-medium"
-        style={{ color: 'var(--text-muted)' }}
-      >
+      <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
         {label}
       </span>
       {showMovement ? (
-        <span 
+        <span
           className="text-sm font-bold"
-          style={{ 
-            color: movementData.used >= movementData.total ? 'var(--text-muted)' : '#2ecc71'
+          style={{
+            color: movementData.used >= movementData.total ? 'var(--text-muted)' : '#2ecc71',
           }}
         >
           {movementData.used}/{movementData.total} ft
         </span>
       ) : (
-        <span 
+        <span
           className="text-lg font-bold"
-          style={{ 
-            color: isUsed ? 'var(--text-muted)' : '#2ecc71'
+          style={{
+            color: isUsed ? 'var(--text-muted)' : '#2ecc71',
           }}
         >
           {isUsed ? '✓' : '○'}
@@ -58,39 +55,27 @@ function ActionEconomyDisplay({ turnState, character }) {
     showMovement: PropTypes.bool,
     movementData: PropTypes.shape({
       used: PropTypes.number,
-      total: PropTypes.number
-    })
+      total: PropTypes.number,
+    }),
   };
 
   return (
-    <div 
+    <div
       className="flex flex-wrap items-center gap-2 p-3"
       style={{
         backgroundColor: 'var(--panel-bg)',
-        borderBottom: '2px solid var(--border-color)'
+        borderBottom: '2px solid var(--border-color)',
       }}
     >
-      <EconomyItem 
-        icon="⚔️" 
-        label="Action" 
-        isUsed={actionUsed}
-      />
-      <EconomyItem 
-        icon="✨" 
-        label="Bonus Action" 
-        isUsed={bonusActionUsed}
-      />
-      <EconomyItem 
-        icon="🚶" 
-        label="Movement" 
+      <EconomyItem icon="⚔️" label="Action" isUsed={actionUsed} />
+      <EconomyItem icon="✨" label="Bonus Action" isUsed={bonusActionUsed} />
+      <EconomyItem
+        icon="🚶"
+        label="Movement"
         showMovement={true}
         movementData={{ used: movementUsed, total: movementTotal }}
       />
-      <EconomyItem 
-        icon="🔧" 
-        label="Object" 
-        isUsed={objectInteractionUsed}
-      />
+      <EconomyItem icon="🔧" label="Object" isUsed={objectInteractionUsed} />
     </div>
   );
 }
@@ -100,11 +85,11 @@ ActionEconomyDisplay.propTypes = {
     actionUsed: PropTypes.bool,
     bonusActionUsed: PropTypes.bool,
     movementUsed: PropTypes.number,
-    freeObjectUsed: PropTypes.bool
+    freeObjectUsed: PropTypes.bool,
   }),
   character: PropTypes.shape({
-    moveDistance: PropTypes.number
-  })
+    moveDistance: PropTypes.number,
+  }),
 };
 
 ActionEconomyDisplay.defaultProps = {
@@ -112,11 +97,11 @@ ActionEconomyDisplay.defaultProps = {
     actionUsed: false,
     bonusActionUsed: false,
     movementUsed: 0,
-    freeObjectUsed: false
+    freeObjectUsed: false,
   },
   character: {
-    moveDistance: 6
-  }
+    moveDistance: 6,
+  },
 };
 
 export default ActionEconomyDisplay;

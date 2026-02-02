@@ -5,8 +5,19 @@ import './SaveSlot.css';
  * Individual save slot display component
  * Shows save metadata and provides load/save/delete actions
  */
-function SaveSlot({ slotKey, metadata, slotNumber, slotLetter, isAutosave, isQuicksave, mode, onLoad, onSave, onDelete }) {
-  const formatTimestamp = (timestamp) => {
+function SaveSlot({
+  slotKey,
+  metadata,
+  slotNumber,
+  slotLetter,
+  isAutosave,
+  isQuicksave,
+  mode,
+  onLoad,
+  onSave,
+  onDelete,
+}) {
+  const formatTimestamp = timestamp => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now - date;
@@ -21,14 +32,18 @@ function SaveSlot({ slotKey, metadata, slotNumber, slotLetter, isAutosave, isQui
     } else if (diffDays < 7) {
       return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
     } else {
-      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return (
+        date.toLocaleDateString() +
+        ' ' +
+        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      );
     }
   };
 
-  const formatPlaytime = (milliseconds) => {
+  const formatPlaytime = milliseconds => {
     const hours = Math.floor(milliseconds / 3600000);
     const minutes = Math.floor((milliseconds % 3600000) / 60000);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
@@ -40,9 +55,11 @@ function SaveSlot({ slotKey, metadata, slotNumber, slotLetter, isAutosave, isQui
     return (
       <div className="save-slot empty-slot">
         <div className="slot-header">
-          {isAutosave ? '⚡ Auto-save' : 
-           isQuicksave ? `⚡ Quick Save ${slotLetter}` : 
-           `💾 Slot ${slotNumber}`}
+          {isAutosave
+            ? '⚡ Auto-save'
+            : isQuicksave
+              ? `⚡ Quick Save ${slotLetter}`
+              : `💾 Slot ${slotNumber}`}
         </div>
         <div className="slot-content">
           <div className="empty-slot-message">Empty Slot</div>
@@ -62,9 +79,11 @@ function SaveSlot({ slotKey, metadata, slotNumber, slotLetter, isAutosave, isQui
   return (
     <div className="save-slot filled-slot">
       <div className="slot-header">
-        {isAutosave ? '⚡ Auto-save' : 
-         isQuicksave ? `⚡ Quick Save ${slotLetter}` : 
-         `💾 Slot ${slotNumber}`}
+        {isAutosave
+          ? '⚡ Auto-save'
+          : isQuicksave
+            ? `⚡ Quick Save ${slotLetter}`
+            : `💾 Slot ${slotNumber}`}
       </div>
       <div className="slot-content">
         <div className="character-info">
@@ -73,9 +92,7 @@ function SaveSlot({ slotKey, metadata, slotNumber, slotLetter, isAutosave, isQui
             Level {metadata.level} {metadata.class}
           </span>
         </div>
-        <div className="location-info">
-          📍 {metadata.location}
-        </div>
+        <div className="location-info">📍 {metadata.location}</div>
         <div className="progress-info">
           <span>Day {metadata.day}</span>
           {metadata.playtime > 0 && (
@@ -116,7 +133,7 @@ SaveSlot.propTypes = {
     location: PropTypes.string,
     day: PropTypes.number,
     playtime: PropTypes.number,
-    timestamp: PropTypes.number
+    timestamp: PropTypes.number,
   }),
   slotNumber: PropTypes.number,
   slotLetter: PropTypes.string,
@@ -125,7 +142,7 @@ SaveSlot.propTypes = {
   mode: PropTypes.oneOf(['load', 'save']).isRequired,
   onLoad: PropTypes.func,
   onSave: PropTypes.func,
-  onDelete: PropTypes.func
+  onDelete: PropTypes.func,
 };
 
 SaveSlot.defaultProps = {
@@ -134,7 +151,7 @@ SaveSlot.defaultProps = {
   slotLetter: null,
   onLoad: () => {},
   onSave: () => {},
-  onDelete: () => {}
+  onDelete: () => {},
 };
 
 export default SaveSlot;

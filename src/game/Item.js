@@ -57,19 +57,34 @@ export class Item {
   validate() {
     const validTypes = ['weapon', 'armor', 'consumable', 'quest', 'misc'];
     if (!validTypes.includes(this.type)) {
-      logger.items.warn('Invalid item type, defaulting to misc', { item: this.name, type: this.type });
+      logger.items.warn('Invalid item type, defaulting to misc', {
+        item: this.name,
+        type: this.type,
+      });
       this.type = 'misc';
     }
 
     const validRarities = ['common', 'uncommon', 'rare', 'very rare', 'legendary'];
     if (!validRarities.includes(this.rarity)) {
-      logger.items.warn('Invalid rarity, defaulting to common', { item: this.name, rarity: this.rarity });
+      logger.items.warn('Invalid rarity, defaulting to common', {
+        item: this.name,
+        rarity: this.rarity,
+      });
       this.rarity = 'common';
     }
 
     const validSlots = [
-      'head', 'neck', 'chest', 'hands', 'legs', 'feet',
-      'ring1', 'ring2', 'mainHand', 'offHand', null
+      'head',
+      'neck',
+      'chest',
+      'hands',
+      'legs',
+      'feet',
+      'ring1',
+      'ring2',
+      'mainHand',
+      'offHand',
+      null,
     ];
     if (!validSlots.includes(this.slot)) {
       logger.items.warn('Invalid slot, setting to null', { item: this.name, slot: this.slot });
@@ -94,8 +109,10 @@ export class Item {
     if (!this.isEquippable()) return false;
 
     // Ring slots are interchangeable
-    if ((this.slot === 'ring1' || this.slot === 'ring2') &&
-        (slot === 'ring1' || slot === 'ring2')) {
+    if (
+      (this.slot === 'ring1' || this.slot === 'ring2') &&
+      (slot === 'ring1' || slot === 'ring2')
+    ) {
       return true;
     }
 
@@ -108,11 +125,11 @@ export class Item {
    */
   getRarityColor() {
     const colors = {
-      'common': '#9d9d9d',
-      'uncommon': '#1eff00',
-      'rare': '#0070dd',
+      common: '#9d9d9d',
+      uncommon: '#1eff00',
+      rare: '#0070dd',
       'very rare': '#a335ee',
-      'legendary': '#ff8000'
+      legendary: '#ff8000',
     };
     return colors[this.rarity] || colors.common;
   }
@@ -141,7 +158,7 @@ export class Item {
       speed: 'Speed',
       initiative: 'Initiative',
       attackBonus: 'Attack Bonus',
-      damageBonus: 'Damage Bonus'
+      damageBonus: 'Damage Bonus',
     };
 
     Object.keys(this.effects).forEach(key => {
@@ -252,7 +269,7 @@ export class Item {
       consumable: this.consumable,
       charges: this.charges,
       maxCharges: this.maxCharges,
-      twoHanded: this.twoHanded
+      twoHanded: this.twoHanded,
     };
   }
 
@@ -285,7 +302,7 @@ export class Item {
       effects: options.effects || {},
       weight: options.weight || 3,
       value: options.value || 10,
-      twoHanded: options.twoHanded || false
+      twoHanded: options.twoHanded || false,
     });
   }
 
@@ -307,7 +324,7 @@ export class Item {
       armorType,
       effects: { ac: acBonus, ...options.effects },
       weight: options.weight || 10,
-      value: options.value || 50
+      value: options.value || 50,
     });
   }
 
@@ -327,7 +344,7 @@ export class Item {
       effects,
       weight: options.weight || 0.5,
       value: options.value || 5,
-      consumable: true
+      consumable: true,
     });
   }
 
@@ -338,13 +355,14 @@ export class Item {
   static createRaft() {
     return new Item({
       name: 'Raft',
-      description: 'A simple wooden raft that allows crossing rivers. Not sturdy enough for deep water.',
+      description:
+        'A simple wooden raft that allows crossing rivers. Not sturdy enough for deep water.',
       type: 'misc',
       rarity: 'common',
       slot: null,
       effects: { allowsRiverCrossing: true },
       weight: 50,
-      value: 25
+      value: 25,
     });
   }
 
@@ -361,7 +379,7 @@ export class Item {
       slot: null,
       effects: { allowsWaterCrossing: true, allowsRiverCrossing: true },
       weight: 100,
-      value: 50
+      value: 50,
     });
   }
 }

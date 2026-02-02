@@ -118,70 +118,34 @@ A web-based hexcrawl RPG for D&D 5e. Explore procedurally generated hex maps wit
 - **CSS3** - Dark theme inspired by Kobold+ Fight Club
 - **localStorage** - Game persistence
 
-## TODO
+## Project Status & Roadmap
 
-### High Priority
-- [ ] **Travel mechanics calculator**
-  - Movement rates based on terrain difficulty
-  - Travel time estimation per hex
-  - Weather impact on movement speed
-  - Path-finding between hexes
-- [ ] **Settlement names & details**
-  - Random name generator for settlements
-  - Settlement sizes (hamlet, village, town, city)
-  - Population estimates
-  - Notable features/resources
-- [ ] **Enhanced map controls**
-  - Reset zoom/pan button
-  - Zoom level indicator
-  - Minimap for navigation
+**Current Completeness:** ~85% (Core gameplay functional)  
+**Focus:** Technical debt cleanup + remaining features
 
-### Medium Priority
-- [ ] **Settlement/faction system**
-  - Named factions with territories
-  - Faction relationships (allied, neutral, hostile)
-  - Influence zones visualization
-  - Trade routes between settlements
-- [ ] **Enhanced POI details**
-  - POI descriptions/lore
-  - Danger levels (CR ratings)
-  - Treasure/rewards
-  - Quest hooks generator
-- [ ] **Terrain customization**
-  - Custom terrain types
-  - User-defined terrain colors
-  - Adjust terrain difficulty values
-  - Import/export terrain palettes
-- [ ] **Export improvements**
-  - PDF export with hex details
-  - Export selected region only
-  - Export with legend embedded
-  - JSON export for sharing
+👉 **See [TODO.md](./TODO.md) for detailed task list**
 
-### Low Priority / Future Enhancements
-- [ ] Roads and paths connecting settlements
-- [ ] Elevation contour lines visualization
-- [ ] Season/time-of-day variants
-- [ ] Weather system evolution over time
-- [ ] Multiple map layers (political, resources, danger levels)
-- [ ] Shareable map URLs (encode map data in URL)
-- [ ] Print-friendly view with page breaks
-- [ ] Mobile-responsive improvements
-- [ ] Undo/redo functionality
-- [ ] Hex editing mode (manually change terrain/POI)
-- [ ] Random events/rumors per hex
-- [ ] NPC encounter generator
-- [ ] Treasure hoard generator
+### Recently Completed ✅
+- ✅ Full D&D 5e combat system with action economy
+- ✅ Item & Inventory system with equipment slots
+- ✅ Quest system with quest givers in towns
+- ✅ Shop system with buying/selling
+- ✅ Region-based biome generation with weather
+- ✅ TypeScript infrastructure (40% coverage)
+- ✅ Modular reducer architecture
 
-### Code Improvements
-- [ ] Add unit tests for terrain generation
-- [ ] Add unit tests for river generation
-- [ ] Improve hex collision detection performance at high zoom
-- [ ] Add TypeScript for better type safety
-- [ ] Add JSDoc comments to all modules
-- [ ] Add configuration file for terrain/POI/weather tables
-- [ ] Optimize canvas rendering for very large maps
-- [ ] Add accessibility features (keyboard navigation)
+### Next Up (Priority Order)
+1. 🔴 **Critical Cleanup** - Delete 1,120 lines of dead code
+2. 🔴 **Code Quality** - Add ESLint, Prettier, and unit tests
+3. 🔴 **Refactoring** - Split large files (3 files >1,000 lines)
+4. 🟡 **Features** - Rations/Water system, Party AI, Full Combat UI
+5. ⚡ **Performance** - Code splitting, canvas optimization
+
+### Documentation
+- **[TODO.md](./TODO.md)** - Consolidated task list with priorities and estimates
+- **[CLAUDE.md](./CLAUDE.md)** - Architecture overview and development guide
+- **[AGENTS.md](./AGENTS.md)** - Agent-focused development patterns
+- **[GAME_GUIDE.md](./GAME_GUIDE.md)** - Player guide and gameplay mechanics
 
 ## Contributing
 

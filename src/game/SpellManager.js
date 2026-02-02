@@ -33,9 +33,9 @@ const SPELL_SLOTS_BY_LEVEL = {
     17: [4, 3, 3, 3, 2, 1, 1, 1, 1],
     18: [4, 3, 3, 3, 3, 1, 1, 1, 1],
     19: [4, 3, 3, 3, 3, 2, 1, 1, 1],
-    20: [4, 3, 3, 3, 3, 2, 2, 1, 1]
+    20: [4, 3, 3, 3, 3, 2, 2, 1, 1],
   },
-  
+
   // Half casters (Paladin, Ranger)
   half: {
     1: [0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -57,16 +57,16 @@ const SPELL_SLOTS_BY_LEVEL = {
     17: [4, 3, 3, 3, 1, 0, 0, 0, 0],
     18: [4, 3, 3, 3, 1, 0, 0, 0, 0],
     19: [4, 3, 3, 3, 2, 0, 0, 0, 0],
-    20: [4, 3, 3, 3, 2, 0, 0, 0, 0]
+    20: [4, 3, 3, 3, 2, 0, 0, 0, 0],
   },
-  
+
   // Warlock (Pact Magic - different system)
   warlock: {
-    1: [1, 0, 0, 0, 0, 0, 0, 0, 0],  // 1st level slots
-    2: [2, 0, 0, 0, 0, 0, 0, 0, 0],  // 2 1st level slots
-    3: [0, 2, 0, 0, 0, 0, 0, 0, 0],  // 2 2nd level slots
+    1: [1, 0, 0, 0, 0, 0, 0, 0, 0], // 1st level slots
+    2: [2, 0, 0, 0, 0, 0, 0, 0, 0], // 2 1st level slots
+    3: [0, 2, 0, 0, 0, 0, 0, 0, 0], // 2 2nd level slots
     4: [0, 2, 0, 0, 0, 0, 0, 0, 0],
-    5: [0, 0, 2, 0, 0, 0, 0, 0, 0],  // 2 3rd level slots
+    5: [0, 0, 2, 0, 0, 0, 0, 0, 0], // 2 3rd level slots
     6: [0, 0, 2, 0, 0, 0, 0, 0, 0],
     7: [0, 0, 2, 0, 0, 0, 0, 0, 0],
     8: [0, 0, 2, 0, 0, 0, 0, 0, 0],
@@ -81,8 +81,8 @@ const SPELL_SLOTS_BY_LEVEL = {
     17: [0, 0, 0, 4, 0, 0, 0, 0, 0], // 4 4th level slots
     18: [0, 0, 0, 4, 0, 0, 0, 0, 0],
     19: [0, 0, 0, 4, 0, 0, 0, 0, 0],
-    20: [0, 0, 0, 4, 0, 0, 0, 0, 0]
-  }
+    20: [0, 0, 0, 4, 0, 0, 0, 0, 0],
+  },
 };
 
 /**
@@ -94,7 +94,7 @@ function getSpellcastingType(className) {
   const classKey = className.toLowerCase();
   const fullCasters = ['wizard', 'sorcerer', 'cleric', 'druid', 'bard'];
   const halfCasters = ['paladin', 'ranger'];
-  
+
   if (fullCasters.includes(classKey)) return 'full';
   if (halfCasters.includes(classKey)) return 'half';
   if (classKey === 'warlock') return 'warlock';
@@ -108,20 +108,20 @@ function getSpellcastingType(className) {
  */
 export function getMaxSpellSlots(character) {
   const spellcastingType = getSpellcastingType(character.class);
-  
+
   if (spellcastingType === 'none') {
     return {};
   }
-  
+
   const slotsArray = SPELL_SLOTS_BY_LEVEL[spellcastingType][character.level] || [];
   const slots = {};
-  
+
   slotsArray.forEach((count, index) => {
     if (count > 0) {
       slots[index + 1] = count;
     }
   });
-  
+
   return slots;
 }
 
@@ -134,14 +134,14 @@ export function getCurrentSpellSlots(character) {
   const maxSlots = getMaxSpellSlots(character);
   const usedSlots = character.spellSlotsUsed || {};
   const currentSlots = {};
-  
+
   Object.keys(maxSlots).forEach(level => {
     const levelNum = parseInt(level);
     const max = maxSlots[levelNum];
     const used = usedSlots[levelNum] || 0;
     currentSlots[levelNum] = Math.max(0, max - used);
   });
-  
+
   return currentSlots;
 }
 
@@ -154,12 +154,12 @@ export function getCurrentSpellSlots(character) {
 export function getSpell(className, spellName) {
   const classKey = className.toLowerCase();
   const classList = SPELL_LISTS[classKey];
-  
+
   if (!classList) {
     logger.combat.warn('No spell list found for class', { class: className });
     return null;
   }
-  
+
   // Search through all spell levels for this class
   for (const level in classList) {
     const spells = classList[level];
@@ -168,7 +168,7 @@ export function getSpell(className, spellName) {
       return spell;
     }
   }
-  
+
   logger.combat.warn('Spell not found for class', { spell: spellName, class: className });
   return null;
 }
@@ -177,28 +177,28 @@ export function getSpell(className, spellName) {
  * Get all available spells for a character
  * For now, returns all spells for the class up to character's max spell level
  * In future, this could filter by known/prepared spells
- * 
+ *
  * @param {object} character - Character object
  * @returns {Array<Spell>} Array of available spells
  */
 export function getAvailableSpells(character) {
   const classKey = character.class.toLowerCase();
   const classList = SPELL_LISTS[classKey];
-  
+
   if (!classList) {
     return [];
   }
-  
+
   const maxSpellLevel = getMaxSpellLevel(character);
   const availableSpells = [];
-  
+
   // Collect all spells up to max spell level
   for (let level = 0; level <= maxSpellLevel; level++) {
     if (classList[level]) {
       availableSpells.push(...classList[level]);
     }
   }
-  
+
   return availableSpells;
 }
 
@@ -209,18 +209,18 @@ export function getAvailableSpells(character) {
  */
 export function getMaxSpellLevel(character) {
   const spellcastingType = getSpellcastingType(character.class);
-  
+
   if (spellcastingType === 'none') return 0;
-  
+
   const slots = SPELL_SLOTS_BY_LEVEL[spellcastingType][character.level] || [];
-  
+
   // Find highest spell level with at least 1 slot
   for (let i = slots.length - 1; i >= 0; i--) {
     if (slots[i] > 0) {
       return i + 1;
     }
   }
-  
+
   return 0; // Only cantrips
 }
 
@@ -233,7 +233,7 @@ export function getMaxSpellLevel(character) {
 export function hasSpellSlot(character, level) {
   // Cantrips don't require slots
   if (level === 0) return true;
-  
+
   const currentSlots = getCurrentSpellSlots(character);
   return (currentSlots[level] || 0) > 0;
 }
@@ -247,19 +247,19 @@ export function hasSpellSlot(character, level) {
 export function useSpellSlot(character, level) {
   // Cantrips don't consume slots
   if (level === 0) return true;
-  
+
   if (!hasSpellSlot(character, level)) {
     return false;
   }
-  
+
   // Initialize spellSlotsUsed if needed
   if (!character.spellSlotsUsed) {
     character.spellSlotsUsed = {};
   }
-  
+
   // Increment used slots
   character.spellSlotsUsed[level] = (character.spellSlotsUsed[level] || 0) + 1;
-  
+
   return true;
 }
 
@@ -273,7 +273,7 @@ export function restoreSpellSlot(character, level) {
   if (!character.spellSlotsUsed || !character.spellSlotsUsed[level]) {
     return false; // No slots to restore
   }
-  
+
   character.spellSlotsUsed[level] = Math.max(0, character.spellSlotsUsed[level] - 1);
   return true;
 }
@@ -309,14 +309,14 @@ export function canCastSpell(character, spell) {
   // Check if character's class can cast this spell
   const classKey = character.class.toLowerCase();
   const classList = SPELL_LISTS[classKey];
-  
+
   if (!classList) {
     return {
       canCast: false,
-      reason: `${character.class} cannot cast spells`
+      reason: `${character.class} cannot cast spells`,
     };
   }
-  
+
   // Check if spell is in the class's spell list
   let spellFound = false;
   for (const level in classList) {
@@ -325,26 +325,26 @@ export function canCastSpell(character, spell) {
       break;
     }
   }
-  
+
   if (!spellFound) {
     return {
       canCast: false,
-      reason: `${spell.name} is not available to ${character.class}s`
+      reason: `${spell.name} is not available to ${character.class}s`,
     };
   }
-  
+
   // Check if character has spell slot (or is cantrip)
   if (spell.level === 0) {
     return { canCast: true, reason: 'Cantrip' };
   }
-  
+
   if (!hasSpellSlot(character, spell.level)) {
     return {
       canCast: false,
-      reason: `No level ${spell.level} spell slots remaining`
+      reason: `No level ${spell.level} spell slots remaining`,
     };
   }
-  
+
   return { canCast: true, reason: 'Ready to cast' };
 }
 
@@ -356,9 +356,9 @@ export function canCastSpell(character, spell) {
 export function getSpellSlotsSummary(character) {
   const maxSlots = getMaxSpellSlots(character);
   const currentSlots = getCurrentSpellSlots(character);
-  
+
   const levelNames = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
-  
+
   const summary = Object.keys(maxSlots)
     .map(level => {
       const levelNum = parseInt(level);
@@ -367,7 +367,7 @@ export function getSpellSlotsSummary(character) {
       return `${levelNames[levelNum]}: ${current}/${max}`;
     })
     .join(', ');
-  
+
   return summary || 'No spell slots';
 }
 
@@ -379,14 +379,14 @@ export function getSpellSlotsSummary(character) {
 export function getSpellsByLevel(character) {
   const availableSpells = getAvailableSpells(character);
   const spellsByLevel = {};
-  
+
   availableSpells.forEach(spell => {
     if (!spellsByLevel[spell.level]) {
       spellsByLevel[spell.level] = [];
     }
     spellsByLevel[spell.level].push(spell);
   });
-  
+
   return spellsByLevel;
 }
 
@@ -404,5 +404,5 @@ export default {
   canCastSpell,
   getSpellSlotsSummary,
   getSpellsByLevel,
-  getMaxSpellLevel
+  getMaxSpellLevel,
 };

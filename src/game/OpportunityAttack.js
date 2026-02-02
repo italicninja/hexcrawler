@@ -45,14 +45,24 @@ export class OpportunityAttackSystem {
       }
 
       // Check if target was in melee reach and is now leaving
-      const distanceFrom = getHexDistance(combatant.position.col, combatant.position.row, fromHex.col, fromHex.row);
-      const distanceTo = getHexDistance(combatant.position.col, combatant.position.row, toHex.col, toHex.row);
+      const distanceFrom = getHexDistance(
+        combatant.position.col,
+        combatant.position.row,
+        fromHex.col,
+        fromHex.row
+      );
+      const distanceTo = getHexDistance(
+        combatant.position.col,
+        combatant.position.row,
+        toHex.col,
+        toHex.row
+      );
 
       // Trigger if was in reach (1 hex) and is now leaving reach
       if (distanceFrom <= 1 && distanceTo > 1) {
-        logger.combat.debug('Opportunity attack available', { 
-          attacker: combatant.name, 
-          target: movingCombatant.name 
+        logger.combat.debug('Opportunity attack available', {
+          attacker: combatant.name,
+          target: movingCombatant.name,
         });
         attackers.push(combatant);
       }
@@ -72,9 +82,9 @@ export class OpportunityAttackSystem {
   static promptOpportunityAttack(attacker, target, onConfirm, onDecline) {
     // AI auto-confirms
     if (attacker.isEnemy) {
-      logger.combat.info('AI auto-confirms opportunity attack', { 
-        attacker: attacker.name, 
-        target: target.name 
+      logger.combat.info('AI auto-confirms opportunity attack', {
+        attacker: attacker.name,
+        target: target.name,
       });
       onConfirm();
       return null;
@@ -86,7 +96,7 @@ export class OpportunityAttackSystem {
       attacker: attacker,
       target: target,
       onConfirm: onConfirm,
-      onDecline: onDecline
+      onDecline: onDecline,
     };
   }
 }

@@ -27,9 +27,7 @@ function ExplorationScene() {
   const interiorMap = poiKey ? interiorMaps[poiKey] : null;
 
   // Set player position to entrance when entering
-  const [playerPosition, setPlayerPosition] = useState(
-    interiorMap?.entrance || { col: 0, row: 0 }
-  );
+  const [playerPosition, setPlayerPosition] = useState(interiorMap?.entrance || { col: 0, row: 0 });
 
   useEffect(() => {
     if (interiorMap?.entrance) {
@@ -38,27 +36,25 @@ function ExplorationScene() {
   }, [interiorMap]);
 
   // Handle hex selection
-  const handleHexClick = (hex) => {
+  const handleHexClick = hex => {
     setSelectedHex(hex);
   };
 
   // Handle hex movement
-  const handleHexDoubleClick = (hex) => {
+  const handleHexDoubleClick = hex => {
     if (!hex.terrain.walkable) {
       addMessage('Cannot move - hex is not walkable (wall or obstacle)', 'warning');
       return;
     }
 
     // Check distance (1 hex move for now)
-    const distance = getHexDistance(
-      playerPosition.col,
-      playerPosition.row,
-      hex.col,
-      hex.row
-    );
+    const distance = getHexDistance(playerPosition.col, playerPosition.row, hex.col, hex.row);
 
     if (distance > 1) {
-      addMessage(`Too far - hex is ${distance} away. You can only move 1 hex at a time.`, 'warning');
+      addMessage(
+        `Too far - hex is ${distance} away. You can only move 1 hex at a time.`,
+        'warning'
+      );
       return;
     }
 
@@ -83,7 +79,7 @@ function ExplorationScene() {
   };
 
   // Handle encounter auto-trigger
-  const handleEncounterTrigger = (hex) => {
+  const handleEncounterTrigger = hex => {
     if (!interiorMap) return;
 
     if (!state.playerCharacter) {
@@ -101,8 +97,8 @@ function ExplorationScene() {
         type: actions.DISCOVER_ENCOUNTER,
         payload: {
           poiKey,
-          encounterKey: `${hex.col},${hex.row}`
-        }
+          encounterKey: `${hex.col},${hex.row}`,
+        },
       });
 
       // Auto-resolve combat (simplified for now)
@@ -117,24 +113,24 @@ function ExplorationScene() {
 
       addMessage(
         `Ambush! You were attacked by ${encounter.creatures}!\n\n` +
-        `[Combat Auto-Resolved]\n` +
-        `You took ${damageReceived} damage!\n` +
-        `You defeated the enemies!\n\n` +
-        `HP: ${state.playerCharacter.currentHP}/${state.playerCharacter.maxHP}\n` +
-        `Time elapsed: ${combatTime} minutes`,
+          `[Combat Auto-Resolved]\n` +
+          `You took ${damageReceived} damage!\n` +
+          `You defeated the enemies!\n\n` +
+          `HP: ${state.playerCharacter.currentHP}/${state.playerCharacter.maxHP}\n` +
+          `Time elapsed: ${combatTime} minutes`,
         'encounter'
       );
 
       // Update character
       dispatch({
         type: actions.UPDATE_CHARACTER,
-        payload: state.playerCharacter
+        payload: state.playerCharacter,
       });
 
       // Advance time
       dispatch({
         type: actions.ADVANCE_TIME,
-        payload: combatTime
+        payload: combatTime,
       });
 
       // Mark as defeated
@@ -142,14 +138,14 @@ function ExplorationScene() {
         type: actions.DEFEAT_ENCOUNTER,
         payload: {
           poiKey,
-          encounterKey: `${hex.col},${hex.row}`
-        }
+          encounterKey: `${hex.col},${hex.row}`,
+        },
       });
     }
   };
 
   // Handle loot discovery
-  const handleLootDiscovery = (hex) => {
+  const handleLootDiscovery = hex => {
     if (!interiorMap) return;
 
     const loot = interiorMap.loot.find(
@@ -161,8 +157,8 @@ function ExplorationScene() {
         type: actions.DISCOVER_LOOT,
         payload: {
           poiKey,
-          lootKey: `${hex.col},${hex.row}`
-        }
+          lootKey: `${hex.col},${hex.row}`,
+        },
       });
 
       const lootType = loot.type === 'chest' ? 'treasure chest' : 'loot';
@@ -171,7 +167,7 @@ function ExplorationScene() {
   };
 
   // Handle hazard triggers
-  const handleHazardTrigger = (hex) => {
+  const handleHazardTrigger = hex => {
     if (!interiorMap) return;
 
     // Null check for player character
@@ -190,19 +186,15 @@ function ExplorationScene() {
         type: actions.DISCOVER_HAZARD,
         payload: {
           poiKey,
-          hazardKey: `${hex.col},${hex.row}`
-        }
+          hazardKey: `${hex.col},${hex.row}`,
+        },
       });
       // Create dice roller with map seed for consistency
       const diceRoller = new DiceRoller();
       diceRoller.setSeed(`${state.mapSeed}-hazard-${hex.col}-${hex.row}`);
 
       // Roll saving throw
-      const saveResult = diceRoller.savingThrow(
-        state.playerCharacter,
-        hazard.saveType,
-        hazard.dc
-      );
+      const saveResult = diceRoller.savingThrow(state.playerCharacter, hazard.saveType, hazard.dc);
 
       if (saveResult.success) {
         // Saved!
@@ -224,7 +216,7 @@ function ExplorationScene() {
         // Update character HP in state
         dispatch({
           type: actions.UPDATE_CHARACTER,
-          payload: character
+          payload: character,
         });
       }
 
@@ -233,8 +225,8 @@ function ExplorationScene() {
         type: actions.TRIGGER_HAZARD,
         payload: {
           poiKey,
-          hazardKey: `${hex.col},${hex.row}`
-        }
+          hazardKey: `${hex.col},${hex.row}`,
+        },
       });
     }
   };
@@ -284,15 +276,17 @@ function ExplorationScene() {
         <div className="interior-header">
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <h2>{currentPOI.poi.name || 'Unknown Location'}</h2>
-            <div style={{
-              fontSize: '0.9rem',
-              fontWeight: '500',
-              fontFamily: 'monospace',
-              padding: '0.25rem 0.5rem',
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-              borderRadius: '4px',
-              color: '#a0a0a0'
-            }}>
+            <div
+              style={{
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                fontFamily: 'monospace',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '4px',
+                color: '#a0a0a0',
+              }}
+            >
               {formatTime(state.gameTime)}
             </div>
           </div>
@@ -316,10 +310,10 @@ function ExplorationScene() {
           playerPosition={playerPosition}
           interiorMap={interiorMap}
           poiKey={poiKey}
-          onMoveToHex={(hex) => {
+          onMoveToHex={hex => {
             setPlayerPosition({ col: hex.col, row: hex.row });
             setSelectedHex(hex);
-            
+
             // Check for encounters on entered hex
             if (hex.content === 'encounter') {
               handleEncounterTrigger(hex);
@@ -342,8 +336,6 @@ function ExplorationScene() {
       <div className="bottom-panel">
         <GameLog />
       </div>
-
-
     </div>
   );
 }

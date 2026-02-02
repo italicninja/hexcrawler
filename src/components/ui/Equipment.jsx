@@ -26,9 +26,7 @@ function ItemTooltip({ item, children }) {
           <div className="tooltip-type">
             {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)} {item.type}
           </div>
-          {item.slot && (
-            <div className="tooltip-slot">Slot: {item.slot}</div>
-          )}
+          {item.slot && <div className="tooltip-slot">Slot: {item.slot}</div>}
           {item.damage && (
             <div className="tooltip-damage">
               Damage: {item.damage}
@@ -36,18 +34,16 @@ function ItemTooltip({ item, children }) {
               {item.twoHanded && ' (Two-Handed)'}
             </div>
           )}
-          {item.armorType && (
-            <div className="tooltip-armor">Armor Type: {item.armorType}</div>
-          )}
+          {item.armorType && <div className="tooltip-armor">Armor Type: {item.armorType}</div>}
           {item.getEffectsText() !== 'No special effects' && (
             <div className="tooltip-effects">{item.getEffectsText()}</div>
           )}
           {item.charges !== null && item.maxCharges !== null && (
-            <div className="tooltip-charges">Charges: {item.charges}/{item.maxCharges}</div>
+            <div className="tooltip-charges">
+              Charges: {item.charges}/{item.maxCharges}
+            </div>
           )}
-          {item.description && (
-            <div className="tooltip-description">{item.description}</div>
-          )}
+          {item.description && <div className="tooltip-description">{item.description}</div>}
           <div className="tooltip-footer">
             Weight: {item.weight} lbs | Value: {item.value} gp
           </div>
@@ -59,7 +55,7 @@ function ItemTooltip({ item, children }) {
 
 ItemTooltip.propTypes = {
   item: PropTypes.object,
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
 };
 
 function EquipmentSlot({ label, item, slotId, onUnequip }) {
@@ -88,16 +84,10 @@ function EquipmentSlot({ label, item, slotId, onUnequip }) {
             {item.effects?.ac && <span className="item-stat">AC +{item.effects.ac}</span>}
             {item.damage && <span className="item-stat">{item.damage}</span>}
             {item.getEffectsText() !== 'No special effects' &&
-             !item.effects?.ac &&
-             !item.damage && (
-              <span className="item-stat">{item.getEffectsText()}</span>
-            )}
+              !item.effects?.ac &&
+              !item.damage && <span className="item-stat">{item.getEffectsText()}</span>}
           </div>
-          <button
-            className="unequip-btn"
-            onClick={() => onUnequip(slotId)}
-            title="Unequip item"
-          >
+          <button className="unequip-btn" onClick={() => onUnequip(slotId)} title="Unequip item">
             Unequip
           </button>
         </div>
@@ -110,7 +100,7 @@ EquipmentSlot.propTypes = {
   label: PropTypes.string.isRequired,
   item: PropTypes.object,
   slotId: PropTypes.string.isRequired,
-  onUnequip: PropTypes.func.isRequired
+  onUnequip: PropTypes.func.isRequired,
 };
 
 function InventoryItem({ item, onEquip }) {
@@ -152,7 +142,7 @@ function InventoryItem({ item, onEquip }) {
 
 InventoryItem.propTypes = {
   item: PropTypes.object.isRequired,
-  onEquip: PropTypes.func.isRequired
+  onEquip: PropTypes.func.isRequired,
 };
 
 function Inventory({ inventory, onEquip }) {
@@ -173,7 +163,7 @@ function Inventory({ inventory, onEquip }) {
     armor: [],
     consumable: [],
     quest: [],
-    misc: []
+    misc: [],
   };
 
   inventory.forEach(item => {
@@ -186,9 +176,7 @@ function Inventory({ inventory, onEquip }) {
   });
 
   // Filter items
-  const filteredItems = filter === 'all'
-    ? inventory
-    : itemsByType[filter] || [];
+  const filteredItems = filter === 'all' ? inventory : itemsByType[filter] || [];
 
   // Count items by type
   const typeCounts = {
@@ -197,7 +185,7 @@ function Inventory({ inventory, onEquip }) {
     armor: itemsByType.armor.length,
     consumable: itemsByType.consumable.length,
     quest: itemsByType.quest.length,
-    misc: itemsByType.misc.length
+    misc: itemsByType.misc.length,
   };
 
   return (
@@ -249,13 +237,7 @@ function Inventory({ inventory, onEquip }) {
         {filteredItems.length === 0 ? (
           <div className="inventory-empty">No items in this category</div>
         ) : (
-          filteredItems.map((item) => (
-            <InventoryItem
-              key={item.id}
-              item={item}
-              onEquip={onEquip}
-            />
-          ))
+          filteredItems.map(item => <InventoryItem key={item.id} item={item} onEquip={onEquip} />)
         )}
       </div>
     </div>
@@ -264,39 +246,31 @@ function Inventory({ inventory, onEquip }) {
 
 Inventory.propTypes = {
   inventory: PropTypes.array,
-  onEquip: PropTypes.func.isRequired
+  onEquip: PropTypes.func.isRequired,
 };
 
 function Equipment({ character }) {
   const { dispatch, actions } = useGameState();
 
   if (!character) {
-    return (
-      <div className="equipment-placeholder">
-        Select a party member to view equipment
-      </div>
-    );
+    return <div className="equipment-placeholder">Select a party member to view equipment</div>;
   }
 
   // Null check for equipment object
   if (!character.equipment) {
-    return (
-      <div className="equipment-placeholder">
-        Invalid character data (missing equipment)
-      </div>
-    );
+    return <div className="equipment-placeholder">Invalid character data (missing equipment)</div>;
   }
 
   const equipment = character.equipment;
 
-  const handleUnequip = (slot) => {
+  const handleUnequip = slot => {
     dispatch({
       type: actions.UNEQUIP_ITEM,
-      payload: { slot }
+      payload: { slot },
     });
   };
 
-  const handleEquip = (item) => {
+  const handleEquip = item => {
     // Determine target slot
     let targetSlot = item.slot;
 
@@ -316,8 +290,8 @@ function Equipment({ character }) {
       type: actions.EQUIP_ITEM,
       payload: {
         itemId: item.id,
-        slot: targetSlot
-      }
+        slot: targetSlot,
+      },
     });
   };
 
@@ -395,10 +369,7 @@ function Equipment({ character }) {
         </div>
       </div>
 
-      <Inventory
-        inventory={character.inventory}
-        onEquip={handleEquip}
-      />
+      <Inventory inventory={character.inventory} onEquip={handleEquip} />
     </div>
   );
 }
@@ -416,10 +387,10 @@ Equipment.propTypes = {
       ring1: PropTypes.object,
       ring2: PropTypes.object,
       mainHand: PropTypes.object,
-      offHand: PropTypes.object
+      offHand: PropTypes.object,
     }).isRequired,
-    inventory: PropTypes.array
-  })
+    inventory: PropTypes.array,
+  }),
 };
 
 export default Equipment;

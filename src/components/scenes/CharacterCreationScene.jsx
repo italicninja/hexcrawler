@@ -12,23 +12,77 @@ const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
 // Random hero name lists for Quick Start
 const HERO_NAMES = [
   // Fantasy warrior names
-  'Aldric', 'Theron', 'Gareth', 'Bران', 'Ragnar', 'Thorin', 'Gorin', 'Borin',
-  'Kael', 'Darian', 'Eamon', 'Fynn', 'Galen', 'Haldor', 'Ivar', 'Jarek',
+  'Aldric',
+  'Theron',
+  'Gareth',
+  'Bران',
+  'Ragnar',
+  'Thorin',
+  'Gorin',
+  'Borin',
+  'Kael',
+  'Darian',
+  'Eamon',
+  'Fynn',
+  'Galen',
+  'Haldor',
+  'Ivar',
+  'Jarek',
   // Fantasy mage names
-  'Merlin', 'Gandor', 'Elara', 'Lyra', 'Mira', 'Nyx', 'Aria', 'Luna',
-  'Celeste', 'Aurora', 'Astrid', 'Zara', 'Thalia', 'Seraphina', 'Raven',
+  'Merlin',
+  'Gandor',
+  'Elara',
+  'Lyra',
+  'Mira',
+  'Nyx',
+  'Aria',
+  'Luna',
+  'Celeste',
+  'Aurora',
+  'Astrid',
+  'Zara',
+  'Thalia',
+  'Seraphina',
+  'Raven',
   // Rogueish names
-  'Shadow', 'Rook', 'Sable', 'Ash', 'Ember', 'Flint', 'Steel', 'Frost',
+  'Shadow',
+  'Rook',
+  'Sable',
+  'Ash',
+  'Ember',
+  'Flint',
+  'Steel',
+  'Frost',
   // Divine names
-  'Auriel', 'Gabriel', 'Raphael', 'Uriel', 'Azrael', 'Cassiel', 'Raziel',
+  'Auriel',
+  'Gabriel',
+  'Raphael',
+  'Uriel',
+  'Azrael',
+  'Cassiel',
+  'Raziel',
   // Nature names
-  'Rowan', 'Willow', 'Sage', 'Briar', 'Thorn', 'Oak', 'River', 'Storm',
+  'Rowan',
+  'Willow',
+  'Sage',
+  'Briar',
+  'Thorn',
+  'Oak',
+  'River',
+  'Storm',
   // Classic hero names
-  'Valor', 'Justice', 'Honor', 'Glory', 'Victory', 'Phoenix', 'Blade', 'Aegis'
+  'Valor',
+  'Justice',
+  'Honor',
+  'Glory',
+  'Victory',
+  'Phoenix',
+  'Blade',
+  'Aegis',
 ];
 
 // Helper function to get random element from array
-const getRandomElement = (array) => {
+const getRandomElement = array => {
   return array[Math.floor(Math.random() * array.length)];
 };
 
@@ -51,7 +105,14 @@ const CLASS_DATA = {
     description: 'A fierce warrior who channels primal rage in battle',
     primaryStat: 'strength',
     secondaryStat: 'constitution',
-    abilityScores: { strength: 15, dexterity: 13, constitution: 14, intelligence: 8, wisdom: 12, charisma: 10 }
+    abilityScores: {
+      strength: 15,
+      dexterity: 13,
+      constitution: 14,
+      intelligence: 8,
+      wisdom: 12,
+      charisma: 10,
+    },
   },
   bard: {
     name: 'Bard',
@@ -59,7 +120,14 @@ const CLASS_DATA = {
     description: 'An inspiring musician who weaves magic through performance',
     primaryStat: 'charisma',
     secondaryStat: 'dexterity',
-    abilityScores: { strength: 8, dexterity: 14, constitution: 12, intelligence: 10, wisdom: 13, charisma: 15 }
+    abilityScores: {
+      strength: 8,
+      dexterity: 14,
+      constitution: 12,
+      intelligence: 10,
+      wisdom: 13,
+      charisma: 15,
+    },
   },
   cleric: {
     name: 'Cleric',
@@ -67,7 +135,14 @@ const CLASS_DATA = {
     description: 'A divine servant who channels the power of their deity',
     primaryStat: 'wisdom',
     secondaryStat: 'constitution',
-    abilityScores: { strength: 14, dexterity: 10, constitution: 13, intelligence: 8, wisdom: 15, charisma: 12 }
+    abilityScores: {
+      strength: 14,
+      dexterity: 10,
+      constitution: 13,
+      intelligence: 8,
+      wisdom: 15,
+      charisma: 12,
+    },
   },
   druid: {
     name: 'Druid',
@@ -75,7 +150,14 @@ const CLASS_DATA = {
     description: 'A nature priest who shapeshifts and commands natural forces',
     primaryStat: 'wisdom',
     secondaryStat: 'constitution',
-    abilityScores: { strength: 10, dexterity: 12, constitution: 14, intelligence: 13, wisdom: 15, charisma: 8 }
+    abilityScores: {
+      strength: 10,
+      dexterity: 12,
+      constitution: 14,
+      intelligence: 13,
+      wisdom: 15,
+      charisma: 8,
+    },
   },
   fighter: {
     name: 'Fighter',
@@ -83,7 +165,14 @@ const CLASS_DATA = {
     description: 'A master of martial combat and weaponry',
     primaryStat: 'strength',
     secondaryStat: 'constitution',
-    abilityScores: { strength: 15, dexterity: 14, constitution: 13, intelligence: 8, wisdom: 10, charisma: 12 }
+    abilityScores: {
+      strength: 15,
+      dexterity: 14,
+      constitution: 13,
+      intelligence: 8,
+      wisdom: 10,
+      charisma: 12,
+    },
   },
   monk: {
     name: 'Monk',
@@ -91,7 +180,14 @@ const CLASS_DATA = {
     description: 'A martial artist who harnesses ki energy',
     primaryStat: 'dexterity',
     secondaryStat: 'wisdom',
-    abilityScores: { strength: 10, dexterity: 15, constitution: 13, intelligence: 8, wisdom: 14, charisma: 12 }
+    abilityScores: {
+      strength: 10,
+      dexterity: 15,
+      constitution: 13,
+      intelligence: 8,
+      wisdom: 14,
+      charisma: 12,
+    },
   },
   paladin: {
     name: 'Paladin',
@@ -99,7 +195,14 @@ const CLASS_DATA = {
     description: 'A holy warrior bound by sacred oaths',
     primaryStat: 'strength',
     secondaryStat: 'charisma',
-    abilityScores: { strength: 15, dexterity: 10, constitution: 13, intelligence: 8, wisdom: 12, charisma: 14 }
+    abilityScores: {
+      strength: 15,
+      dexterity: 10,
+      constitution: 13,
+      intelligence: 8,
+      wisdom: 12,
+      charisma: 14,
+    },
   },
   ranger: {
     name: 'Ranger',
@@ -107,7 +210,14 @@ const CLASS_DATA = {
     description: 'A wilderness scout who hunts their favored enemies',
     primaryStat: 'dexterity',
     secondaryStat: 'wisdom',
-    abilityScores: { strength: 12, dexterity: 15, constitution: 13, intelligence: 8, wisdom: 14, charisma: 10 }
+    abilityScores: {
+      strength: 12,
+      dexterity: 15,
+      constitution: 13,
+      intelligence: 8,
+      wisdom: 14,
+      charisma: 10,
+    },
   },
   rogue: {
     name: 'Rogue',
@@ -115,7 +225,14 @@ const CLASS_DATA = {
     description: 'A cunning scoundrel who strikes from the shadows',
     primaryStat: 'dexterity',
     secondaryStat: 'intelligence',
-    abilityScores: { strength: 8, dexterity: 15, constitution: 12, intelligence: 14, wisdom: 13, charisma: 10 }
+    abilityScores: {
+      strength: 8,
+      dexterity: 15,
+      constitution: 12,
+      intelligence: 14,
+      wisdom: 13,
+      charisma: 10,
+    },
   },
   sorcerer: {
     name: 'Sorcerer',
@@ -123,7 +240,14 @@ const CLASS_DATA = {
     description: 'A spellcaster with innate magical power',
     primaryStat: 'charisma',
     secondaryStat: 'constitution',
-    abilityScores: { strength: 8, dexterity: 12, constitution: 14, intelligence: 10, wisdom: 13, charisma: 15 }
+    abilityScores: {
+      strength: 8,
+      dexterity: 12,
+      constitution: 14,
+      intelligence: 10,
+      wisdom: 13,
+      charisma: 15,
+    },
   },
   warlock: {
     name: 'Warlock',
@@ -131,7 +255,14 @@ const CLASS_DATA = {
     description: 'A spellcaster bound by a pact with an otherworldly patron',
     primaryStat: 'charisma',
     secondaryStat: 'constitution',
-    abilityScores: { strength: 8, dexterity: 13, constitution: 14, intelligence: 12, wisdom: 10, charisma: 15 }
+    abilityScores: {
+      strength: 8,
+      dexterity: 13,
+      constitution: 14,
+      intelligence: 12,
+      wisdom: 10,
+      charisma: 15,
+    },
   },
   wizard: {
     name: 'Wizard',
@@ -139,8 +270,15 @@ const CLASS_DATA = {
     description: 'A scholarly mage who masters arcane magic',
     primaryStat: 'intelligence',
     secondaryStat: 'constitution',
-    abilityScores: { strength: 8, dexterity: 13, constitution: 14, intelligence: 15, wisdom: 12, charisma: 10 }
-  }
+    abilityScores: {
+      strength: 8,
+      dexterity: 13,
+      constitution: 14,
+      intelligence: 15,
+      wisdom: 12,
+      charisma: 10,
+    },
+  },
 };
 
 function CharacterCreationScene() {
@@ -213,7 +351,7 @@ function CharacterCreationScene() {
     <div className="character-creation-screen">
       <div className="character-creation-content">
         <h1 className="title-logo">Create Your Hero</h1>
-        
+
         {/* Begin Adventure Button - Moved to Top */}
         <button
           className="btn-primary btn-large btn-begin-adventure"
@@ -223,11 +361,7 @@ function CharacterCreationScene() {
         </button>
 
         {/* Quick Start Button */}
-        <button
-          className="btn-quick-start"
-          onClick={handleQuickStart}
-          type="button"
-        >
+        <button className="btn-quick-start" onClick={handleQuickStart} type="button">
           Quick Start (Random Hero)
         </button>
 
@@ -244,7 +378,7 @@ function CharacterCreationScene() {
               id="character-name"
               placeholder="Enter name"
               value={characterName}
-              onChange={(e) => {
+              onChange={e => {
                 setCharacterName(e.target.value);
                 setError('');
               }}

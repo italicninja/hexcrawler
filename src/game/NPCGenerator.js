@@ -6,28 +6,100 @@ import { Character } from './Character.js';
 
 // Name tables
 const MALE_NAMES = [
-  'Aldric', 'Brom', 'Cedric', 'Gareth', 'Theron', 'Valen', 'Darius', 'Kael',
-  'Finn', 'Rowan', 'Marcus', 'Brennan', 'Alaric', 'Torvan', 'Silas', 'Garrett',
-  'Magnus', 'Dorian', 'Caspian', 'Lucian', 'Thaddeus', 'Viktor', 'Remy', 'Asher'
+  'Aldric',
+  'Brom',
+  'Cedric',
+  'Gareth',
+  'Theron',
+  'Valen',
+  'Darius',
+  'Kael',
+  'Finn',
+  'Rowan',
+  'Marcus',
+  'Brennan',
+  'Alaric',
+  'Torvan',
+  'Silas',
+  'Garrett',
+  'Magnus',
+  'Dorian',
+  'Caspian',
+  'Lucian',
+  'Thaddeus',
+  'Viktor',
+  'Remy',
+  'Asher',
 ];
 
 const FEMALE_NAMES = [
-  'Aria', 'Brienne', 'Elara', 'Lyra', 'Seraphina', 'Isolde', 'Mira', 'Cassia',
-  'Faye', 'Rowena', 'Astrid', 'Elowen', 'Nessa', 'Thalia', 'Ember', 'Sable',
-  'Aurelia', 'Callista', 'Zara', 'Nova', 'Rhea', 'Vera', 'Celeste', 'Iris'
+  'Aria',
+  'Brienne',
+  'Elara',
+  'Lyra',
+  'Seraphina',
+  'Isolde',
+  'Mira',
+  'Cassia',
+  'Faye',
+  'Rowena',
+  'Astrid',
+  'Elowen',
+  'Nessa',
+  'Thalia',
+  'Ember',
+  'Sable',
+  'Aurelia',
+  'Callista',
+  'Zara',
+  'Nova',
+  'Rhea',
+  'Vera',
+  'Celeste',
+  'Iris',
 ];
 
 const SURNAMES = [
-  'Ironforge', 'Stormwind', 'Blackwood', 'Brightblade', 'Shadowmere', 'Thornheart',
-  'Silverbrook', 'Ashwood', 'Ravenclaw', 'Goldenleaf', 'Stonehelm', 'Fireborn',
-  'Frostbane', 'Nightshade', 'Dawnbringer', 'Wildrose', 'Steelgard', 'Moonshadow'
+  'Ironforge',
+  'Stormwind',
+  'Blackwood',
+  'Brightblade',
+  'Shadowmere',
+  'Thornheart',
+  'Silverbrook',
+  'Ashwood',
+  'Ravenclaw',
+  'Goldenleaf',
+  'Stonehelm',
+  'Fireborn',
+  'Frostbane',
+  'Nightshade',
+  'Dawnbringer',
+  'Wildrose',
+  'Steelgard',
+  'Moonshadow',
 ];
 
 // Personality traits
 const PERSONALITIES = [
-  'brave', 'cautious', 'greedy', 'loyal', 'reckless', 'wise',
-  'grumpy', 'cheerful', 'sarcastic', 'curious', 'stoic', 'compassionate',
-  'ambitious', 'humble', 'cynical', 'optimistic', 'paranoid', 'trusting'
+  'brave',
+  'cautious',
+  'greedy',
+  'loyal',
+  'reckless',
+  'wise',
+  'grumpy',
+  'cheerful',
+  'sarcastic',
+  'curious',
+  'stoic',
+  'compassionate',
+  'ambitious',
+  'humble',
+  'cynical',
+  'optimistic',
+  'paranoid',
+  'trusting',
 ];
 
 // Background stories
@@ -43,7 +115,7 @@ const BACKGROUNDS = [
   'outlander exploring civilization',
   'sailor seeking adventure on land',
   'entertainer traveling the world',
-  'guild artisan perfecting their craft'
+  'guild artisan perfecting their craft',
 ];
 
 // Available classes with configurations
@@ -52,77 +124,136 @@ const CLASS_CONFIGS = {
     hitDie: 'd10',
     primaryStat: 'strength',
     secondaryStat: 'constitution',
-    stats: { strength: 16, constitution: 14, dexterity: 13, wisdom: 12, intelligence: 10, charisma: 8 },
+    stats: {
+      strength: 16,
+      constitution: 14,
+      dexterity: 13,
+      wisdom: 12,
+      intelligence: 10,
+      charisma: 8,
+    },
     armorClass: 16,
     proficiencies: [
-      'All Armor', 'All Shields', 'Simple Weapons', 'Martial Weapons',
-      'Strength Saves', 'Constitution Saves'
+      'All Armor',
+      'All Shields',
+      'Simple Weapons',
+      'Martial Weapons',
+      'Strength Saves',
+      'Constitution Saves',
     ],
     abilities: [
       { name: 'Second Wind', uses: 1, maxUses: 1 },
-      { name: 'Action Surge', uses: 1, maxUses: 1 }
-    ]
+      { name: 'Action Surge', uses: 1, maxUses: 1 },
+    ],
   },
   rogue: {
     hitDie: 'd8',
     primaryStat: 'dexterity',
     secondaryStat: 'intelligence',
-    stats: { dexterity: 16, intelligence: 14, constitution: 13, charisma: 12, wisdom: 10, strength: 8 },
+    stats: {
+      dexterity: 16,
+      intelligence: 14,
+      constitution: 13,
+      charisma: 12,
+      wisdom: 10,
+      strength: 8,
+    },
     armorClass: 14,
     proficiencies: [
-      'Light Armor', 'Simple Weapons', 'Hand Crossbows', 'Longswords',
-      'Rapiers', 'Shortswords', 'Dexterity Saves', 'Intelligence Saves'
+      'Light Armor',
+      'Simple Weapons',
+      'Hand Crossbows',
+      'Longswords',
+      'Rapiers',
+      'Shortswords',
+      'Dexterity Saves',
+      'Intelligence Saves',
     ],
     abilities: [
       { name: 'Sneak Attack', uses: -1, maxUses: -1 }, // -1 = unlimited
-      { name: 'Cunning Action', uses: -1, maxUses: -1 }
-    ]
+      { name: 'Cunning Action', uses: -1, maxUses: -1 },
+    ],
   },
   cleric: {
     hitDie: 'd8',
     primaryStat: 'wisdom',
     secondaryStat: 'constitution',
-    stats: { wisdom: 16, constitution: 14, strength: 13, charisma: 12, dexterity: 10, intelligence: 8 },
+    stats: {
+      wisdom: 16,
+      constitution: 14,
+      strength: 13,
+      charisma: 12,
+      dexterity: 10,
+      intelligence: 8,
+    },
     armorClass: 15,
     proficiencies: [
-      'Light Armor', 'Medium Armor', 'Shields', 'Simple Weapons',
-      'Wisdom Saves', 'Charisma Saves'
+      'Light Armor',
+      'Medium Armor',
+      'Shields',
+      'Simple Weapons',
+      'Wisdom Saves',
+      'Charisma Saves',
     ],
     abilities: [
       { name: 'Channel Divinity', uses: 1, maxUses: 1 },
-      { name: 'Turn Undead', uses: 1, maxUses: 1 }
-    ]
+      { name: 'Turn Undead', uses: 1, maxUses: 1 },
+    ],
   },
   wizard: {
     hitDie: 'd6',
     primaryStat: 'intelligence',
     secondaryStat: 'constitution',
-    stats: { intelligence: 16, constitution: 14, dexterity: 13, wisdom: 12, charisma: 10, strength: 8 },
+    stats: {
+      intelligence: 16,
+      constitution: 14,
+      dexterity: 13,
+      wisdom: 12,
+      charisma: 10,
+      strength: 8,
+    },
     armorClass: 12,
     proficiencies: [
-      'Daggers', 'Darts', 'Slings', 'Quarterstaffs', 'Light Crossbows',
-      'Intelligence Saves', 'Wisdom Saves'
+      'Daggers',
+      'Darts',
+      'Slings',
+      'Quarterstaffs',
+      'Light Crossbows',
+      'Intelligence Saves',
+      'Wisdom Saves',
     ],
     abilities: [
       { name: 'Arcane Recovery', uses: 1, maxUses: 1 },
-      { name: 'Spellcasting', uses: -1, maxUses: -1 }
-    ]
+      { name: 'Spellcasting', uses: -1, maxUses: -1 },
+    ],
   },
   ranger: {
     hitDie: 'd10',
     primaryStat: 'dexterity',
     secondaryStat: 'wisdom',
-    stats: { dexterity: 16, wisdom: 14, constitution: 13, strength: 12, intelligence: 10, charisma: 8 },
+    stats: {
+      dexterity: 16,
+      wisdom: 14,
+      constitution: 13,
+      strength: 12,
+      intelligence: 10,
+      charisma: 8,
+    },
     armorClass: 14,
     proficiencies: [
-      'Light Armor', 'Medium Armor', 'Shields', 'Simple Weapons', 'Martial Weapons',
-      'Strength Saves', 'Dexterity Saves'
+      'Light Armor',
+      'Medium Armor',
+      'Shields',
+      'Simple Weapons',
+      'Martial Weapons',
+      'Strength Saves',
+      'Dexterity Saves',
     ],
     abilities: [
       { name: 'Favored Enemy', uses: -1, maxUses: -1 },
-      { name: 'Natural Explorer', uses: -1, maxUses: -1 }
-    ]
-  }
+      { name: 'Natural Explorer', uses: -1, maxUses: -1 },
+    ],
+  },
 };
 
 // Random number generator with seed support
@@ -156,9 +287,7 @@ export function generateName(seed = Date.now(), gender = null) {
     gender = rng.next() > 0.5 ? 'male' : 'female';
   }
 
-  const firstName = gender === 'male'
-    ? rng.choice(MALE_NAMES)
-    : rng.choice(FEMALE_NAMES);
+  const firstName = gender === 'male' ? rng.choice(MALE_NAMES) : rng.choice(FEMALE_NAMES);
 
   const surname = rng.choice(SURNAMES);
 
@@ -166,7 +295,7 @@ export function generateName(seed = Date.now(), gender = null) {
     fullName: `${firstName} ${surname}`,
     firstName,
     surname,
-    gender
+    gender,
   };
 }
 
@@ -274,7 +403,7 @@ export function generateNPC(level = 1, classType = null, seed = Date.now()) {
       return {
         ...ability,
         uses: scaledUses,
-        maxUses: scaledUses
+        maxUses: scaledUses,
       };
     }
   });

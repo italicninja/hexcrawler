@@ -57,9 +57,7 @@ export class QuestGenerator {
     const title = this.getKillQuestTitle(enemy.name);
     const description = this.getKillQuestDescription(enemy.name, count);
 
-    const objectives = [
-      Quest.createKillObjective(enemy.name, count)
-    ];
+    const objectives = [Quest.createKillObjective(enemy.name, count)];
 
     const rewards = this.calculateRewards(difficulty, 'kill');
 
@@ -71,7 +69,7 @@ export class QuestGenerator {
       status: QuestStatus.AVAILABLE,
       questGiver: questGiverName,
       location: `${location.col},${location.row}`,
-      level: difficulty
+      level: difficulty,
     });
   }
 
@@ -86,9 +84,7 @@ export class QuestGenerator {
     const title = this.getCollectQuestTitle(item.name);
     const description = this.getCollectQuestDescription(item.name, count);
 
-    const objectives = [
-      Quest.createCollectObjective(item.name, count)
-    ];
+    const objectives = [Quest.createCollectObjective(item.name, count)];
 
     const rewards = this.calculateRewards(difficulty, 'collect');
 
@@ -100,7 +96,7 @@ export class QuestGenerator {
       status: QuestStatus.AVAILABLE,
       questGiver: questGiverName,
       location: `${location.col},${location.row}`,
-      level: difficulty
+      level: difficulty,
     });
   }
 
@@ -114,9 +110,7 @@ export class QuestGenerator {
     const title = this.getExploreQuestTitle(poiType);
     const description = this.getExploreQuestDescription(poiType);
 
-    const objectives = [
-      Quest.createVisitObjective(poiType, 1)
-    ];
+    const objectives = [Quest.createVisitObjective(poiType, 1)];
 
     const rewards = this.calculateRewards(difficulty, 'explore');
 
@@ -128,7 +122,7 @@ export class QuestGenerator {
       status: QuestStatus.AVAILABLE,
       questGiver: questGiverName,
       location: `${location.col},${location.row}`,
-      level: difficulty
+      level: difficulty,
     });
   }
 
@@ -143,9 +137,7 @@ export class QuestGenerator {
     const title = `Deliver ${item.name}`;
     const description = `${questGiverName} needs you to deliver ${item.name} to ${recipient} in a nearby town. The journey may be dangerous, so stay alert.`;
 
-    const objectives = [
-      Quest.createDeliverObjective(item.name, recipient, 1)
-    ];
+    const objectives = [Quest.createDeliverObjective(item.name, recipient, 1)];
 
     const rewards = this.calculateRewards(difficulty, 'deliver');
 
@@ -157,7 +149,7 @@ export class QuestGenerator {
       status: QuestStatus.AVAILABLE,
       questGiver: questGiverName,
       location: `${location.col},${location.row}`,
-      level: difficulty
+      level: difficulty,
     });
   }
 
@@ -171,22 +163,22 @@ export class QuestGenerator {
         { name: 'Wolf', cr: 0, terrains: ['forest', 'grassland'] },
         { name: 'Bandit', cr: 1, terrains: ['grassland', 'forest'] },
         { name: 'Skeleton', cr: 0, terrains: ['desert', 'swamp'] },
-        { name: 'Giant Rat', cr: 0, terrains: ['swamp', 'forest'] }
+        { name: 'Giant Rat', cr: 0, terrains: ['swamp', 'forest'] },
       ],
       medium: [
         { name: 'Orc', cr: 2, terrains: ['hills', 'mountain'] },
         { name: 'Hobgoblin', cr: 2, terrains: ['forest', 'hills'] },
         { name: 'Ogre', cr: 3, terrains: ['mountain', 'hills'] },
         { name: 'Ghoul', cr: 2, terrains: ['swamp', 'desert'] },
-        { name: 'Worg', cr: 2, terrains: ['forest', 'grassland'] }
+        { name: 'Worg', cr: 2, terrains: ['forest', 'grassland'] },
       ],
       high: [
         { name: 'Troll', cr: 5, terrains: ['swamp', 'mountain'] },
         { name: 'Hill Giant', cr: 6, terrains: ['mountain', 'hills'] },
         { name: 'Wyvern', cr: 6, terrains: ['mountain'] },
         { name: 'Vampire Spawn', cr: 5, terrains: ['forest', 'swamp'] },
-        { name: 'Chimera', cr: 6, terrains: ['mountain', 'desert'] }
-      ]
+        { name: 'Chimera', cr: 6, terrains: ['mountain', 'desert'] },
+      ],
     };
 
     let category;
@@ -226,7 +218,7 @@ export class QuestGenerator {
       { name: 'Crystal Shard', level: 4, terrains: ['mountain'] },
       { name: 'Mushroom Spore', level: 2, terrains: ['swamp', 'forest'] },
       { name: 'Dragon Scale', level: 7, terrains: ['mountain'] },
-      { name: 'Phoenix Feather', level: 8, terrains: ['desert', 'mountain'] }
+      { name: 'Phoenix Feather', level: 8, terrains: ['desert', 'mountain'] },
     ];
 
     const levelAppropriate = items.filter(item => item.level <= level + 1);
@@ -261,7 +253,7 @@ export class QuestGenerator {
       { name: 'Package of Supplies', level: 1 },
       { name: 'Valuable Artifact', level: 3 },
       { name: 'Magical Scroll', level: 4 },
-      { name: 'Family Heirloom', level: 2 }
+      { name: 'Family Heirloom', level: 2 },
     ];
 
     const appropriate = items.filter(item => item.level <= level + 1);
@@ -307,7 +299,7 @@ export class QuestGenerator {
       kill: 1.2,
       collect: 1.0,
       explore: 1.1,
-      deliver: 0.9
+      deliver: 0.9,
     };
 
     const multiplier = typeMultipliers[questType] || 1.0;
@@ -334,7 +326,7 @@ export class QuestGenerator {
       'Magic Dagger +1',
       'Ring of Protection',
       'Cloak of Resistance',
-      'Scroll of Fireball'
+      'Scroll of Fireball',
     ];
 
     return items[Math.floor(this.roller.random() * items.length)];
@@ -349,7 +341,7 @@ export class QuestGenerator {
       `Clear the ${enemyName}s`,
       `Hunt the ${enemyName}s`,
       `${enemyName} Extermination`,
-      `Eliminate the ${enemyName} Threat`
+      `Eliminate the ${enemyName} Threat`,
     ];
     return templates[Math.floor(this.roller.random() * templates.length)];
   }
@@ -362,7 +354,7 @@ export class QuestGenerator {
       `A pack of ${enemyName}s has been terrorizing the area. Defeat ${count} of them to restore peace.`,
       `The local militia is overwhelmed by ${enemyName} attacks. Help them by eliminating ${count} ${enemyName}s.`,
       `${count} ${enemyName}s have been spotted near trade routes. Clear them out to make travel safe again.`,
-      `Villagers are living in fear of ${enemyName} raids. Slay ${count} of these creatures to protect the innocent.`
+      `Villagers are living in fear of ${enemyName} raids. Slay ${count} of these creatures to protect the innocent.`,
     ];
     return templates[Math.floor(this.roller.random() * templates.length)];
   }
@@ -375,7 +367,7 @@ export class QuestGenerator {
       `Gather ${itemName}s`,
       `${itemName} Collection`,
       `In Search of ${itemName}s`,
-      `The ${itemName} Bounty`
+      `The ${itemName} Bounty`,
     ];
     return templates[Math.floor(this.roller.random() * templates.length)];
   }
@@ -388,7 +380,7 @@ export class QuestGenerator {
       `I need ${count} ${itemName}s for my research. Bring them to me and you'll be well compensated.`,
       `The town needs ${count} ${itemName}s. Search the wilderness and return with what you find.`,
       `A rare opportunity! I'll pay handsomely for ${count} ${itemName}s. Can you help?`,
-      `Gather ${count} ${itemName}s from the surrounding area. They're valuable and I need them urgently.`
+      `Gather ${count} ${itemName}s from the surrounding area. They're valuable and I need them urgently.`,
     ];
     return templates[Math.floor(this.roller.random() * templates.length)];
   }
@@ -401,7 +393,7 @@ export class QuestGenerator {
       cave: ['Explore the Dark Cave', 'Mystery of the Cave', 'Cave Expedition'],
       ruins: ['Ancient Ruins Discovery', 'Explore the Ruins', 'Lost Ruins Investigation'],
       tower: ['Tower of Secrets', 'Explore the Tower', 'The Abandoned Tower'],
-      dungeon: ['Dungeon Delve', 'Explore the Dungeon', 'The Forgotten Dungeon']
+      dungeon: ['Dungeon Delve', 'Explore the Dungeon', 'The Forgotten Dungeon'],
     };
 
     const options = templates[poiType] || templates['cave'];
@@ -416,7 +408,7 @@ export class QuestGenerator {
       cave: 'A mysterious cave has been discovered nearby. Explore it and report what you find.',
       ruins: 'Ancient ruins hold secrets of the past. Venture inside and uncover their mysteries.',
       tower: 'An old tower stands abandoned. Investigate it and return with your findings.',
-      dungeon: 'A dungeon entrance has been found. Brave its depths and discover what lies within.'
+      dungeon: 'A dungeon entrance has been found. Brave its depths and discover what lies within.',
     };
 
     return templates[poiType] || templates['cave'];
@@ -426,12 +418,7 @@ export class QuestGenerator {
    * Generate multiple quests for a town
    */
   generateTownQuests(level, location, count = 3, nearbyTerrain = []) {
-    const questGivers = [
-      'Village Elder',
-      'Town Guard Captain',
-      'Local Merchant',
-      'Traveling Sage'
-    ];
+    const questGivers = ['Village Elder', 'Town Guard Captain', 'Local Merchant', 'Traveling Sage'];
 
     const quests = [];
     for (let i = 0; i < count; i++) {

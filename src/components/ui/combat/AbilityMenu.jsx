@@ -7,13 +7,14 @@ import { useEffect } from 'react';
  */
 function AbilityMenu({ character, onSelect, onClose }) {
   // Filter abilities with uses remaining (or unlimited uses)
-  const availableAbilities = character?.abilities_list?.filter(
-    ability => !ability.maxUses || ability.maxUses === -1 || ability.uses > 0
-  ) || [];
+  const availableAbilities =
+    character?.abilities_list?.filter(
+      ability => !ability.maxUses || ability.maxUses === -1 || ability.uses > 0
+    ) || [];
 
   // Handle ESC key to close
   useEffect(() => {
-    const handleEsc = (e) => {
+    const handleEsc = e => {
       if (e.key === 'Escape') {
         onClose();
       }
@@ -23,7 +24,7 @@ function AbilityMenu({ character, onSelect, onClose }) {
   }, [onClose]);
 
   // Handle click outside to close
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = e => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -40,7 +41,7 @@ function AbilityMenu({ character, onSelect, onClose }) {
           className="rounded-lg p-6 max-w-md w-full mx-4"
           style={{
             backgroundColor: 'var(--panel-bg)',
-            border: '2px solid var(--border-color)'
+            border: '2px solid var(--border-color)',
           }}
         >
           <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-color)' }}>
@@ -53,7 +54,7 @@ function AbilityMenu({ character, onSelect, onClose }) {
             className="w-full py-2 rounded-lg font-semibold"
             style={{
               backgroundColor: 'var(--primary-color)',
-              color: 'white'
+              color: 'white',
             }}
             onClick={onClose}
           >
@@ -67,19 +68,22 @@ function AbilityMenu({ character, onSelect, onClose }) {
   /**
    * Get ability description based on class and ability name
    */
-  const getAbilityDescription = (ability) => {
+  const getAbilityDescription = ability => {
     const descriptions = {
-      'Rage': 'Enter a rage, gaining advantage on Strength checks and saving throws, bonus damage on melee attacks, and resistance to physical damage.',
-      'Bardic Inspiration': 'Grant an ally a d6 inspiration die they can add to an ability check, attack roll, or saving throw.',
+      Rage: 'Enter a rage, gaining advantage on Strength checks and saving throws, bonus damage on melee attacks, and resistance to physical damage.',
+      'Bardic Inspiration':
+        'Grant an ally a d6 inspiration die they can add to an ability check, attack roll, or saving throw.',
       'Channel Divinity': 'Harness divine energy to produce a magical effect based on your domain.',
       'Wild Shape': 'Assume the shape of a beast you have seen before.',
       'Second Wind': 'Regain 1d10 + fighter level hit points as a bonus action.',
-      'Ki Points': 'Spend ki points to fuel special monk abilities like Flurry of Blows, Patient Defense, or Step of the Wind.',
+      'Ki Points':
+        'Spend ki points to fuel special monk abilities like Flurry of Blows, Patient Defense, or Step of the Wind.',
       'Divine Sense': 'Detect the presence of celestials, fiends, or undead within 60 feet.',
       'Lay on Hands': 'Restore hit points equal to paladin level × 5, distributed as you choose.',
       'Sorcery Points': 'Use sorcery points to create spell slots or fuel metamagic options.',
       'Action Surge': 'Take an additional action on your turn.',
-      'Sneak Attack': 'Deal extra damage when you have advantage or an ally is within 5 feet of the target.'
+      'Sneak Attack':
+        'Deal extra damage when you have advantage or an ally is within 5 feet of the target.',
     };
     return ability.description || descriptions[ability.name] || 'A special class ability.';
   };
@@ -94,16 +98,16 @@ function AbilityMenu({ character, onSelect, onClose }) {
         className="rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
         style={{
           backgroundColor: 'var(--panel-bg)',
-          border: '2px solid var(--accent-color)'
+          border: '2px solid var(--accent-color)',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div
           className="flex justify-between items-center p-4"
           style={{
             backgroundColor: 'var(--bg-lighter)',
-            borderBottom: '2px solid var(--border-color)'
+            borderBottom: '2px solid var(--border-color)',
           }}
         >
           <h2 className="text-xl font-bold" style={{ color: 'var(--text-color)' }}>
@@ -127,13 +131,13 @@ function AbilityMenu({ character, onSelect, onClose }) {
               className="w-full text-left p-4 rounded-lg transition-all duration-200 hover:scale-102 cursor-pointer"
               style={{
                 backgroundColor: 'var(--bg-lighter)',
-                border: '2px solid var(--border-color)'
+                border: '2px solid var(--border-color)',
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--accent-color)';
                 e.currentTarget.style.backgroundColor = 'var(--bg-color)';
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={e => {
                 e.currentTarget.style.borderColor = 'var(--border-color)';
                 e.currentTarget.style.backgroundColor = 'var(--bg-lighter)';
               }}
@@ -151,7 +155,7 @@ function AbilityMenu({ character, onSelect, onClose }) {
                   className="px-3 py-1 rounded-full text-sm font-semibold"
                   style={{
                     backgroundColor: 'var(--accent-color)',
-                    color: 'var(--bg-color)'
+                    color: 'var(--bg-color)',
                   }}
                 >
                   {ability.maxUses === -1 ? 'Unlimited' : `${ability.uses}/${ability.maxUses} uses`}
@@ -178,14 +182,14 @@ function AbilityMenu({ character, onSelect, onClose }) {
           className="p-4"
           style={{
             backgroundColor: 'var(--bg-lighter)',
-            borderTop: '2px solid var(--border-color)'
+            borderTop: '2px solid var(--border-color)',
           }}
         >
           <button
             className="w-full py-2 rounded-lg font-semibold transition-colors"
             style={{
               backgroundColor: 'var(--border-color)',
-              color: 'var(--text-color)'
+              color: 'var(--text-color)',
             }}
             onClick={onClose}
           >
@@ -205,12 +209,12 @@ AbilityMenu.propTypes = {
         uses: PropTypes.number,
         maxUses: PropTypes.number,
         description: PropTypes.string,
-        effect: PropTypes.string
+        effect: PropTypes.string,
       })
-    )
+    ),
   }).isRequired,
   onSelect: PropTypes.func.isRequired,
-  onClose: PropTypes.func.isRequired
+  onClose: PropTypes.func.isRequired,
 };
 
 export default AbilityMenu;

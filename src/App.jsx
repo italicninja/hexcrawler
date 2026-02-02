@@ -11,20 +11,21 @@ const TitleScene = lazy(() => import('./components/scenes/TitleScene'));
 const CharacterCreationScene = lazy(() => import('./components/scenes/CharacterCreationScene'));
 const OverworldScene = lazy(() => import('./components/scenes/OverworldScene'));
 const GameOverScene = lazy(() => import('./components/scenes/GameOverScene'));
-const CombatScene = lazy(() => import('./components/scenes/CombatScene'));
 
 // Loading fallback component
 function LoadingScene() {
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      backgroundColor: 'var(--color-bg)',
-      color: 'var(--color-text)',
-      fontSize: '1.2rem'
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        backgroundColor: 'var(--color-bg)',
+        color: 'var(--color-text)',
+        fontSize: '1.2rem',
+      }}
+    >
       Loading...
     </div>
   );
@@ -60,11 +61,6 @@ function GameRouter() {
         {state.currentScene === 'gameover' && (
           <ErrorBoundary>
             <GameOverScene />
-          </ErrorBoundary>
-        )}
-        {state.currentScene === 'combat' && (
-          <ErrorBoundary>
-            <CombatScene />
           </ErrorBoundary>
         )}
       </Suspense>

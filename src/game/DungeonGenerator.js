@@ -45,7 +45,7 @@ export class DungeonGenerator extends InteriorGenerator {
       hazards: [], // Will be populated later
       entrance,
       rooms, // Track all rooms for encounter placement
-      bossRoom // Track boss room location
+      bossRoom, // Track boss room location
     };
   }
 
@@ -69,7 +69,7 @@ export class DungeonGenerator extends InteriorGenerator {
       height: height - 2,
       leftChild: null,
       rightChild: null,
-      room: null
+      room: null,
     };
 
     // Recursively partition space (target 5-10 rooms based on CR)
@@ -142,7 +142,7 @@ export class DungeonGenerator extends InteriorGenerator {
         height: splitPos,
         leftChild: null,
         rightChild: null,
-        room: null
+        room: null,
       };
 
       node.rightChild = {
@@ -152,7 +152,7 @@ export class DungeonGenerator extends InteriorGenerator {
         height: node.height - splitPos,
         leftChild: null,
         rightChild: null,
-        room: null
+        room: null,
       };
     } else {
       const splitPos = this.randomInt(minRoomSize, node.width - minRoomSize);
@@ -164,7 +164,7 @@ export class DungeonGenerator extends InteriorGenerator {
         height: node.height,
         leftChild: null,
         rightChild: null,
-        room: null
+        room: null,
       };
 
       node.rightChild = {
@@ -174,7 +174,7 @@ export class DungeonGenerator extends InteriorGenerator {
         height: node.height,
         leftChild: null,
         rightChild: null,
-        room: null
+        room: null,
       };
     }
 
@@ -207,7 +207,7 @@ export class DungeonGenerator extends InteriorGenerator {
         x: roomX,
         y: roomY,
         width: roomWidth,
-        height: roomHeight
+        height: roomHeight,
       };
 
       rooms.push(node.room);
@@ -248,12 +248,12 @@ export class DungeonGenerator extends InteriorGenerator {
       // Connect centers of rooms
       const leftCenter = {
         col: Math.floor(leftRoom.x + leftRoom.width / 2),
-        row: Math.floor(leftRoom.y + leftRoom.height / 2)
+        row: Math.floor(leftRoom.y + leftRoom.height / 2),
       };
 
       const rightCenter = {
         col: Math.floor(rightRoom.x + rightRoom.width / 2),
-        row: Math.floor(rightRoom.y + rightRoom.height / 2)
+        row: Math.floor(rightRoom.y + rightRoom.height / 2),
       };
 
       this.carveDungeonCorridor(grid, leftCenter, rightCenter);
@@ -331,12 +331,16 @@ export class DungeonGenerator extends InteriorGenerator {
     // Place entrance in center of first room
     const entrance = {
       col: Math.floor(firstRoom.x + firstRoom.width / 2),
-      row: Math.floor(firstRoom.y + firstRoom.height / 2)
+      row: Math.floor(firstRoom.y + firstRoom.height / 2),
     };
 
     // Mark as entrance
-    if (entrance.row >= 0 && entrance.row < grid.length &&
-        entrance.col >= 0 && entrance.col < grid[0].length) {
+    if (
+      entrance.row >= 0 &&
+      entrance.row < grid.length &&
+      entrance.col >= 0 &&
+      entrance.col < grid[0].length
+    ) {
       grid[entrance.row][entrance.col].terrain = this.terrainTypes.entrance;
       grid[entrance.row][entrance.col].content = 'entrance';
     }
@@ -365,12 +369,14 @@ export class DungeonGenerator extends InteriorGenerator {
 
       // Find a walkable tile near center
       const roomTiles = interiorMap.hexes.filter(hex => {
-        return hex.col >= room.x &&
-               hex.col < room.x + room.width &&
-               hex.row >= room.y &&
-               hex.row < room.y + room.height &&
-               hex.terrain.walkable &&
-               hex.content === null;
+        return (
+          hex.col >= room.x &&
+          hex.col < room.x + room.width &&
+          hex.row >= room.y &&
+          hex.row < room.y + room.height &&
+          hex.terrain.walkable &&
+          hex.content === null
+        );
       });
 
       if (roomTiles.length === 0) continue;
@@ -395,7 +401,7 @@ export class DungeonGenerator extends InteriorGenerator {
           : poiData.creatures || `CR ${encounterCR} enemies`,
         defeated: false,
         discovered: false,
-        isBoss: isBoss
+        isBoss: isBoss,
       });
     }
 
@@ -420,19 +426,22 @@ export class DungeonGenerator extends InteriorGenerator {
 
     for (let i = 0; i < lootCount; i++) {
       // Bias towards later rooms (60% chance of later half)
-      const targetRoomIndex = this.random() > 0.4
-        ? Math.floor(rooms.length / 2) + this.randomInt(0, Math.floor(rooms.length / 2))
-        : this.randomInt(0, Math.floor(rooms.length / 2) - 1);
+      const targetRoomIndex =
+        this.random() > 0.4
+          ? Math.floor(rooms.length / 2) + this.randomInt(0, Math.floor(rooms.length / 2))
+          : this.randomInt(0, Math.floor(rooms.length / 2) - 1);
 
       const room = rooms[Math.min(targetRoomIndex, rooms.length - 1)];
 
       const roomTiles = interiorMap.hexes.filter(hex => {
-        return hex.col >= room.x &&
-               hex.col < room.x + room.width &&
-               hex.row >= room.y &&
-               hex.row < room.y + room.height &&
-               hex.terrain.walkable &&
-               hex.content === null;
+        return (
+          hex.col >= room.x &&
+          hex.col < room.x + room.width &&
+          hex.row >= room.y &&
+          hex.row < room.y + room.height &&
+          hex.terrain.walkable &&
+          hex.content === null
+        );
       });
 
       if (roomTiles.length === 0) continue;
@@ -441,10 +450,10 @@ export class DungeonGenerator extends InteriorGenerator {
 
       // 25% chance of treasure chest, 75% regular loot
       const isChest = this.random() < 0.25;
-      
+
       let lootData;
       let contentType;
-      
+
       if (isChest) {
         // Generate DMG treasure hoard
         lootData = treasureGenerator.generateTreasureHoard(cr, partySize, () => this.random());
@@ -469,7 +478,7 @@ export class DungeonGenerator extends InteriorGenerator {
         consumables: lootData.consumables || [],
         rarity: lootData.rarity,
         collected: false,
-        discovered: false
+        discovered: false,
       });
     }
 
@@ -489,7 +498,7 @@ export class DungeonGenerator extends InteriorGenerator {
     const cr = interiorMap.cr;
 
     // Dungeons have the most hazards (20-35%)
-    const hazardPercentage = 0.20 + this.random() * 0.15;
+    const hazardPercentage = 0.2 + this.random() * 0.15;
     const hazardCount = Math.floor(floorTiles.length * hazardPercentage);
 
     const hazards = [];
@@ -512,7 +521,7 @@ export class DungeonGenerator extends InteriorGenerator {
         row: tile.row,
         ...generatedHazard,
         triggered: false,
-        discovered: false
+        discovered: false,
       });
     }
 

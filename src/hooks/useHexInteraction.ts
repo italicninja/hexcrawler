@@ -80,13 +80,14 @@ export function useHexInteraction(hex) {
     }
 
     // Log perception check result and hints
-    const hintText = hints.length > 0 ? hints.join('\n') : 'You learn nothing new about this location.';
+    const hintText =
+      hints.length > 0 ? hints.join('\n') : 'You learn nothing new about this location.';
     addMessage(`Perception Check: ${result.total}\n\n${hintText}`, 'info');
 
     // Mark as searched
     dispatch({
       type: actions.SEARCH_POI,
-      payload: poiKey
+      payload: poiKey,
     });
   };
 
@@ -163,7 +164,7 @@ export function useHexInteraction(hex) {
       // Store interior map in state
       dispatch({
         type: actions.SET_INTERIOR_MAP,
-        payload: { key: poiKey, map: interiorMap }
+        payload: { key: poiKey, map: interiorMap },
       });
     }
 
@@ -173,7 +174,7 @@ export function useHexInteraction(hex) {
     // Transition to exploration scene
     dispatch({
       type: actions.ENTER_EXPLORATION,
-      payload: { col: hex.col, row: hex.row, poi: poi }
+      payload: { col: hex.col, row: hex.row, poi: poi },
     });
   };
 
@@ -199,13 +200,13 @@ export function useHexInteraction(hex) {
     // Mark shrine as visited
     dispatch({
       type: actions.SEARCH_POI,
-      payload: poiKey
+      payload: poiKey,
     });
 
     // Update character in state
     dispatch({
       type: actions.UPDATE_CHARACTER,
-      payload: character
+      payload: character,
     });
 
     // Log result
@@ -230,7 +231,7 @@ export function useHexInteraction(hex) {
     // Default offering amount (could be made customizable)
     const offeringAmount = 10;
     const character = state.playerCharacter;
-    
+
     // Attempt to make offering
     const result = character.increaseGenerosity(offeringAmount);
 
@@ -243,13 +244,13 @@ export function useHexInteraction(hex) {
     // Mark shrine as visited
     dispatch({
       type: actions.SEARCH_POI,
-      payload: poiKey
+      payload: poiKey,
     });
 
     // Update character in state
     dispatch({
       type: actions.UPDATE_CHARACTER,
-      payload: character
+      payload: character,
     });
 
     // Log result
@@ -323,14 +324,14 @@ export function useHexInteraction(hex) {
       // Generate interior map with settlement size in townData
       const townData = {
         name: poi.name,
-        settlementSize: settlementSize
+        settlementSize: settlementSize,
       };
       const interiorMap = generator.generate(width, height, townData);
 
       // Store interior map in state
       dispatch({
         type: actions.SET_INTERIOR_MAP,
-        payload: { key: poiKey, map: interiorMap }
+        payload: { key: poiKey, map: interiorMap },
       });
     }
 
@@ -347,11 +348,9 @@ export function useHexInteraction(hex) {
     // Dispatch enter town action
     dispatch({
       type: actions.ENTER_TOWN,
-      payload: { col: hex.col, row: hex.row, poi: poi }
+      payload: { col: hex.col, row: hex.row, poi: poi },
     });
   };
-
-
 
   /**
    * Legacy handleInteract for backward compatibility
@@ -391,6 +390,6 @@ export function useHexInteraction(hex) {
     handleExplore,
     handlePray,
     handleOffer,
-    handleEnterTown
+    handleEnterTown,
   };
 }

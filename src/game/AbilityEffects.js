@@ -25,41 +25,41 @@ export class AbilityEffects {
     switch (abilityName) {
       case 'Rage':
         return this.rage(combatant, diceRoller);
-      
+
       case 'Second Wind':
         return this.secondWind(combatant, diceRoller);
-      
+
       case 'Sneak Attack':
         return this.sneakAttack(combatant, target, combat, diceRoller);
-      
+
       case 'Lay on Hands':
         return this.layOnHands(combatant, target, diceRoller);
-      
+
       case 'Ki Points':
         return this.kiPoints(combatant, target, diceRoller);
-      
+
       case 'Bardic Inspiration':
         return this.bardicInspiration(combatant, target, diceRoller);
-      
+
       case 'Channel Divinity':
         return this.channelDivinity(combatant, combat, diceRoller);
-      
+
       case 'Wild Shape':
         return this.wildShape(combatant, diceRoller);
-      
+
       case 'Sorcery Points':
         return this.sorceryPoints(combatant, diceRoller);
-      
+
       case 'Eldritch Invocations':
         return this.eldritchInvocations(combatant, diceRoller);
-      
+
       case 'Arcane Recovery':
         return this.arcaneRecovery(combatant, diceRoller);
-      
+
       default:
         return {
           success: false,
-          message: `Unknown ability: ${abilityName}`
+          message: `Unknown ability: ${abilityName}`,
         };
     }
   }
@@ -81,8 +81,8 @@ export class AbilityEffects {
       duration: 10,
       effects: {
         physicalResistance: true, // Half damage from physical
-        meleeDamageBonus: 2
-      }
+        meleeDamageBonus: 2,
+      },
     });
 
     return {
@@ -91,8 +91,8 @@ export class AbilityEffects {
       effect: {
         type: 'buff',
         name: 'Rage',
-        duration: 10
-      }
+        duration: 10,
+      },
     };
   }
 
@@ -103,7 +103,7 @@ export class AbilityEffects {
   static secondWind(combatant, diceRoller) {
     const healRoll = diceRoller.rollDice(10, 1);
     const totalHeal = healRoll + combatant.level;
-    
+
     const oldHP = combatant.currentHP;
     combatant.heal(totalHeal);
     const actualHeal = combatant.currentHP - oldHP;
@@ -113,8 +113,8 @@ export class AbilityEffects {
       message: `${combatant.name} uses Second Wind! Heals ${actualHeal} HP (rolled ${healRoll} + ${combatant.level} level).`,
       effect: {
         type: 'heal',
-        amount: actualHeal
-      }
+        amount: actualHeal,
+      },
     };
   }
 
@@ -139,8 +139,8 @@ export class AbilityEffects {
       effect: {
         type: 'damage',
         amount: sneakDamage,
-        damageType: 'piercing'
-      }
+        damageType: 'piercing',
+      },
     };
   }
 
@@ -158,13 +158,13 @@ export class AbilityEffects {
     if (combatant.layOnHandsPool <= 0) {
       return {
         success: false,
-        message: `${combatant.name} has no Lay on Hands charges remaining.`
+        message: `${combatant.name} has no Lay on Hands charges remaining.`,
       };
     }
 
     // Determine heal amount (use up to 5 HP or remaining pool)
     const healAmount = Math.min(5, combatant.layOnHandsPool);
-    
+
     const oldHP = target.currentHP;
     target.heal(healAmount);
     const actualHeal = target.currentHP - oldHP;
@@ -176,8 +176,8 @@ export class AbilityEffects {
       message: `${combatant.name} uses Lay on Hands on ${target.name}! Heals ${actualHeal} HP. (${combatant.layOnHandsPool} pool remaining)`,
       effect: {
         type: 'heal',
-        amount: actualHeal
-      }
+        amount: actualHeal,
+      },
     };
   }
 
@@ -202,8 +202,8 @@ export class AbilityEffects {
       effect: {
         type: 'damage',
         amount: damage,
-        damageType: 'bludgeoning'
-      }
+        damageType: 'bludgeoning',
+      },
     };
   }
 
@@ -222,8 +222,8 @@ export class AbilityEffects {
       name: 'Bardic Inspiration',
       duration: 10, // 10 minutes (or until used)
       effects: {
-        inspirationDie: 6 // d6
-      }
+        inspirationDie: 6, // d6
+      },
     });
 
     return {
@@ -232,8 +232,8 @@ export class AbilityEffects {
       effect: {
         type: 'buff',
         name: 'Bardic Inspiration',
-        target: target.name
-      }
+        target: target.name,
+      },
     };
   }
 
@@ -248,13 +248,13 @@ export class AbilityEffects {
 
     // Find all undead enemies within range (30 ft = 6 hexes)
     const maxRange = 6;
-    
+
     if (combat.enemies) {
       combat.enemies.forEach(enemy => {
         if (enemy.type === 'undead' && !enemy.checkIsDead()) {
           // Check if in range (would need position data in real combat)
           // For now, affect all undead
-          
+
           // Roll WIS save for enemy
           const saveRoll = diceRoller.rollD20();
           const saveTotal = saveRoll + enemy.getModifier('wisdom');
@@ -268,8 +268,8 @@ export class AbilityEffects {
               name: 'Turned',
               duration: 10, // 1 minute
               effects: {
-                feared: true
-              }
+                feared: true,
+              },
             });
             turnedEnemies.push(enemy.name);
           }
@@ -283,13 +283,13 @@ export class AbilityEffects {
         message: `${combatant.name} uses Channel Divinity! ${turnedEnemies.join(', ')} are turned (DC ${saveDC}).`,
         effect: {
           type: 'debuff',
-          targets: turnedEnemies
-        }
+          targets: turnedEnemies,
+        },
       };
     } else {
       return {
         success: false,
-        message: `${combatant.name} uses Channel Divinity, but no undead are affected.`
+        message: `${combatant.name} uses Channel Divinity, but no undead are affected.`,
       };
     }
   }
@@ -302,13 +302,13 @@ export class AbilityEffects {
   static wildShape(combatant, diceRoller) {
     // Determine beast CR based on level
     const maxCR = Math.floor(combatant.level / 3);
-    
+
     // Store original form
     combatant.wildShapeOriginalForm = {
       currentHP: combatant.currentHP,
       maxHP: combatant.maxHP,
       armorClass: combatant.armorClass,
-      abilities: { ...combatant.abilities }
+      abilities: { ...combatant.abilities },
     };
 
     // Transform into beast (example: Brown Bear for CR 1)
@@ -316,7 +316,7 @@ export class AbilityEffects {
     combatant.currentHP = beastHP;
     combatant.maxHP = beastHP;
     combatant.armorClass = 11; // Brown Bear AC
-    
+
     // Mark as wild shaped
     combatant.inWildShape = true;
 
@@ -326,8 +326,8 @@ export class AbilityEffects {
       effect: {
         type: 'transform',
         name: 'Wild Shape',
-        temporaryHP: beastHP
-      }
+        temporaryHP: beastHP,
+      },
     };
   }
 
@@ -346,8 +346,8 @@ export class AbilityEffects {
       name: 'Quickened Spell',
       duration: 1, // This turn only
       effects: {
-        bonusActionSpell: true
-      }
+        bonusActionSpell: true,
+      },
     });
 
     return {
@@ -355,8 +355,8 @@ export class AbilityEffects {
       message: `${combatant.name} uses Sorcery Points! Can cast a spell as a bonus action this turn.`,
       effect: {
         type: 'buff',
-        name: 'Quickened Spell'
-      }
+        name: 'Quickened Spell',
+      },
     };
   }
 
@@ -367,15 +367,15 @@ export class AbilityEffects {
   static eldritchInvocations(combatant, diceRoller) {
     // Passive ability - add CHA modifier to Eldritch Blast
     const chaBonus = combatant.getModifier('charisma');
-    
+
     return {
       success: true,
       message: `${combatant.name} has Agonizing Blast! Eldritch Blast deals +${chaBonus} damage.`,
       effect: {
         type: 'passive',
         name: 'Agonizing Blast',
-        damageBonus: chaBonus
-      }
+        damageBonus: chaBonus,
+      },
     };
   }
 
@@ -385,13 +385,13 @@ export class AbilityEffects {
    */
   static arcaneRecovery(combatant, diceRoller) {
     const slotsRecovered = Math.ceil(combatant.level / 2);
-    
+
     // Initialize spell slots if needed
     if (!combatant.spellSlots) {
       combatant.spellSlots = {
         1: 2,
         2: 0,
-        3: 0
+        3: 0,
       };
     }
 
@@ -404,8 +404,8 @@ export class AbilityEffects {
       effect: {
         type: 'resource',
         name: 'Arcane Recovery',
-        slotsRecovered
-      }
+        slotsRecovered,
+      },
     };
   }
 }

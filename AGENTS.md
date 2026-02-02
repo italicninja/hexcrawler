@@ -45,17 +45,20 @@ taskkill //F //PID <process_id>
 The project uses semantic versioning (SemVer) in the format `MAJOR.MINOR.PATCH` (e.g., `0.1.0`).
 
 **When to increment versions:**
+
 - **Patch (0.0.1)**: Bug fixes, typos, small tweaks, minor adjustments
 - **Minor (0.1.0)**: New features, improvements, enhancements, non-breaking changes
 - **Major (1.0.0)**: Breaking changes, major rewrites, significant architectural changes
 
 **Workflow:**
+
 1. Make your changes and test them
 2. Run the appropriate version command: `npm run version:patch|minor|major`
 3. Commit all changes including the updated `package.json`
 4. Push to repository
 
 **Example:**
+
 ```bash
 # Fixed POI spawning on water/rivers
 npm run version:patch
@@ -69,12 +72,14 @@ git push
 ### File Organization
 
 **Component Files (`.jsx`):**
+
 - React components in `src/components/`
 - Scenes in `src/components/scenes/`
 - UI components in `src/components/ui/`
 - Canvas components in `src/components/canvas/`
 
 **Game Logic Files (`.js`):**
+
 - Pure JavaScript modules in `src/game/`
 - Utility functions in `src/utils/`
 - No React dependencies in `.js` files
@@ -82,6 +87,7 @@ git push
 ### Import Guidelines
 
 **Order:**
+
 1. React imports
 2. Third-party libraries
 3. Context/hooks
@@ -91,6 +97,7 @@ git push
 7. CSS files
 
 **Example:**
+
 ```javascript
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
@@ -102,6 +109,7 @@ import './MyComponent.css';
 ```
 
 **Import Rules:**
+
 - Use `.js` extension for game logic imports: `import { Character } from '../game/Character.js'`
 - Named exports for utilities and classes: `export class Character { }`
 - Default exports for React components: `export default MyComponent`
@@ -111,6 +119,7 @@ import './MyComponent.css';
 **Functional components only** - no class components.
 
 **Standard component pattern:**
+
 ```javascript
 import PropTypes from 'prop-types';
 
@@ -130,16 +139,12 @@ function MyComponent({ prop1, prop2 }) {
   };
 
   // 4. Return JSX
-  return (
-    <div>
-      {renderSection()}
-    </div>
-  );
+  return <div>{renderSection()}</div>;
 }
 
 MyComponent.propTypes = {
   prop1: PropTypes.string.isRequired,
-  prop2: PropTypes.number
+  prop2: PropTypes.number,
 };
 
 export default MyComponent;
@@ -150,39 +155,76 @@ export default MyComponent;
 **Use Context API + useReducer**, NOT Redux.
 
 **Accessing state:**
+
 ```javascript
 const { state, dispatch, actions } = useGameState();
 ```
 
 **Dispatching actions:**
+
 ```javascript
 dispatch({
   type: actions.SET_PLAYER_POSITION,
-  payload: { col: 5, row: 10 }
+  payload: { col: 5, row: 10 },
 });
 ```
 
 **CRITICAL - Immutability rules:**
+
 - Always return new objects from reducers
 - Use spread operator: `{ ...state, key: newValue }`
 - Sets must be recreated: `new Set([...state.exploredHexes, newHex])`
 - **NEVER** mutate state directly: `state.exploredHexes.add()` is WRONG
 
+### State Immutability Patterns
+
+**CRITICAL: Character and Party objects must be copied before mutation**
+
+**Always use `fromJSON(toJSON())` pattern:**
+
+```javascript
+// ✅ CORRECT - Immutable update
+const updatedCharacter = Character.fromJSON(character.toJSON());
+updatedCharacter.rations--;
+updatedCharacter.daysWithoutFood = 0;
+dispatch({ type: actions.UPDATE_CHARACTER, payload: updatedCharacter });
+
+// ❌ WRONG - Direct mutation breaks React
+character.rations--; // ❌ NEVER DO THIS
+dispatch({ type: actions.UPDATE_CHARACTER, payload: character });
+```
+
+**Why this matters:**
+
+- React relies on reference equality to detect changes
+- Direct mutation doesn't trigger re-renders
+- Can cause save/load corruption
+- Violates React's immutability contract
+
+**Pattern applies to:**
+
+- Character updates (HP, rations, exhaustion, equipment)
+- Party updates (adding/removing members)
+- Any class instances stored in state
+
 ### Naming Conventions
 
 **Files:**
+
 - Components: `PascalCase.jsx` (e.g., `CharacterStats.jsx`)
 - Game logic: `PascalCase.js` (e.g., `Character.js`)
 - Utilities: `camelCase.js` (e.g., `hexRenderer.js`)
 - Contexts: `PascalCaseContext.jsx` (e.g., `GameStateContext.jsx`)
 
 **Variables:**
+
 - React components: `PascalCase`
 - Functions: `camelCase`
 - Constants: `SCREAMING_SNAKE_CASE` (e.g., `ACTIONS`, `POI_TYPES`)
 - Private methods: prefix with `_` (e.g., `_calculateDistance()`)
 
 **Functions:**
+
 - Event handlers: `handleEventName` (e.g., `handleClick`, `handleMoveToHex`)
 - Render helpers: `renderSectionName` (e.g., `renderEncounterInfo`)
 - Utility functions: descriptive verbs (e.g., `calculateHexDistance`, `formatTime`)
@@ -196,15 +238,16 @@ MyComponent.propTypes = {
   hex: PropTypes.shape({
     col: PropTypes.number.isRequired,
     row: PropTypes.number.isRequired,
-    terrain: PropTypes.object.isRequired
+    terrain: PropTypes.object.isRequired,
   }),
-  onMoveClick: PropTypes.func
+  onMoveClick: PropTypes.func,
 };
 ```
 
 ### Error Handling
 
 **localStorage operations:**
+
 ```javascript
 try {
   localStorage.setItem('key', JSON.stringify(data));
@@ -215,6 +258,7 @@ try {
 ```
 
 **State validation:**
+
 ```javascript
 if (!state.playerCharacter) {
   console.error('No player character found');
@@ -223,6 +267,7 @@ if (!state.playerCharacter) {
 ```
 
 **Canvas operations:**
+
 ```javascript
 const canvas = canvasRef.current;
 if (!canvas) return;
@@ -231,6 +276,7 @@ if (!canvas) return;
 ### Comments & Documentation
 
 **Use JSDoc for exported functions:**
+
 ```javascript
 /**
  * Calculate hex distance using cube coordinates
@@ -246,6 +292,7 @@ export function getHexDistance(col1, row1, col2, row2) {
 ```
 
 **Inline comments for complex logic:**
+
 ```javascript
 // Convert offset coordinates to cube coordinates
 const x1 = col1 - Math.floor(row1 / 2);
@@ -260,24 +307,26 @@ const y1 = -x1 - z1;
 The project uses a categorized logging system that is **automatically enabled in dev mode** and **completely removed in production builds** (zero runtime cost).
 
 **Importing the logger:**
+
 ```javascript
 import logger from '../utils/logger.js';
 ```
 
 **Log Categories:**
 
-| Category | Color | Usage |
-|----------|-------|-------|
-| `combat` | 🔴 Red | Combat flow, AI decisions, turn order, attack calculations |
-| `mapgen` | 🟢 Green | Terrain generation, room placement, POI spawning, dungeon creation |
-| `movement` | 🔵 Blue | Player movement, pathfinding, hex distance calculations |
-| `state` | 🟡 Yellow | GameState reducer actions, state transitions, context updates |
-| `storage` | 🟣 Purple | Save/load operations, localStorage, serialization |
-| `render` | 🟠 Orange | Canvas redraws, React renders, performance metrics |
-| `items` | 🟢 Teal | Inventory changes, equipment, loot generation |
-| `general` | ⚪ Gray | Uncategorized logs, utilities, misc operations |
+| Category   | Color     | Usage                                                              |
+| ---------- | --------- | ------------------------------------------------------------------ |
+| `combat`   | 🔴 Red    | Combat flow, AI decisions, turn order, attack calculations         |
+| `mapgen`   | 🟢 Green  | Terrain generation, room placement, POI spawning, dungeon creation |
+| `movement` | 🔵 Blue   | Player movement, pathfinding, hex distance calculations            |
+| `state`    | 🟡 Yellow | GameState reducer actions, state transitions, context updates      |
+| `storage`  | 🟣 Purple | Save/load operations, localStorage, serialization                  |
+| `render`   | 🟠 Orange | Canvas redraws, React renders, performance metrics                 |
+| `items`    | 🟢 Teal   | Inventory changes, equipment, loot generation                      |
+| `general`  | ⚪ Gray   | Uncategorized logs, utilities, misc operations                     |
 
 **Log Levels:**
+
 - `debug()` - Detailed diagnostics (shown by default in dev)
 - `info()` - General information
 - `warn()` - Warnings, recoverable issues
@@ -288,10 +337,10 @@ import logger from '../utils/logger.js';
 ```javascript
 // Combat logging
 logger.combat.info('Starting combat', { allies: 1, enemies: 3 });
-logger.combat.debug('AI selecting target', { 
-  enemyId: enemy.id, 
+logger.combat.debug('AI selecting target', {
+  enemyId: enemy.id,
   possibleTargets: targets.length,
-  chosen: selectedTarget.id 
+  chosen: selectedTarget.id,
 });
 logger.combat.warn('No valid targets found, skipping turn');
 
@@ -301,7 +350,7 @@ logger.mapgen.debug('Placing POI', { type: 'ruins', hex: [col, row], cr: 3 });
 logger.mapgen.warn('Failed to place river, retrying with new path');
 
 // Movement logging
-logger.movement.info('Player moved', { from: [10,5], to: [11,5], terrain: 'forest' });
+logger.movement.info('Player moved', { from: [10, 5], to: [11, 5], terrain: 'forest' });
 logger.movement.debug('Calculating path', { start, end, distance: hexDist });
 logger.movement.warn('Destination too far', { distance: 5, maxMove: 3 });
 
@@ -372,44 +421,48 @@ Display arrays or objects as tables for easy inspection:
 
 ```javascript
 logger.combat.table(turnOrder); // Show turn order as table
-logger.items.table(inventory);  // Show inventory as table
+logger.items.table(inventory); // Show inventory as table
 ```
 
 **Best Practices:**
 
 1. **Log at decision points** - Help future debugging by logging why something happened:
+
    ```javascript
-   logger.combat.debug('Target selected', { 
-     reason: 'lowest HP', 
+   logger.combat.debug('Target selected', {
+     reason: 'lowest HP',
      targetHP: target.hp,
-     allTargets: enemies.map(e => ({ id: e.id, hp: e.hp }))
+     allTargets: enemies.map(e => ({ id: e.id, hp: e.hp })),
    });
    ```
 
 2. **Include context** - Always log relevant identifiers and values:
+
    ```javascript
    // Good
-   logger.movement.info('Movement blocked', { 
-     from: [10,5], 
-     to: [11,5], 
-     reason: 'water', 
-     hasRaft: false 
+   logger.movement.info('Movement blocked', {
+     from: [10, 5],
+     to: [11, 5],
+     reason: 'water',
+     hasRaft: false,
    });
-   
+
    // Bad
    logger.movement.info('Cannot move');
    ```
 
 3. **Use structured data** - Pass objects instead of concatenating strings:
+
    ```javascript
    // Good
    logger.mapgen.debug('Room placed', { col, row, width, height, type: 'corridor' });
-   
+
    // Bad
    logger.mapgen.debug('Room placed at ' + col + ',' + row + ' size ' + width + 'x' + height);
    ```
 
 4. **Performance timing for expensive operations** - Always time operations that might be slow:
+
    ```javascript
    logger.mapgen.time('dungeon-generation');
    const dungeon = generateDungeon(width, height, cr);
@@ -417,24 +470,26 @@ logger.items.table(inventory);  // Show inventory as table
    ```
 
 5. **Log errors with full context** - Include the error object and relevant state:
+
    ```javascript
    try {
      saveGame(state);
    } catch (error) {
-     logger.storage.error('Save failed', { 
-       error, 
-       slot: saveSlot, 
-       stateSize: JSON.stringify(state).length 
+     logger.storage.error('Save failed', {
+       error,
+       slot: saveSlot,
+       stateSize: JSON.stringify(state).length,
      });
    }
    ```
 
 6. **Never use `console.*` directly** - Always use the logger:
+
    ```javascript
    // ❌ WRONG
    console.log('Player moved');
    console.error('Save failed', error);
-   
+
    // ✅ CORRECT
    logger.movement.info('Player moved', { from, to });
    logger.storage.error('Save failed', { error, slot });
@@ -444,12 +499,12 @@ logger.items.table(inventory);  // Show inventory as table
 
 When updating existing code, replace `console.*` calls with appropriate logger calls:
 
-| Old Code | New Code |
-|----------|----------|
-| `console.log(...)` | `logger.general.info(...)` or category-specific |
-| `console.warn(...)` | `logger.category.warn(...)` |
-| `console.error(...)` | `logger.category.error(...)` |
-| `console.debug(...)` | `logger.category.debug(...)` |
+| Old Code             | New Code                                        |
+| -------------------- | ----------------------------------------------- |
+| `console.log(...)`   | `logger.general.info(...)` or category-specific |
+| `console.warn(...)`  | `logger.category.warn(...)`                     |
+| `console.error(...)` | `logger.category.error(...)`                    |
+| `console.debug(...)` | `logger.category.debug(...)`                    |
 
 **Environment Control:**
 
@@ -461,6 +516,7 @@ When updating existing code, replace `console.*` calls with appropriate logger c
 **Logger Configuration:**
 
 Check logger config in console:
+
 ```javascript
 logger.logConfig();
 // Outputs:
@@ -475,17 +531,77 @@ logger.logConfig();
 ### Canvas + React Integration
 
 **Canvas refs, not state:**
+
 ```javascript
 const canvasRef = useRef(null);
 const ctx = canvasRef.current?.getContext('2d');
 ```
 
 **Redraw on state changes:**
+
 ```javascript
 useEffect(() => {
   draw();
 }, [playerPosition, selectedHex]);
 ```
+
+### Timeout Cleanup Pattern
+
+**Always clean up timeouts in useEffect to prevent memory leaks**
+
+Use refs to store timeout IDs and clear them in the cleanup function:
+
+```javascript
+const timeoutRef = useRef(null);
+
+useEffect(() => {
+  // Set timeout
+  timeoutRef.current = setTimeout(() => {
+    // ... async operation
+  }, delay);
+
+  // Cleanup on unmount or dependency change
+  return () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+}, [dependencies]);
+```
+
+**Example: AI Turn Processing**
+
+```javascript
+const aiTimeoutRefs = useRef({ action: null, advance: null });
+
+useEffect(() => {
+  if (!state.combatState) {
+    // Clear timeouts if combat ended
+    if (aiTimeoutRefs.current.action) {
+      clearTimeout(aiTimeoutRefs.current.action);
+    }
+    if (aiTimeoutRefs.current.advance) {
+      clearTimeout(aiTimeoutRefs.current.advance);
+    }
+    return;
+  }
+
+  // ... AI processing with nested timeouts ...
+
+  return () => {
+    // Cleanup on unmount
+    if (aiTimeoutRefs.current.action) clearTimeout(aiTimeoutRefs.current.action);
+    if (aiTimeoutRefs.current.advance) clearTimeout(aiTimeoutRefs.current.advance);
+  };
+}, [state.combatState]);
+```
+
+**Why use refs instead of state:**
+
+- Timeout IDs don't need to trigger re-renders
+- Refs persist across renders without causing updates
+- Cleanup function can access latest timeout IDs
 
 ### Scene Management
 
@@ -494,15 +610,47 @@ Scenes change via `SET_CURRENT_SCENE` action, NOT routing libraries.
 ```javascript
 dispatch({
   type: actions.SET_CURRENT_SCENE,
-  payload: 'overworld'
+  payload: 'overworld',
 });
 ```
+
+### Combat HP Management
+
+**Single Source of Truth: `combatState.turnOrder[].currentHP`**
+
+During combat, HP is stored **only** in the `turnOrder` array:
+
+```javascript
+// ✅ CORRECT - Update HP in turnOrder
+const updatedTurnOrder = state.combatState.turnOrder.map(c => {
+  if (c.id === targetId) {
+    return { ...c, currentHP: newHP }; // Immutable spread
+  }
+  return c;
+});
+
+// ❌ WRONG - Don't mutate character HP during combat
+c.character.currentHP = newHP; // ❌ NEVER DO THIS
+```
+
+**Combat End Sync:**
+
+- When combat ends, Character HP is synced from `turnOrder`
+- This prevents desync between combat state and character state
+- HP updates use the `UPDATE_COMBATANT_HP` action
+
+**Rationale:**
+
+- Combat state is ephemeral (cleared after combat)
+- Character state is persistent (saved to localStorage)
+- Separate sources of truth prevent sync issues
 
 ### Dice Rolling System
 
 **CRITICAL: Use DiceRoller with logger callback for ALL dice rolls** - Ensures consistent logging to GameLog.
 
 **Creating DiceRoller with logger:**
+
 ```javascript
 import { DiceRoller } from '../../game/DiceRoller.js';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -512,6 +660,7 @@ const diceRoller = new DiceRoller(null, addMessage); // (seed, logger)
 ```
 
 **DiceRoller automatically logs:**
+
 - **Skill checks**: `Survival 10+3=13 vs DC 12: Success`
 - **Attack rolls**: `Longsword 15+5=20 vs AC 16: Hit`
 - **Critical hits**: `Greatsword CRITICAL HIT! 20+5=25 vs AC 16`
@@ -519,15 +668,16 @@ const diceRoller = new DiceRoller(null, addMessage); // (seed, logger)
 - **Damage rolls**: `8 slashing damage (1d8+3)` (when damage type provided)
 
 **Using DiceRoller methods:**
+
 ```javascript
 // Skill checks (automatically logs with skill name)
 const result = diceRoller.skillCheck(
   character,
-  'wisdom',          // ability name
-  true,              // proficient
-  15,                // DC
-  'normal',          // 'normal', 'advantage', 'disadvantage'
-  'Survival'         // skill name for logging
+  'wisdom', // ability name
+  true, // proficient
+  15, // DC
+  'normal', // 'normal', 'advantage', 'disadvantage'
+  'Survival' // skill name for logging
 );
 
 // Built-in skill checks
@@ -540,9 +690,9 @@ const saveResult = diceRoller.savingThrow(character, 'dexterity', 15);
 // Attack rolls (automatically logs)
 const attackResult = diceRoller.attackRoll(
   character,
-  'melee',           // 'melee' or 'ranged'
-  16,                // target AC
-  'Longsword'        // weapon name for logging
+  'melee', // 'melee' or 'ranged'
+  16, // target AC
+  'Longsword' // weapon name for logging
 );
 
 // Damage rolls (automatically logs when damageType provided)
@@ -554,12 +704,14 @@ const d6Result = diceRoller.rollDice(6, 2); // 2d6
 ```
 
 **When to pass logger:**
+
 - ✅ **Combat actions** - Pass `addMessage` from useGameLog
 - ✅ **Skill checks** - Pass `addMessage` for player actions
 - ✅ **Foraging/survival** - Pass `addMessage` for gameplay rolls
 - ❌ **Procedural generation** - Use seeded DiceRoller without logger: `new DiceRoller(seed)`
 
 **Special cases:**
+
 - **DC=0 checks**: DiceRoller won't auto-log (for manual threshold checks like POI search)
 - **Combat instance**: Pass logger via options: `new Combat(allies, enemies, battlefield, { logger: addMessage })`
 
@@ -568,6 +720,7 @@ const d6Result = diceRoller.rollDice(6, 2); // 2d6
 **CRITICAL: Use GameLog for ALL user feedback** - Never create modal dialogs, popups, or blocking UI.
 
 **Accessing GameLog:**
+
 ```javascript
 import { useGameLog } from '../../contexts/GameLogContext';
 
@@ -576,6 +729,7 @@ addMessage('Your message here', 'info');
 ```
 
 **Message Types:**
+
 - `'info'` - General information, neutral events
 - `'success'` - Positive outcomes, achievements, gains
 - `'warning'` - Cautions, restrictions, blocked actions
@@ -587,6 +741,7 @@ addMessage('Your message here', 'info');
 - `'poi-interaction'` - POI-specific actions (pray, search, etc.)
 
 **Best Practices:**
+
 1. **Log immediately** - Don't queue or delay feedback
 2. **Be concise** - Keep messages under 100 chars when possible
 3. **Use appropriate types** - Helps player scan log quickly
@@ -596,6 +751,7 @@ addMessage('Your message here', 'info');
 7. **Dice rolls auto-log** - DiceRoller handles roll formatting automatically
 
 **Examples:**
+
 ```javascript
 // Movement
 addMessage('Moved to forest hex (15, 23)', 'action');
@@ -629,14 +785,14 @@ addMessage('Failed to save game: Storage quota exceeded', 'error');
 ```
 
 **FORBIDDEN:**
-- ❌ **EventInfoBox** (removed from codebase)
-- ❌ **Toast notifications** (Sonner unused, may be removed)
+
 - ❌ **Modal dialogs or popups**
 - ❌ **window.alert() or window.confirm()** (deprecated)
 - ❌ **Blocking UI overlays** (except combat)
 - ❌ **Message queues that delay feedback**
 
 **POI Interactions:**
+
 - All POI actions are triggered via **buttons in HexDetails panel** when player is standing on the hex
 - Spacebar triggers the default action for the POI type
 - Results are logged to GameLog immediately
@@ -665,6 +821,7 @@ static fromJSON(data) {
 ### Hex Grid Coordinate System
 
 Uses **cube coordinates** converted to offset coordinates:
+
 - Hex distance calculation in `GameStateContext.jsx:112-122`
 - Movement validation checks hex distance ≤ character's `moveDistance`
 - Vision/fog of war checks hex distance ≤ character's `viewDistance`
@@ -672,6 +829,7 @@ Uses **cube coordinates** converted to offset coordinates:
 ### Map Generation
 
 **Region-based generation** creates coherent biomes and weather:
+
 - **Regions** (`RegionGenerator.js`): 8-15 large regions per map using Voronoi partitioning
 - **Biome clustering**: Hexes within regions share biome types (temperate forest, desert, tundra, etc.)
 - **Regional weather** (`WeatherSystem.js`): Weather patterns affect entire regions, not individual hexes
@@ -681,9 +839,11 @@ Uses **cube coordinates** converted to offset coordinates:
 - POIs placed with terrain-appropriate logic
 
 **Region Types:**
+
 - Temperate Forest, Tropical Jungle, Arid Desert, Arctic Tundra, Alpine Highlands, Wetlands, Coastal
 
 **Data structures:**
+
 - `state.regions`: Array of region objects with biome, climate, elevation, moisture, temperature
 - `state.hexToRegion`: Map of hex coordinates to region IDs
 - `state.weatherSystem`: WeatherSystem instance managing regional weather patterns
@@ -697,17 +857,24 @@ Uses **cube coordinates** converted to offset coordinates:
 5. **DO NOT** store canvas context in state (use refs)
 6. **DO NOT** use routing libraries (use scene-based navigation)
 7. **DO NOT** create modal dialogs or popups - use GameLog for all feedback
-8. **DO NOT** use EventInfoBox (removed system) - use GameLog
-9. **DO NOT** use `console.*` directly - use the logger utility for all dev logging
-10. **ALWAYS** check for null/undefined before accessing nested properties
-11. **ALWAYS** use `actions.ACTION_NAME` constants, not string literals
-12. **ALWAYS** create new Set/Array when updating collections in state
-13. **ALWAYS** log user actions and outcomes to GameLog
-14. **ALWAYS** import and use logger for development debugging
+8. **DO NOT** use `console.*` directly - use the logger utility for all dev logging
+9. **ALWAYS** check for null/undefined before accessing nested properties
+10. **ALWAYS** use `actions.ACTION_NAME` constants, not string literals
+11. **ALWAYS** create new Set/Array when updating collections in state
+12. **ALWAYS** log user actions and outcomes to GameLog
+13. **ALWAYS** import and use logger for development debugging
+14. **ALWAYS** create immutable copies before mutating character/party objects using `fromJSON(toJSON())`
+15. **ALWAYS** clean up timeouts in useEffect return functions
+16. **NEVER** mutate HP during combat - use `UPDATE_COMBATANT_HP` action
 
 ## Additional Resources
 
+- **AGENTS.md** - This file (development patterns)
 - **CLAUDE.md** - Comprehensive project overview and architecture details
+- **GAME_GUIDE.md** - Player guide and gameplay mechanics
+- **TODO.md** - Active task list and roadmap
+- **docs/design/** - Design documents (combat system, region generation)
+- **tests/README.md** - QA test suite documentation
 - **package.json** - Full dependency list and npm scripts
 - **vite.config.js** - Build configuration and git info injection
 
@@ -729,11 +896,13 @@ The SRD contains official D&D 5e rules and mechanics that this project implement
 **Note:** This file is excluded from version control (.gitignore) due to licensing.
 
 **Using the SRD:**
+
 - Extract text using `pdftotext`: `pdftotext -f <page> -l <page> docs/SRD_CC_v5.2.1.pdf -`
 - Search for rules: `pdftotext docs/SRD_CC_v5.2.1.pdf - | grep -i "keyword"`
 - Reference page numbers from the Table of Contents (page 3-5)
 
 **Key Sections for Game Development:**
+
 - **Pages 199-202**: Traps (8 official trap types with level scaling)
 - **Pages 133-144**: Treasure Tables (Individual & Hoard by CR 0-4, 5-10, 11-16, 17+)
 - **Pages 134-135**: Gemstones and Art Objects tables
@@ -741,6 +910,7 @@ The SRD contains official D&D 5e rules and mechanics that this project implement
 - **Pages 192-202**: Gameplay Toolbox (travel, environments, hazards)
 
 **Implementation Status:**
+
 - ✅ Treasure Hoard Tables - Implemented in `src/game/data/GameTableData.js`
 - ✅ SRD Traps - Implemented in `src/game/data/GameTableData.js`
 - 🚧 Magic Items - Tables stored, not yet implemented

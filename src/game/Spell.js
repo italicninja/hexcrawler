@@ -50,7 +50,7 @@ export class Spell {
     if (!this.effect) {
       return {
         success: false,
-        message: `${this.name} has no effect defined`
+        message: `${this.name} has no effect defined`,
       };
     }
 
@@ -59,13 +59,17 @@ export class Spell {
       const result = this.effect(caster, target, diceRoller);
       return {
         success: true,
-        ...result
+        ...result,
       };
     } catch (error) {
-      logger.combat.error('Error casting spell', { spell: this.name, error: error.message, caster: caster.name });
+      logger.combat.error('Error casting spell', {
+        spell: this.name,
+        error: error.message,
+        caster: caster.name,
+      });
       return {
         success: false,
-        message: `Failed to cast ${this.name}: ${error.message}`
+        message: `Failed to cast ${this.name}: ${error.message}`,
       };
     }
   }
@@ -106,7 +110,7 @@ export class Spell {
       druid: 'wisdom',
       bard: 'charisma',
       paladin: 'charisma',
-      ranger: 'wisdom'
+      ranger: 'wisdom',
     };
     return spellcastingAbilities[classKey] || 'intelligence';
   }
@@ -135,7 +139,7 @@ export class Spell {
       targetType: this.targetType,
       savingThrow: this.savingThrow,
       attackRoll: this.attackRoll,
-      description: this.description
+      description: this.description,
       // Note: effect function cannot be serialized
     };
   }

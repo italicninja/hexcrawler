@@ -47,9 +47,7 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
   const encounter = interiorMap?.encounters?.find(
     e => e.col === hex.col && e.row === hex.row && e.discovered
   );
-  const loot = interiorMap?.loot?.find(
-    l => l.col === hex.col && l.row === hex.row && l.discovered
-  );
+  const loot = interiorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row && l.discovered);
   const hazard = interiorMap?.hazards?.find(
     h => h.col === hex.col && h.row === hex.row && h.discovered
   );
@@ -69,7 +67,7 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
     // Advance time for combat
     dispatch({
       type: actions.ADVANCE_TIME,
-      payload: combatTime
+      payload: combatTime,
     });
 
     // Mark encounter as defeated
@@ -77,8 +75,8 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
       type: actions.DEFEAT_ENCOUNTER,
       payload: {
         poiKey,
-        encounterKey: `${encounter.col},${encounter.row}`
-      }
+        encounterKey: `${encounter.col},${encounter.row}`,
+      },
     });
   };
 
@@ -87,11 +85,14 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
     if (!loot || loot.collected) return;
 
     // Build item list from Item instances
-    const itemsList = loot.items.length > 0
-      ? `\n\nItems:\n${loot.items.map(item => {
-          return `• ${item.name} (${item.rarity})`;
-        }).join('\n')}`
-      : '';
+    const itemsList =
+      loot.items.length > 0
+        ? `\n\nItems:\n${loot.items
+            .map(item => {
+              return `• ${item.name} (${item.rarity})`;
+            })
+            .join('\n')}`
+        : '';
 
     const goldText = loot.gold > 0 ? `You found ${loot.gold} gold!` : 'You search the area...';
 
@@ -103,7 +104,7 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
     // Advance time for searching/looting
     dispatch({
       type: actions.ADVANCE_TIME,
-      payload: TIME_COSTS.SEARCH
+      payload: TIME_COSTS.SEARCH,
     });
 
     // Collect loot - pass full loot object with Item instances
@@ -114,9 +115,9 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
         lootKey: `${loot.col},${loot.row}`,
         loot: {
           gold: loot.gold,
-          items: loot.items
-        }
-      }
+          items: loot.items,
+        },
+      },
     });
   };
 
@@ -127,8 +128,12 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
     return (
       <div className="content-section encounter-section">
         <h4>Encounter (Defeated)</h4>
-        <p><strong>CR:</strong> {encounter.cr}</p>
-        <p><strong>Creatures:</strong> {encounter.creatures}</p>
+        <p>
+          <strong>CR:</strong> {encounter.cr}
+        </p>
+        <p>
+          <strong>Creatures:</strong> {encounter.creatures}
+        </p>
         <p className="status-defeated">Defeated</p>
       </div>
     );
@@ -143,11 +148,15 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
     return (
       <div className={`content-section ${isChest ? 'chest-section' : 'loot-section'}`}>
         <h4>{isChest ? '💰 Treasure Chest' : 'Loot'}</h4>
-        <p><strong>Gold:</strong> {loot.gold} gp</p>
-        
+        <p>
+          <strong>Gold:</strong> {loot.gold} gp
+        </p>
+
         {loot.consumables && loot.consumables.length > 0 && (
           <div className="loot-consumables">
-            <p><strong>Consumables:</strong></p>
+            <p>
+              <strong>Consumables:</strong>
+            </p>
             <ul>
               {loot.consumables.map((item, i) => (
                 <li key={i}>{item}</li>
@@ -155,10 +164,12 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
             </ul>
           </div>
         )}
-        
+
         {loot.items && loot.items.length > 0 && (
           <div className="loot-items">
-            <p><strong>Items:</strong></p>
+            <p>
+              <strong>Items:</strong>
+            </p>
             <ul>
               {loot.items.map((item, i) => (
                 <li key={i} style={{ color: item.getRarityColor ? item.getRarityColor() : '#fff' }}>
@@ -168,20 +179,19 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
             </ul>
           </div>
         )}
-        
+
         <p className="rarity-badge" style={{ color: getRarityColor(loot.rarity) }}>
           {loot.rarity.toUpperCase()}
         </p>
-        
+
         {loot.collected ? (
           <p className="status-collected">Collected</p>
-        ) : distance === 0 && (
-          <button
-            className="btn-primary"
-            onClick={handleCollectLoot}
-          >
-            Collect
-          </button>
+        ) : (
+          distance === 0 && (
+            <button className="btn-primary" onClick={handleCollectLoot}>
+              Collect
+            </button>
+          )
         )}
       </div>
     );
@@ -194,26 +204,32 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
     return (
       <div className="content-section hazard-section">
         <h4>Hazard</h4>
-        <p><strong>Type:</strong> {hazard.type}</p>
-        <p><strong>Category:</strong> {hazard.category}</p>
+        <p>
+          <strong>Type:</strong> {hazard.type}
+        </p>
+        <p>
+          <strong>Category:</strong> {hazard.category}
+        </p>
         <p>{hazard.description}</p>
-        <p><strong>DC {hazard.dc}</strong> {hazard.saveType} save</p>
-        <p><strong>Damage:</strong> {hazard.damage} {hazard.damageType}</p>
-        {hazard.triggered && (
-          <p className="status-triggered">Triggered</p>
-        )}
+        <p>
+          <strong>DC {hazard.dc}</strong> {hazard.saveType} save
+        </p>
+        <p>
+          <strong>Damage:</strong> {hazard.damage} {hazard.damageType}
+        </p>
+        {hazard.triggered && <p className="status-triggered">Triggered</p>}
       </div>
     );
   };
 
   // Get rarity color
-  const getRarityColor = (rarity) => {
+  const getRarityColor = rarity => {
     const colors = {
-      'common': '#9d9d9d',
-      'uncommon': '#1eff00',
-      'rare': '#0070dd',
+      common: '#9d9d9d',
+      uncommon: '#1eff00',
+      rare: '#0070dd',
       'very rare': '#a335ee',
-      'legendary': '#ff8000'
+      legendary: '#ff8000',
     };
     return colors[rarity] || colors.common;
   };
@@ -229,7 +245,10 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
       return;
     }
     if (distance > 1) {
-      addMessage(`Too far - hex is ${distance} away. You can only move 1 hex at a time.`, 'warning');
+      addMessage(
+        `Too far - hex is ${distance} away. You can only move 1 hex at a time.`,
+        'warning'
+      );
       return;
     }
     if (onMoveToHex) {
@@ -240,13 +259,21 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
   return (
     <div className="interior-hex-details">
       <div className="hex-info">
-        <h3>Hex ({hex.col}, {hex.row})</h3>
-        <p><strong>Terrain:</strong> {hex.terrain.name}</p>
+        <h3>
+          Hex ({hex.col}, {hex.row})
+        </h3>
+        <p>
+          <strong>Terrain:</strong> {hex.terrain.name}
+        </p>
         {distance !== null && (
-          <p><strong>Distance:</strong> {distance} {distance === 1 ? 'hex' : 'hexes'}</p>
+          <p>
+            <strong>Distance:</strong> {distance} {distance === 1 ? 'hex' : 'hexes'}
+          </p>
         )}
         {hex.content && (
-          <p><strong>Content:</strong> {hex.content}</p>
+          <p>
+            <strong>Content:</strong> {hex.content}
+          </p>
         )}
       </div>
 
@@ -268,15 +295,15 @@ InteriorHexDetails.propTypes = {
     col: PropTypes.number.isRequired,
     row: PropTypes.number.isRequired,
     terrain: PropTypes.object.isRequired,
-    content: PropTypes.string
+    content: PropTypes.string,
   }),
   playerPosition: PropTypes.shape({
     col: PropTypes.number.isRequired,
-    row: PropTypes.number.isRequired
+    row: PropTypes.number.isRequired,
   }),
   interiorMap: PropTypes.object,
   poiKey: PropTypes.string,
-  onMoveToHex: PropTypes.func
+  onMoveToHex: PropTypes.func,
 };
 
 export default InteriorHexDetails;

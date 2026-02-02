@@ -16,7 +16,7 @@ function Settings() {
     { id: 'dark-blue', name: 'Dark Blue', description: 'Deep blue night theme' },
     { id: 'forest', name: 'Forest', description: 'Nature-inspired green theme' },
     { id: 'purple-night', name: 'Purple Night', description: 'Mystical purple theme' },
-    { id: 'crimson', name: 'Crimson', description: 'Dark red theme' }
+    { id: 'crimson', name: 'Crimson', description: 'Dark red theme' },
   ];
 
   return (
@@ -27,13 +27,21 @@ function Settings() {
         <h4>Appearance</h4>
 
         <div className="config-item">
-          <label htmlFor="theme-select" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-light)', fontSize: '0.875rem' }}>
+          <label
+            htmlFor="theme-select"
+            style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              color: 'var(--text-light)',
+              fontSize: '0.875rem',
+            }}
+          >
             Theme
           </label>
           <select
             id="theme-select"
             value={settings.theme}
-            onChange={(e) => set('theme', e.target.value)}
+            onChange={e => set('theme', e.target.value)}
             style={{
               width: '100%',
               padding: '0.5rem 0.75rem',
@@ -43,7 +51,7 @@ function Settings() {
               background: 'var(--input-bg)',
               color: 'var(--text-color)',
               fontFamily: 'inherit',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
             }}
           >
             {themes.map(theme => (
@@ -66,14 +74,12 @@ function Settings() {
             <input
               type="checkbox"
               checked={settings.doubleClickMove}
-              onChange={(e) => set('doubleClickMove', e.target.checked)}
+              onChange={e => set('doubleClickMove', e.target.checked)}
             />
             <span className="toggle-slider"></span>
             <span className="toggle-text">Double-click to move</span>
           </label>
-          <p className="config-description">
-            Enable double-clicking a hex to move there instantly
-          </p>
+          <p className="config-description">Enable double-clicking a hex to move there instantly</p>
         </div>
 
         <KeybindingsMenu />

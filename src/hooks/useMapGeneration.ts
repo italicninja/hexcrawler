@@ -37,10 +37,10 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
     // Generate terrain data - always start from (0, 0) for deterministic terrain
     // New region-based generation returns { grid, regions, hexToRegion, weatherSystem }
     const generationResult = terrainGeneratorRef.current.generate(
-      Math.max(initialCols, 60),  // Minimum 60 cols (increased from 40)
-      Math.max(initialRows, 60),  // Minimum 60 rows (increased from 50)
+      Math.max(initialCols, 60), // Minimum 60 cols (increased from 40)
+      Math.max(initialRows, 60), // Minimum 60 rows (increased from 50)
       0.5, // terrainVariety
-      5    // poiFrequency
+      5 // poiFrequency
     );
 
     const terrainData = generationResult.grid;
@@ -64,7 +64,7 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
           terrain: terrainData[row][col].terrain,
           poi: terrainData[row][col].poi,
           weather: terrainData[row][col].weather,
-          regionId: terrainData[row][col].regionId
+          regionId: terrainData[row][col].regionId,
         });
       }
     }
@@ -77,21 +77,21 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
     if (startingHex) {
       // Save current seed state
       const savedSeed = terrainGeneratorRef.current.seed;
-      
+
       // Reset to a deterministic seed for starting town generation
       // Use a hash of the original seed to ensure consistency
       const startingTownSeed = parseInt(state.mapSeed) + 999999;
       terrainGeneratorRef.current.seed = startingTownSeed;
-      
+
       // Generate a safe starting TOWN (tier 3) using the POI system
       const startingTown = terrainGeneratorRef.current.poiSystem.generateTown(
         terrainGeneratorRef.current.random.bind(terrainGeneratorRef.current)
       );
-      
+
       // Ensure it has settlementSize set to 'town'
       startingTown.settlementSize = 'town';
       startingHex.poi = startingTown;
-      
+
       // Restore seed state (not that it matters after generation, but for cleanliness)
       terrainGeneratorRef.current.seed = savedSeed;
     }
@@ -103,22 +103,22 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
         hexes: generatedHexes,
         regions,
         hexToRegion,
-        weatherSystem
-      }
+        weatherSystem,
+      },
     });
 
     // Auto-discover the starting town
     if (startingHex && startingHex.poi) {
       dispatch({
         type: actions.DISCOVER_POI,
-        payload: { col: startingHex.col, row: startingHex.row }
+        payload: { col: startingHex.col, row: startingHex.row },
       });
     }
 
     // Reveal hexes around starting position
     dispatch({
       type: actions.REVEAL_AROUND_PLAYER,
-      payload: state.playerPosition
+      payload: state.playerPosition,
     });
 
     // Log game start
@@ -127,7 +127,7 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
       addMessage(`You start your adventure in ${startingHex.poi.name}, a safe haven.`, 'info');
     }
     addMessage(`Map generated with seed: ${state.mapSeed}`, 'system');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.mapSeed]);
   // NOTE: state.mapData excluded from deps - we check it in the guard clause but don't need to re-run when it changes
   // mapGeneratedRef prevents duplicate generation even if effect re-runs

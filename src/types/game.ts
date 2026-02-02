@@ -1,6 +1,6 @@
 /**
  * Core Game Type Definitions
- * 
+ *
  * These types define the fundamental data structures used throughout the game.
  */
 
@@ -42,33 +42,33 @@ export interface Skills {
 
 export type SkillName = keyof Skills;
 
-export type DamageType = 
-  | 'slashing' 
-  | 'piercing' 
-  | 'bludgeoning' 
-  | 'fire' 
-  | 'cold' 
-  | 'lightning' 
-  | 'poison' 
-  | 'acid' 
-  | 'thunder' 
-  | 'force' 
-  | 'necrotic' 
-  | 'radiant' 
+export type DamageType =
+  | 'slashing'
+  | 'piercing'
+  | 'bludgeoning'
+  | 'fire'
+  | 'cold'
+  | 'lightning'
+  | 'poison'
+  | 'acid'
+  | 'thunder'
+  | 'force'
+  | 'necrotic'
+  | 'radiant'
   | 'psychic';
 
-export type CharacterClass = 
-  | 'fighter' 
-  | 'wizard' 
-  | 'cleric' 
-  | 'rogue' 
-  | 'ranger' 
-  | 'barbarian' 
-  | 'paladin' 
-  | 'druid' 
-  | 'bard' 
-  | 'sorcerer' 
-  | 'warlock' 
+export type CharacterClass =
+  | 'fighter'
+  | 'wizard'
+  | 'cleric'
+  | 'rogue'
+  | 'ranger'
+  | 'barbarian'
+  | 'paladin'
+  | 'druid'
+  | 'bard'
+  | 'sorcerer'
+  | 'warlock'
   | 'monk';
 
 // ============================================================================
@@ -107,15 +107,15 @@ export interface MapBounds {
 // POI (Point of Interest) Types
 // ============================================================================
 
-export type POIType = 
-  | 'town' 
-  | 'village' 
-  | 'camp' 
-  | 'dungeon' 
-  | 'cave' 
-  | 'ruins' 
-  | 'tower' 
-  | 'shrine' 
+export type POIType =
+  | 'town'
+  | 'village'
+  | 'camp'
+  | 'dungeon'
+  | 'cave'
+  | 'ruins'
+  | 'tower'
+  | 'shrine'
   | 'lair';
 
 export type EventType = 'passive' | 'active' | 'ambush';
@@ -147,16 +147,16 @@ export interface GameTime {
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'very rare' | 'legendary';
 
-export type ItemSlot = 
-  | 'head' 
-  | 'chest' 
-  | 'legs' 
-  | 'feet' 
-  | 'hands' 
-  | 'mainHand' 
-  | 'offHand' 
-  | 'ring' 
-  | 'neck' 
+export type ItemSlot =
+  | 'head'
+  | 'chest'
+  | 'legs'
+  | 'feet'
+  | 'hands'
+  | 'mainHand'
+  | 'offHand'
+  | 'ring'
+  | 'neck'
   | 'back';
 
 export interface Item {
@@ -247,15 +247,15 @@ export interface SaveSlot {
 // Game Log Types
 // ============================================================================
 
-export type LogMessageType = 
-  | 'info' 
-  | 'success' 
-  | 'warning' 
-  | 'error' 
-  | 'action' 
-  | 'discovery' 
-  | 'encounter' 
-  | 'system' 
+export type LogMessageType =
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'action'
+  | 'discovery'
+  | 'encounter'
+  | 'system'
   | 'poi-interaction';
 
 export interface LogMessage {

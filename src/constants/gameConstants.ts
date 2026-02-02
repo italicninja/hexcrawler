@@ -1,6 +1,6 @@
 /**
  * Game Constants - Centralized configuration values
- * 
+ *
  * Extracted from hardcoded magic numbers across the codebase
  * for better maintainability and clarity
  */
@@ -15,7 +15,7 @@ export const GAME_DEFAULTS = {
   BASE_AC: 10,
   VIEW_RADIUS: 2,
   MOVE_DISTANCE: 6,
-  PROFICIENCY_BONUS: 2
+  PROFICIENCY_BONUS: 2,
 };
 
 // ===================
@@ -30,7 +30,7 @@ export const TIME = {
   FORAGE_TIME_MINUTES: 60,
   SEARCH_TIME_MINUTES: 30,
   MINUTES_PER_HOUR: 60,
-  HOURS_PER_DAY: 24
+  HOURS_PER_DAY: 24,
 };
 
 // ===================
@@ -41,7 +41,7 @@ export const DISTANCE = {
   FEET_PER_SQUARE: 5,
   VISION_RANGE_FEET: 60,
   SHORT_RANGE_FEET: 30,
-  LONG_RANGE_FEET: 120
+  LONG_RANGE_FEET: 120,
 };
 
 // ===================
@@ -61,24 +61,24 @@ export const DND = {
   EXHAUSTION_LEVELS: 6,
   ADVANTAGE_MULTIPLIER: 2, // Roll twice, take higher
   DISADVANTAGE_MULTIPLIER: 2, // Roll twice, take lower
-  CRITICAL_HIT_MULTIPLIER: 2
+  CRITICAL_HIT_MULTIPLIER: 2,
 };
 
 // ===================
 // XP & PROGRESSION
 // ===================
 export const XP_TABLE = [
-  0,      // Level 1
-  300,    // Level 2
-  900,    // Level 3
-  2700,   // Level 4
-  6500,   // Level 5
-  14000,  // Level 6
-  23000,  // Level 7
-  34000,  // Level 8
-  48000,  // Level 9
-  64000,  // Level 10
-  85000,  // Level 11
+  0, // Level 1
+  300, // Level 2
+  900, // Level 3
+  2700, // Level 4
+  6500, // Level 5
+  14000, // Level 6
+  23000, // Level 7
+  34000, // Level 8
+  48000, // Level 9
+  64000, // Level 10
+  85000, // Level 11
   100000, // Level 12
   120000, // Level 13
   140000, // Level 14
@@ -87,22 +87,22 @@ export const XP_TABLE = [
   225000, // Level 17
   265000, // Level 18
   305000, // Level 19
-  355000  // Level 20
+  355000, // Level 20
 ];
 
 // ===================
 // POI SPAWN RATES
 // ===================
 export const POI_SPAWN = {
-  TOWN: 0.10,      // 10% chance
-  VILLAGE: 0.08,   // 8% chance
-  CAMP: 0.05,      // 5% chance
-  DUNGEON: 0.05,   // 5% chance
-  CAVE: 0.04,      // 4% chance
-  RUINS: 0.025,    // 2.5% chance
-  TOWER: 0.02,     // 2% chance
-  SHRINE: 0.03,    // 3% chance
-  LAIR: 0.02       // 2% chance
+  TOWN: 0.1, // 10% chance
+  VILLAGE: 0.08, // 8% chance
+  CAMP: 0.05, // 5% chance
+  DUNGEON: 0.05, // 5% chance
+  CAVE: 0.04, // 4% chance
+  RUINS: 0.025, // 2.5% chance
+  TOWER: 0.02, // 2% chance
+  SHRINE: 0.03, // 3% chance
+  LAIR: 0.02, // 2% chance
 };
 
 // ===================
@@ -118,7 +118,7 @@ export const SETTLEMENT = {
   CITY_MIN_NPCS: 1000,
   CITY_MAX_NPCS: 10000,
   METROPOLIS_MIN_NPCS: 10000,
-  
+
   CAMP_WIDTH: 10,
   CAMP_HEIGHT: 10,
   VILLAGE_WIDTH: 15,
@@ -128,7 +128,7 @@ export const SETTLEMENT = {
   CITY_WIDTH: 30,
   CITY_HEIGHT: 30,
   METROPOLIS_WIDTH: 40,
-  METROPOLIS_HEIGHT: 40
+  METROPOLIS_HEIGHT: 40,
 };
 
 // ===================
@@ -144,7 +144,7 @@ export const CANVAS = {
   MAX_ZOOM: 2.0,
   ZOOM_STEP: 0.1,
   PAN_SPEED: 10,
-  ANIMATION_FPS: 60
+  ANIMATION_FPS: 60,
 };
 
 // ===================
@@ -159,7 +159,7 @@ export const COMBAT = {
   INITIATIVE_DIE: 20,
   DEFAULT_MOVEMENT_FEET: 30,
   DIFFICULT_TERRAIN_MULTIPLIER: 2,
-  OPPORTUNITY_ATTACK_RANGE_FEET: 5
+  OPPORTUNITY_ATTACK_RANGE_FEET: 5,
 };
 
 // ===================
@@ -175,7 +175,7 @@ export const SURVIVAL = {
   RATIONS_PER_FORAGE_SUCCESS: 3,
   WATER_PER_FIND_SUCCESS: 3,
   RICH_TERRAIN_BONUS: 2, // Extra rations in forests, grasslands
-  BARREN_TERRAIN_PENALTY: -5 // DC penalty in deserts, mountains
+  BARREN_TERRAIN_PENALTY: -5, // DC penalty in deserts, mountains
 };
 
 // ===================
@@ -195,7 +195,7 @@ export const TERRAIN = {
   RIVER_WIDTH_MAX: 3,
   ELEVATION_RANGE: 100,
   TEMPERATURE_RANGE: 100,
-  MOISTURE_RANGE: 100
+  MOISTURE_RANGE: 100,
 };
 
 // ===================
@@ -210,7 +210,7 @@ export const DUNGEON = {
   ENCOUNTER_CHANCE: 0.3, // 30% per room
   LOOT_CHANCE: 0.4, // 40% per room
   HAZARD_CHANCE: 0.2, // 20% per room
-  BOSS_ROOM_INDEX: -1 // Last room
+  BOSS_ROOM_INDEX: -1, // Last room
 };
 
 // ===================
@@ -224,7 +224,7 @@ export const SHOP = {
   RARE_ITEM_CHANCE: 0.08,
   VERY_RARE_ITEM_CHANCE: 0.02,
   LEGENDARY_ITEM_CHANCE: 0.001,
-  STOCK_REFRESH_DAYS: 7
+  STOCK_REFRESH_DAYS: 7,
 };
 
 // ===================
@@ -239,7 +239,7 @@ export const QUEST = {
   QUEST_REFRESH_DAYS: 7,
   BASE_XP_REWARD: 100,
   BASE_GOLD_REWARD: 50,
-  REWARD_MULTIPLIER_PER_CR: 1.5
+  REWARD_MULTIPLIER_PER_CR: 1.5,
 };
 
 // ===================
@@ -249,7 +249,7 @@ export const SAVE = {
   VERSION: '5.0',
   AUTO_SAVE_DEBOUNCE_MS: 500,
   MAX_SAVE_SLOTS: 3,
-  PLAYTIME_UPDATE_INTERVAL_MS: 1000
+  PLAYTIME_UPDATE_INTERVAL_MS: 1000,
 };
 
 // ===================
@@ -259,5 +259,5 @@ export const UI = {
   GAME_LOG_MAX_MESSAGES: 100,
   TOAST_DURATION_MS: 3000,
   MODAL_ANIMATION_MS: 200,
-  TOOLTIP_DELAY_MS: 500
+  TOOLTIP_DELAY_MS: 500,
 };

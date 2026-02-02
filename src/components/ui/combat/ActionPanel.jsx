@@ -21,7 +21,7 @@ function ActionPanel({
   onHelpClick,
   onHideClick,
   onSearchClick,
-  onEndTurn
+  onEndTurn,
 }) {
   if (!combatant) {
     return (
@@ -32,16 +32,18 @@ function ActionPanel({
   }
 
   // Check if combatant has Extra Attack feature
-  const hasExtraAttack = combatant.level >= 5 && 
+  const hasExtraAttack =
+    combatant.level >= 5 &&
     ['fighter', 'barbarian', 'paladin', 'ranger', 'monk'].includes(combatant.class?.toLowerCase());
 
   const maxAttacks = hasExtraAttack ? 2 : 1;
   const canAttackAgain = attacksUsedThisTurn < maxAttacks;
 
   // Check for abilities with remaining uses
-  const availableAbilities = combatant.abilities_list?.filter(
-    ability => !ability.maxUses || ability.maxUses === -1 || (ability.uses > 0)
-  ) || [];
+  const availableAbilities =
+    combatant.abilities_list?.filter(
+      ability => !ability.maxUses || ability.maxUses === -1 || ability.uses > 0
+    ) || [];
 
   // Check for spell slots (simplified - just check if they have spells)
   const hasSpells = combatant.spells && combatant.spells.length > 0;
@@ -67,7 +69,7 @@ function ActionPanel({
           backgroundColor: isSelected ? baseColor : 'var(--bg-lighter)',
           color: isSelected ? 'white' : 'var(--text-color)',
           border: `2px solid ${disabled ? 'var(--border-color)' : baseColor}`,
-          ringColor: baseColor
+          ringColor: baseColor,
         }}
         onClick={onClick}
         disabled={disabled}
@@ -85,7 +87,7 @@ function ActionPanel({
     icon: PropTypes.string.isRequired,
     disabled: PropTypes.bool,
     color: PropTypes.string,
-    onClick: PropTypes.func.isRequired
+    onClick: PropTypes.func.isRequired,
   };
 
   return (
@@ -93,16 +95,11 @@ function ActionPanel({
       className="rounded-lg p-4"
       style={{
         backgroundColor: 'var(--panel-bg)',
-        border: '2px solid var(--border-color)'
+        border: '2px solid var(--border-color)',
       }}
     >
       {/* Action Economy Display */}
-      {turnState && (
-        <ActionEconomyDisplay 
-          turnState={turnState} 
-          character={combatant.character} 
-        />
-      )}
+      {turnState && <ActionEconomyDisplay turnState={turnState} character={combatant.character} />}
 
       {/* Header */}
       <h3 className="font-bold text-lg mb-1 mt-3" style={{ color: 'var(--text-color)' }}>
@@ -114,10 +111,13 @@ function ActionPanel({
 
       {/* Movement Info */}
       {movementRemaining !== undefined && movementRemaining !== null && (
-        <div className="mb-4 p-2 rounded" style={{
-          backgroundColor: 'var(--bg-lighter)',
-          border: '1px solid var(--border-color)'
-        }}>
+        <div
+          className="mb-4 p-2 rounded"
+          style={{
+            backgroundColor: 'var(--bg-lighter)',
+            border: '1px solid var(--border-color)',
+          }}
+        >
           <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
             Movement Remaining
           </div>
@@ -142,7 +142,9 @@ function ActionPanel({
         {/* Attack */}
         <ActionButton
           action="attack"
-          label={attacksUsedThisTurn > 0 ? `Attack (${attacksUsedThisTurn}/${maxAttacks})` : 'Attack'}
+          label={
+            attacksUsedThisTurn > 0 ? `Attack (${attacksUsedThisTurn}/${maxAttacks})` : 'Attack'
+          }
           icon="⚔️"
           disabled={!canAttackAgain}
           color="#e74c3c"
@@ -238,7 +240,7 @@ function ActionPanel({
         style={{
           backgroundColor: 'var(--accent-color)',
           color: 'var(--bg-color)',
-          border: '2px solid var(--accent-color)'
+          border: '2px solid var(--accent-color)',
         }}
         onClick={onEndTurn}
       >
@@ -247,15 +249,22 @@ function ActionPanel({
 
       {/* Ability Uses Display */}
       {availableAbilities.length > 0 && (
-        <div className="mt-4 p-3 rounded" style={{
-          backgroundColor: 'var(--bg-lighter)',
-          border: '1px solid var(--border-color)'
-        }}>
+        <div
+          className="mt-4 p-3 rounded"
+          style={{
+            backgroundColor: 'var(--bg-lighter)',
+            border: '1px solid var(--border-color)',
+          }}
+        >
           <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
             Ability Uses
           </div>
           {availableAbilities.map((ability, idx) => (
-            <div key={idx} className="flex justify-between text-sm mb-1" style={{ color: 'var(--text-light)' }}>
+            <div
+              key={idx}
+              className="flex justify-between text-sm mb-1"
+              style={{ color: 'var(--text-light)' }}
+            >
               <span>{ability.name}</span>
               <span className="font-semibold">
                 {ability.maxUses === -1 ? '∞' : `${ability.uses}/${ability.maxUses}`}
@@ -278,10 +287,10 @@ ActionPanel.propTypes = {
       PropTypes.shape({
         name: PropTypes.string.isRequired,
         uses: PropTypes.number,
-        maxUses: PropTypes.number
+        maxUses: PropTypes.number,
       })
     ),
-    spells: PropTypes.array
+    spells: PropTypes.array,
   }),
   selectedAction: PropTypes.string,
   movementRemaining: PropTypes.number,
@@ -289,7 +298,7 @@ ActionPanel.propTypes = {
   turnState: PropTypes.shape({
     actionUsed: PropTypes.bool,
     bonusActionUsed: PropTypes.bool,
-    reactionUsed: PropTypes.bool
+    reactionUsed: PropTypes.bool,
   }),
   onActionSelect: PropTypes.func.isRequired,
   onAbilityClick: PropTypes.func,
@@ -300,7 +309,7 @@ ActionPanel.propTypes = {
   onHelpClick: PropTypes.func,
   onHideClick: PropTypes.func,
   onSearchClick: PropTypes.func,
-  onEndTurn: PropTypes.func.isRequired
+  onEndTurn: PropTypes.func.isRequired,
 };
 
 export default ActionPanel;

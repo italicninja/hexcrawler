@@ -91,10 +91,10 @@ export class CombatTerrainGenerator {
           row,
           terrain: {
             type: terrainType,
-            color: terrainConfig.baseColor
+            color: terrainConfig.baseColor,
           },
           blocked: false,
-          difficultTerrain: false
+          difficultTerrain: false,
         });
       }
     }
@@ -108,7 +108,7 @@ export class CombatTerrainGenerator {
     return {
       hexes,
       width,
-      height
+      height,
     };
   }
 
@@ -125,7 +125,7 @@ export class CombatTerrainGenerator {
         obstacleType: 'boulder',
         obstacleCount: { min: 3, max: 6 },
         difficultTerrainColor: '#9fb885',
-        difficultTerrainCount: { min: 4, max: 8 }
+        difficultTerrainCount: { min: 4, max: 8 },
       },
       forest: {
         baseColor: '#6b8e4e',
@@ -133,7 +133,7 @@ export class CombatTerrainGenerator {
         obstacleType: 'tree',
         obstacleCount: { min: 8, max: 15 },
         difficultTerrainColor: '#7d9a5f',
-        difficultTerrainCount: { min: 6, max: 10 }
+        difficultTerrainCount: { min: 6, max: 10 },
       },
       mountain: {
         baseColor: '#808080',
@@ -141,7 +141,7 @@ export class CombatTerrainGenerator {
         obstacleType: 'rock',
         obstacleCount: { min: 10, max: 18 },
         difficultTerrainColor: '#999999',
-        difficultTerrainCount: { min: 5, max: 9 }
+        difficultTerrainCount: { min: 5, max: 9 },
       },
       swamp: {
         baseColor: '#5a6b3e',
@@ -149,7 +149,7 @@ export class CombatTerrainGenerator {
         obstacleType: 'tree',
         obstacleCount: { min: 5, max: 10 },
         difficultTerrainColor: '#4a5b2e',
-        difficultTerrainCount: { min: 10, max: 16 }
+        difficultTerrainCount: { min: 10, max: 16 },
       },
       desert: {
         baseColor: '#daa520',
@@ -157,7 +157,7 @@ export class CombatTerrainGenerator {
         obstacleType: 'rock',
         obstacleCount: { min: 4, max: 8 },
         difficultTerrainColor: '#c9a340',
-        difficultTerrainCount: { min: 6, max: 12 }
+        difficultTerrainCount: { min: 6, max: 12 },
       },
       dungeon: {
         baseColor: '#4a4a4a',
@@ -165,8 +165,8 @@ export class CombatTerrainGenerator {
         obstacleType: 'wall',
         obstacleCount: { min: 12, max: 20 },
         difficultTerrainColor: '#5a5a5a',
-        difficultTerrainCount: { min: 3, max: 6 }
-      }
+        difficultTerrainCount: { min: 3, max: 6 },
+      },
     };
 
     return configs[terrainType] || configs.plains;

@@ -18,7 +18,7 @@ function QuestGiverUI({ questGiver, availableQuests = [], onClose, onAcceptQuest
     return null;
   }
 
-  const handleAccept = (quest) => {
+  const handleAccept = quest => {
     if (onAcceptQuest) {
       onAcceptQuest(quest);
       setSelectedQuest(null);
@@ -41,7 +41,9 @@ function QuestGiverUI({ questGiver, availableQuests = [], onClose, onAcceptQuest
         {/* Header */}
         <div className="quest-giver-header">
           <h2>{questGiver.name || 'Quest Giver'}</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button className="close-button" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         {/* NPC Dialogue */}
@@ -69,7 +71,9 @@ function QuestGiverUI({ questGiver, availableQuests = [], onClose, onAcceptQuest
                     <h4>{quest.title}</h4>
                     <span
                       className="quest-level-badge"
-                      style={{ color: getQuestLevelColor(quest.level, state.playerCharacter?.level || 1) }}
+                      style={{
+                        color: getQuestLevelColor(quest.level, state.playerCharacter?.level || 1),
+                      }}
                     >
                       Level {quest.level}
                     </span>
@@ -102,7 +106,8 @@ function QuestGiverUI({ questGiver, availableQuests = [], onClose, onAcceptQuest
                       )}
                       {quest.rewards.items && quest.rewards.items.length > 0 && (
                         <span className="reward-item items">
-                          {quest.rewards.items.length} Item{quest.rewards.items.length > 1 ? 's' : ''}
+                          {quest.rewards.items.length} Item
+                          {quest.rewards.items.length > 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
@@ -112,7 +117,7 @@ function QuestGiverUI({ questGiver, availableQuests = [], onClose, onAcceptQuest
                   {selectedQuest?.id === quest.id && (
                     <button
                       className="accept-quest-button"
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         handleAccept(quest);
                       }}
@@ -142,10 +147,14 @@ function QuestGiverUI({ questGiver, availableQuests = [], onClose, onAcceptQuest
  */
 function getDefaultDialogue(name) {
   const dialogues = {
-    'Village Elder': 'Greetings, traveler. Our village faces many challenges. Perhaps you can help us with some tasks?',
-    'Town Guard Captain': 'You look capable. We have some jobs that need doing, if you\'re interested in earning some coin.',
-    'Local Merchant': 'Ah, a wandering adventurer! I have some business propositions that might interest you.',
-    'Traveling Sage': 'Knowledge and adventure go hand in hand. I have several matters that require investigation.'
+    'Village Elder':
+      'Greetings, traveler. Our village faces many challenges. Perhaps you can help us with some tasks?',
+    'Town Guard Captain':
+      "You look capable. We have some jobs that need doing, if you're interested in earning some coin.",
+    'Local Merchant':
+      'Ah, a wandering adventurer! I have some business propositions that might interest you.',
+    'Traveling Sage':
+      'Knowledge and adventure go hand in hand. I have several matters that require investigation.',
   };
 
   return dialogues[name] || 'Welcome, adventurer. I have some tasks that need attention.';
@@ -154,11 +163,11 @@ function getDefaultDialogue(name) {
 QuestGiverUI.propTypes = {
   questGiver: PropTypes.shape({
     name: PropTypes.string,
-    dialogue: PropTypes.string
+    dialogue: PropTypes.string,
   }),
   availableQuests: PropTypes.arrayOf(PropTypes.object),
   onClose: PropTypes.func.isRequired,
-  onAcceptQuest: PropTypes.func
+  onAcceptQuest: PropTypes.func,
 };
 
 export default QuestGiverUI;

@@ -16,9 +16,9 @@ import { getSpell, hasSpellSlot, useSpellSlot } from './SpellManager.js';
  */
 export const CR_TO_XP = {
   0: 10,
-  0.125: 25,    // CR 1/8
-  0.25: 50,     // CR 1/4
-  0.5: 100,     // CR 1/2
+  0.125: 25, // CR 1/8
+  0.25: 50, // CR 1/4
+  0.5: 100, // CR 1/2
   1: 200,
   2: 450,
   3: 700,
@@ -48,7 +48,7 @@ export const CR_TO_XP = {
   27: 105000,
   28: 120000,
   29: 135000,
-  30: 155000
+  30: 155000,
 };
 
 /**
@@ -63,7 +63,12 @@ export function getXPForCR(cr) {
 export class Combat {
   constructor(characters, enemies, battlefield = null, options = {}) {
     // Legacy support: if battlefield is an object with canFlee property, it's actually options
-    if (battlefield && typeof battlefield === 'object' && 'canFlee' in battlefield && !Array.isArray(battlefield)) {
+    if (
+      battlefield &&
+      typeof battlefield === 'object' &&
+      'canFlee' in battlefield &&
+      !Array.isArray(battlefield)
+    ) {
       options = battlefield;
       battlefield = null;
     }
@@ -71,7 +76,7 @@ export class Combat {
     // Legacy properties (for auto-combat)
     this.characters = characters; // Array of Character instances (party members)
     this.enemies = enemies; // Array of Enemy instances
-    
+
     // Hex combat properties
     this.allies = characters.map((char, i) => ({
       id: `ally-${i}`,
@@ -80,9 +85,9 @@ export class Combat {
       maxHp: char.maxHP,
       isEnemy: false,
       position: null, // Will be set by EncounterPositions
-      statusEffects: []
+      statusEffects: [],
     }));
-    
+
     this.enemyCombatants = enemies.map((enemy, i) => ({
       id: `enemy-${i}`,
       character: enemy,
@@ -90,13 +95,13 @@ export class Combat {
       maxHp: enemy.maxHP,
       isEnemy: true,
       position: null,
-      statusEffects: []
+      statusEffects: [],
     }));
-    
+
     this.battlefield = battlefield;
     this.turnOrder = [];
     this.currentTurnIndex = 0;
-    
+
     // Shared properties
     this.logger = options.logger || null; // Optional GameLog callback (message, type) => void
     this.diceRoller = new DiceRoller(null, this.logger);
@@ -124,7 +129,7 @@ export class Combat {
     const initiatives = [];
 
     // Roll for characters
-    this.characters.forEach((char) => {
+    this.characters.forEach(char => {
       if (char && char.currentHP > 0) {
         const dexMod = Math.floor((char.abilities.dexterity - 10) / 2);
         const roll = this.diceRoller.rollD20();
@@ -134,13 +139,13 @@ export class Combat {
           type: 'character',
           combatant: char,
           initiative: total,
-          roll: roll
+          roll: roll,
         });
       }
     });
 
     // Roll for enemies
-    this.enemies.forEach((enemy) => {
+    this.enemies.forEach(enemy => {
       if (!enemy.checkIsDead()) {
         const dexMod = Math.floor((enemy.abilities.dexterity - 10) / 2);
         const roll = this.diceRoller.rollD20();
@@ -150,7 +155,7 @@ export class Combat {
           type: 'enemy',
           combatant: enemy,
           initiative: total,
-          roll: roll
+          roll: roll,
         });
       }
     });
@@ -160,7 +165,7 @@ export class Combat {
 
     // Log initiative
     this.log('=== INITIATIVE ===');
-    initiatives.forEach((init) => {
+    initiatives.forEach(init => {
       const name = init.combatant.name;
       this.log(`${name}: ${init.initiative} (rolled ${init.roll})`);
     });
@@ -216,14 +221,15 @@ export class Combat {
     this.log(`${character.name}'s turn:`);
 
     // Find living enemies
-    const livingEnemies = this.enemies.filter((e) => !e.checkIsDead());
+    const livingEnemies = this.enemies.filter(e => !e.checkIsDead());
     if (livingEnemies.length === 0) return;
 
     // Select random target
     const target = livingEnemies[Math.floor(Math.random() * livingEnemies.length)];
 
     // Determine attack type based on character abilities
-    const attackType = character.abilities.dexterity > character.abilities.strength ? 'ranged' : 'melee';
+    const attackType =
+      character.abilities.dexterity > character.abilities.strength ? 'ranged' : 'melee';
 
     // Get weapon damage (check equipped weapon or use default)
     let weaponDamage = '1d6'; // Default
@@ -242,14 +248,16 @@ export class Combat {
     }
 
     // Roll attack
-    const abilityMod = attackType === 'melee'
-      ? Math.floor((character.abilities.strength - 10) / 2)
-      : Math.floor((character.abilities.dexterity - 10) / 2);
+    const abilityMod =
+      attackType === 'melee'
+        ? Math.floor((character.abilities.strength - 10) / 2)
+        : Math.floor((character.abilities.dexterity - 10) / 2);
 
     const attackRoll = this.diceRoller.rollD20();
     const attackTotal = attackRoll + abilityMod + character.proficiencyBonus + attackBonus;
 
-    const hit = attackRoll === DND.NATURAL_20 || (attackRoll !== DND.NATURAL_1 && attackTotal >= target.ac);
+    const hit =
+      attackRoll === DND.NATURAL_20 || (attackRoll !== DND.NATURAL_1 && attackTotal >= target.ac);
     const crit = attackRoll === DND.NATURAL_20;
 
     if (hit) {
@@ -261,7 +269,9 @@ export class Combat {
         damage += this.diceRoller.damageRoll(weaponDamage);
         this.log(`  CRITICAL HIT! Rolled ${attackRoll}, hit AC ${target.ac}`);
       } else {
-        this.log(`  Rolled ${attackRoll} + ${abilityMod + character.proficiencyBonus + attackBonus} = ${attackTotal}, hit AC ${target.ac}`);
+        this.log(
+          `  Rolled ${attackRoll} + ${abilityMod + character.proficiencyBonus + attackBonus} = ${attackTotal}, hit AC ${target.ac}`
+        );
       }
 
       this.log(`  Deals ${damage} ${damageType} damage to ${target.name}`);
@@ -274,7 +284,9 @@ export class Combat {
         this.log(`  ${target.name} has ${target.currentHP}/${target.maxHP} HP remaining`);
       }
     } else {
-      this.log(`  Rolled ${attackRoll} + ${abilityMod + character.proficiencyBonus + attackBonus} = ${attackTotal}, missed AC ${target.ac}`);
+      this.log(
+        `  Rolled ${attackRoll} + ${abilityMod + character.proficiencyBonus + attackBonus} = ${attackTotal}, missed AC ${target.ac}`
+      );
     }
   }
 
@@ -285,7 +297,7 @@ export class Combat {
     this.log(`${enemy.name}'s turn:`);
 
     // Find living characters
-    const livingChars = this.characters.filter((c) => c && c.currentHP > 0);
+    const livingChars = this.characters.filter(c => c && c.currentHP > 0);
     if (livingChars.length === 0) return;
 
     // Select target (lowest HP)
@@ -302,15 +314,25 @@ export class Combat {
 
       if (attackResult.hit) {
         // Roll damage
-        const damageResult = enemy.rollDamage(attackResult.crit, this.diceRoller, i % enemy.attacks.length);
+        const damageResult = enemy.rollDamage(
+          attackResult.crit,
+          this.diceRoller,
+          i % enemy.attacks.length
+        );
 
         if (attackResult.crit) {
-          this.log(`  CRITICAL HIT! ${damageResult.attackName} - Rolled ${attackResult.roll}, hit AC ${target.armorClass}`);
+          this.log(
+            `  CRITICAL HIT! ${damageResult.attackName} - Rolled ${attackResult.roll}, hit AC ${target.armorClass}`
+          );
         } else {
-          this.log(`  ${damageResult.attackName} - Rolled ${attackResult.roll} + ${attackResult.modifier} = ${attackResult.total}, hit AC ${target.armorClass}`);
+          this.log(
+            `  ${damageResult.attackName} - Rolled ${attackResult.roll} + ${attackResult.modifier} = ${attackResult.total}, hit AC ${target.armorClass}`
+          );
         }
 
-        this.log(`  Deals ${damageResult.damage} ${damageResult.damageType} damage to ${target.name}`);
+        this.log(
+          `  Deals ${damageResult.damage} ${damageResult.damageType} damage to ${target.name}`
+        );
 
         const killed = target.takeDamage(damageResult.damage);
 
@@ -320,7 +342,9 @@ export class Combat {
           this.log(`  ${target.name} has ${target.currentHP}/${target.maxHP} HP remaining`);
         }
       } else {
-        this.log(`  ${enemy.attacks[i % enemy.attacks.length].name} - Rolled ${attackResult.roll} + ${attackResult.modifier} = ${attackResult.total}, missed AC ${target.armorClass}`);
+        this.log(
+          `  ${enemy.attacks[i % enemy.attacks.length].name} - Rolled ${attackResult.roll} + ${attackResult.modifier} = ${attackResult.total}, missed AC ${target.armorClass}`
+        );
       }
     }
   }
@@ -339,19 +363,23 @@ export class Combat {
     this.log('=== FLEE ATTEMPT ===');
 
     // Each living character makes a DC check
-    const livingChars = this.characters.filter((c) => c && c.currentHP > 0);
+    const livingChars = this.characters.filter(c => c && c.currentHP > 0);
     let successCount = 0;
 
-    livingChars.forEach((char) => {
+    livingChars.forEach(char => {
       const dexMod = Math.floor((char.abilities.dexterity - 10) / 2);
       const roll = this.diceRoller.rollD20();
       const total = roll + dexMod;
 
       if (total >= this.fleeDC) {
-        this.log(`${char.name} escapes! (Rolled ${roll} + ${dexMod} = ${total} vs DC ${this.fleeDC})`);
+        this.log(
+          `${char.name} escapes! (Rolled ${roll} + ${dexMod} = ${total} vs DC ${this.fleeDC})`
+        );
         successCount++;
       } else {
-        this.log(`${char.name} fails to escape. (Rolled ${roll} + ${dexMod} = ${total} vs DC ${this.fleeDC})`);
+        this.log(
+          `${char.name} fails to escape. (Rolled ${roll} + ${dexMod} = ${total} vs DC ${this.fleeDC})`
+        );
       }
     });
 
@@ -373,7 +401,7 @@ export class Combat {
    * Check if characters have won
    */
   checkVictory() {
-    const livingEnemies = this.enemies.filter((e) => !e.checkIsDead());
+    const livingEnemies = this.enemies.filter(e => !e.checkIsDead());
     return livingEnemies.length === 0;
   }
 
@@ -381,7 +409,7 @@ export class Combat {
    * Check if characters have lost
    */
   checkDefeat() {
-    const livingChars = this.characters.filter((c) => c && c.currentHP > 0);
+    const livingChars = this.characters.filter(c => c && c.currentHP > 0);
     return livingChars.length === 0;
   }
 
@@ -392,7 +420,12 @@ export class Combat {
    */
   simulateCombat(autoFlee = false) {
     this.log('=== COMBAT START ===');
-    this.log(`Party: ${this.characters.filter(c => c && c.currentHP > 0).map(c => c.name).join(', ')}`);
+    this.log(
+      `Party: ${this.characters
+        .filter(c => c && c.currentHP > 0)
+        .map(c => c.name)
+        .join(', ')}`
+    );
     this.log(`Enemies: ${this.enemies.map(e => e.name).join(', ')}`);
     this.log('');
 
@@ -423,8 +456,9 @@ export class Combat {
 
       // Auto-flee check if enabled
       if (autoFlee && this.canFlee && this.round >= 2) {
-        const livingChars = this.characters.filter((c) => c && c.currentHP > 0);
-        const avgCharHP = livingChars.reduce((sum, c) => sum + (c.currentHP / c.maxHP), 0) / livingChars.length;
+        const livingChars = this.characters.filter(c => c && c.currentHP > 0);
+        const avgCharHP =
+          livingChars.reduce((sum, c) => sum + c.currentHP / c.maxHP, 0) / livingChars.length;
 
         // Flee if party average HP below 30%
         if (avgCharHP < 0.3) {
@@ -456,7 +490,7 @@ export class Combat {
       }, 0);
 
       // Split XP among living party members
-      const livingChars = this.characters.filter((c) => c && c.currentHP > 0);
+      const livingChars = this.characters.filter(c => c && c.currentHP > 0);
       if (livingChars.length > 0) {
         xpPerCharacter = Math.floor(totalXP / livingChars.length);
       }
@@ -474,18 +508,18 @@ export class Combat {
       combatLog: this.combatLog,
       totalXP,
       xpPerCharacter,
-      characterStates: this.characters.map((c) => ({
+      characterStates: this.characters.map(c => ({
         name: c ? c.name : 'Unknown',
         currentHP: c ? c.currentHP : 0,
         maxHP: c ? c.maxHP : 0,
-        alive: c ? c.currentHP > 0 : false
+        alive: c ? c.currentHP > 0 : false,
       })),
-      enemyStates: this.enemies.map((e) => ({
+      enemyStates: this.enemies.map(e => ({
         name: e.name,
         currentHP: e.currentHP,
         maxHP: e.maxHP,
-        alive: !e.checkIsDead()
-      }))
+        alive: !e.checkIsDead(),
+      })),
     };
   }
 
@@ -520,14 +554,14 @@ export class Combat {
     summary += `Combat lasted ${result.rounds} round${result.rounds !== 1 ? 's' : ''}.\n\n`;
 
     summary += '--- Party Status ---\n';
-    result.characterStates.forEach((char) => {
+    result.characterStates.forEach(char => {
       const status = char.alive ? `${char.currentHP}/${char.maxHP} HP` : 'Unconscious';
       summary += `${char.name}: ${status}\n`;
     });
 
     if (result.victory) {
       summary += '\n--- Defeated Enemies ---\n';
-      result.enemyStates.forEach((enemy) => {
+      result.enemyStates.forEach(enemy => {
         summary += `${enemy.name}\n`;
       });
 
@@ -563,12 +597,12 @@ export class Combat {
    */
   processMovement(combatantId, path, cost) {
     const combatant = this.getCombatantById(combatantId);
-    
+
     if (!combatant) {
       return {
         success: false,
         message: 'Combatant not found',
-        movementCost: 0
+        movementCost: 0,
       };
     }
 
@@ -576,7 +610,7 @@ export class Combat {
       return {
         success: false,
         message: 'Invalid path',
-        movementCost: 0
+        movementCost: 0,
       };
     }
 
@@ -587,7 +621,7 @@ export class Combat {
     return {
       success: true,
       message: `Moved to (${newPosition.col}, ${newPosition.row})`,
-      movementCost: cost
+      movementCost: cost,
     };
   }
 
@@ -607,7 +641,7 @@ export class Combat {
         message: 'Invalid attacker or target',
         hit: false,
         critical: false,
-        damage: 0
+        damage: 0,
       };
     }
 
@@ -617,14 +651,14 @@ export class Combat {
         message: 'Attacker or target has no position',
         hit: false,
         critical: false,
-        damage: 0
+        damage: 0,
       };
     }
 
     // Get weapon range (default to melee range 1)
     let weaponRange = 1;
     const attackerChar = attacker.character;
-    
+
     if (attackerChar.equipment && attackerChar.equipment.mainHand) {
       const weapon = attackerChar.equipment.mainHand;
       weaponRange = weapon.range || 1;
@@ -644,17 +678,13 @@ export class Combat {
         message: `Target out of range (${distance} > ${weaponRange})`,
         hit: false,
         critical: false,
-        damage: 0
+        damage: 0,
       };
     }
 
     // Check line of sight for ranged attacks
     if (weaponRange > 1) {
-      const hasLoS = checkLineOfSight(
-        attacker.position,
-        target.position,
-        this.battlefield
-      );
+      const hasLoS = checkLineOfSight(attacker.position, target.position, this.battlefield);
 
       if (!hasLoS) {
         return {
@@ -662,14 +692,14 @@ export class Combat {
           message: 'No line of sight to target',
           hit: false,
           critical: false,
-          damage: 0
+          damage: 0,
         };
       }
     }
 
     // Execute attack using existing logic
     const attackResult = this._resolveAttack(attacker, target);
-    
+
     if (attackResult.hit) {
       // Apply damage to target HP
       target.hp -= attackResult.damage;
@@ -686,7 +716,7 @@ export class Combat {
       hit: attackResult.hit,
       critical: attackResult.critical,
       damage: attackResult.damage,
-      message: attackResult.message
+      message: attackResult.message,
     };
   }
 
@@ -720,9 +750,10 @@ export class Combat {
 
     // Determine attack type and ability modifier
     const attackType = weaponRange > 1 ? 'ranged' : 'melee';
-    const abilityMod = attackType === 'melee'
-      ? Math.floor((attackerChar.abilities.strength - 10) / 2)
-      : Math.floor((attackerChar.abilities.dexterity - 10) / 2);
+    const abilityMod =
+      attackType === 'melee'
+        ? Math.floor((attackerChar.abilities.strength - 10) / 2)
+        : Math.floor((attackerChar.abilities.dexterity - 10) / 2);
 
     // Roll attack
     const attackRoll = this.diceRoller.rollD20();
@@ -736,7 +767,8 @@ export class Combat {
     const targetDodging = target.statusEffects?.some(e => e.name === 'Dodge');
     const effectiveAC = targetDodging ? targetAC + 2 : targetAC;
 
-    const hit = attackRoll === DND.NATURAL_20 || (attackRoll !== DND.NATURAL_1 && attackTotal >= effectiveAC);
+    const hit =
+      attackRoll === DND.NATURAL_20 || (attackRoll !== DND.NATURAL_1 && attackTotal >= effectiveAC);
     const critical = attackRoll === DND.NATURAL_20;
 
     let damage = 0;
@@ -761,7 +793,7 @@ export class Combat {
       hit,
       critical,
       damage,
-      message
+      message,
     };
   }
 
@@ -774,11 +806,11 @@ export class Combat {
    */
   processAbility(combatantId, abilityName, targetId = null) {
     const combatant = this.getCombatantById(combatantId);
-    
+
     if (!combatant) {
       return {
         success: false,
-        message: 'Combatant not found'
+        message: 'Combatant not found',
       };
     }
 
@@ -786,11 +818,11 @@ export class Combat {
 
     // Check if combatant has the ability
     const ability = combatant.character.abilities_list?.find(a => a.name === abilityName);
-    
+
     if (!ability) {
       return {
         success: false,
-        message: `${combatant.character.name} does not have ability: ${abilityName}`
+        message: `${combatant.character.name} does not have ability: ${abilityName}`,
       };
     }
 
@@ -798,7 +830,7 @@ export class Combat {
     if (ability.uses !== undefined && ability.usesRemaining <= 0) {
       return {
         success: false,
-        message: `No uses remaining for ${abilityName}`
+        message: `No uses remaining for ${abilityName}`,
       };
     }
 
@@ -823,11 +855,11 @@ export class Combat {
    */
   processSpell(combatantId, spellName, targetId = null, spellLevel = 1) {
     const caster = this.getCombatantById(combatantId);
-    
+
     if (!caster) {
       return {
         success: false,
-        message: 'Caster not found'
+        message: 'Caster not found',
       };
     }
 
@@ -836,34 +868,30 @@ export class Combat {
     // Get spell - need to check caster's class
     const className = caster.character.class || caster.character.className;
     const spell = getSpell(className, spellName);
-    
+
     if (!spell) {
       return {
         success: false,
-        message: `Spell not found: ${spellName}`
+        message: `Spell not found: ${spellName}`,
       };
     }
 
     // Check if caster has spell slots (unless it's a cantrip)
     const isCantrip = spell.level === 0;
-    
+
     if (!isCantrip) {
       const hasSlot = hasSpellSlot(caster.character, spellLevel);
-      
+
       if (!hasSlot) {
         return {
           success: false,
-          message: `No level ${spellLevel} spell slots remaining`
+          message: `No level ${spellLevel} spell slots remaining`,
         };
       }
     }
 
     // Cast spell
-    const result = spell.cast(
-      caster.character,
-      target?.character || null,
-      this.diceRoller
-    );
+    const result = spell.cast(caster.character, target?.character || null, this.diceRoller);
 
     // Use spell slot if not a cantrip and cast was successful
     if (result.success && !isCantrip) {
@@ -880,23 +908,23 @@ export class Combat {
    */
   processDodge(combatantId) {
     const combatant = this.getCombatantById(combatantId);
-    
+
     if (!combatant) {
       return {
         success: false,
-        message: 'Combatant not found'
+        message: 'Combatant not found',
       };
     }
 
     this.addStatusEffect(combatant, {
       name: 'Dodge',
       duration: 1, // Lasts until end of next turn
-      description: 'Attacks against you have disadvantage'
+      description: 'Attacks against you have disadvantage',
     });
 
     return {
       success: true,
-      message: `${combatant.character.name} takes the Dodge action`
+      message: `${combatant.character.name} takes the Dodge action`,
     };
   }
 
@@ -907,17 +935,17 @@ export class Combat {
    */
   processDash(combatantId) {
     const combatant = this.getCombatantById(combatantId);
-    
+
     if (!combatant) {
       return {
         success: false,
-        message: 'Combatant not found'
+        message: 'Combatant not found',
       };
     }
 
     return {
       success: true,
-      message: `${combatant.character.name} takes the Dash action (movement doubled)`
+      message: `${combatant.character.name} takes the Dash action (movement doubled)`,
     };
   }
 
@@ -935,7 +963,7 @@ export class Combat {
         victory: true,
         defeat: false,
         ongoing: false,
-        xp
+        xp,
       };
     }
 
@@ -944,7 +972,7 @@ export class Combat {
         victory: false,
         defeat: true,
         ongoing: false,
-        xp: 0
+        xp: 0,
       };
     }
 
@@ -952,7 +980,7 @@ export class Combat {
       victory: false,
       defeat: false,
       ongoing: true,
-      xp: 0
+      xp: 0,
     };
   }
 
@@ -994,15 +1022,15 @@ export class Combat {
    */
   tickStatusEffects(combatant) {
     if (!combatant.statusEffects) return;
-    
+
     combatant.statusEffects.forEach(effect => {
       if (effect.duration !== undefined) {
         effect.duration--;
       }
     });
-    
-    combatant.statusEffects = combatant.statusEffects.filter(e => 
-      e.duration === undefined || e.duration > 0
+
+    combatant.statusEffects = combatant.statusEffects.filter(
+      e => e.duration === undefined || e.duration > 0
     );
   }
 }

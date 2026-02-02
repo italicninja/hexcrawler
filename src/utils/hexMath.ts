@@ -1,7 +1,7 @@
 /**
  * Hex Grid Math Utilities
  * Uses cube coordinate system for accurate distance calculations
- * 
+ *
  * Centralized hex math functions to replace duplicate implementations
  * across the codebase
  */
@@ -48,20 +48,13 @@ export function cubeToOffset(x: number, y: number, z: number): HexCoordinates {
  * @param row2 - Target row
  * @returns Distance in hexes
  */
-export function getHexDistance(
-  col1: number,
-  row1: number,
-  col2: number,
-  row2: number
-): number {
+export function getHexDistance(col1: number, row1: number, col2: number, row2: number): number {
   const cube1 = offsetToCube(col1, row1);
   const cube2 = offsetToCube(col2, row2);
 
   return (
-    Math.abs(cube1.x - cube2.x) +
-    Math.abs(cube1.y - cube2.y) +
-    Math.abs(cube1.z - cube2.z)
-  ) / 2;
+    (Math.abs(cube1.x - cube2.x) + Math.abs(cube1.y - cube2.y) + Math.abs(cube1.z - cube2.z)) / 2
+  );
 }
 
 /**

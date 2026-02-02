@@ -14,7 +14,7 @@ export function createGameTime() {
   return {
     day: 1,
     hour: 8, // Start at 8:00 AM
-    minute: 0
+    minute: 0,
   };
 }
 
@@ -96,17 +96,17 @@ export function getTimeOfDay(hour) {
  * Time costs for various actions (in minutes)
  */
 export const TIME_COSTS = {
-  MOVEMENT: 1440,         // 1 day per hex (24 hours)
-  COMBAT_MIN: 5,          // Minimum combat duration
-  COMBAT_MAX: 10,         // Maximum combat duration
-  SHORT_REST: 60,         // 1 hour
-  LONG_REST: 480,         // 8 hours
-  SEARCH: 30,             // Search hex
-  FORAGE: 240,            // 4 hours - thoroughly search area
-  EXPLORATION_MIN: 60,    // 1 hour
-  EXPLORATION_MAX: 120,   // 2 hours
-  CAMP_SETUP: 30,         // Setting up camp
-  CAMP_BREAKDOWN: 15      // Breaking down camp
+  MOVEMENT: 1440, // 1 day per hex (24 hours)
+  COMBAT_MIN: 5, // Minimum combat duration
+  COMBAT_MAX: 10, // Maximum combat duration
+  SHORT_REST: 60, // 1 hour
+  LONG_REST: 480, // 8 hours
+  SEARCH: 30, // Search hex
+  FORAGE: 240, // 4 hours - thoroughly search area
+  EXPLORATION_MIN: 60, // 1 hour
+  EXPLORATION_MAX: 120, // 2 hours
+  CAMP_SETUP: 30, // Setting up camp
+  CAMP_BREAKDOWN: 15, // Breaking down camp
 };
 
 /**
@@ -114,7 +114,10 @@ export const TIME_COSTS = {
  * @returns {number} Minutes (5-10)
  */
 export function getCombatDuration() {
-  return Math.floor(Math.random() * (TIME_COSTS.COMBAT_MAX - TIME_COSTS.COMBAT_MIN + 1)) + TIME_COSTS.COMBAT_MIN;
+  return (
+    Math.floor(Math.random() * (TIME_COSTS.COMBAT_MAX - TIME_COSTS.COMBAT_MIN + 1)) +
+    TIME_COSTS.COMBAT_MIN
+  );
 }
 
 /**
@@ -122,7 +125,10 @@ export function getCombatDuration() {
  * @returns {number} Minutes (60-120)
  */
 export function getExplorationDuration() {
-  return Math.floor(Math.random() * (TIME_COSTS.EXPLORATION_MAX - TIME_COSTS.EXPLORATION_MIN + 1)) + TIME_COSTS.EXPLORATION_MIN;
+  return (
+    Math.floor(Math.random() * (TIME_COSTS.EXPLORATION_MAX - TIME_COSTS.EXPLORATION_MIN + 1)) +
+    TIME_COSTS.EXPLORATION_MIN
+  );
 }
 
 /**
@@ -140,7 +146,7 @@ export function getTimeUntilDawn(gameTime) {
     return dawnMinutes - currentMinutes;
   } else {
     // Next day
-    return (24 * 60 - currentMinutes) + dawnMinutes;
+    return 24 * 60 - currentMinutes + dawnMinutes;
   }
 }
 
@@ -159,7 +165,7 @@ export function getTimeUntilDusk(gameTime) {
     return duskMinutes - currentMinutes;
   } else {
     // Next day
-    return (24 * 60 - currentMinutes) + duskMinutes;
+    return 24 * 60 - currentMinutes + duskMinutes;
   }
 }
 
@@ -173,5 +179,5 @@ export default {
   getCombatDuration,
   getExplorationDuration,
   getTimeUntilDawn,
-  getTimeUntilDusk
+  getTimeUntilDusk,
 };

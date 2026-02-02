@@ -16,7 +16,7 @@ function SpellMenu({ character, onSelect, onClose }) {
       2: { 1: 3 },
       3: { 1: 4, 2: 2 },
       4: { 1: 4, 2: 3 },
-      5: { 1: 4, 2: 3, 3: 2 }
+      5: { 1: 4, 2: 3, 3: 2 },
     };
 
     const level = Math.min(character.level || 1, 5);
@@ -27,7 +27,7 @@ function SpellMenu({ character, onSelect, onClose }) {
   const spellSlotsUsed = character.spellSlotsUsed || {};
 
   // Calculate remaining spell slots per level
-  const getRemainingSlots = (level) => {
+  const getRemainingSlots = level => {
     const max = spellSlots[level] || 0;
     const used = spellSlotsUsed[level] || 0;
     return Math.max(0, max - used);
@@ -40,7 +40,7 @@ function SpellMenu({ character, onSelect, onClose }) {
       0: [], // Cantrips
       1: [],
       2: [],
-      3: []
+      3: [],
     };
 
     spells.forEach(spell => {
@@ -57,7 +57,7 @@ function SpellMenu({ character, onSelect, onClose }) {
 
   // Handle ESC key to close
   useEffect(() => {
-    const handleEsc = (e) => {
+    const handleEsc = e => {
       if (e.key === 'Escape') {
         onClose();
       }
@@ -67,7 +67,7 @@ function SpellMenu({ character, onSelect, onClose }) {
   }, [onClose]);
 
   // Handle click outside to close
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = e => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -76,7 +76,7 @@ function SpellMenu({ character, onSelect, onClose }) {
   /**
    * Check if spell can be cast (has available slots or is cantrip)
    */
-  const canCastSpell = (spell) => {
+  const canCastSpell = spell => {
     if (spell.level === 0) return true; // Cantrips are always available
     return getRemainingSlots(spell.level) > 0;
   };
@@ -84,16 +84,16 @@ function SpellMenu({ character, onSelect, onClose }) {
   /**
    * Get spell school color
    */
-  const getSchoolColor = (school) => {
+  const getSchoolColor = school => {
     const colors = {
-      'Abjuration': '#3498db',
-      'Conjuration': '#9b59b6',
-      'Divination': '#f39c12',
-      'Enchantment': '#e91e63',
-      'Evocation': '#e74c3c',
-      'Illusion': '#8e44ad',
-      'Necromancy': '#2c3e50',
-      'Transmutation': '#16a085'
+      Abjuration: '#3498db',
+      Conjuration: '#9b59b6',
+      Divination: '#f39c12',
+      Enchantment: '#e91e63',
+      Evocation: '#e74c3c',
+      Illusion: '#8e44ad',
+      Necromancy: '#2c3e50',
+      Transmutation: '#16a085',
     };
     return colors[school] || 'var(--primary-color)';
   };
@@ -108,16 +108,16 @@ function SpellMenu({ character, onSelect, onClose }) {
         className="rounded-lg max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
         style={{
           backgroundColor: 'var(--panel-bg)',
-          border: '2px solid var(--accent-color)'
+          border: '2px solid var(--accent-color)',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div
           className="flex justify-between items-center p-4"
           style={{
             backgroundColor: 'var(--bg-lighter)',
-            borderBottom: '2px solid var(--border-color)'
+            borderBottom: '2px solid var(--border-color)',
           }}
         >
           <div>
@@ -143,7 +143,7 @@ function SpellMenu({ character, onSelect, onClose }) {
           className="p-4 grid grid-cols-3 gap-3"
           style={{
             backgroundColor: 'var(--bg-color)',
-            borderBottom: '1px solid var(--border-color)'
+            borderBottom: '1px solid var(--border-color)',
           }}
         >
           {[1, 2, 3].map(level => {
@@ -157,15 +157,18 @@ function SpellMenu({ character, onSelect, onClose }) {
                 className="p-2 rounded text-center"
                 style={{
                   backgroundColor: 'var(--bg-lighter)',
-                  border: '1px solid var(--border-color)'
+                  border: '1px solid var(--border-color)',
                 }}
               >
                 <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   Level {level} Slots
                 </div>
-                <div className="text-lg font-bold" style={{
-                  color: remaining > 0 ? 'var(--accent-color)' : 'var(--text-muted)'
-                }}>
+                <div
+                  className="text-lg font-bold"
+                  style={{
+                    color: remaining > 0 ? 'var(--accent-color)' : 'var(--text-muted)',
+                  }}
+                >
                   {remaining}/{max}
                 </div>
               </div>
@@ -178,7 +181,7 @@ function SpellMenu({ character, onSelect, onClose }) {
           className="flex gap-2 p-3 overflow-x-auto"
           style={{
             backgroundColor: 'var(--bg-lighter)',
-            borderBottom: '1px solid var(--border-color)'
+            borderBottom: '1px solid var(--border-color)',
           }}
         >
           <button
@@ -188,7 +191,7 @@ function SpellMenu({ character, onSelect, onClose }) {
             style={{
               backgroundColor: selectedLevel === 'all' ? 'var(--primary-color)' : 'var(--bg-color)',
               color: selectedLevel === 'all' ? 'white' : 'var(--text-color)',
-              border: '1px solid var(--border-color)'
+              border: '1px solid var(--border-color)',
             }}
             onClick={() => setSelectedLevel('all')}
           >
@@ -206,9 +209,10 @@ function SpellMenu({ character, onSelect, onClose }) {
                   selectedLevel === level ? 'ring-2' : ''
                 }`}
                 style={{
-                  backgroundColor: selectedLevel === level ? 'var(--primary-color)' : 'var(--bg-color)',
+                  backgroundColor:
+                    selectedLevel === level ? 'var(--primary-color)' : 'var(--bg-color)',
                   color: selectedLevel === level ? 'white' : 'var(--text-color)',
-                  border: '1px solid var(--border-color)'
+                  border: '1px solid var(--border-color)',
                 }}
                 onClick={() => setSelectedLevel(level)}
               >
@@ -249,18 +253,20 @@ function SpellMenu({ character, onSelect, onClose }) {
                       <button
                         key={index}
                         className={`w-full text-left p-3 rounded-lg transition-all duration-200 ${
-                          canCast ? 'hover:scale-102 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                          canCast
+                            ? 'hover:scale-102 cursor-pointer'
+                            : 'opacity-50 cursor-not-allowed'
                         }`}
                         style={{
                           backgroundColor: 'var(--bg-lighter)',
-                          border: `2px solid ${canCast ? 'var(--border-color)' : 'var(--text-muted)'}`
+                          border: `2px solid ${canCast ? 'var(--border-color)' : 'var(--text-muted)'}`,
                         }}
-                        onMouseEnter={(e) => {
+                        onMouseEnter={e => {
                           if (canCast) {
                             e.currentTarget.style.borderColor = getSchoolColor(spell.school);
                           }
                         }}
-                        onMouseLeave={(e) => {
+                        onMouseLeave={e => {
                           e.currentTarget.style.borderColor = 'var(--border-color)';
                         }}
                         onClick={() => {
@@ -282,7 +288,7 @@ function SpellMenu({ character, onSelect, onClose }) {
                                 className="px-2 py-1 rounded"
                                 style={{
                                   backgroundColor: getSchoolColor(spell.school),
-                                  color: 'white'
+                                  color: 'white',
                                 }}
                               >
                                 {spell.school || 'Evocation'}
@@ -310,9 +316,7 @@ function SpellMenu({ character, onSelect, onClose }) {
 
                         {/* Can't cast warning */}
                         {!canCast && spell.level > 0 && (
-                          <div className="text-xs mt-2 text-red-400">
-                            No spell slots remaining
-                          </div>
+                          <div className="text-xs mt-2 text-red-400">No spell slots remaining</div>
                         )}
                       </button>
                     );
@@ -335,14 +339,14 @@ function SpellMenu({ character, onSelect, onClose }) {
           className="p-4"
           style={{
             backgroundColor: 'var(--bg-lighter)',
-            borderTop: '2px solid var(--border-color)'
+            borderTop: '2px solid var(--border-color)',
           }}
         >
           <button
             className="w-full py-2 rounded-lg font-semibold transition-colors"
             style={{
               backgroundColor: 'var(--border-color)',
-              color: 'var(--text-color)'
+              color: 'var(--text-color)',
             }}
             onClick={onClose}
           >
@@ -366,13 +370,13 @@ SpellMenu.propTypes = {
         school: PropTypes.string,
         range: PropTypes.string,
         description: PropTypes.string,
-        components: PropTypes.string
+        components: PropTypes.string,
       })
     ),
-    spellSlotsUsed: PropTypes.object
+    spellSlotsUsed: PropTypes.object,
   }).isRequired,
   onSelect: PropTypes.func.isRequired,
-  onClose: PropTypes.func.isRequired
+  onClose: PropTypes.func.isRequired,
 };
 
 export default SpellMenu;

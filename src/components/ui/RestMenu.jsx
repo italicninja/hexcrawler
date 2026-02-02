@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { RestManager } from '../../game/RestManager';
+import { applyStarvation } from '../../game/SurvivalManager';
 import { generateRestFlavor } from '../../utils/flavorTextGenerator';
 
 function RestMenu({ onClose }) {
@@ -16,9 +17,11 @@ function RestMenu({ onClose }) {
 
   // Get current hex (memoized, using HexGrid for O(1) lookup)
   const currentHex = useMemo(() => {
-    return state.hexGrid 
+    return state.hexGrid
       ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
-      : state.mapData?.find(h => h.col === state.playerPosition.col && h.row === state.playerPosition.row);
+      : state.mapData?.find(
+          h => h.col === state.playerPosition.col && h.row === state.playerPosition.row
+        );
   }, [state.hexGrid, state.mapData, state.playerPosition.col, state.playerPosition.row]);
 
   // Helper to convert game time to total hours since game start
@@ -42,13 +45,13 @@ function RestMenu({ onClose }) {
     // Dispatch action to update character and time
     dispatch({
       type: actions.SHORT_REST,
-      payload: { character }
+      payload: { character },
     });
 
     // Log rest result
     if (result.success) {
       addMessage(result.message, 'info');
-      
+
       // Optional flavor (30% chance)
       if (Math.random() < 0.3) {
         const flavor = generateRestFlavor('short');
@@ -78,16 +81,19 @@ function RestMenu({ onClose }) {
 
     if (interrupted) {
       // Rest was interrupted - only recover partial HP
-      const partialResult = RestManager.shortRest(character, Math.floor(character.hitDiceRemaining / 2));
+      const partialResult = RestManager.shortRest(
+        character,
+        Math.floor(character.hitDiceRemaining / 2)
+      );
 
       dispatch({
         type: actions.SHORT_REST, // Use short rest since interrupted
-        payload: { character }
+        payload: { character },
       });
 
       // Log interruption
       addMessage('Your rest is interrupted by hostile creatures!', 'warning');
-      
+
       // Optional interrupted flavor (30% chance)
       if (Math.random() < 0.3) {
         const flavor = generateRestFlavor('long', true);
@@ -102,16 +108,24 @@ function RestMenu({ onClose }) {
     // Perform long rest
     const result = RestManager.longRest(character, currentGameTime);
 
+    // Check for starvation effects after rest
+    const starvationResult = applyStarvation(character);
+
     // Dispatch action to update character and time
     dispatch({
       type: actions.LONG_REST,
-      payload: { character }
+      payload: { character },
     });
 
     // Log rest result
     if (result.success) {
       addMessage(result.message, 'info');
-      
+
+      // Log starvation warning if applicable
+      if (starvationResult.exhaustionGained > 0) {
+        addMessage(starvationResult.message, 'warning');
+      }
+
       // Optional peaceful flavor (30% chance)
       if (Math.random() < 0.3) {
         const flavor = generateRestFlavor('long', false);
@@ -139,13 +153,13 @@ function RestMenu({ onClose }) {
     // Dispatch action to update character and time
     dispatch({
       type: actions.INN_REST,
-      payload: { character }
+      payload: { character },
     });
 
     // Log rest result
     if (result.success) {
       addMessage(result.message, 'info');
-      
+
       // Optional inn flavor (30% chance)
       if (Math.random() < 0.3) {
         const flavor = generateRestFlavor('inn');
@@ -171,24 +185,45 @@ function RestMenu({ onClose }) {
   const isFullHP = character.currentHP >= character.maxHP;
 
   return (
-    <div className="rest-menu" style={{
-      padding: '1rem',
-      backgroundColor: 'var(--bg-primary)',
-      border: '1px solid var(--border-color)',
-      borderRadius: '0.5rem',
-      maxWidth: '400px'
-    }}>
+    <div
+      className="rest-menu"
+      style={{
+        padding: '1rem',
+        backgroundColor: 'var(--bg-primary)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '0.5rem',
+        maxWidth: '400px',
+      }}
+    >
       <h3 style={{ marginTop: 0 }}>Rest</h3>
 
       {/* Character Status */}
-      <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.25rem' }}>
-        <p style={{ margin: '0.25rem 0' }}>HP: {character.currentHP} / {character.maxHP}</p>
-        <p style={{ margin: '0.25rem 0' }}>Hit Dice: {character.hitDiceRemaining} / {maxHitDice} ({character.hitDie})</p>
+      <div
+        style={{
+          marginBottom: '1rem',
+          padding: '0.5rem',
+          backgroundColor: 'var(--bg-secondary)',
+          borderRadius: '0.25rem',
+        }}
+      >
+        <p style={{ margin: '0.25rem 0' }}>
+          HP: {character.currentHP} / {character.maxHP}
+        </p>
+        <p style={{ margin: '0.25rem 0' }}>
+          Hit Dice: {character.hitDiceRemaining} / {maxHitDice} ({character.hitDie})
+        </p>
         <p style={{ margin: '0.25rem 0' }}>Gold: {character.gold}</p>
       </div>
 
       {/* Short Rest */}
-      <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '0.25rem' }}>
+      <div
+        style={{
+          marginBottom: '1.5rem',
+          padding: '1rem',
+          border: '1px solid var(--border-color)',
+          borderRadius: '0.25rem',
+        }}
+      >
         <h4 style={{ marginTop: 0 }}>Short Rest (1 hour)</h4>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
           Spend hit dice to recover HP. Some class abilities are recovered.
@@ -204,11 +239,18 @@ function RestMenu({ onClose }) {
             min="0"
             max={character.hitDiceRemaining}
             value={hitDiceToSpend}
-            onChange={(e) => setHitDiceToSpend(parseInt(e.target.value))}
+            onChange={e => setHitDiceToSpend(parseInt(e.target.value))}
             disabled={!canShortRest || isResting}
             style={{ width: '100%' }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '0.8rem',
+              color: 'var(--text-muted)',
+            }}
+          >
             <span>0</span>
             <span>{character.hitDiceRemaining}</span>
           </div>
@@ -220,11 +262,12 @@ function RestMenu({ onClose }) {
           style={{
             width: '100%',
             padding: '0.5rem',
-            backgroundColor: canShortRest && hitDiceToSpend > 0 ? 'var(--color-primary)' : 'var(--bg-tertiary)',
+            backgroundColor:
+              canShortRest && hitDiceToSpend > 0 ? 'var(--color-primary)' : 'var(--bg-tertiary)',
             color: 'white',
             border: 'none',
             borderRadius: '0.25rem',
-            cursor: canShortRest && hitDiceToSpend > 0 ? 'pointer' : 'not-allowed'
+            cursor: canShortRest && hitDiceToSpend > 0 ? 'pointer' : 'not-allowed',
           }}
         >
           {isResting ? 'Resting...' : 'Take Short Rest'}
@@ -232,10 +275,18 @@ function RestMenu({ onClose }) {
       </div>
 
       {/* Long Rest */}
-      <div style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '0.25rem' }}>
+      <div
+        style={{
+          marginBottom: '1rem',
+          padding: '1rem',
+          border: '1px solid var(--border-color)',
+          borderRadius: '0.25rem',
+        }}
+      >
         <h4 style={{ marginTop: 0 }}>Long Rest (8 hours)</h4>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Recover all HP, half of max hit dice, and all class abilities. Can only be done once per 24 hours.
+          Recover all HP, half of max hit dice, and all class abilities. Can only be done once per
+          24 hours.
         </p>
 
         {!canLongRestCheck.allowed && (
@@ -245,10 +296,12 @@ function RestMenu({ onClose }) {
         )}
 
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Warning: There is a {RestManager.calculateInterruptionChance(
+          Warning: There is a{' '}
+          {RestManager.calculateInterruptionChance(
             currentHex?.terrain?.name?.toLowerCase() || 'grassland',
             currentHex?.terrain?.difficulty || 1
-          )}% chance of interruption.
+          )}
+          % chance of interruption.
         </p>
 
         <button
@@ -257,11 +310,13 @@ function RestMenu({ onClose }) {
           style={{
             width: '100%',
             padding: '0.5rem',
-            backgroundColor: canLongRestCheck.allowed ? 'var(--color-success)' : 'var(--bg-tertiary)',
+            backgroundColor: canLongRestCheck.allowed
+              ? 'var(--color-success)'
+              : 'var(--bg-tertiary)',
             color: 'white',
             border: 'none',
             borderRadius: '0.25rem',
-            cursor: canLongRestCheck.allowed ? 'pointer' : 'not-allowed'
+            cursor: canLongRestCheck.allowed ? 'pointer' : 'not-allowed',
           }}
         >
           {isResting ? 'Resting...' : 'Take Long Rest'}
@@ -270,18 +325,35 @@ function RestMenu({ onClose }) {
 
       {/* Inn Rest (only visible in towns) */}
       {isInTown && (
-        <div style={{ marginBottom: '1rem', padding: '1rem', border: '2px solid var(--color-primary)', borderRadius: '0.25rem', backgroundColor: 'rgba(74, 144, 226, 0.05)' }}>
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            border: '2px solid var(--color-primary)',
+            borderRadius: '0.25rem',
+            backgroundColor: 'rgba(74, 144, 226, 0.05)',
+          }}
+        >
           <h4 style={{ marginTop: 0 }}>Stay at Inn (8 hours)</h4>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            Pay for a safe night&apos;s rest at the local inn. Guaranteed safety with no interruptions.
+            Pay for a safe night&apos;s rest at the local inn. Guaranteed safety with no
+            interruptions.
           </p>
 
-          <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.25rem' }}>
+          <div
+            style={{
+              marginBottom: '1rem',
+              padding: '0.5rem',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '0.25rem',
+            }}
+          >
             <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}>
               <strong>Cost:</strong> {costPerPerson} gold per party member
             </p>
             <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}>
-              <strong>Total:</strong> {totalInnCost} gold ({livingMembers} party member{livingMembers > 1 ? 's' : ''})
+              <strong>Total:</strong> {totalInnCost} gold ({livingMembers} party member
+              {livingMembers > 1 ? 's' : ''})
             </p>
           </div>
 
@@ -299,7 +371,9 @@ function RestMenu({ onClose }) {
           )}
 
           {isFullHP && (
-            <p style={{ color: 'var(--color-warning)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+            <p
+              style={{ color: 'var(--color-warning)', fontSize: '0.9rem', marginBottom: '0.5rem' }}
+            >
               Your party is already fully rested.
             </p>
           )}
@@ -310,12 +384,13 @@ function RestMenu({ onClose }) {
             style={{
               width: '100%',
               padding: '0.5rem',
-              backgroundColor: canAffordInn && !isFullHP ? 'var(--color-primary)' : 'var(--bg-tertiary)',
+              backgroundColor:
+                canAffordInn && !isFullHP ? 'var(--color-primary)' : 'var(--bg-tertiary)',
               color: 'white',
               border: 'none',
               borderRadius: '0.25rem',
               cursor: canAffordInn && !isFullHP ? 'pointer' : 'not-allowed',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
             {isResting ? 'Resting...' : `Stay at Inn (${totalInnCost} gold)`}
@@ -324,7 +399,17 @@ function RestMenu({ onClose }) {
       )}
 
       {!isInTown && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.9rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '0.25rem',
+            fontSize: '0.9rem',
+            color: 'var(--text-muted)',
+            textAlign: 'center',
+          }}
+        >
           Travel to a town to stay at an inn for a guaranteed safe rest.
         </div>
       )}
@@ -339,7 +424,7 @@ function RestMenu({ onClose }) {
             color: 'var(--text-color)',
             border: '1px solid var(--border-color)',
             borderRadius: '0.25rem',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           Close
@@ -350,7 +435,7 @@ function RestMenu({ onClose }) {
 }
 
 RestMenu.propTypes = {
-  onClose: PropTypes.func
+  onClose: PropTypes.func,
 };
 
 export default RestMenu;

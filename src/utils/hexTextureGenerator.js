@@ -2,7 +2,7 @@ import logger from './logger.js';
 
 /**
  * Hex Texture Generator
- * 
+ *
  * Generates procedural canvas patterns for terrain types.
  * Uses noise functions and geometric patterns to create organic textures.
  */
@@ -25,14 +25,14 @@ export class HexTextureGenerator {
   getPattern(ctx, terrainType, hexSize, col = 0, row = 0) {
     // Create unique key for each hex position to get variation
     const key = `${terrainType.key}_${hexSize}_${col}_${row}`;
-    
+
     if (!this.patternCache.has(key)) {
       // Use hex coordinates as seed offset for variation
       const seedOffset = col * 7919 + row * 6871; // Large primes for good distribution
       const pattern = this.createPattern(ctx, terrainType, hexSize, seedOffset);
       this.patternCache.set(key, pattern);
     }
-    
+
     return this.patternCache.get(key);
   }
 
@@ -53,7 +53,7 @@ export class HexTextureGenerator {
     const pctx = patternCanvas.getContext('2d');
 
     // Generate terrain-specific pattern with seed offset
-    switch(terrainType.key) {
+    switch (terrainType.key) {
       case 'grassland':
         this.drawGrasslandPattern(pctx, patternSize, terrainType.color, seedOffset);
         break;
@@ -99,7 +99,7 @@ export class HexTextureGenerator {
     // Add noise-based color variation (lighter and darker patches)
     for (let y = 0; y < size; y += 4) {
       for (let x = 0; x < size; x += 4) {
-        const noise = this.noise.noise2D(x / size * 2, y / size * 2);
+        const noise = this.noise.noise2D((x / size) * 2, (y / size) * 2);
         const brightness = Math.floor((noise + 1) * 10); // -1 to 1 -> 0 to 20
         ctx.fillStyle = `rgba(0, 0, 0, ${0.02 * Math.abs(noise)})`;
         ctx.fillRect(x, y, 4, 4);
@@ -113,7 +113,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 0.5, 0) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(0, seedOffset + i * 0.5) * 0.5 + 0.5) * size;
       const height = 2 + (this.noise.noise2D(seedOffset + i, i) * 0.5 + 0.5) * 2;
-      
+
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x, y - height);
@@ -134,7 +134,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 1.2, 0) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(0, seedOffset + i * 1.2) * 0.5 + 0.5) * size;
       const radius = 3 + (this.noise.noise2D(seedOffset + i, i) * 0.5 + 0.5) * 3;
-      
+
       ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -147,7 +147,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 2, 10) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(10, seedOffset + i * 2) * 0.5 + 0.5) * size;
       const treeSize = 3;
-      
+
       ctx.beginPath();
       ctx.moveTo(x, y - treeSize);
       ctx.lineTo(x - treeSize, y + treeSize);
@@ -171,7 +171,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 1.5, 5) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(5, seedOffset + i * 1.5) * 0.5 + 0.5) * size;
       const rockSize = 2 + (this.noise.noise2D(seedOffset + i, i + 5) * 0.5 + 0.5) * 4;
-      
+
       ctx.beginPath();
       ctx.moveTo(x, y - rockSize);
       ctx.lineTo(x + rockSize, y);
@@ -206,10 +206,10 @@ export class HexTextureGenerator {
     for (let i = 0; i < 6; i++) {
       const offset = i * (size / 6);
       const amplitude = 3 + (this.noise.noise2D(seedOffset + i, 0) * 0.5 + 0.5) * 3;
-      
+
       ctx.beginPath();
       for (let x = 0; x <= size; x += 2) {
-        const noise = this.noise.noise2D(x / size * 3 + seedOffset + i, i);
+        const noise = this.noise.noise2D((x / size) * 3 + seedOffset + i, i);
         const y = offset + noise * amplitude;
         if (x === 0) {
           ctx.moveTo(x, y);
@@ -226,7 +226,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 2, 20) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(20, seedOffset + i * 2) * 0.5 + 0.5) * size;
       const radius = 2 + (this.noise.noise2D(seedOffset + i, i + 20) * 0.5 + 0.5) * 2;
-      
+
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -248,10 +248,10 @@ export class HexTextureGenerator {
       const offset = i * (size / 8);
       const amplitude = 2;
       const frequency = 4;
-      
+
       ctx.beginPath();
       for (let x = 0; x <= size; x += 1) {
-        const y = offset + Math.sin(x / size * Math.PI * frequency + i) * amplitude;
+        const y = offset + Math.sin((x / size) * Math.PI * frequency + i) * amplitude;
         if (x === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -267,7 +267,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 3, 30) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(30, seedOffset + i * 3) * 0.5 + 0.5) * size;
       const radius = 4 + (this.noise.noise2D(seedOffset + i, i + 30) * 0.5 + 0.5) * 4;
-      
+
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -289,10 +289,10 @@ export class HexTextureGenerator {
       const offset = i * (size / 6);
       const amplitude = 3;
       const frequency = 3;
-      
+
       ctx.beginPath();
       for (let x = 0; x <= size; x += 1) {
-        const y = offset + Math.sin(x / size * Math.PI * frequency + i * 0.5) * amplitude;
+        const y = offset + Math.sin((x / size) * Math.PI * frequency + i * 0.5) * amplitude;
         if (x === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -308,7 +308,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 2.5, 40) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(40, seedOffset + i * 2.5) * 0.5 + 0.5) * size;
       const radius = 1 + (this.noise.noise2D(seedOffset + i, i + 40) * 0.5 + 0.5) * 1.5;
-      
+
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -330,10 +330,10 @@ export class HexTextureGenerator {
       const offset = i * (size / 5);
       const amplitude = 4;
       const frequency = 2;
-      
+
       ctx.beginPath();
       for (let x = 0; x <= size; x += 2) {
-        const y = offset + Math.sin(x / size * Math.PI * frequency + i * 0.8) * amplitude;
+        const y = offset + Math.sin((x / size) * Math.PI * frequency + i * 0.8) * amplitude;
         if (x === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -348,7 +348,7 @@ export class HexTextureGenerator {
     for (let i = 0; i < 40; i++) {
       const x = (this.noise.noise2D(seedOffset + i * 0.8, 50) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(50, seedOffset + i * 0.8) * 0.5 + 0.5) * size;
-      
+
       ctx.fillRect(x, y, 1, 1);
     }
   }
@@ -367,7 +367,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 1.8, 60) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(60, seedOffset + i * 1.8) * 0.5 + 0.5) * size;
       const radius = 3 + (this.noise.noise2D(seedOffset + i, i + 60) * 0.5 + 0.5) * 4;
-      
+
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -379,7 +379,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 2.2, 65) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(65, seedOffset + i * 2.2) * 0.5 + 0.5) * size;
       const radius = 1 + (this.noise.noise2D(seedOffset + i, i + 65) * 0.5 + 0.5) * 1.5;
-      
+
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -392,7 +392,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 2.8, 70) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(70, seedOffset + i * 2.8) * 0.5 + 0.5) * size;
       const height = 3 + (this.noise.noise2D(seedOffset + i, i + 70) * 0.5 + 0.5) * 4;
-      
+
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x, y - height);
@@ -414,7 +414,7 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 2, 80) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(80, seedOffset + i * 2) * 0.5 + 0.5) * size;
       const radius = 4 + (this.noise.noise2D(seedOffset + i, i + 80) * 0.5 + 0.5) * 5;
-      
+
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -427,13 +427,13 @@ export class HexTextureGenerator {
       const x = (this.noise.noise2D(seedOffset + i * 1.5, 85) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(85, seedOffset + i * 1.5) * 0.5 + 0.5) * size;
       const crystalSize = 2;
-      
+
       // Horizontal line
       ctx.beginPath();
       ctx.moveTo(x - crystalSize, y);
       ctx.lineTo(x + crystalSize, y);
       ctx.stroke();
-      
+
       // Vertical line
       ctx.beginPath();
       ctx.moveTo(x, y - crystalSize);
@@ -446,7 +446,7 @@ export class HexTextureGenerator {
     for (let i = 0; i < 6; i++) {
       const x = (this.noise.noise2D(seedOffset + i * 3, 90) * 0.5 + 0.5) * size;
       const y = (this.noise.noise2D(90, seedOffset + i * 3) * 0.5 + 0.5) * size;
-      
+
       ctx.fillRect(x, y, 1, 2);
     }
   }
@@ -457,7 +457,7 @@ export class HexTextureGenerator {
   drawDefaultPattern(ctx, size, baseColor, seedOffset = 0) {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
-    
+
     // Simple diagonal lines
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
     ctx.lineWidth = 1;

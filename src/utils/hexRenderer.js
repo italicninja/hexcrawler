@@ -15,7 +15,7 @@
  */
 export function calculateHexPosition(col, row, hexSize) {
   const xSpacing = hexSize * Math.sqrt(3);
-  const xOffset = Math.abs(row % 2) * (hexSize * Math.sqrt(3) / 2);
+  const xOffset = Math.abs(row % 2) * ((hexSize * Math.sqrt(3)) / 2);
   const x = col * xSpacing + hexSize * 1.5 + xOffset;
 
   const ySpacing = hexSize * 1.5;
@@ -35,7 +35,15 @@ export function calculateHexPosition(col, row, hexSize) {
  * @param {string} strokeStyle - Stroke color (optional, if null won't stroke)
  * @param {number} lineWidth - Stroke width (default 1)
  */
-export function drawHexShape(ctx, x, y, hexSize, fillStyle = null, strokeStyle = '#333', lineWidth = 1) {
+export function drawHexShape(
+  ctx,
+  x,
+  y,
+  hexSize,
+  fillStyle = null,
+  strokeStyle = '#333',
+  lineWidth = 1
+) {
   ctx.beginPath();
 
   // Draw 6 sides of hex
@@ -119,9 +127,10 @@ export function isPointInHex(pointX, pointY, hexX, hexY, hexSize) {
   if (dy > hexSize) return false;
 
   // Precise check using hex geometry
-  const check = (hexSize * Math.sqrt(3) / 2 * hexSize -
-                 hexSize / 2 * dx -
-                 hexSize * Math.sqrt(3) / 2 * dy);
+  const check =
+    ((hexSize * Math.sqrt(3)) / 2) * hexSize -
+    (hexSize / 2) * dx -
+    ((hexSize * Math.sqrt(3)) / 2) * dy;
 
   return check >= 0;
 }

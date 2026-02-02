@@ -20,7 +20,7 @@ export class RuinsGenerator extends InteriorGenerator {
       key: 'rubble',
       name: 'Rubble',
       color: '#5a5a5a',
-      walkable: true
+      walkable: true,
     };
   }
 
@@ -52,7 +52,7 @@ export class RuinsGenerator extends InteriorGenerator {
       encounters: [], // Will be populated later
       loot: [], // Will be populated later
       hazards: [], // Will be populated later
-      entrance
+      entrance,
     };
   }
 
@@ -70,7 +70,7 @@ export class RuinsGenerator extends InteriorGenerator {
 
     // Determine room count based on CR (3-7 rooms)
     const roomCount = Math.min(7, Math.max(3, 3 + Math.floor(cr / 2)));
-    
+
     logger.mapgen.info('Generating ruins', { width, height, cr, roomCount, seedSet: !!this.rng });
 
     // Generate rooms
@@ -101,22 +101,35 @@ export class RuinsGenerator extends InteriorGenerator {
       // Check if room overlaps with existing rooms (with 1-hex buffer)
       const buffer = 1;
       const overlaps = rooms.some(room => {
-        return !(roomCol + roomWidth + buffer <= room.col ||
-                roomCol >= room.col + room.width + buffer ||
-                roomRow + roomHeight + buffer <= room.row ||
-                roomRow >= room.row + room.height + buffer);
+        return !(
+          roomCol + roomWidth + buffer <= room.col ||
+          roomCol >= room.col + room.width + buffer ||
+          roomRow + roomHeight + buffer <= room.row ||
+          roomRow >= room.row + room.height + buffer
+        );
       });
 
       if (!overlaps) {
-        logger.mapgen.debug('Placed room', { roomNum: rooms.length + 1, col: roomCol, row: roomRow, width: roomWidth, height: roomHeight });
+        logger.mapgen.debug('Placed room', {
+          roomNum: rooms.length + 1,
+          col: roomCol,
+          row: roomRow,
+          width: roomWidth,
+          height: roomHeight,
+        });
         rooms.push({
           col: roomCol,
           row: roomRow,
           width: roomWidth,
-          height: roomHeight
+          height: roomHeight,
         });
       } else {
-        logger.mapgen.debug('Room placement failed (overlap)', { col: roomCol, row: roomRow, width: roomWidth, height: roomHeight });
+        logger.mapgen.debug('Room placement failed (overlap)', {
+          col: roomCol,
+          row: roomRow,
+          width: roomWidth,
+          height: roomHeight,
+        });
       }
     }
 
@@ -131,7 +144,7 @@ export class RuinsGenerator extends InteriorGenerator {
         col: Math.floor((width - fallbackWidth) / 2),
         row: Math.floor((height - fallbackHeight) / 2),
         width: fallbackWidth,
-        height: fallbackHeight
+        height: fallbackHeight,
       });
     }
 
@@ -147,7 +160,7 @@ export class RuinsGenerator extends InteriorGenerator {
         }
       }
     }
-    
+
     logger.mapgen.debug('Rooms carved, checking floor tiles');
     let floorCount = 0;
     for (let row = 0; row < height; row++) {
@@ -167,11 +180,11 @@ export class RuinsGenerator extends InteriorGenerator {
       // Find center of each room
       const centerA = {
         col: Math.floor(roomA.col + roomA.width / 2),
-        row: Math.floor(roomA.row + roomA.height / 2)
+        row: Math.floor(roomA.row + roomA.height / 2),
       };
       const centerB = {
         col: Math.floor(roomB.col + roomB.width / 2),
-        row: Math.floor(roomB.row + roomB.height / 2)
+        row: Math.floor(roomB.row + roomB.height / 2),
       };
 
       // Carve corridor (L-shaped)
@@ -188,11 +201,11 @@ export class RuinsGenerator extends InteriorGenerator {
         if (roomA !== roomB) {
           const centerA = {
             col: Math.floor(roomA.col + roomA.width / 2),
-            row: Math.floor(roomA.row + roomA.height / 2)
+            row: Math.floor(roomA.row + roomA.height / 2),
           };
           const centerB = {
             col: Math.floor(roomB.col + roomB.width / 2),
-            row: Math.floor(roomB.row + roomB.height / 2)
+            row: Math.floor(roomB.row + roomB.height / 2),
           };
 
           this.carveRuinsCorridor(grid, centerA, centerB);
@@ -201,11 +214,11 @@ export class RuinsGenerator extends InteriorGenerator {
     }
 
     // Add rubble to simulate crumbling walls (10-20% of floor tiles)
-    this.addRubble(grid, 0.10, 0.20);
+    this.addRubble(grid, 0.1, 0.2);
 
     // Add occasional chasms (collapsed floors)
     this.addChasms(grid, 0.02, 0.05);
-    
+
     // Final verification
     let finalFloorCount = 0;
     let finalWallCount = 0;
@@ -218,7 +231,11 @@ export class RuinsGenerator extends InteriorGenerator {
         }
       }
     }
-    logger.mapgen.info('Final terrain counts', { floor: finalFloorCount, wall: finalWallCount, total: width * height });
+    logger.mapgen.info('Final terrain counts', {
+      floor: finalFloorCount,
+      wall: finalWallCount,
+      total: width * height,
+    });
 
     return grid;
   }
@@ -352,9 +369,10 @@ export class RuinsGenerator extends InteriorGenerator {
       entrance = this.randomChoice(candidates);
     } else {
       const walkableTiles = this.getWalkableTiles(grid);
-      entrance = walkableTiles.length > 0
-        ? this.randomChoice(walkableTiles)
-        : { col: Math.floor(width / 2), row: Math.floor(height / 2) };
+      entrance =
+        walkableTiles.length > 0
+          ? this.randomChoice(walkableTiles)
+          : { col: Math.floor(width / 2), row: Math.floor(height / 2) };
     }
 
     // Mark as entrance
@@ -391,9 +409,8 @@ export class RuinsGenerator extends InteriorGenerator {
         return dist >= 4;
       });
 
-      const tile = farTiles.length > 0
-        ? this.randomChoice(farTiles)
-        : this.randomChoice(floorTiles);
+      const tile =
+        farTiles.length > 0 ? this.randomChoice(farTiles) : this.randomChoice(floorTiles);
 
       const index = floorTiles.indexOf(tile);
       floorTiles.splice(index, 1);
@@ -409,7 +426,7 @@ export class RuinsGenerator extends InteriorGenerator {
         cr: cr,
         creatures: poiData.creatures || `CR ${cr} guardians`,
         defeated: false,
-        discovered: false
+        discovered: false,
       });
     }
 
@@ -443,10 +460,10 @@ export class RuinsGenerator extends InteriorGenerator {
 
       // 25% chance of treasure chest, 75% regular loot
       const isChest = this.random() < 0.25;
-      
+
       let lootData;
       let contentType;
-      
+
       if (isChest) {
         // Generate DMG treasure hoard
         lootData = treasureGenerator.generateTreasureHoard(cr, partySize, () => this.random());
@@ -471,7 +488,7 @@ export class RuinsGenerator extends InteriorGenerator {
         consumables: lootData.consumables || [],
         rarity: lootData.rarity,
         collected: false,
-        discovered: false
+        discovered: false,
       });
     }
 
@@ -514,7 +531,7 @@ export class RuinsGenerator extends InteriorGenerator {
         row: tile.row,
         ...generatedHazard,
         triggered: false,
-        discovered: false
+        discovered: false,
       });
     }
 

@@ -19,7 +19,7 @@ function BugReportModal({ isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleEscape = (e) => {
+    const handleEscape = e => {
       if (e.key === 'Escape') {
         handleCancel();
       }
@@ -29,9 +29,9 @@ function BugReportModal({ isOpen, onClose }) {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    
+
     if (!description.trim()) {
       setError('Please enter a bug description');
       return;
@@ -42,12 +42,12 @@ function BugReportModal({ isOpen, onClose }) {
 
     try {
       // Format game log for attachment
-      const gameLog = messages.map(msg => 
-        `[${msg.timestamp}] [${msg.type}] ${msg.text}`
-      ).join('\n');
+      const gameLog = messages
+        .map(msg => `[${msg.timestamp}] [${msg.type}] ${msg.text}`)
+        .join('\n');
 
       const result = await submitBugReport(description, gameLog);
-      
+
       if (result.success) {
         addMessage(`Bug report submitted successfully! Issue #${result.issueNumber}`, 'success');
         setDescription('');
@@ -72,14 +72,10 @@ function BugReportModal({ isOpen, onClose }) {
 
   return (
     <div className="bug-report-overlay" onClick={handleCancel}>
-      <div className="bug-report-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="bug-report-modal" onClick={e => e.stopPropagation()}>
         <div className="bug-report-header">
           <h2>Report a Bug</h2>
-          <button 
-            className="close-button" 
-            onClick={handleCancel}
-            aria-label="Close"
-          >
+          <button className="close-button" onClick={handleCancel} aria-label="Close">
             &times;
           </button>
         </div>
@@ -93,7 +89,7 @@ function BugReportModal({ isOpen, onClose }) {
             <textarea
               id="bug-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={e => setDescription(e.target.value)}
               placeholder="What happened? What did you expect to happen? Steps to reproduce..."
               rows={8}
               disabled={isSubmitting}
@@ -101,16 +97,10 @@ function BugReportModal({ isOpen, onClose }) {
             />
           </div>
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
 
           <div className="bug-report-info">
-            <p>
-              The current game log will be automatically attached to help with debugging.
-            </p>
+            <p>The current game log will be automatically attached to help with debugging.</p>
             <p className="log-count">
               {messages.length} log {messages.length === 1 ? 'entry' : 'entries'} will be included
             </p>
@@ -141,7 +131,7 @@ function BugReportModal({ isOpen, onClose }) {
 
 BugReportModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired
+  onClose: PropTypes.func.isRequired,
 };
 
 export default BugReportModal;

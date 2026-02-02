@@ -17,9 +17,24 @@ function getHexNeighbors(col, row, width, height) {
   const neighbors = [];
 
   // Hex grid neighbor offsets (flat-top orientation)
-  const offsets = Math.abs(row % 2) === 0
-    ? [[-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]] // Even row
-    : [[0, -1], [1, -1], [-1, 0], [1, 0], [0, 1], [1, 1]]; // Odd row
+  const offsets =
+    Math.abs(row % 2) === 0
+      ? [
+          [-1, -1],
+          [0, -1],
+          [-1, 0],
+          [1, 0],
+          [-1, 1],
+          [0, 1],
+        ] // Even row
+      : [
+          [0, -1],
+          [1, -1],
+          [-1, 0],
+          [1, 0],
+          [0, 1],
+          [1, 1],
+        ]; // Odd row
 
   for (const [dc, dr] of offsets) {
     const newCol = col + dc;
@@ -136,7 +151,10 @@ export function findPath(start, goal, battlefield, maxDistance) {
       if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)) {
         cameFrom.set(neighborKey, currentKey);
         gScore.set(neighborKey, tentativeG);
-        fScore.set(neighborKey, tentativeG + getHexDistance(neighbor.col, neighbor.row, goal.col, goal.row));
+        fScore.set(
+          neighborKey,
+          tentativeG + getHexDistance(neighbor.col, neighbor.row, goal.col, goal.row)
+        );
 
         if (!openSet.has(neighborKey)) {
           openSet.set(neighborKey, neighbor);

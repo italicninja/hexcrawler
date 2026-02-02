@@ -12,12 +12,12 @@ import { useHexInteraction } from '../../hooks/useHexInteraction';
 import { TerrainGenerator } from '../../terrainGenerator.js';
 import { TIME_COSTS, formatTime, getCombatDuration, getTimeOfDay } from '../../game/TimeManager.js';
 import { DiceRoller } from '../../game/DiceRoller.js';
-import { 
-  generateHexEntryFlavor, 
-  generateTimeTransitionFlavor, 
+import {
+  generateHexEntryFlavor,
+  generateTimeTransitionFlavor,
   generateWeatherFlavor,
   generatePOIFlavor,
-  generateCombatIntro 
+  generateCombatIntro,
 } from '../../utils/flavorTextGenerator';
 import { Combat } from '../../game/Combat.js';
 import { Enemy } from '../../game/Enemy.js';
@@ -47,7 +47,8 @@ import { SaveManager } from '../../utils/SaveManager';
 import { EnemyAI } from '../../game/EnemyAI';
 
 function OverworldScene() {
-  const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } = useGameState();
+  const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } =
+    useGameState();
   const { settings } = useSettings();
   const { addMessage } = useGameLog();
   // const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
@@ -57,8 +58,11 @@ function OverworldScene() {
   const [selectedCharacter, setSelectedCharacter] = useState(state.playerCharacter);
   const [selectedHex, setSelectedHex] = useState(null);
   const [selectedInteriorHex, setSelectedInteriorHex] = useState(null);
-  const [viewportSize, setViewportSize] = useState({ width: window.innerWidth, height: window.innerHeight });
-  
+  const [viewportSize, setViewportSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
   // Combat UI state
   const [combatUIState, setCombatUIState] = useState({
     selectedAction: null,
@@ -66,7 +70,7 @@ function OverworldScene() {
     hoveredHex: null,
     cameraOffset: { x: 50, y: 50 },
     cameraZoom: 1.0, // Locked at 1.0 - zoom disabled in combat
-    attacksUsedThisTurn: 0
+    attacksUsedThisTurn: 0,
   });
 
   const terrainGeneratorRef = useRef(null);
@@ -120,7 +124,7 @@ function OverworldScene() {
         label: 'Party',
         icon: '👥',
         description: 'Manage party members',
-        badge: state.party?.npcs?.filter(npc => npc).length || 0
+        badge: state.party?.npcs?.filter(npc => npc).length || 0,
       },
       {
         id: 'equipment',
@@ -145,7 +149,7 @@ function OverworldScene() {
         label: 'Quests',
         icon: '📜',
         description: 'Track your quests',
-        badge: state.activeQuests?.length || 0
+        badge: state.activeQuests?.length || 0,
       },
       {
         id: 'save',
@@ -158,13 +162,13 @@ function OverworldScene() {
         label: 'Config',
         icon: '⚙️',
         description: 'Game settings',
-      }
+      },
     ];
-    
+
     return items;
   }, [state.party?.npcs, state.activeQuests?.length]);
 
-  const handleMenuItemClick = (item) => {
+  const handleMenuItemClick = item => {
     // If survival is clicked, trigger foraging directly instead of opening panel
     if (item.id === 'survival') {
       if (!state.inInterior) {
@@ -174,13 +178,13 @@ function OverworldScene() {
       }
       return;
     }
-    
+
     // If save is clicked, open save menu modal
     if (item.id === 'save') {
       setShowSaveMenu(true);
       return;
     }
-    
+
     setOpenPanel(item.id);
   };
 
@@ -188,11 +192,11 @@ function OverworldScene() {
     setOpenPanel(null);
   };
 
-  const handleHexClick = (hex) => {
+  const handleHexClick = hex => {
     setSelectedHex(hex);
   };
 
-  const handleHexDoubleClick = (hex) => {
+  const handleHexDoubleClick = hex => {
     if (!settings.doubleClickMove) return;
 
     // Block movement if active event is in progress
@@ -209,8 +213,19 @@ function OverworldScene() {
     }
   };
 
-  const handleMoveToHex = (hex) => {
-    if (!hex || !isHexReachable(hex.col, hex.row)) return;
+  const handleMoveToHex = hex => {
+    // Null checks for safety
+    if (!state.playerCharacter) {
+      logger.movement.error('Cannot move: No player character');
+      return;
+    }
+
+    if (!hex || hex.col === undefined || hex.row === undefined) {
+      logger.movement.error('Cannot move: Invalid hex', { hex });
+      return;
+    }
+
+    if (!isHexReachable(hex.col, hex.row)) return;
 
     // Don't move if already on this hex
     if (hex.col === state.playerPosition.col && hex.row === state.playerPosition.row) {
@@ -239,24 +254,21 @@ function OverworldScene() {
     // Consume rations for travel
     const character = state.playerCharacter;
     if (character) {
-      if (character.rations > 0) {
-        character.rations--;
-        character.daysWithoutFood = 0;
-        
-        // Update character state
-        dispatch({
-          type: actions.UPDATE_CHARACTER,
-          payload: character
-        });
+      // Create immutable copy to avoid state mutation
+      const updatedCharacter = Character.fromJSON(character.toJSON());
+
+      if (updatedCharacter.rations > 0) {
+        updatedCharacter.rations--;
+        updatedCharacter.daysWithoutFood = 0;
       } else {
-        character.daysWithoutFood++;
-        
-        // Update character state
-        dispatch({
-          type: actions.UPDATE_CHARACTER,
-          payload: character
-        });
+        updatedCharacter.daysWithoutFood++;
       }
+
+      // Update character state with immutable copy
+      dispatch({
+        type: actions.UPDATE_CHARACTER,
+        payload: updatedCharacter,
+      });
     }
 
     // Capture old time before advancing (for time-of-day transition detection)
@@ -265,27 +277,27 @@ function OverworldScene() {
     // Update player position
     dispatch({
       type: actions.SET_PLAYER_POSITION,
-      payload: { col: hex.col, row: hex.row }
+      payload: { col: hex.col, row: hex.row },
     });
 
     // Advance time for movement (1 day per hex)
     dispatch({
       type: actions.ADVANCE_TIME,
-      payload: TIME_COSTS.MOVEMENT
+      payload: TIME_COSTS.MOVEMENT,
     });
 
     // Reveal hexes around new position
     dispatch({
       type: actions.REVEAL_AROUND_PLAYER,
-      payload: { col: hex.col, row: hex.row }
+      payload: { col: hex.col, row: hex.row },
     });
 
     // Log movement to debug console (not to GameLog)
-    logger.movement.debug('Player moved to hex', { 
-      col: hex.col, 
-      row: hex.row, 
-      terrain: hex.terrain.name, 
-      timeCost: '1 day' 
+    logger.movement.debug('Player moved to hex', {
+      col: hex.col,
+      row: hex.row,
+      terrain: hex.terrain.name,
+      timeCost: '1 day',
     });
 
     // Build and log consolidated hex entry message
@@ -306,7 +318,7 @@ function OverworldScene() {
         // Mark as discovered
         dispatch({
           type: actions.DISCOVER_POI,
-          payload: { col: hex.col, row: hex.row }
+          payload: { col: hex.col, row: hex.row },
         });
 
         // Build discovery message with optional flavor (20% chance)
@@ -327,7 +339,7 @@ function OverworldScene() {
           // Combat intro
           const combatIntro = generateCombatIntro(hex.poi.type);
           addMessage(combatIntro, 'encounter');
-          
+
           // Trigger combat encounter directly
           handleEngageCombat(hex.poi);
         }
@@ -350,13 +362,13 @@ function OverworldScene() {
   const buildHexEntryMessage = (hex, oldTimeOfDay, newTimeOfDay) => {
     const parts = [];
     let messageType = 'info';
-    
+
     // Time transition (highest priority)
     if (oldTimeOfDay !== newTimeOfDay) {
       const timeFlavor = generateTimeTransitionFlavor(newTimeOfDay);
       if (timeFlavor) parts.push(timeFlavor);
     }
-    
+
     // Weather warning (changes message type to 'warning')
     if (hex.weather) {
       const weatherFlavor = generateWeatherFlavor(hex.weather.condition);
@@ -365,18 +377,18 @@ function OverworldScene() {
         messageType = 'warning'; // Weather is important, use warning type
       }
     }
-    
+
     // Hex entry flavor (15% chance)
     if (Math.random() < 0.15) {
       const flavor = generateHexEntryFlavor(hex.terrain.key);
       if (flavor) parts.push(flavor);
     }
-    
+
     if (parts.length === 0) return null;
-    
+
     return {
       message: parts.join(' - '), // Hyphen separator
-      type: messageType
+      type: messageType,
     };
   };
 
@@ -391,20 +403,20 @@ function OverworldScene() {
     const isEvenRow = row % 2 === 0;
     const offsets = isEvenRow
       ? [
-          { dc: -1, dr: 0 },  // left
-          { dc: 1, dr: 0 },   // right
+          { dc: -1, dr: 0 }, // left
+          { dc: 1, dr: 0 }, // right
           { dc: -1, dr: -1 }, // top-left
-          { dc: 0, dr: -1 },  // top-right
-          { dc: -1, dr: 1 },  // bottom-left
-          { dc: 0, dr: 1 }    // bottom-right
+          { dc: 0, dr: -1 }, // top-right
+          { dc: -1, dr: 1 }, // bottom-left
+          { dc: 0, dr: 1 }, // bottom-right
         ]
       : [
-          { dc: -1, dr: 0 },  // left
-          { dc: 1, dr: 0 },   // right
-          { dc: 0, dr: -1 },  // top-left
-          { dc: 1, dr: -1 },  // top-right
-          { dc: 0, dr: 1 },   // bottom-left
-          { dc: 1, dr: 1 }    // bottom-right
+          { dc: -1, dr: 0 }, // left
+          { dc: 1, dr: 0 }, // right
+          { dc: 0, dr: -1 }, // top-left
+          { dc: 1, dr: -1 }, // top-right
+          { dc: 0, dr: 1 }, // bottom-left
+          { dc: 1, dr: 1 }, // bottom-right
         ];
 
     const adjacent = [];
@@ -432,12 +444,12 @@ function OverworldScene() {
     }
 
     // Get current hex (use HexGrid for O(1) lookup if available)
-    const currentHex = state.hexGrid 
+    const currentHex = state.hexGrid
       ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
       : state.mapData?.find(
           hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
         );
-    
+
     if (!currentHex) {
       addMessage('Cannot determine current hex.', 'error');
       return;
@@ -458,11 +470,13 @@ function OverworldScene() {
     const hexesOnCooldown = allHexes.filter(hex => {
       const hexKey = `${hex.col},${hex.row}`;
       const lastForaged = state.playerCharacter.foragedHexes[hexKey];
-      return lastForaged && (currentDay - lastForaged < FORAGE_COOLDOWN);
+      return lastForaged && currentDay - lastForaged < FORAGE_COOLDOWN;
     });
 
     if (hexesOnCooldown.length === allHexes.length) {
-      const daysRemaining = FORAGE_COOLDOWN - (currentDay - state.playerCharacter.foragedHexes[`${currentHex.col},${currentHex.row}`]);
+      const daysRemaining =
+        FORAGE_COOLDOWN -
+        (currentDay - state.playerCharacter.foragedHexes[`${currentHex.col},${currentHex.row}`]);
       addMessage(
         `All hexes in this area have been foraged recently. Wait ${daysRemaining} more day(s).`,
         'warning'
@@ -495,24 +509,27 @@ function OverworldScene() {
     logger.items.debug('Foraging complete', {
       currentDay,
       hexesForaged: result.hexesForaged,
-      foragedHexes: updatedCharacter.foragedHexes
+      foragedHexes: updatedCharacter.foragedHexes,
     });
 
     // Update character state
     dispatch({
       type: actions.UPDATE_CHARACTER,
-      payload: updatedCharacter
+      payload: updatedCharacter,
     });
 
     // Advance time (foraging takes 4 hours)
     dispatch({
       type: actions.ADVANCE_TIME,
-      payload: TIME_COSTS.FORAGE
+      payload: TIME_COSTS.FORAGE,
     });
 
     // Show foraging result (dice roll is already logged by DiceRoller)
     if (result.success) {
-      addMessage(`Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`, 'info');
+      addMessage(
+        `Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`,
+        'info'
+      );
     } else {
       addMessage(`No food found`, 'info');
     }
@@ -521,33 +538,35 @@ function OverworldScene() {
   // DEV ONLY: Force combat for rapid testing
   const handleForceCombat = () => {
     addMessage('[DEV] Starting test combat...', 'system');
-    
+
     // Get party members
     const allies = state.party.getAllMembers().filter(m => m);
-    
+
     if (allies.length === 0) {
       addMessage('[DEV] No party members found!', 'error');
       return;
     }
-    
+
     // Create test enemies (3 goblins CR 1)
     const diceRoller = new DiceRoller();
     const enemies = [
       new Enemy('Goblin Warrior', 1, 'humanoid'),
       new Enemy('Goblin Archer', 1, 'humanoid'),
-      new Enemy('Goblin Shaman', 1, 'humanoid')
+      new Enemy('Goblin Shaman', 1, 'humanoid'),
     ];
-    
+
     // Get terrain type from current hex
-    const currentHex = state.mapData.find(h => h.col === state.playerPosition.col && h.row === state.playerPosition.row);
+    const currentHex = state.mapData.find(
+      h => h.col === state.playerPosition.col && h.row === state.playerPosition.row
+    );
     const terrainType = currentHex?.terrain?.name || 'plains';
-    
+
     console.log('[DEV] Force Combat:', {
       allies: allies.map(a => a.name),
       enemies: enemies.map(e => e.name),
-      terrainType
+      terrainType,
     });
-    
+
     // Dispatch START_COMBAT
     dispatch({
       type: actions.START_COMBAT,
@@ -557,31 +576,33 @@ function OverworldScene() {
         encounterName: 'Test Combat (DEV)',
         encounterType: 'standard',
         terrainType,
-        gameLogger: addMessage
-      }
+        gameLogger: addMessage,
+      },
     });
   };
 
   // Handle engaging in combat with a POI
-  const handleEngageCombat = (poi) => {
+  const handleEngageCombat = poi => {
     addMessage(`You engage ${poi.name} in combat!`, 'encounter');
-    
+
     // Get party members
     const allies = state.party.getAllMembers().filter(m => m);
-    
+
     // Parse enemies from POI
     const diceRoller = new DiceRoller();
     const enemies = Enemy.parseCreatureString(poi.creatures, poi.cr, diceRoller);
-    
+
     // Determine encounter type based on POI or terrain
     let encounterType = 'standard';
     if (poi.eventType === 'ambush') encounterType = 'ambush';
     if (poi.cr >= 5) encounterType = 'boss';
-    
+
     // Get terrain type from current hex
-    const currentHex = state.mapData.find(h => h.col === state.playerPosition.col && h.row === state.playerPosition.row);
+    const currentHex = state.mapData.find(
+      h => h.col === state.playerPosition.col && h.row === state.playerPosition.row
+    );
     const terrainType = currentHex?.terrain?.name || 'plains';
-    
+
     // Dispatch START_COMBAT
     dispatch({
       type: actions.START_COMBAT,
@@ -591,8 +612,8 @@ function OverworldScene() {
         encounterName: poi.name,
         encounterType,
         terrainType,
-        gameLogger: addMessage
-      }
+        gameLogger: addMessage,
+      },
     });
   };
 
@@ -620,20 +641,21 @@ function OverworldScene() {
 
   // Get hex interaction handlers for current hex
   const currentHex = getCurrentHex();
-  const { handleInteract, handleSearch, handleExplore, handleEnterTown } = useHexInteraction(currentHex);
+  const { handleInteract, handleSearch, handleExplore, handleEnterTown } =
+    useHexInteraction(currentHex);
 
   // Helper function to get hex in a direction
-  const getHexInDirection = (direction) => {
+  const getHexInDirection = direction => {
     if (!state.mapData) return null;
-    
+
     const { col, row } = state.playerPosition;
     let targetCol = col;
     let targetRow = row;
 
     // Hex grid movement offsets (offset coordinates)
     const isEvenRow = row % 2 === 0;
-    
-    switch(direction) {
+
+    switch (direction) {
       case 'up':
         targetRow = row - 1;
         break;
@@ -658,11 +680,15 @@ function OverworldScene() {
     try {
       const nextSlot = SaveManager.getNextQuicksaveSlot();
       const success = SaveManager.saveToSlot(nextSlot, state);
-      
+
       if (success) {
         // Get slot letter for display (A, B, or C)
-        const slotLetter = nextSlot === SaveManager.SAVE_SLOTS.QUICKSAVE_A ? 'A' :
-                          nextSlot === SaveManager.SAVE_SLOTS.QUICKSAVE_B ? 'B' : 'C';
+        const slotLetter =
+          nextSlot === SaveManager.SAVE_SLOTS.QUICKSAVE_A
+            ? 'A'
+            : nextSlot === SaveManager.SAVE_SLOTS.QUICKSAVE_B
+              ? 'B'
+              : 'C';
         addMessage(`Quick saved to slot ${slotLetter}`, 'system');
       } else {
         addMessage('Quick save failed', 'error');
@@ -729,28 +755,37 @@ function OverworldScene() {
     },
     onInteract: () => {
       if (state.inInterior) {
-        const currentHex = getInteriorHexAt(state.interiorPlayerPosition?.col, state.interiorPlayerPosition?.row);
-        
+        const currentHex = getInteriorHexAt(
+          state.interiorPlayerPosition?.col,
+          state.interiorPlayerPosition?.row
+        );
+
         if (currentHex && currentHex.terrain.isInteractive && currentHex.buildingType) {
           handleBuildingInteraction(currentHex);
-        } else if (currentHex && (currentHex.content === 'entrance' || currentHex.terrain.key === 'gate')) {
+        } else if (
+          currentHex &&
+          (currentHex.content === 'entrance' || currentHex.terrain.key === 'gate')
+        ) {
           // Player is on entrance/gate - exit the interior
           // Check if current POI is a settlement (town, camp, village, etc.)
           const settlementTypes = ['camp', 'village', 'town', 'city', 'metropolis'];
           const isSettlement = settlementTypes.includes(state.currentPOI?.poi?.type);
-          
+
           if (isSettlement) {
             dispatch({ type: actions.EXIT_TOWN });
           } else {
             dispatch({ type: actions.EXIT_EXPLORATION });
           }
+        } else if (state.inInterior) {
+          // Player is inside but not on exit - provide helpful message
+          addMessage('You must stand on the exit to leave this location', 'warning');
         }
       } else {
         const hex = getCurrentHex();
         if (hex && hex.poi) {
           // Check if POI is discovered first
           const discovered = isPoiDiscovered(hex.col, hex.row);
-          
+
           // Directly trigger the appropriate action based on POI type
           const settlementTypes = ['camp', 'village', 'town', 'city', 'metropolis'];
           if (settlementTypes.includes(hex.poi.type)) {
@@ -793,7 +828,7 @@ function OverworldScene() {
     },
     onQuickSave: () => {
       handleQuickSave();
-    }
+    },
   };
 
   // Enable keyboard controls (works for both overworld and interior)
@@ -806,14 +841,14 @@ function OverworldScene() {
   };
 
   // Helper to get interior hex in direction
-  const getInteriorHexInDirection = (direction) => {
+  const getInteriorHexInDirection = direction => {
     if (!state.interiorPlayerPosition || !interiorMap) return null;
-    
+
     const { col, row } = state.interiorPlayerPosition;
     let targetCol = col;
     let targetRow = row;
 
-    switch(direction) {
+    switch (direction) {
       case 'up':
         targetRow = row - 1;
         break;
@@ -834,13 +869,16 @@ function OverworldScene() {
   };
 
   // Interior handlers
-  const handleInteriorHexClick = (hex) => {
+  const handleInteriorHexClick = hex => {
     setSelectedInteriorHex(hex);
   };
 
-  const handleInteriorHexDoubleClick = (hex) => {
-    logger.movement.debug('Interior hex double click', { hex, playerPosition: state.interiorPlayerPosition });
-    
+  const handleInteriorHexDoubleClick = hex => {
+    logger.movement.debug('Interior hex double click', {
+      hex,
+      playerPosition: state.interiorPlayerPosition,
+    });
+
     if (!hex.terrain.walkable) {
       addMessage('Cannot move to unwalkable terrain', 'warning');
       return;
@@ -869,9 +907,9 @@ function OverworldScene() {
     // Update interior player position
     dispatch({
       type: actions.SET_INTERIOR_PLAYER_POSITION,
-      payload: { col: hex.col, row: hex.row }
+      payload: { col: hex.col, row: hex.row },
     });
-    
+
     setSelectedInteriorHex(hex);
 
     // Check for building interactions (towns)
@@ -888,9 +926,9 @@ function OverworldScene() {
   };
 
   // Handle building interactions in towns
-  const handleBuildingInteraction = (hex) => {
+  const handleBuildingInteraction = hex => {
     const buildingType = hex.buildingType;
-    
+
     switch (buildingType) {
       case 'inn':
         setOpenPanel('rest');
@@ -910,9 +948,10 @@ function OverworldScene() {
   };
 
   // Get interior map if in interior
-  const interiorMap = state.inInterior && state.currentPOI 
-    ? state.interiorMaps[`${state.currentPOI.col},${state.currentPOI.row}`]
-    : null;
+  const interiorMap =
+    state.inInterior && state.currentPOI
+      ? state.interiorMaps[`${state.currentPOI.col},${state.currentPOI.row}`]
+      : null;
 
   // Check foraging status for indicator
   const getForageStatus = () => {
@@ -925,12 +964,12 @@ function OverworldScene() {
       return { ready: false, message: 'Not ready' };
     }
 
-    const currentHex = state.hexGrid 
+    const currentHex = state.hexGrid
       ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
       : state.mapData?.find(
           hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
         );
-    
+
     if (!currentHex) {
       return { ready: false, message: 'Invalid location' };
     }
@@ -947,17 +986,21 @@ function OverworldScene() {
     const hexesOnCooldown = allHexes.filter(hex => {
       const hexKey = `${hex.col},${hex.row}`;
       const lastForaged = state.playerCharacter.foragedHexes[hexKey];
-      return lastForaged && (currentDay - lastForaged < FORAGE_COOLDOWN);
+      return lastForaged && currentDay - lastForaged < FORAGE_COOLDOWN;
     });
 
     if (hexesOnCooldown.length === allHexes.length) {
       const hexKey = `${currentHex.col},${currentHex.row}`;
-      const daysRemaining = FORAGE_COOLDOWN - (currentDay - state.playerCharacter.foragedHexes[hexKey]);
+      const daysRemaining =
+        FORAGE_COOLDOWN - (currentDay - state.playerCharacter.foragedHexes[hexKey]);
       return { ready: false, message: `Cooldown: ${daysRemaining}d` };
     }
 
     if (hexesOnCooldown.length > 0) {
-      return { ready: true, message: `Partial: ${allHexes.length - hexesOnCooldown.length}/${allHexes.length} hexes` };
+      return {
+        ready: true,
+        message: `Partial: ${allHexes.length - hexesOnCooldown.length}/${allHexes.length} hexes`,
+      };
     }
 
     return { ready: true, message: 'Ready to forage' };
@@ -968,34 +1011,38 @@ function OverworldScene() {
   // Check for victory/defeat in combat
   const combatEndHandledRef = useRef(false);
   const combatStartRoundRef = useRef(null);
-  
+
   useEffect(() => {
     if (!state.combatState) {
       combatEndHandledRef.current = false;
       combatStartRoundRef.current = null;
       return;
     }
-    
+
     // Don't check on the very first round/turn (combat just started)
     if (combatStartRoundRef.current === null) {
       combatStartRoundRef.current = state.combatState.round;
       console.log('[Combat] Combat started, skipping initial victory check');
       return;
     }
-    
+
     // Already handled combat end
     if (combatEndHandledRef.current) return;
-    
+
     const livingAllies = state.combatState.turnOrder.filter(c => c.isAlly && c.currentHP > 0);
     const livingEnemies = state.combatState.turnOrder.filter(c => c.isEnemy && c.currentHP > 0);
-    
+
     console.log('[Combat] Victory check:', {
       livingAllies: livingAllies.length,
       livingEnemies: livingEnemies.length,
-      allAllies: state.combatState.turnOrder.filter(c => c.isAlly).map(c => ({name: c.name, hp: c.currentHP})),
-      allEnemies: state.combatState.turnOrder.filter(c => c.isEnemy).map(c => ({name: c.name, hp: c.currentHP}))
+      allAllies: state.combatState.turnOrder
+        .filter(c => c.isAlly)
+        .map(c => ({ name: c.name, hp: c.currentHP })),
+      allEnemies: state.combatState.turnOrder
+        .filter(c => c.isEnemy)
+        .map(c => ({ name: c.name, hp: c.currentHP })),
     });
-    
+
     if (livingEnemies.length === 0 && livingAllies.length > 0) {
       combatEndHandledRef.current = true;
       addMessage('Victory! All enemies defeated!', 'success');
@@ -1009,263 +1056,309 @@ function OverworldScene() {
         dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'gameover' });
       }, 2000);
     }
-  }, [state.combatState?.currentTurnIndex, state.combatState?.round, dispatch, actions, addMessage]);
-  
+  }, [
+    state.combatState?.currentTurnIndex,
+    state.combatState?.round,
+    dispatch,
+    actions,
+    addMessage,
+  ]);
+
   // Log initiative rolls when combat starts
   const initiativeLoggedRef = useRef(false);
-  
+
   useEffect(() => {
     if (!state.combatState || !state.combatState.turnOrder) {
       initiativeLoggedRef.current = false;
       return;
     }
-    
+
     // Only log once when combat starts
     if (initiativeLoggedRef.current) return;
     initiativeLoggedRef.current = true;
-    
+
     // Log initiative header
     addMessage('=== INITIATIVE ===', 'system');
-    
+
     // Log each combatant's initiative
     state.combatState.turnOrder.forEach(combatant => {
-      const dexMod = combatant.character 
+      const dexMod = combatant.character
         ? Math.floor((combatant.character.abilities.dexterity - 10) / 2)
         : Math.floor((combatant.enemy.abilities.dexterity - 10) / 2);
-      
+
       // Calculate the d20 roll from initiative total (initiative - dex mod)
       const roll = combatant.initiative - dexMod;
-      
-      addMessage(
-        `${combatant.name}: ${combatant.initiative} (rolled ${roll}+${dexMod})`,
-        'system'
-      );
+
+      addMessage(`${combatant.name}: ${combatant.initiative} (rolled ${roll}+${dexMod})`, 'system');
     });
-    
+
     addMessage('', 'system'); // Blank line for spacing
   }, [state.combatState, addMessage]);
-  
+
   // Process AI turn
-  const processAITurn = useCallback((combatant) => {
-    if (!combatant || !combatant.enemy) {
-      console.error('[AI] Invalid combatant for AI turn', combatant);
-      return;
-    }
-    
-    if (!state.combatState || !state.combatState.battlefield) {
-      console.error('[AI] Combat state invalid');
-      return;
-    }
-    
-    const enemy = combatant.enemy;
-    addMessage(`${enemy.name} is thinking...`, 'encounter');
-    
-    console.log('[AI] Processing turn for:', enemy.name);
-    
-    // Use EnemyAI to decide action
-    const action = EnemyAI.decideAction(
-      combatant,
-      state.combatState.battlefield,
-      state.combatState.turnOrder,
-      state.combatState.movementRemaining
-    );
-    
-    console.log('[AI] Action decided:', action);
-    
-    // Wait 800ms for player to see AI thinking
-    setTimeout(() => {
-      if (!state.combatState) {
-        console.warn('[AI] Combat ended during AI turn');
+  const processAITurn = useCallback(
+    combatant => {
+      if (!combatant || !combatant.enemy) {
+        console.error('[AI] Invalid combatant for AI turn', combatant);
         return;
       }
-      
-      if (action.type === 'move') {
-        addMessage(`${enemy.name} moves to (${action.destination.col}, ${action.destination.row})`, 'encounter');
-        
-        if (actions.PROCESS_COMBAT_MOVEMENT) {
-          dispatch({
-            type: actions.PROCESS_COMBAT_MOVEMENT,
-            payload: {
-              path: action.path,
-              cost: action.moveCost * 5 // Convert hexes to feet
-            }
-          });
-        }
-      } else if (action.type === 'attack') {
-        const targetName = action.target.character?.name || action.target.enemy?.name;
-        addMessage(`${enemy.name} attacks ${targetName}!`, 'encounter');
-        
-        if (actions.PROCESS_COMBAT_ACTION) {
-          dispatch({
-            type: actions.PROCESS_COMBAT_ACTION,
-            payload: {
-              actionType: 'attack',
-              target: action.target,
-              attacker: combatant
-            }
-          });
-        }
-      } else if (action.type === 'wait') {
-        addMessage(`${enemy.name} waits`, 'encounter');
+
+      if (!state.combatState || !state.combatState.battlefield) {
+        console.error('[AI] Combat state invalid');
+        return;
       }
-      
-      // Wait 500ms more, then advance turn
-      setTimeout(() => {
-        if (!state.combatState) return;
-        dispatch({ type: actions.ADVANCE_COMBAT_TURN });
-      }, 500);
-    }, 800);
-  }, [state.combatState, dispatch, actions, addMessage]);
-  
+
+      const enemy = combatant.enemy;
+      addMessage(`${enemy.name} is thinking...`, 'encounter');
+
+      console.log('[AI] Processing turn for:', enemy.name);
+
+      // Use EnemyAI to decide action
+      const action = EnemyAI.decideAction(
+        combatant,
+        state.combatState.battlefield,
+        state.combatState.turnOrder,
+        state.combatState.movementRemaining
+      );
+
+      console.log('[AI] Action decided:', action);
+
+      // Wait 800ms for player to see AI thinking
+      aiTimeoutRefs.current.action = setTimeout(() => {
+        if (!state.combatState) {
+          console.warn('[AI] Combat ended during AI turn');
+          return;
+        }
+
+        if (action.type === 'move') {
+          addMessage(
+            `${enemy.name} moves to (${action.destination.col}, ${action.destination.row})`,
+            'encounter'
+          );
+
+          if (actions.PROCESS_COMBAT_MOVEMENT) {
+            dispatch({
+              type: actions.PROCESS_COMBAT_MOVEMENT,
+              payload: {
+                path: action.path,
+                cost: action.moveCost * 5, // Convert hexes to feet
+              },
+            });
+          }
+        } else if (action.type === 'attack') {
+          const targetName = action.target.character?.name || action.target.enemy?.name;
+          addMessage(`${enemy.name} attacks ${targetName}!`, 'encounter');
+
+          if (actions.PROCESS_COMBAT_ACTION) {
+            dispatch({
+              type: actions.PROCESS_COMBAT_ACTION,
+              payload: {
+                actionType: 'attack',
+                target: action.target,
+                attacker: combatant,
+              },
+            });
+          }
+        } else if (action.type === 'wait') {
+          addMessage(`${enemy.name} waits`, 'encounter');
+        }
+
+        // Wait 500ms more, then advance turn
+        aiTimeoutRefs.current.advance = setTimeout(() => {
+          if (!state.combatState) return;
+          dispatch({ type: actions.ADVANCE_COMBAT_TURN });
+        }, 500);
+      }, 800);
+    },
+    [state.combatState, dispatch, actions, addMessage]
+  );
+
   // Auto-process AI turns
   const lastProcessedTurnRef = useRef(null);
-  
+  const aiTimeoutRefs = useRef({ action: null, advance: null });
+
   useEffect(() => {
-    if (!state.combatState) return;
-    
+    if (!state.combatState) {
+      // Cleanup timeouts if combat ended
+      if (aiTimeoutRefs.current.action) {
+        clearTimeout(aiTimeoutRefs.current.action);
+        aiTimeoutRefs.current.action = null;
+      }
+      if (aiTimeoutRefs.current.advance) {
+        clearTimeout(aiTimeoutRefs.current.advance);
+        aiTimeoutRefs.current.advance = null;
+      }
+      return;
+    }
+
     const currentTurnIndex = state.combatState.currentTurnIndex;
     const waitingForPlayer = state.combatState.waitingForPlayerAction;
-    
+
     // Skip if already processed this turn
     if (lastProcessedTurnRef.current === currentTurnIndex) {
       return;
     }
-    
+
     const currentCombatant = state.combatState.turnOrder[currentTurnIndex];
     if (!currentCombatant) return;
-    
+
     console.log('[AI] Turn check:', {
       combatant: currentCombatant.name,
       isAlly: currentCombatant.isAlly,
       isEnemy: currentCombatant.isEnemy,
       waitingForPlayer,
-      currentTurnIndex
+      currentTurnIndex,
     });
-    
+
     // Only process AI turns (enemies)
     if (currentCombatant.isEnemy && !waitingForPlayer) {
       lastProcessedTurnRef.current = currentTurnIndex;
       processAITurn(currentCombatant);
     }
-  }, [state.combatState?.currentTurnIndex, state.combatState?.waitingForPlayerAction, processAITurn]);
-  
+
+    // Cleanup function - clear any pending AI timeouts
+    return () => {
+      if (aiTimeoutRefs.current.action) {
+        clearTimeout(aiTimeoutRefs.current.action);
+        aiTimeoutRefs.current.action = null;
+      }
+      if (aiTimeoutRefs.current.advance) {
+        clearTimeout(aiTimeoutRefs.current.advance);
+        aiTimeoutRefs.current.advance = null;
+      }
+    };
+  }, [
+    state.combatState?.currentTurnIndex,
+    state.combatState?.waitingForPlayerAction,
+    processAITurn,
+  ]);
+
   // Combat handlers
-  const handleCombatHexClick = useCallback((hex) => {
-    logger.combat.debug('Combat hex clicked', { hex, hasCombatState: !!state.combatState });
-    
-    if (!state.combatState) return;
-    
-    const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
-    if (!currentCombatant) {
-      logger.combat.warn('No current combatant');
-      return;
-    }
-    
-    logger.combat.debug('Current combatant', {
-      name: currentCombatant.name,
-      isAlly: currentCombatant.isAlly,
-      position: currentCombatant.position
-    });
-    
-    if (!currentCombatant.isAlly) {
-      addMessage("It's not your turn!", 'warning');
-      return;
-    }
-    
-    // Check if hex is occupied by a combatant
-    const targetCombatant = state.combatState.turnOrder.find(
-      c => c.position.col === hex.col && c.position.row === hex.row
-    );
-    
-    logger.combat.debug('Hex click routing', {
-      selectedAction: combatUIState.selectedAction,
-      hasTarget: !!targetCombatant,
-      targetHex: { col: hex.col, row: hex.row }
-    });
-    
-    // If "move" action is selected, try to move
-    if (combatUIState.selectedAction === 'move') {
-      logger.combat.info('Processing movement action');
-      
-      if (targetCombatant) {
-        addMessage('Hex is occupied', 'warning');
+  const handleCombatHexClick = useCallback(
+    hex => {
+      logger.combat.debug('Combat hex clicked', { hex, hasCombatState: !!state.combatState });
+
+      if (!state.combatState) return;
+
+      const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
+      if (!currentCombatant) {
+        logger.combat.warn('No current combatant');
         return;
       }
-      
-      // Calculate path using Pathfinding
-      const path = findPath(
-        currentCombatant.position,
-        hex,
-        state.combatState.battlefield,
-        state.combatState.turnOrder
-      );
-      
-      if (!path || path.length === 0) {
-        addMessage('No valid path to destination', 'warning');
-        return;
-      }
-      
-      const moveCost = path.length - 1; // First hex is current position
-      const moveCostFeet = moveCost * 5;
-      
-      if (moveCostFeet > state.combatState.movementRemaining) {
-        addMessage(`Not enough movement (need ${moveCostFeet} ft, have ${state.combatState.movementRemaining} ft)`, 'warning');
-        return;
-      }
-      
-      logger.combat.info('Dispatching PROCESS_COMBAT_MOVEMENT', {
-        combatantId: currentCombatant.id,
-        path,
-        moveCost,
-        moveCostFeet
+
+      logger.combat.debug('Current combatant', {
+        name: currentCombatant.name,
+        isAlly: currentCombatant.isAlly,
+        position: currentCombatant.position,
       });
-      
-      dispatch({
-        type: actions.PROCESS_COMBAT_MOVEMENT,
-        payload: {
+
+      if (!currentCombatant.isAlly) {
+        addMessage("It's not your turn!", 'warning');
+        return;
+      }
+
+      // Check if hex is occupied by a combatant
+      const targetCombatant = state.combatState.turnOrder.find(
+        c => c.position.col === hex.col && c.position.row === hex.row
+      );
+
+      logger.combat.debug('Hex click routing', {
+        selectedAction: combatUIState.selectedAction,
+        hasTarget: !!targetCombatant,
+        targetHex: { col: hex.col, row: hex.row },
+      });
+
+      // If "move" action is selected, try to move
+      if (combatUIState.selectedAction === 'move') {
+        logger.combat.info('Processing movement action');
+
+        if (targetCombatant) {
+          addMessage('Hex is occupied', 'warning');
+          return;
+        }
+
+        // Calculate path using Pathfinding
+        const path = findPath(
+          currentCombatant.position,
+          hex,
+          state.combatState.battlefield,
+          state.combatState.turnOrder
+        );
+
+        if (!path || path.length === 0) {
+          addMessage('No valid path to destination', 'warning');
+          return;
+        }
+
+        const moveCost = path.length - 1; // First hex is current position
+        const moveCostFeet = moveCost * 5;
+
+        if (moveCostFeet > state.combatState.movementRemaining) {
+          addMessage(
+            `Not enough movement (need ${moveCostFeet} ft, have ${state.combatState.movementRemaining} ft)`,
+            'warning'
+          );
+          return;
+        }
+
+        logger.combat.info('Dispatching PROCESS_COMBAT_MOVEMENT', {
           combatantId: currentCombatant.id,
           path,
-          cost: moveCostFeet
-        }
-      });
-      
-      addMessage(`Moved ${moveCost} hex${moveCost !== 1 ? 'es' : ''} to (${hex.col}, ${hex.row})`, 'action');
-      
-      // Clear selection
-      setCombatUIState(prev => ({
-        ...prev,
-        selectedAction: null
-      }));
-    } else if (targetCombatant && !targetCombatant.isAlly) {
-      // Clicking an enemy without action selected - auto-select attack
-      logger.combat.info('Auto-selecting attack for enemy click');
-      setCombatUIState(prev => ({
-        ...prev,
-        selectedAction: 'attack',
-        selectedTarget: targetCombatant
-      }));
-      addMessage(`Targeting ${targetCombatant.enemy?.name || targetCombatant.name}`, 'action');
-    } else {
-      logger.combat.debug('No action taken for hex click');
-    }
-  }, [state.combatState, combatUIState.selectedAction, dispatch, actions, addMessage]);
-  
+          moveCost,
+          moveCostFeet,
+        });
+
+        dispatch({
+          type: actions.PROCESS_COMBAT_MOVEMENT,
+          payload: {
+            combatantId: currentCombatant.id,
+            path,
+            cost: moveCostFeet,
+          },
+        });
+
+        addMessage(
+          `Moved ${moveCost} hex${moveCost !== 1 ? 'es' : ''} to (${hex.col}, ${hex.row})`,
+          'action'
+        );
+
+        // Clear selection
+        setCombatUIState(prev => ({
+          ...prev,
+          selectedAction: null,
+        }));
+      } else if (targetCombatant && !targetCombatant.isAlly) {
+        // Clicking an enemy without action selected - auto-select attack
+        logger.combat.info('Auto-selecting attack for enemy click');
+        setCombatUIState(prev => ({
+          ...prev,
+          selectedAction: 'attack',
+          selectedTarget: targetCombatant,
+        }));
+        addMessage(`Targeting ${targetCombatant.enemy?.name || targetCombatant.name}`, 'action');
+      } else {
+        logger.combat.debug('No action taken for hex click');
+      }
+    },
+    [state.combatState, combatUIState.selectedAction, dispatch, actions, addMessage]
+  );
+
   const handleCombatEndTurn = useCallback(() => {
     if (!state.combatState) return;
-    
+
     const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
     addMessage(`${currentCombatant.name} ended their turn`, 'action');
-    
+
     setCombatUIState(prev => ({
       ...prev,
       attacksUsedThisTurn: 0,
       selectedAction: null,
-      selectedTarget: null
+      selectedTarget: null,
     }));
-    
+
     dispatch({ type: actions.ADVANCE_COMBAT_TURN });
   }, [state.combatState, dispatch, actions, addMessage]);
-  
+
   const getCurrentCombatant = () => {
     if (!state.combatState?.turnOrder || state.combatState.currentTurnIndex === undefined) {
       return null;
@@ -1274,47 +1367,52 @@ function OverworldScene() {
   };
 
   return (
-    <div className="game-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div
+      className="game-container"
+      style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}
+    >
       {/* Game Header with Time Display */}
-      <div className="overworld-header" style={{
-        backgroundColor: 'var(--panel-bg)',
-        borderBottom: '1px solid var(--border-color)',
-        padding: '0.75rem 1.5rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
+      <div
+        className="overworld-header"
+        style={{
+          backgroundColor: 'var(--panel-bg)',
+          borderBottom: '1px solid var(--border-color)',
+          padding: '0.75rem 1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.25rem' }}>
-            hexcrawler
-          </h2>
-          
+          <h2 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.25rem' }}>hexcrawler</h2>
+
           {/* Dev Tools Dropdown */}
           {import.meta.env.DEV && (
             <div style={{ position: 'relative' }}>
               <button
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation();
                   setOpenPanel(openPanel === 'dev-tools' ? null : 'dev-tools');
                 }}
                 style={{
                   padding: '0.25rem 0.5rem',
                   fontSize: '0.85rem',
-                  backgroundColor: openPanel === 'dev-tools' ? 'var(--primary-color)' : 'var(--accent-color)',
+                  backgroundColor:
+                    openPanel === 'dev-tools' ? 'var(--primary-color)' : 'var(--accent-color)',
                   color: 'var(--bg-color)',
                   border: 'none',
                   borderRadius: '4px',
                   cursor: 'pointer',
                   fontWeight: '500',
-                  transition: 'background-color 0.2s'
+                  transition: 'background-color 0.2s',
                 }}
               >
                 🛠️ Dev Tools
               </button>
-              
+
               {openPanel === 'dev-tools' && (
-                <div 
-                  onClick={(e) => e.stopPropagation()}
+                <div
+                  onClick={e => e.stopPropagation()}
                   style={{
                     position: 'absolute',
                     top: '100%',
@@ -1325,7 +1423,7 @@ function OverworldScene() {
                     borderRadius: '4px',
                     boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
                     minWidth: '200px',
-                    zIndex: 1000
+                    zIndex: 1000,
                   }}
                 >
                   <button
@@ -1345,23 +1443,27 @@ function OverworldScene() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.5rem',
-                      transition: 'background-color 0.15s'
+                      transition: 'background-color 0.15s',
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-lighter)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    onMouseEnter={e =>
+                      (e.currentTarget.style.backgroundColor = 'var(--bg-lighter)')
+                    }
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
                     <span>⚔️</span>
                     <span>Force Combat</span>
                   </button>
-                  
+
                   {/* Placeholder for future dev tools */}
-                  <div style={{
-                    padding: '0.5rem 1rem',
-                    fontSize: '0.75rem',
-                    color: 'var(--text-muted)',
-                    fontStyle: 'italic',
-                    borderTop: '1px solid var(--border-color)'
-                  }}>
+                  <div
+                    style={{
+                      padding: '0.5rem 1rem',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-muted)',
+                      fontStyle: 'italic',
+                      borderTop: '1px solid var(--border-color)',
+                    }}
+                  >
                     More dev tools coming soon...
                   </div>
                 </div>
@@ -1369,52 +1471,62 @@ function OverworldScene() {
             </div>
           )}
         </div>
-        
-        <div style={{
-          display: 'flex',
-          gap: '1.5rem',
-          alignItems: 'center',
-          color: 'var(--text-color)'
-        }}>
-          <div style={{
-            fontSize: '1.1rem',
-            fontWeight: '500',
-            fontFamily: 'monospace',
-            padding: '0.25rem 0.75rem',
-            backgroundColor: 'var(--control-bg)',
-            borderRadius: '4px'
-          }}>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: '1.5rem',
+            alignItems: 'center',
+            color: 'var(--text-color)',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '1.1rem',
+              fontWeight: '500',
+              fontFamily: 'monospace',
+              padding: '0.25rem 0.75rem',
+              backgroundColor: 'var(--control-bg)',
+              borderRadius: '4px',
+            }}
+          >
             {formatTime(state.gameTime)}
           </div>
-          <div style={{
-            fontSize: '0.95rem',
-            fontWeight: '500',
-            padding: '0.25rem 0.75rem',
-            backgroundColor: 'var(--control-bg)',
-            borderRadius: '4px',
-            color: state.playerCharacter?.rations <= 2 ? '#e74c3c' : 'var(--text-color)'
-          }}>
+          <div
+            style={{
+              fontSize: '0.95rem',
+              fontWeight: '500',
+              padding: '0.25rem 0.75rem',
+              backgroundColor: 'var(--control-bg)',
+              borderRadius: '4px',
+              color: state.playerCharacter?.rations <= 2 ? '#e74c3c' : 'var(--text-color)',
+            }}
+          >
             Rations: {state.playerCharacter?.rations || 0}
           </div>
-          <div style={{
-            fontSize: '0.95rem',
-            fontWeight: '500',
-            padding: '0.25rem 0.75rem',
-            backgroundColor: 'var(--control-bg)',
-            borderRadius: '4px',
-            color: '#f39c12'
-          }}>
+          <div
+            style={{
+              fontSize: '0.95rem',
+              fontWeight: '500',
+              padding: '0.25rem 0.75rem',
+              backgroundColor: 'var(--control-bg)',
+              borderRadius: '4px',
+              color: '#f39c12',
+            }}
+          >
             Gold: {state.playerCharacter?.gold || 0}
           </div>
           {/* Forage Status Indicator */}
-          <div style={{
-            fontSize: '0.95rem',
-            fontWeight: '500',
-            color: forageStatus.ready ? '#2ecc71' : '#e74c3c',
-            cursor: 'default',
-            userSelect: 'none'
-          }}
-          title={forageStatus.message}>
+          <div
+            style={{
+              fontSize: '0.95rem',
+              fontWeight: '500',
+              color: forageStatus.ready ? '#2ecc71' : '#e74c3c',
+              cursor: 'default',
+              userSelect: 'none',
+            }}
+            title={forageStatus.message}
+          >
             Forage
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
@@ -1434,7 +1546,10 @@ function OverworldScene() {
         </div>
 
         {/* Canvas Container */}
-        <main className="canvas-container" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <main
+          className="canvas-container"
+          style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+        >
           {state.combatState?.battlefield ? (
             /* Combat Mode - Show battlefield fullscreen */
             <CombatCanvas
@@ -1445,10 +1560,12 @@ function OverworldScene() {
               hoveredHex={combatUIState.hoveredHex}
               movementRemaining={state.combatState.movementRemaining}
               onHexClick={handleCombatHexClick}
-              onHexHover={(hex) => setCombatUIState(prev => ({...prev, hoveredHex: hex}))}
+              onHexHover={hex => setCombatUIState(prev => ({ ...prev, hoveredHex: hex }))}
               cameraOffset={combatUIState.cameraOffset}
               cameraZoom={combatUIState.cameraZoom}
-              onCameraChange={(offset, zoom) => setCombatUIState(prev => ({...prev, cameraOffset: offset, cameraZoom: zoom}))}
+              onCameraChange={(offset, zoom) =>
+                setCombatUIState(prev => ({ ...prev, cameraOffset: offset, cameraZoom: zoom }))
+              }
             />
           ) : state.inInterior && interiorMap ? (
             /* Interior Mode */
@@ -1467,35 +1584,37 @@ function OverworldScene() {
               onHexDoubleClick={handleHexDoubleClick}
             />
           ) : (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              color: 'var(--text-color)'
-            }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                color: 'var(--text-color)',
+              }}
+            >
               <div style={{ textAlign: 'center' }}>
                 <h2>Generating Map...</h2>
-                <p style={{ color: 'var(--text-muted)' }}>
-                  Seed: {state.mapSeed || 'Not set'}
-                </p>
+                <p style={{ color: 'var(--text-muted)' }}>Seed: {state.mapSeed || 'Not set'}</p>
               </div>
             </div>
           )}
         </main>
 
         {/* Right Panel - Combat Actions, Hex Info, or Interior Info */}
-        <aside style={{
-          width: '280px',
-          flexShrink: 0,
-          backgroundColor: 'var(--bg-color)',
-          borderRadius: '8px',
-          padding: '0.5rem',
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.5rem'
-        }}>
+        <aside
+          style={{
+            width: '280px',
+            flexShrink: 0,
+            backgroundColor: 'var(--bg-color)',
+            borderRadius: '8px',
+            padding: '0.5rem',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+          }}
+        >
           {state.combatState?.battlefield ? (
             /* Combat Actions Panel */
             <>
@@ -1505,7 +1624,9 @@ function OverworldScene() {
                   selectedAction={combatUIState.selectedAction}
                   movementRemaining={state.combatState.movementRemaining}
                   attacksUsedThisTurn={combatUIState.attacksUsedThisTurn}
-                  onActionSelect={(action) => setCombatUIState(prev => ({...prev, selectedAction: action}))}
+                  onActionSelect={action =>
+                    setCombatUIState(prev => ({ ...prev, selectedAction: action }))
+                  }
                   onAbilityClick={() => addMessage('Abilities not yet implemented', 'info')}
                   onSpellClick={() => addMessage('Spells not yet implemented', 'info')}
                   onDodgeClick={() => addMessage('Dodge not yet implemented', 'info')}
@@ -1513,13 +1634,15 @@ function OverworldScene() {
                   onEndTurn={handleCombatEndTurn}
                 />
               ) : getCurrentCombatant() && getCurrentCombatant().isEnemy ? (
-                <div style={{
-                  padding: '1.5rem',
-                  textAlign: 'center',
-                  backgroundColor: 'var(--bg-lighter)',
-                  border: '2px solid var(--border-color)',
-                  borderRadius: '8px'
-                }}>
+                <div
+                  style={{
+                    padding: '1.5rem',
+                    textAlign: 'center',
+                    backgroundColor: 'var(--bg-lighter)',
+                    border: '2px solid var(--border-color)',
+                    borderRadius: '8px',
+                  }}
+                >
                   <h3 style={{ margin: '0 0 0.5rem 0', color: '#ff6b6b', fontSize: '1.2rem' }}>
                     {getCurrentCombatant().name}'s Turn
                   </h3>
@@ -1528,7 +1651,7 @@ function OverworldScene() {
                   </p>
                 </div>
               ) : null}
-              
+
               {/* Turn Order Display */}
               <TurnOrderDisplay
                 turnOrder={state.combatState.turnOrder}
@@ -1569,10 +1692,7 @@ function OverworldScene() {
         onClose={handleClosePanel}
         width="700px"
       >
-        <PartyList
-          party={state.party}
-          onMemberSelect={handlePartyMemberSelect}
-        />
+        <PartyList party={state.party} onMemberSelect={handlePartyMemberSelect} />
       </MenuPanel>
 
       <MenuPanel
@@ -1621,19 +1741,22 @@ function OverworldScene() {
       </MenuPanel>
 
       {/* Game Log - Always shown at bottom with fixed height */}
-      <div className="game-log-container" style={{ 
-        display: 'flex', 
-        position: 'relative',
-        height: '150px',
-        flexShrink: 0
-      }}>
+      <div
+        className="game-log-container"
+        style={{
+          display: 'flex',
+          position: 'relative',
+          height: '150px',
+          flexShrink: 0,
+        }}
+      >
         <GameLog />
       </div>
 
       {/* Save Menu Modal */}
       {showSaveMenu && (
         <div className="modal-overlay" onClick={() => setShowSaveMenu(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
             <SaveSlotManager mode="save" onClose={() => setShowSaveMenu(false)} />
           </div>
         </div>

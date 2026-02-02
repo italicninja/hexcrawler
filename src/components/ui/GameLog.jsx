@@ -21,7 +21,10 @@ function GameLog() {
   }, [messages]);
 
   return (
-    <div id="game-log" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+    <div
+      id="game-log"
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}
+    >
       <div className="log-header">
         <h3>Game Log</h3>
       </div>

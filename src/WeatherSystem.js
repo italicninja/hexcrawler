@@ -12,10 +12,10 @@ export const WEATHER_TYPES = {
     effects: {
       visibility: 0,
       movementCost: 0,
-      skillChecks: {}
-    }
+      skillChecks: {},
+    },
   },
-  
+
   // Rain variants
   LIGHT_RAIN: {
     key: 'light_rain',
@@ -24,8 +24,8 @@ export const WEATHER_TYPES = {
     effects: {
       visibility: -1,
       movementCost: 0.5,
-      skillChecks: { perception: -1 }
-    }
+      skillChecks: { perception: -1 },
+    },
   },
   RAIN: {
     key: 'rain',
@@ -34,8 +34,8 @@ export const WEATHER_TYPES = {
     effects: {
       visibility: -2,
       movementCost: 1,
-      skillChecks: { perception: -2, survival: -1 }
-    }
+      skillChecks: { perception: -2, survival: -1 },
+    },
   },
   HEAVY_RAIN: {
     key: 'heavy_rain',
@@ -44,8 +44,8 @@ export const WEATHER_TYPES = {
     effects: {
       visibility: -4,
       movementCost: 2,
-      skillChecks: { perception: -4, survival: -2 }
-    }
+      skillChecks: { perception: -4, survival: -2 },
+    },
   },
   STORM: {
     key: 'storm',
@@ -55,8 +55,8 @@ export const WEATHER_TYPES = {
       visibility: -6,
       movementCost: 3,
       skillChecks: { perception: -6, survival: -3 },
-      damage: { type: 'lightning', description: 'Risk of lightning strikes' }
-    }
+      damage: { type: 'lightning', description: 'Risk of lightning strikes' },
+    },
   },
 
   // Snow variants
@@ -68,8 +68,8 @@ export const WEATHER_TYPES = {
       visibility: -1,
       movementCost: 0.5,
       skillChecks: { perception: -1 },
-      temperature: -5
-    }
+      temperature: -5,
+    },
   },
   SNOW: {
     key: 'snow',
@@ -79,8 +79,8 @@ export const WEATHER_TYPES = {
       visibility: -3,
       movementCost: 2,
       skillChecks: { perception: -3, survival: -2 },
-      temperature: -10
-    }
+      temperature: -10,
+    },
   },
   BLIZZARD: {
     key: 'blizzard',
@@ -91,8 +91,8 @@ export const WEATHER_TYPES = {
       movementCost: 4,
       skillChecks: { perception: -8, survival: -4 },
       temperature: -20,
-      damage: { type: 'cold', description: '1d4 cold damage per hour' }
-    }
+      damage: { type: 'cold', description: '1d4 cold damage per hour' },
+    },
   },
 
   // Fog/Mist
@@ -103,8 +103,8 @@ export const WEATHER_TYPES = {
     effects: {
       visibility: -2,
       movementCost: 0,
-      skillChecks: { perception: -2 }
-    }
+      skillChecks: { perception: -2 },
+    },
   },
   FOG: {
     key: 'fog',
@@ -113,8 +113,8 @@ export const WEATHER_TYPES = {
     effects: {
       visibility: -5,
       movementCost: 1,
-      skillChecks: { perception: -5, survival: -2 }
-    }
+      skillChecks: { perception: -5, survival: -2 },
+    },
   },
   DENSE_FOG: {
     key: 'dense_fog',
@@ -123,8 +123,8 @@ export const WEATHER_TYPES = {
     effects: {
       visibility: -8,
       movementCost: 2,
-      skillChecks: { perception: -8, survival: -3 }
-    }
+      skillChecks: { perception: -8, survival: -3 },
+    },
   },
 
   // Wind
@@ -136,8 +136,8 @@ export const WEATHER_TYPES = {
       visibility: -1,
       movementCost: 1,
       skillChecks: { perception: -2 },
-      rangedAttackDisadvantage: true
-    }
+      rangedAttackDisadvantage: true,
+    },
   },
 
   // Desert
@@ -149,8 +149,8 @@ export const WEATHER_TYPES = {
       visibility: -7,
       movementCost: 3,
       skillChecks: { perception: -7, survival: -4 },
-      damage: { type: 'sand', description: 'Difficult breathing, 1d4 damage per hour' }
-    }
+      damage: { type: 'sand', description: 'Difficult breathing, 1d4 damage per hour' },
+    },
   },
   HEATWAVE: {
     key: 'heatwave',
@@ -161,8 +161,8 @@ export const WEATHER_TYPES = {
       movementCost: 1,
       skillChecks: { constitution: -2 },
       temperature: 15,
-      waterConsumption: 3 // Triple water consumption
-    }
+      waterConsumption: 3, // Triple water consumption
+    },
   },
 
   // Special
@@ -174,9 +174,9 @@ export const WEATHER_TYPES = {
       visibility: 2, // Actually improves visibility at night
       movementCost: 0,
       skillChecks: {},
-      description: 'Beautiful aurora borealis lights up the sky'
-    }
-  }
+      description: 'Beautiful aurora borealis lights up the sky',
+    },
+  },
 };
 
 /**
@@ -252,7 +252,7 @@ export class WeatherSystem {
       logger.general.debug('Region weather set', {
         regionId: region.id,
         biome: region.biome.key,
-        weather: region.weatherPattern.key
+        weather: region.weatherPattern.key,
       });
     });
 
@@ -290,17 +290,17 @@ export class WeatherSystem {
   getWeatherByKey(key) {
     // Handle common aliases
     const aliases = {
-      'clear': 'CLEAR',
-      'rain': 'RAIN',
-      'storm': 'STORM',
-      'snow': 'SNOW',
-      'blizzard': 'BLIZZARD',
-      'fog': 'FOG',
-      'mist': 'MIST',
-      'wind': 'WIND',
-      'sandstorm': 'SANDSTORM',
-      'heatwave': 'HEATWAVE',
-      'aurora': 'AURORA'
+      clear: 'CLEAR',
+      rain: 'RAIN',
+      storm: 'STORM',
+      snow: 'SNOW',
+      blizzard: 'BLIZZARD',
+      fog: 'FOG',
+      mist: 'MIST',
+      wind: 'WIND',
+      sandstorm: 'SANDSTORM',
+      heatwave: 'HEATWAVE',
+      aurora: 'AURORA',
     };
 
     const weatherKey = aliases[key] || key.toUpperCase();
@@ -321,7 +321,7 @@ export class WeatherSystem {
     // Remove expired fronts
     const expiredCount = this.weatherFronts.filter(f => f.isExpired()).length;
     this.weatherFronts = this.weatherFronts.filter(f => !f.isExpired());
-    
+
     if (expiredCount > 0) {
       logger.general.debug('Weather fronts expired', { count: expiredCount });
     }
@@ -356,7 +356,7 @@ export class WeatherSystem {
       { type: 'SNOW', weight: 10 },
       { type: 'BLIZZARD', weight: 5 },
       { type: 'SANDSTORM', weight: 5 },
-      { type: 'LIGHT_RAIN', weight: 25 }
+      { type: 'LIGHT_RAIN', weight: 25 },
     ];
 
     const totalWeight = frontTypes.reduce((sum, ft) => sum + ft.weight, 0);
@@ -374,7 +374,7 @@ export class WeatherSystem {
     // Random starting position (edge of map or random region)
     let position;
     const spawnAtEdge = this.random() < 0.5;
-    
+
     if (spawnAtEdge) {
       // Spawn at map edge
       const edge = Math.floor(this.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
@@ -390,20 +390,15 @@ export class WeatherSystem {
     const speed = 0.5 + this.random() * 1.0; // 0.5-1.5 hexes per hour
     const movement = {
       dx: Math.cos(angle) * speed,
-      dy: Math.sin(angle) * speed
+      dy: Math.sin(angle) * speed,
     };
 
     // Front properties
     const radius = 3 + Math.floor(this.random() * 5); // 3-7 hex radius
     const duration = 6 + Math.floor(this.random() * 24); // 6-30 hours
 
-    const front = new WeatherFront(
-      selectedType,
-      position,
-      radius,
-      duration,
-      movement,
-      () => this.random()
+    const front = new WeatherFront(selectedType, position, radius, duration, movement, () =>
+      this.random()
     );
 
     this.weatherFronts.push(front);
@@ -413,7 +408,7 @@ export class WeatherSystem {
       position,
       radius,
       duration,
-      movement
+      movement,
     });
   }
 
@@ -506,12 +501,12 @@ export class WeatherSystem {
         position: front.position,
         radius: front.radius,
         duration: front.duration,
-        movement: front.movement
+        movement: front.movement,
       })),
       regionalWeather: this.regions.map(region => ({
         id: region.id,
-        weatherKey: region.weatherPattern?.key || 'clear'
-      }))
+        weatherKey: region.weatherPattern?.key || 'clear',
+      })),
     };
   }
 
@@ -524,15 +519,16 @@ export class WeatherSystem {
     weather.lastUpdateTime = data.lastUpdateTime;
 
     // Restore weather fronts
-    weather.weatherFronts = data.weatherFronts.map(frontData =>
-      new WeatherFront(
-        frontData.type,
-        frontData.position,
-        frontData.radius,
-        frontData.duration,
-        frontData.movement,
-        () => weather.random()
-      )
+    weather.weatherFronts = data.weatherFronts.map(
+      frontData =>
+        new WeatherFront(
+          frontData.type,
+          frontData.position,
+          frontData.radius,
+          frontData.duration,
+          frontData.movement,
+          () => weather.random()
+        )
     );
 
     // Restore regional weather

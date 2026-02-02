@@ -9,12 +9,10 @@ function CombatantCard({ combatant, isActive }) {
     return null;
   }
 
-  const hpPercent = combatant.maxHP > 0 
-    ? (combatant.currentHP / combatant.maxHP) * 100 
-    : 0;
+  const hpPercent = combatant.maxHP > 0 ? (combatant.currentHP / combatant.maxHP) * 100 : 0;
 
   // Determine HP color: green > 50%, yellow 25-50%, red < 25%
-  const getHPColor = (percent) => {
+  const getHPColor = percent => {
     if (percent > 50) return 'bg-green-500';
     if (percent > 25) return 'bg-yellow-500';
     return 'bg-red-500';
@@ -28,15 +26,18 @@ function CombatantCard({ combatant, isActive }) {
     <div
       className={`
         rounded-lg p-3 transition-all duration-200
-        ${isActive 
-          ? `${activeBorderColor} border-2 bg-opacity-20 shadow-lg ${isAlly ? 'bg-yellow-500' : 'bg-red-500'}` 
-          : `${borderColor} border bg-opacity-5 ${isAlly ? 'bg-yellow-500' : 'bg-red-500'}`
+        ${
+          isActive
+            ? `${activeBorderColor} border-2 bg-opacity-20 shadow-lg ${isAlly ? 'bg-yellow-500' : 'bg-red-500'}`
+            : `${borderColor} border bg-opacity-5 ${isAlly ? 'bg-yellow-500' : 'bg-red-500'}`
         }
       `}
       style={{
-        backgroundColor: isActive 
-          ? (isAlly ? 'rgba(234, 179, 8, 0.1)' : 'rgba(239, 68, 68, 0.1)')
-          : 'rgba(45, 55, 72, 0.3)'
+        backgroundColor: isActive
+          ? isAlly
+            ? 'rgba(234, 179, 8, 0.1)'
+            : 'rgba(239, 68, 68, 0.1)'
+          : 'rgba(45, 55, 72, 0.3)',
       }}
     >
       {/* Name and Initiative */}
@@ -51,10 +52,13 @@ function CombatantCard({ combatant, isActive }) {
             </div>
           )}
         </div>
-        <div className="text-xs font-semibold px-2 py-1 rounded" style={{
-          backgroundColor: 'var(--bg-lighter)',
-          color: 'var(--text-color)'
-        }}>
+        <div
+          className="text-xs font-semibold px-2 py-1 rounded"
+          style={{
+            backgroundColor: 'var(--bg-lighter)',
+            color: 'var(--text-color)',
+          }}
+        >
           Init: {combatant.initiative}
         </div>
       </div>
@@ -63,11 +67,16 @@ function CombatantCard({ combatant, isActive }) {
       <div className="mb-2">
         <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-light)' }}>
           <span>HP</span>
-          <span>{combatant.currentHP}/{combatant.maxHP}</span>
+          <span>
+            {combatant.currentHP}/{combatant.maxHP}
+          </span>
         </div>
-        <div className="w-full h-2 rounded-full overflow-hidden" style={{
-          backgroundColor: 'var(--bg-lighter)'
-        }}>
+        <div
+          className="w-full h-2 rounded-full overflow-hidden"
+          style={{
+            backgroundColor: 'var(--bg-lighter)',
+          }}
+        >
           <div
             className={`h-full transition-all duration-300 ${getHPColor(hpPercent)}`}
             style={{ width: `${Math.max(0, Math.min(100, hpPercent))}%` }}
@@ -90,7 +99,7 @@ function CombatantCard({ combatant, isActive }) {
               className="text-xs px-2 py-1 rounded"
               style={{
                 backgroundColor: 'var(--accent-color)',
-                color: 'var(--bg-color)'
+                color: 'var(--bg-color)',
               }}
             >
               {status}
@@ -112,9 +121,9 @@ CombatantCard.propTypes = {
     ac: PropTypes.number,
     initiative: PropTypes.number.isRequired,
     isAlly: PropTypes.bool,
-    statusEffects: PropTypes.arrayOf(PropTypes.string)
+    statusEffects: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
-  isActive: PropTypes.bool
+  isActive: PropTypes.bool,
 };
 
 export default CombatantCard;

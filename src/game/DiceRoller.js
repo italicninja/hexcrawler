@@ -109,7 +109,14 @@ export class DiceRoller {
    * @param {string} skillName - Optional skill name for logging (e.g., 'Perception', 'Stealth')
    * @returns {object} { roll, modifier, total, success, dc }
    */
-  skillCheck(character, ability, proficient = false, dc = 10, rollType = 'normal', skillName = null) {
+  skillCheck(
+    character,
+    ability,
+    proficient = false,
+    dc = 10,
+    rollType = 'normal',
+    skillName = null
+  ) {
     // Validate character object
     if (!character) {
       throw new Error('DiceRoller.skillCheck: character is required');
@@ -118,7 +125,7 @@ export class DiceRoller {
     // Get ability score
     const abilityScore = character[ability] || 10;
     const modifier = this.getAbilityModifier(abilityScore);
-    const proficiencyBonus = proficient ? (character.proficiencyBonus || 2) : 0;
+    const proficiencyBonus = proficient ? character.proficiencyBonus || 2 : 0;
 
     // Roll d20
     let roll;
@@ -151,7 +158,7 @@ export class DiceRoller {
       modifier: modifier + proficiencyBonus,
       total,
       success,
-      dc
+      dc,
     };
   }
 
@@ -230,11 +237,20 @@ export class DiceRoller {
     if (this.logger && attackName) {
       const displayName = attackName || (attackType === 'melee' ? 'Melee Attack' : 'Ranged Attack');
       if (crit) {
-        this.log(`${displayName} CRITICAL HIT! ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}`, 'success');
+        this.log(
+          `${displayName} CRITICAL HIT! ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}`,
+          'success'
+        );
       } else if (hit) {
-        this.log(`${displayName} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Hit`, 'success');
+        this.log(
+          `${displayName} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Hit`,
+          'success'
+        );
       } else {
-        this.log(`${displayName} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Miss`, 'warning');
+        this.log(
+          `${displayName} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Miss`,
+          'warning'
+        );
       }
     }
 
@@ -244,7 +260,7 @@ export class DiceRoller {
       total,
       hit,
       crit,
-      targetAC
+      targetAC,
     };
   }
 

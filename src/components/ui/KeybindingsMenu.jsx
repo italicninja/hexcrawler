@@ -22,10 +22,10 @@ function KeybindingsMenu() {
     forage: 'Forage',
     inventory: 'Inventory',
     quests: 'Quest Log',
-    map: 'Map View'
+    map: 'Map View',
   };
 
-  const formatKey = (key) => {
+  const formatKey = key => {
     if (key === ' ') return 'Space';
     if (key === 'Shift') return 'Shift';
     if (key === 'Control') return 'Ctrl';
@@ -47,7 +47,7 @@ function KeybindingsMenu() {
     // Update keybinding
     const newKeybindings = {
       ...settings.keybindings,
-      [action]: newKey
+      [action]: newKey,
     };
 
     set('keybindings', newKeybindings);
@@ -55,12 +55,12 @@ function KeybindingsMenu() {
     setListeningFor(null);
   };
 
-  const startListening = (action) => {
+  const startListening = action => {
     setEditing(action);
     setListeningFor(action);
 
     // Add global keydown listener
-    const handleGlobalKeyDown = (e) => {
+    const handleGlobalKeyDown = e => {
       if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
         return;
       }
@@ -71,7 +71,7 @@ function KeybindingsMenu() {
       const newKey = e.key;
       const newKeybindings = {
         ...settings.keybindings,
-        [action]: newKey
+        [action]: newKey,
       };
 
       set('keybindings', newKeybindings);
@@ -106,7 +106,7 @@ function KeybindingsMenu() {
       forage: 'f',
       inventory: 'i',
       quests: 'q',
-      map: 'm'
+      map: 'm',
     };
 
     set('keybindings', defaultKeybindings);
@@ -133,9 +133,7 @@ function KeybindingsMenu() {
               {editing === action ? (
                 <span className="listening">Press any key...</span>
               ) : (
-                <span className="key-display">
-                  {formatKey(settings.keybindings[action])}
-                </span>
+                <span className="key-display">{formatKey(settings.keybindings[action])}</span>
               )}
             </button>
           </div>
@@ -143,7 +141,9 @@ function KeybindingsMenu() {
       </div>
 
       <div className="keybindings-note">
-        <p>Click a button and press any key to rebind. Some keys may be reserved by your browser.</p>
+        <p>
+          Click a button and press any key to rebind. Some keys may be reserved by your browser.
+        </p>
       </div>
     </div>
   );

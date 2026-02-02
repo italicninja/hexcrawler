@@ -5,11 +5,23 @@
 
 import PropTypes from 'prop-types';
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { calculateHexPosition, drawHexShape, drawHexOutline as renderHexOutline, findHexAtPoint, drawPlayerMarker } from '../../utils/hexRenderer';
+import {
+  calculateHexPosition,
+  drawHexShape,
+  drawHexOutline as renderHexOutline,
+  findHexAtPoint,
+  drawPlayerMarker,
+} from '../../utils/hexRenderer';
 import { HexTextureGenerator } from '../../utils/hexTextureGenerator.js';
 import { PerlinNoise } from '../../noise.js';
 
-function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClick, onHexDoubleClick }) {
+function InteriorHexCanvas({
+  interiorMap,
+  playerPosition,
+  selectedHex,
+  onHexClick,
+  onHexDoubleClick,
+}) {
   const canvasRef = useRef(null);
   const [hexSize] = useState(30);
   const [offsetX, setOffsetX] = useState(0);
@@ -41,84 +53,107 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
   }, [interiorMap, hexSize]);
 
   // Check if content should be visible
-  const shouldRenderEncounter = useCallback((encounter) => {
+  const shouldRenderEncounter = useCallback(encounter => {
     return encounter.discovered || encounter.defeated;
   }, []);
 
-  const shouldRenderHazard = useCallback((hazard) => {
+  const shouldRenderHazard = useCallback(hazard => {
     return hazard.discovered || hazard.triggered;
   }, []);
 
-  const shouldRenderLoot = useCallback((loot) => {
+  const shouldRenderLoot = useCallback(loot => {
     return loot.discovered || loot.collected;
   }, []);
 
   // Check if content is collected/defeated
-  const isContentCollected = useCallback((hex) => {
-    if (!interiorMap) return false;
+  const isContentCollected = useCallback(
+    hex => {
+      if (!interiorMap) return false;
 
-    // Check if loot is collected
-    if (hex.content === 'loot' || hex.content === 'chest') {
-      const lootItem = interiorMap.loot?.find(l => l.col === hex.col && l.row === hex.row);
-      return lootItem?.collected || false;
-    }
+      // Check if loot is collected
+      if (hex.content === 'loot' || hex.content === 'chest') {
+        const lootItem = interiorMap.loot?.find(l => l.col === hex.col && l.row === hex.row);
+        return lootItem?.collected || false;
+      }
 
-    // Check if encounter is defeated
-    if (hex.content === 'encounter') {
-      const encounterItem = interiorMap.encounters?.find(e => e.col === hex.col && e.row === hex.row);
-      return encounterItem?.defeated || false;
-    }
+      // Check if encounter is defeated
+      if (hex.content === 'encounter') {
+        const encounterItem = interiorMap.encounters?.find(
+          e => e.col === hex.col && e.row === hex.row
+        );
+        return encounterItem?.defeated || false;
+      }
 
-    // Check if hazard is triggered
-    if (hex.content === 'hazard') {
-      const hazardItem = interiorMap.hazards?.find(h => h.col === hex.col && h.row === hex.row);
-      return hazardItem?.triggered || false;
-    }
+      // Check if hazard is triggered
+      if (hex.content === 'hazard') {
+        const hazardItem = interiorMap.hazards?.find(h => h.col === hex.col && h.row === hex.row);
+        return hazardItem?.triggered || false;
+      }
 
-    return false;
-  }, [interiorMap]);
+      return false;
+    },
+    [interiorMap]
+  );
 
   // Draw a single hex (using utility function)
-  const drawHex = useCallback((ctx, hex) => {
-    const { x, y, terrain, content } = hex;
+  const drawHex = useCallback(
+    (ctx, hex) => {
+      const { x, y, terrain, content } = hex;
 
-    // Draw hex shape with procedural texture or solid color fallback
-    const strokeColor = terrain.walkable ? '#555' : '#111';
-    const lineWidth = terrain.walkable ? 1 : 2;
-    
-    if (textureGenerator.current) {
-      const pattern = textureGenerator.current.getPattern(ctx, terrain, hexSize, hex.col, hex.row);
-      drawHexShape(ctx, x, y, hexSize, pattern, strokeColor, lineWidth);
-    } else {
-      // Fallback to solid color if texture generator not ready
-      drawHexShape(ctx, x, y, hexSize, terrain.color, strokeColor, lineWidth);
-    }
+      // Draw hex shape with procedural texture or solid color fallback
+      const strokeColor = terrain.walkable ? '#555' : '#111';
+      const lineWidth = terrain.walkable ? 1 : 2;
 
-    // Draw content markers (only if discovered)
-    if (content) {
-      // Check visibility based on content type
-      let shouldRender = false;
-      
-      if (content === 'encounter') {
-        const encounter = interiorMap?.encounters?.find(e => e.col === hex.col && e.row === hex.row);
-        shouldRender = encounter && shouldRenderEncounter(encounter);
-      } else if (content === 'hazard') {
-        const hazard = interiorMap?.hazards?.find(h => h.col === hex.col && h.row === hex.row);
-        shouldRender = hazard && shouldRenderHazard(hazard);
-      } else if (content === 'loot' || content === 'chest') {
-        const loot = interiorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
-        shouldRender = loot && shouldRenderLoot(loot);
+      if (textureGenerator.current) {
+        const pattern = textureGenerator.current.getPattern(
+          ctx,
+          terrain,
+          hexSize,
+          hex.col,
+          hex.row
+        );
+        drawHexShape(ctx, x, y, hexSize, pattern, strokeColor, lineWidth);
       } else {
-        // Always render non-hidden content (entrance, stairs, etc.)
-        shouldRender = true;
+        // Fallback to solid color if texture generator not ready
+        drawHexShape(ctx, x, y, hexSize, terrain.color, strokeColor, lineWidth);
       }
 
-      if (shouldRender) {
-        const isCollected = isContentCollected(hex);
-        drawContentMarker(ctx, x, y, content, isCollected);
+      // Draw content markers (only if discovered)
+      if (content) {
+        // Check visibility based on content type
+        let shouldRender = false;
+
+        if (content === 'encounter') {
+          const encounter = interiorMap?.encounters?.find(
+            e => e.col === hex.col && e.row === hex.row
+          );
+          shouldRender = encounter && shouldRenderEncounter(encounter);
+        } else if (content === 'hazard') {
+          const hazard = interiorMap?.hazards?.find(h => h.col === hex.col && h.row === hex.row);
+          shouldRender = hazard && shouldRenderHazard(hazard);
+        } else if (content === 'loot' || content === 'chest') {
+          const loot = interiorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
+          shouldRender = loot && shouldRenderLoot(loot);
+        } else {
+          // Always render non-hidden content (entrance, stairs, etc.)
+          shouldRender = true;
+        }
+
+        if (shouldRender) {
+          const isCollected = isContentCollected(hex);
+          drawContentMarker(ctx, x, y, content, isCollected);
+        }
       }
-    }
-  }, [hexSize, isContentCollected, interiorMap, shouldRenderEncounter, shouldRenderHazard, shouldRenderLoot]);
+    },
+    [
+      hexSize,
+      isContentCollected,
+      interiorMap,
+      shouldRenderEncounter,
+      shouldRenderHazard,
+      shouldRenderLoot,
+    ]
+  );
 
   // Draw content marker icons
   const drawContentMarker = (ctx, x, y, content, isCollected = false) => {
@@ -135,10 +170,10 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
       case 'entrance':
         // Brown door icon
         ctx.fillStyle = '#8B4513';
-        ctx.fillRect(x - iconSize/2, y - iconSize/2, iconSize, iconSize);
+        ctx.fillRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize);
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x - iconSize/2, y - iconSize/2, iconSize, iconSize);
+        ctx.strokeRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize);
         break;
 
       case 'encounter':
@@ -162,10 +197,10 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
       case 'chest':
         // Gold/gray chest icon (gray if collected)
         ctx.fillStyle = isCollected ? '#666666' : '#f39c12';
-        ctx.fillRect(x - iconSize/2, y - iconSize/2, iconSize, iconSize * 0.7);
+        ctx.fillRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize * 0.7);
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x - iconSize/2, y - iconSize/2, iconSize, iconSize * 0.7);
+        ctx.strokeRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize * 0.7);
         // Lock
         ctx.fillStyle = '#333';
         ctx.beginPath();
@@ -248,28 +283,36 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
   };
 
   // Draw hex outline (for selection) - wrapper around utility function
-  const drawHexOutline = useCallback((ctx, hex, color, width) => {
-    renderHexOutline(ctx, hex.x, hex.y, hexSize, color, width);
-  }, [hexSize]);
+  const drawHexOutline = useCallback(
+    (ctx, hex, color, width) => {
+      renderHexOutline(ctx, hex.x, hex.y, hexSize, color, width);
+    },
+    [hexSize]
+  );
 
   // Draw player marker (using utility function with smooth animation)
-  const drawPlayer = useCallback((ctx, hexArray) => {
-    if (!playerPosition) return;
+  const drawPlayer = useCallback(
+    (ctx, hexArray) => {
+      if (!playerPosition) return;
 
-    // Use animated position if available, otherwise actual position
-    let x, y;
-    if (playerVisualPosRef.current) {
-      x = playerVisualPosRef.current.x;
-      y = playerVisualPosRef.current.y;
-    } else {
-      const playerHex = hexArray.find(h => h.col === playerPosition.col && h.row === playerPosition.row);
-      if (!playerHex) return;
-      x = playerHex.x;
-      y = playerHex.y;
-    }
+      // Use animated position if available, otherwise actual position
+      let x, y;
+      if (playerVisualPosRef.current) {
+        x = playerVisualPosRef.current.x;
+        y = playerVisualPosRef.current.y;
+      } else {
+        const playerHex = hexArray.find(
+          h => h.col === playerPosition.col && h.row === playerPosition.row
+        );
+        if (!playerHex) return;
+        x = playerHex.x;
+        y = playerHex.y;
+      }
 
-    drawPlayerMarker(ctx, x, y, hexSize, 'P');
-  }, [hexSize, playerPosition]);
+      drawPlayerMarker(ctx, x, y, hexSize, 'P');
+    },
+    [hexSize, playerPosition]
+  );
 
   // Main draw function
   const draw = useCallback(() => {
@@ -292,7 +335,9 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
 
     // Draw selected hex outline
     if (selectedHex) {
-      const selectedHexData = hexArray.find(h => h.col === selectedHex.col && h.row === selectedHex.row);
+      const selectedHexData = hexArray.find(
+        h => h.col === selectedHex.col && h.row === selectedHex.row
+      );
       if (selectedHexData) {
         drawHexOutline(ctx, selectedHexData, '#3498db', 3);
       }
@@ -331,17 +376,20 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
     if (!canvas) return;
 
     const hexArray = positionedHexes();
-    const playerHex = hexArray.find(h => h.col === playerPosition.col && h.row === playerPosition.row);
+    const playerHex = hexArray.find(
+      h => h.col === playerPosition.col && h.row === playerPosition.row
+    );
     if (!playerHex) return;
 
     // Start player movement animation if position changed
-    if (previousPlayerPosRef.current && 
-        (previousPlayerPosRef.current.col !== playerPosition.col || 
-         previousPlayerPosRef.current.row !== playerPosition.row)) {
-      
-      const prevHex = hexArray.find(h => 
-        h.col === previousPlayerPosRef.current.col && 
-        h.row === previousPlayerPosRef.current.row
+    if (
+      previousPlayerPosRef.current &&
+      (previousPlayerPosRef.current.col !== playerPosition.col ||
+        previousPlayerPosRef.current.row !== playerPosition.row)
+    ) {
+      const prevHex = hexArray.find(
+        h =>
+          h.col === previousPlayerPosRef.current.col && h.row === previousPlayerPosRef.current.row
       );
 
       if (prevHex) {
@@ -349,7 +397,7 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
           startPos: { x: prevHex.x, y: prevHex.y },
           endPos: { x: playerHex.x, y: playerHex.y },
           startTime: performance.now(),
-          duration: 150 // milliseconds
+          duration: 150, // milliseconds
         };
       }
     }
@@ -382,7 +430,7 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
 
         playerVisualPosRef.current = {
           x: startPos.x + (endPos.x - startPos.x) * eased,
-          y: startPos.y + (endPos.y - startPos.y) * eased
+          y: startPos.y + (endPos.y - startPos.y) * eased,
         };
 
         // Animation complete
@@ -424,47 +472,59 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
   }, [draw]);
 
   // Get hex at point (using utility function)
-  const getHexAtPoint = useCallback((x, y) => {
-    const worldX = x - offsetX;
-    const worldY = y - offsetY;
-    const hexArray = positionedHexes();
+  const getHexAtPoint = useCallback(
+    (x, y) => {
+      const worldX = x - offsetX;
+      const worldY = y - offsetY;
+      const hexArray = positionedHexes();
 
-    return findHexAtPoint(worldX, worldY, hexArray, hexSize);
-  }, [hexSize, offsetX, offsetY, positionedHexes]);
+      return findHexAtPoint(worldX, worldY, hexArray, hexSize);
+    },
+    [hexSize, offsetX, offsetY, positionedHexes]
+  );
 
   // Handle click
-  const handleClick = useCallback((e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  const handleClick = useCallback(
+    e => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
 
-    const hex = getHexAtPoint(x, y);
-    if (hex && onHexClick) {
-      onHexClick(hex);
-    }
-  }, [getHexAtPoint, onHexClick]);
+      const hex = getHexAtPoint(x, y);
+      if (hex && onHexClick) {
+        onHexClick(hex);
+      }
+    },
+    [getHexAtPoint, onHexClick]
+  );
 
   // Handle double click
-  const handleDoubleClick = useCallback((e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  const handleDoubleClick = useCallback(
+    e => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
 
-    const hex = getHexAtPoint(x, y);
-    if (hex && onHexDoubleClick) {
-      onHexDoubleClick(hex);
-    }
-  }, [getHexAtPoint, onHexDoubleClick]);
+      const hex = getHexAtPoint(x, y);
+      if (hex && onHexDoubleClick) {
+        onHexDoubleClick(hex);
+      }
+    },
+    [getHexAtPoint, onHexDoubleClick]
+  );
 
   // Handle mouse move for cursor
-  const handleMouseMove = useCallback((e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  const handleMouseMove = useCallback(
+    e => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
 
-    const hex = getHexAtPoint(x, y);
-    canvasRef.current.style.cursor = hex ? 'pointer' : 'default';
-  }, [getHexAtPoint]);
+      const hex = getHexAtPoint(x, y);
+      canvasRef.current.style.cursor = hex ? 'pointer' : 'default';
+    },
+    [getHexAtPoint]
+  );
 
   return (
     <canvas
@@ -474,7 +534,7 @@ function InteriorHexCanvas({ interiorMap, playerPosition, selectedHex, onHexClic
       onMouseMove={handleMouseMove}
       style={{
         display: 'block',
-        cursor: 'pointer'
+        cursor: 'pointer',
       }}
     />
   );
@@ -487,20 +547,20 @@ InteriorHexCanvas.propTypes = {
         col: PropTypes.number.isRequired,
         row: PropTypes.number.isRequired,
         terrain: PropTypes.object.isRequired,
-        content: PropTypes.string
+        content: PropTypes.string,
       })
-    ).isRequired
+    ).isRequired,
   }).isRequired,
   playerPosition: PropTypes.shape({
     col: PropTypes.number.isRequired,
-    row: PropTypes.number.isRequired
+    row: PropTypes.number.isRequired,
   }),
   selectedHex: PropTypes.shape({
     col: PropTypes.number.isRequired,
-    row: PropTypes.number.isRequired
+    row: PropTypes.number.isRequired,
   }),
   onHexClick: PropTypes.func,
-  onHexDoubleClick: PropTypes.func
+  onHexDoubleClick: PropTypes.func,
 };
 
 export default InteriorHexCanvas;

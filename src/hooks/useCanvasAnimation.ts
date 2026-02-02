@@ -25,7 +25,7 @@ export function useCanvasAnimation({
   setOffsetX,
   setOffsetY,
   playerPosition,
-  hexes
+  hexes,
 }) {
   // Animation state
   const animationFrameRef = useRef(null);
@@ -86,7 +86,7 @@ export function useCanvasAnimation({
 
         playerVisualPosRef.current = {
           x: startPos.x + (endPos.x - startPos.x) * eased,
-          y: startPos.y + (endPos.y - startPos.y) * eased
+          y: startPos.y + (endPos.y - startPos.y) * eased,
         };
 
         // Animation complete
@@ -147,13 +147,13 @@ export function useCanvasAnimation({
     // Calculate end position
     const endPos = {
       x: getHexX(currentPos.col, currentPos.row),
-      y: getHexY(currentPos.row)
+      y: getHexY(currentPos.row),
     };
 
     // Start position is the CURRENT visual position (where player is drawn now)
     const startPos = playerVisualPosRef.current || {
       x: getHexX(prevPos.col, prevPos.row),
-      y: getHexY(prevPos.row)
+      y: getHexY(prevPos.row),
     };
 
     // Set up animation state
@@ -161,7 +161,7 @@ export function useCanvasAnimation({
       startPos,
       endPos,
       startTime: performance.now(),
-      duration: 300
+      duration: 300,
     };
 
     // Update previous position after setting up animation
@@ -171,6 +171,6 @@ export function useCanvasAnimation({
   return {
     playerVisualPosRef,
     centerCameraOnHex,
-    currentCameraRef
+    currentCameraRef,
   };
 }

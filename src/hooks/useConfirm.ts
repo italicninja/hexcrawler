@@ -24,7 +24,7 @@ export function useConfirm() {
   });
 
   const confirm = useCallback((title, description) => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       setState({
         open: true,
         title,
@@ -35,7 +35,7 @@ export function useConfirm() {
   }, []);
 
   const handleConfirm = useCallback(() => {
-    setState((prev) => {
+    setState(prev => {
       if (prev.resolve) {
         prev.resolve(true);
       }
@@ -44,7 +44,7 @@ export function useConfirm() {
   }, []);
 
   const handleCancel = useCallback(() => {
-    setState((prev) => {
+    setState(prev => {
       if (prev.resolve) {
         prev.resolve(false);
       }
@@ -52,9 +52,9 @@ export function useConfirm() {
     });
   }, []);
 
-  const handleOpenChange = useCallback((open) => {
+  const handleOpenChange = useCallback(open => {
     if (!open) {
-      setState((prev) => {
+      setState(prev => {
         // Dialog was closed without clicking a button (e.g., ESC key or clicking overlay)
         if (prev.resolve) {
           prev.resolve(false);

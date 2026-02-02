@@ -5,8 +5,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "./ui/dialog"
-import { Button } from "./ui/button"
+} from './ui/dialog';
+import { Button } from './ui/button';
 
 /**
  * ConfirmDialog - Replacement for window.confirm()
@@ -30,7 +30,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, onConfir
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{title || "Confirm"}</DialogTitle>
+          <DialogTitle>{title || 'Confirm'}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <DialogFooter>

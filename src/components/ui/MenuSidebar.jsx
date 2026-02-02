@@ -15,10 +15,10 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
         backgroundColor: 'var(--panel-bg)',
         border: '1px solid var(--border-color)',
         borderRadius: '8px',
-        width: '100%'
+        width: '100%',
       }}
     >
-      {items.map((item) => (
+      {items.map(item => (
         <button
           key={item.id}
           onClick={() => onItemClick(item)}
@@ -28,12 +28,16 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
             alignItems: 'center',
             gap: '1rem',
             padding: '1rem 1.25rem',
-            backgroundColor: item.isDev 
-              ? 'rgba(255, 69, 0, 0.2)' 
-              : selectedItem?.id === item.id ? 'var(--bg-lighter)' : 'var(--bg-color)',
-            border: item.isDev 
-              ? '2px solid rgba(255, 69, 0, 0.6)' 
-              : selectedItem?.id === item.id ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
+            backgroundColor: item.isDev
+              ? 'rgba(255, 69, 0, 0.2)'
+              : selectedItem?.id === item.id
+                ? 'var(--bg-lighter)'
+                : 'var(--bg-color)',
+            border: item.isDev
+              ? '2px solid rgba(255, 69, 0, 0.6)'
+              : selectedItem?.id === item.id
+                ? '2px solid var(--accent-color)'
+                : '1px solid var(--border-color)',
             borderRadius: '6px',
             color: item.isDev ? '#ff4500' : 'var(--text-color)',
             fontSize: '1rem',
@@ -41,9 +45,9 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             textAlign: 'left',
-            fontFamily: 'inherit'
+            fontFamily: 'inherit',
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={e => {
             if (item.isDev) {
               e.currentTarget.style.backgroundColor = 'rgba(255, 69, 0, 0.4)';
             } else if (selectedItem?.id !== item.id) {
@@ -51,7 +55,7 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
               e.currentTarget.style.borderColor = 'var(--text-muted)';
             }
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={e => {
             if (item.isDev) {
               e.currentTarget.style.backgroundColor = 'rgba(255, 69, 0, 0.2)';
             } else if (selectedItem?.id !== item.id) {
@@ -62,28 +66,30 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
         >
           <span style={{ fontSize: '1.5rem' }}>{item.icon}</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: '600', color: 'var(--text-color)' }}>
-              {item.label}
-            </div>
+            <div style={{ fontWeight: '600', color: 'var(--text-color)' }}>{item.label}</div>
             {item.description && (
-              <div style={{
-                fontSize: '0.85rem',
-                color: 'var(--text-muted)',
-                marginTop: '0.25rem'
-              }}>
+              <div
+                style={{
+                  fontSize: '0.85rem',
+                  color: 'var(--text-muted)',
+                  marginTop: '0.25rem',
+                }}
+              >
                 {item.description}
               </div>
             )}
           </div>
           {item.badge !== undefined && item.badge > 0 && (
-            <div style={{
-              padding: '0.25rem 0.5rem',
-              backgroundColor: 'var(--accent-color)',
-              color: 'var(--bg-color)',
-              borderRadius: '12px',
-              fontSize: '0.75rem',
-              fontWeight: '700'
-            }}>
+            <div
+              style={{
+                padding: '0.25rem 0.5rem',
+                backgroundColor: 'var(--accent-color)',
+                color: 'var(--bg-color)',
+                borderRadius: '12px',
+                fontSize: '0.75rem',
+                fontWeight: '700',
+              }}
+            >
               {item.badge}
             </div>
           )}
@@ -94,15 +100,17 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
 }
 
 MenuSidebar.propTypes = {
-  items: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.string.isRequired,
-    label: PropTypes.string.isRequired,
-    icon: PropTypes.string.isRequired,
-    description: PropTypes.string,
-    badge: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
-  })).isRequired,
+  items: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired,
+      icon: PropTypes.string.isRequired,
+      description: PropTypes.string,
+      badge: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    })
+  ).isRequired,
   onItemClick: PropTypes.func.isRequired,
-  selectedItem: PropTypes.object
+  selectedItem: PropTypes.object,
 };
 
 export default MenuSidebar;

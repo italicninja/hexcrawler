@@ -14,38 +14,38 @@ export class InteriorGenerator {
         key: 'floor',
         name: 'Stone Floor',
         color: '#6a6a6a', // Lighter gray for better contrast
-        walkable: true
+        walkable: true,
       },
       wall: {
         key: 'wall',
         name: 'Wall',
         color: '#1a1a1a', // Darker for better contrast
-        walkable: false
+        walkable: false,
       },
       water: {
         key: 'water',
         name: 'Underground Water',
         color: '#1e3a5f',
-        walkable: false
+        walkable: false,
       },
       entrance: {
         key: 'entrance',
         name: 'Entrance',
         color: '#8B4513',
-        walkable: true
+        walkable: true,
       },
       chasm: {
         key: 'chasm',
         name: 'Chasm',
         color: '#0d0d0d',
-        walkable: false
+        walkable: false,
       },
       rubble: {
         key: 'rubble',
         name: 'Rubble',
         color: '#5a5a5a',
-        walkable: true
-      }
+        walkable: true,
+      },
     };
   }
 
@@ -121,7 +121,7 @@ export class InteriorGenerator {
           col,
           row,
           terrain: defaultTerrain,
-          content: null // null | 'encounter' | 'loot' | 'hazard' | 'entrance'
+          content: null, // null | 'encounter' | 'loot' | 'hazard' | 'entrance'
         };
       }
     }
@@ -156,9 +156,24 @@ export class InteriorGenerator {
 
     // Hex grid neighbor offsets (offset coordinates)
     // Use Math.abs for modulo to handle negative rows correctly
-    const offsets = Math.abs(row % 2) === 0
-      ? [[-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]] // Even row
-      : [[0, -1], [1, -1], [-1, 0], [1, 0], [0, 1], [1, 1]]; // Odd row
+    const offsets =
+      Math.abs(row % 2) === 0
+        ? [
+            [-1, -1],
+            [0, -1],
+            [-1, 0],
+            [1, 0],
+            [-1, 1],
+            [0, 1],
+          ] // Even row
+        : [
+            [0, -1],
+            [1, -1],
+            [-1, 0],
+            [1, 0],
+            [0, 1],
+            [1, 1],
+          ]; // Odd row
 
     for (const [dc, dr] of offsets) {
       const newCol = col + dc;

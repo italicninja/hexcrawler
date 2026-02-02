@@ -26,9 +26,7 @@ function TownScene() {
   const interiorMap = poiKey ? interiorMaps[poiKey] : null;
 
   // Set player position to entrance when entering
-  const [playerPosition, setPlayerPosition] = useState(
-    interiorMap?.entrance || { col: 0, row: 0 }
-  );
+  const [playerPosition, setPlayerPosition] = useState(interiorMap?.entrance || { col: 0, row: 0 });
 
   useEffect(() => {
     if (interiorMap?.entrance) {
@@ -37,24 +35,19 @@ function TownScene() {
   }, [interiorMap]);
 
   // Handle hex selection
-  const handleHexClick = (hex) => {
+  const handleHexClick = hex => {
     setSelectedHex(hex);
   };
 
   // Handle hex movement
-  const handleHexDoubleClick = (hex) => {
+  const handleHexDoubleClick = hex => {
     if (!hex.terrain.walkable) {
       logger.movement.debug('Cannot move to unwalkable hex', { hex });
       return;
     }
 
     // Check distance (1 hex move for now)
-    const distance = getHexDistance(
-      playerPosition.col,
-      playerPosition.row,
-      hex.col,
-      hex.row
-    );
+    const distance = getHexDistance(playerPosition.col, playerPosition.row, hex.col, hex.row);
 
     if (distance > 1) {
       logger.movement.debug('Too far to move in one turn', { distance });
@@ -77,54 +70,57 @@ function TownScene() {
   };
 
   // Handle building interactions
-  const handleBuildingInteraction = (hex) => {
+  const handleBuildingInteraction = hex => {
     const buildingType = hex.buildingType;
-    
+
     switch (buildingType) {
       case 'inn':
         addMessage('Entered The Weary Traveler Inn - Rest options available (R key)', 'info');
         break;
-      
+
       case 'shop':
         addMessage('Entered General Store - Shop interface coming soon!', 'info');
         break;
-      
+
       case 'questBoard':
         addMessage('Checking Quest Board - Quest system available in Hex Details panel!', 'info');
         break;
-      
+
       case 'blacksmith':
         addMessage('Entered Blacksmith - Services coming soon!', 'info');
         break;
-      
+
       case 'temple':
-        addMessage('Entered Temple - You feel a sense of tranquility. Services coming soon!', 'info');
+        addMessage(
+          'Entered Temple - You feel a sense of tranquility. Services coming soon!',
+          'info'
+        );
         break;
-      
+
       case 'house':
         addMessage('Private residence - The door is locked.', 'info');
         break;
-      
+
       case 'tent':
         addMessage('Entered tent - A simple shelter for travelers.', 'info');
         break;
-      
+
       case 'campfire':
         addMessage('Standing by the campfire - A warm place to rest and share stories.', 'info');
         break;
-      
+
       case 'supplyWagon':
         addMessage('Supply Wagon - Basic traveling goods available.', 'info');
         break;
-      
+
       case 'market':
         addMessage('Entered Market - A bustling marketplace with diverse goods.', 'info');
         break;
-      
+
       case 'barracks':
         addMessage('Entered Guard Barracks - City guards training and resting.', 'info');
         break;
-      
+
       default:
         logger.general.warn('Unknown building type:', { buildingType });
     }
@@ -155,12 +151,12 @@ function TownScene() {
   };
 
   // Helper to get hex in direction
-  const getHexInDirection = (direction) => {
+  const getHexInDirection = direction => {
     const { col, row } = playerPosition;
     let targetCol = col;
     let targetRow = row;
 
-    switch(direction) {
+    switch (direction) {
       case 'up':
         targetRow = row - 1;
         break;
@@ -213,7 +209,7 @@ function TownScene() {
       } else if (currentHex && currentHex.terrain.key === 'gate') {
         handleExitTown();
       }
-    }
+    },
   };
 
   // Enable keyboard controls
@@ -246,23 +242,32 @@ function TownScene() {
           <div className="legend">
             <h4>Legend:</h4>
             <ul>
-              <li><span style={{ color: '#a89968' }}>■</span> Town Square</li>
-              <li><span style={{ color: '#8B7355' }}>■</span> Road</li>
-              <li><span style={{ color: '#654321' }}>■</span> Building Entrance</li>
-              <li><span style={{ color: '#5C4033' }}>■</span> Town Gate (Exit)</li>
+              <li>
+                <span style={{ color: '#a89968' }}>■</span> Town Square
+              </li>
+              <li>
+                <span style={{ color: '#8B7355' }}>■</span> Road
+              </li>
+              <li>
+                <span style={{ color: '#654321' }}>■</span> Building Entrance
+              </li>
+              <li>
+                <span style={{ color: '#5C4033' }}>■</span> Town Gate (Exit)
+              </li>
             </ul>
           </div>
         </div>
       );
     }
 
-    const isPlayerHere = playerPosition.col === selectedHex.col && playerPosition.row === selectedHex.row;
+    const isPlayerHere =
+      playerPosition.col === selectedHex.col && playerPosition.row === selectedHex.row;
     const terrain = selectedHex.terrain;
 
     return (
       <div className="town-hex-details">
         <h3>{terrain.name}</h3>
-        
+
         {isPlayerHere && (
           <div className="player-location">
             <span className="badge">You are here</span>
@@ -270,8 +275,12 @@ function TownScene() {
         )}
 
         <div className="terrain-info">
-          <p><strong>Type:</strong> {terrain.key}</p>
-          <p><strong>Walkable:</strong> {terrain.walkable ? 'Yes' : 'No'}</p>
+          <p>
+            <strong>Type:</strong> {terrain.key}
+          </p>
+          <p>
+            <strong>Walkable:</strong> {terrain.walkable ? 'Yes' : 'No'}
+          </p>
         </div>
 
         {selectedHex.buildingType && (
@@ -307,15 +316,17 @@ function TownScene() {
         <div className="town-header">
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <h2>{currentPOI.poi.name || 'Unknown Settlement'}</h2>
-            <div style={{
-              fontSize: '0.9rem',
-              fontWeight: '500',
-              fontFamily: 'monospace',
-              padding: '0.25rem 0.5rem',
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-              borderRadius: '4px',
-              color: '#d4af37'
-            }}>
+            <div
+              style={{
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                fontFamily: 'monospace',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '4px',
+                color: '#d4af37',
+              }}
+            >
               {formatTime(state.gameTime)}
             </div>
           </div>
@@ -333,16 +344,12 @@ function TownScene() {
       </div>
 
       {/* Right Panel */}
-      <div className="right-panel">
-        {getHexDetails()}
-      </div>
+      <div className="right-panel">{getHexDetails()}</div>
 
       {/* Bottom Panel */}
       <div className="bottom-panel">
         <GameLog />
       </div>
-
-
     </div>
   );
 }

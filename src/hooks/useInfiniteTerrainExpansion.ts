@@ -76,7 +76,7 @@ export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
     }
 
     if (!needsExpansion || !expandDirection) return;
-    
+
     // Prevent duplicate expansions in the same direction from the same position
     const lastExp = lastExpansionRef.current;
     if (lastExp.col === col && lastExp.row === row && lastExp.direction === expandDirection) {
@@ -100,11 +100,19 @@ export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
     // Update map data with new hexes
     dispatch({
       type: actions.SET_MAP_DATA,
-      payload: [...state.mapData, ...newHexes]
+      payload: [...state.mapData, ...newHexes],
     });
 
     // Log expansion to console only (not visible to player in GameLog)
-  }, [state.playerPosition.col, state.playerPosition.row, state.mapSeed, dispatch, actions, viewportSize.width, viewportSize.height]);
+  }, [
+    state.playerPosition.col,
+    state.playerPosition.row,
+    state.mapSeed,
+    dispatch,
+    actions,
+    viewportSize.width,
+    viewportSize.height,
+  ]);
   // NOTE: state.mapData intentionally excluded from deps to prevent infinite loop
   // The effect only needs to run when player position changes, not when map expands
 }
@@ -129,11 +137,12 @@ function generateExpansionHexes(terrainGenerator, direction, boundaries, chunkSi
         for (let c = maxCol + 1; c <= maxCol + chunkSize; c++) {
           const hex = generateHex(
             terrainGenerator,
-            c, r,
+            c,
+            r,
             maxCol + chunkSize + 1,
             maxRow + 1,
             0.5, // terrainVariety
-            0.2  // poiChance (20%)
+            0.2 // poiChance (20%)
           );
           newHexes.push(hex);
         }
@@ -146,11 +155,12 @@ function generateExpansionHexes(terrainGenerator, direction, boundaries, chunkSi
         for (let c = minCol - chunkSize; c < minCol; c++) {
           const hex = generateHex(
             terrainGenerator,
-            c, r,
+            c,
+            r,
             maxCol + 1,
             maxRow + 1,
             0.5, // terrainVariety
-            0.2  // poiChance (20%)
+            0.2 // poiChance (20%)
           );
           newHexes.push(hex);
         }
@@ -163,11 +173,12 @@ function generateExpansionHexes(terrainGenerator, direction, boundaries, chunkSi
         for (let c = minCol; c <= maxCol; c++) {
           const hex = generateHex(
             terrainGenerator,
-            c, r,
+            c,
+            r,
             maxCol + 1,
             maxRow + chunkSize + 1,
             0.5, // terrainVariety
-            0.2  // poiChance (20%)
+            0.2 // poiChance (20%)
           );
           newHexes.push(hex);
         }
@@ -180,11 +191,12 @@ function generateExpansionHexes(terrainGenerator, direction, boundaries, chunkSi
         for (let c = minCol; c <= maxCol; c++) {
           const hex = generateHex(
             terrainGenerator,
-            c, r,
+            c,
+            r,
             maxCol + 1,
             maxRow + 1,
             0.5, // terrainVariety
-            0.2  // poiChance (20%)
+            0.2 // poiChance (20%)
           );
           newHexes.push(hex);
         }

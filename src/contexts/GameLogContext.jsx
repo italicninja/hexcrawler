@@ -37,21 +37,20 @@ export function GameLogProvider({ children }) {
   }, []);
 
   // Memoize context value to prevent unnecessary re-renders
-  const value = useMemo(() => ({
-    messages,
-    addMessage,
-    clearMessages
-  }), [messages, addMessage, clearMessages]);
-
-  return (
-    <GameLogContext.Provider value={value}>
-      {children}
-    </GameLogContext.Provider>
+  const value = useMemo(
+    () => ({
+      messages,
+      addMessage,
+      clearMessages,
+    }),
+    [messages, addMessage, clearMessages]
   );
+
+  return <GameLogContext.Provider value={value}>{children}</GameLogContext.Provider>;
 }
 
 GameLogProvider.propTypes = {
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
 };
 
 /**

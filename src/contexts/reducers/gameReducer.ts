@@ -15,6 +15,7 @@ import { Quest } from '../../game/Quest';
 import { Shop } from '../../game/Shop';
 import { createGameTime, advanceTime } from '../../game/TimeManager';
 import { GAME_DEFAULTS, COMBAT } from '../../constants/gameConstants';
+import { WeatherSystem } from '../../WeatherSystem';
 
 export function gameReducer(state, action, ACTIONS) {
   switch (action.type) {
@@ -111,12 +112,14 @@ export function gameReducer(state, action, ACTIONS) {
       }
 
       // Reconstruct weather system
-      // Note: WeatherSystem import will be needed at top of file
       let weatherSystem = null;
       if (loadedState.weatherSystem && regions.length > 0) {
-        // Import WeatherSystem dynamically to avoid circular deps
-        // For now, we'll regenerate weather on load
-        weatherSystem = null; // TODO: Implement WeatherSystem.fromJSON(loadedState.weatherSystem, regions)
+        try {
+          weatherSystem = WeatherSystem.fromJSON(loadedState.weatherSystem, regions);
+        } catch (error) {
+          console.error('Failed to restore weather system, will regenerate', error);
+          weatherSystem = null;
+        }
       }
 
       // Reconstruct explorationState Sets
@@ -129,13 +132,19 @@ export function gameReducer(state, action, ACTIONS) {
 
       // Reconstruct nested Sets in explorationState
       Object.keys(loadedState.explorationState?.clearedEncounters || {}).forEach(key => {
-        explorationState.clearedEncounters[key] = new Set(loadedState.explorationState.clearedEncounters[key]);
+        explorationState.clearedEncounters[key] = new Set(
+          loadedState.explorationState.clearedEncounters[key]
+        );
       });
       Object.keys(loadedState.explorationState?.collectedLoot || {}).forEach(key => {
-        explorationState.collectedLoot[key] = new Set(loadedState.explorationState.collectedLoot[key]);
+        explorationState.collectedLoot[key] = new Set(
+          loadedState.explorationState.collectedLoot[key]
+        );
       });
       Object.keys(loadedState.explorationState?.triggeredHazards || {}).forEach(key => {
-        explorationState.triggeredHazards[key] = new Set(loadedState.explorationState.triggeredHazards[key]);
+        explorationState.triggeredHazards[key] = new Set(
+          loadedState.explorationState.triggeredHazards[key]
+        );
       });
 
       // Reconstruct Quest instances

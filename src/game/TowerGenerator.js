@@ -19,14 +19,14 @@ export class TowerGenerator extends InteriorGenerator {
       key: 'stairsUp',
       name: 'Stairs Up',
       color: '#6a5a3a',
-      walkable: true
+      walkable: true,
     };
 
     this.terrainTypes.stairsDown = {
       key: 'stairsDown',
       name: 'Stairs Down',
       color: '#5a4a2a',
-      walkable: true
+      walkable: true,
     };
   }
 
@@ -64,7 +64,7 @@ export class TowerGenerator extends InteriorGenerator {
       hazards: [], // Will be populated later
       entrance,
       floorCount, // Track number of floors
-      bossFloor: floorCount - 1 // Boss is on top floor
+      bossFloor: floorCount - 1, // Boss is on top floor
     };
   }
 
@@ -91,8 +91,8 @@ export class TowerGenerator extends InteriorGenerator {
 
       // Each floor is slightly smaller/larger based on position
       // Ground floor is largest, top floor is smallest
-      const floorSizeModifier = 1 - (floor * 0.1);
-      const floorRadius = Math.floor(Math.min(floorWidth, height) / 2 * floorSizeModifier);
+      const floorSizeModifier = 1 - floor * 0.1;
+      const floorRadius = Math.floor((Math.min(floorWidth, height) / 2) * floorSizeModifier);
 
       // Center of this floor
       const centerCol = offsetCol + Math.floor(floorWidth / 2);
@@ -207,7 +207,7 @@ export class TowerGenerator extends InteriorGenerator {
       entrance = {
         col: Math.floor(floorWidth / 2),
         row: Math.floor(height / 2),
-        floor: 0
+        floor: 0,
       };
     }
 
@@ -236,10 +236,12 @@ export class TowerGenerator extends InteriorGenerator {
 
       // Get floor tiles for this floor
       const floorTiles = interiorMap.hexes.filter(hex => {
-        return hex.col >= offsetCol &&
-               hex.col < offsetCol + floorWidth &&
-               hex.terrain.walkable &&
-               hex.content === null;
+        return (
+          hex.col >= offsetCol &&
+          hex.col < offsetCol + floorWidth &&
+          hex.terrain.walkable &&
+          hex.content === null
+        );
       });
 
       if (floorTiles.length === 0) continue;
@@ -265,7 +267,7 @@ export class TowerGenerator extends InteriorGenerator {
           : poiData.creatures || `CR ${encounterCR} enemies`,
         defeated: false,
         discovered: false,
-        isBoss: isBoss
+        isBoss: isBoss,
       });
     }
 
@@ -291,17 +293,20 @@ export class TowerGenerator extends InteriorGenerator {
 
     for (let i = 0; i < lootCount; i++) {
       // Bias towards upper floors (70% chance of upper half)
-      const targetFloor = this.random() > 0.3
-        ? Math.floor(floorCount / 2) + this.randomInt(0, Math.floor(floorCount / 2))
-        : this.randomInt(0, Math.floor(floorCount / 2) - 1);
+      const targetFloor =
+        this.random() > 0.3
+          ? Math.floor(floorCount / 2) + this.randomInt(0, Math.floor(floorCount / 2))
+          : this.randomInt(0, Math.floor(floorCount / 2) - 1);
 
       const offsetCol = targetFloor * floorWidth;
 
       const floorTiles = interiorMap.hexes.filter(hex => {
-        return hex.col >= offsetCol &&
-               hex.col < offsetCol + floorWidth &&
-               hex.terrain.walkable &&
-               hex.content === null;
+        return (
+          hex.col >= offsetCol &&
+          hex.col < offsetCol + floorWidth &&
+          hex.terrain.walkable &&
+          hex.content === null
+        );
       });
 
       if (floorTiles.length === 0) continue;
@@ -313,10 +318,10 @@ export class TowerGenerator extends InteriorGenerator {
 
       // 25% chance of treasure chest, 75% regular loot
       const isChest = this.random() < 0.25;
-      
+
       let lootData;
       let contentType;
-      
+
       if (isChest) {
         // Generate DMG treasure hoard
         lootData = treasureGenerator.generateTreasureHoard(cr, partySize, () => this.random());
@@ -342,7 +347,7 @@ export class TowerGenerator extends InteriorGenerator {
         consumables: lootData.consumables || [],
         rarity: lootData.rarity,
         collected: false,
-        discovered: false
+        discovered: false,
       });
     }
 
@@ -362,7 +367,7 @@ export class TowerGenerator extends InteriorGenerator {
     const cr = interiorMap.cr;
 
     // Fewer hazards in towers (10-20%)
-    const hazardPercentage = 0.10 + this.random() * 0.10;
+    const hazardPercentage = 0.1 + this.random() * 0.1;
     const hazardCount = Math.floor(floorTiles.length * hazardPercentage);
 
     const hazards = [];
@@ -385,7 +390,7 @@ export class TowerGenerator extends InteriorGenerator {
         row: tile.row,
         ...generatedHazard,
         triggered: false,
-        discovered: false
+        discovered: false,
       });
     }
 

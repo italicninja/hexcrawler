@@ -20,8 +20,8 @@ const defaultSettings = {
     inventory: 'i',
     quests: 'q',
     map: 'm',
-    quicksave: 'F5'
-  }
+    quicksave: 'F5',
+  },
 };
 
 // Provider component
@@ -50,7 +50,7 @@ export function SettingsProvider({ children }) {
   }, [settings]);
 
   // Helper functions - memoized to prevent recreation
-  const get = useCallback((key) => settings[key], [settings]);
+  const get = useCallback(key => settings[key], [settings]);
 
   const set = useCallback((key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -61,18 +61,17 @@ export function SettingsProvider({ children }) {
   }, []);
 
   // Memoize context value to prevent unnecessary re-renders
-  const value = useMemo(() => ({
-    settings,
-    get,
-    set,
-    reset
-  }), [settings, get, set, reset]);
-
-  return (
-    <SettingsContext.Provider value={value}>
-      {children}
-    </SettingsContext.Provider>
+  const value = useMemo(
+    () => ({
+      settings,
+      get,
+      set,
+      reset,
+    }),
+    [settings, get, set, reset]
   );
+
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 
 // Custom hook to use settings

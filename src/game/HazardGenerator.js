@@ -18,9 +18,9 @@ export class HazardGenerator extends BaseGenerator {
       'Fire-Casting Statue': 0.15,
       'Hidden Pit': 0.15,
       'Poisoned Darts': 0.15,
-      'Poisoned Needle': 0.10,
-      'Spiked Pit': 0.10,
-      'Rolling Stone': 0.05 // High-level only
+      'Poisoned Needle': 0.1,
+      'Spiked Pit': 0.1,
+      'Rolling Stone': 0.05, // High-level only
     };
   }
 
@@ -58,7 +58,7 @@ export class HazardGenerator extends BaseGenerator {
       effects: scaledTrap.effects,
       condition: scaledTrap.condition,
       detectDC: scaledTrap.detectDC,
-      detectSkill: scaledTrap.detectSkill
+      detectSkill: scaledTrap.detectSkill,
     };
   }
 
@@ -85,12 +85,12 @@ export class HazardGenerator extends BaseGenerator {
   _selectRandomTrap(level, random) {
     // Adjust weights based on level (Rolling Stone only at high levels)
     const weights = { ...this.trapWeights };
-    
+
     if (level < 11) {
       // Remove Rolling Stone for low levels and redistribute weight
       const rollingStoneWeight = weights['Rolling Stone'];
       delete weights['Rolling Stone'];
-      
+
       // Distribute the weight evenly among remaining traps
       const numTraps = Object.keys(weights).length;
       const extraWeight = rollingStoneWeight / numTraps;
@@ -116,10 +116,13 @@ export class HazardGenerator extends BaseGenerator {
   _calculateTrapDamage(scaledTrap, random) {
     // Use scaledDamage instead of damage (scaledDamage is the string for the level)
     const damageString = scaledTrap.scaledDamage || scaledTrap.damage;
-    
+
     // Check if damageString is actually a string
     if (typeof damageString !== 'string') {
-      logger.mapgen.error('Invalid damage string for trap', { trap: scaledTrap.type, damageString });
+      logger.mapgen.error('Invalid damage string for trap', {
+        trap: scaledTrap.type,
+        damageString,
+      });
       return 0;
     }
 
@@ -144,7 +147,7 @@ export class HazardGenerator extends BaseGenerator {
       // Format: "1d4 piercing per dart (1d3 darts)"
       const dartDiceMatch = damageString.match(/\((\d+d\d+) darts?\)/);
       const damageDiceMatch = damageString.match(/^(\d+d\d+)/);
-      
+
       if (dartDiceMatch && damageDiceMatch) {
         const numDarts = this._rollDamage(dartDiceMatch[1], random);
         const damagePerDart = damageDiceMatch[1];
@@ -178,8 +181,6 @@ export class HazardGenerator extends BaseGenerator {
     return this.rollDice(numDice, diceSize, random);
   }
 
-
-
   /**
    * Get hazard category color for display
    * @param {string} category
@@ -187,9 +188,9 @@ export class HazardGenerator extends BaseGenerator {
    */
   getCategoryColor(category) {
     const colors = {
-      'trap': '#e67e22',
-      'environmental': '#e74c3c',
-      'magical': '#9b59b6'
+      trap: '#e67e22',
+      environmental: '#e74c3c',
+      magical: '#9b59b6',
     };
     return colors[category] || colors.trap;
   }
@@ -201,19 +202,19 @@ export class HazardGenerator extends BaseGenerator {
    */
   getDamageTypeColor(damageType) {
     const colors = {
-      'fire': '#e74c3c',
-      'cold': '#3498db',
-      'lightning': '#f1c40f',
-      'poison': '#27ae60',
-      'necrotic': '#8e44ad',
-      'force': '#9b59b6',
-      'psychic': '#e91e63',
-      'piercing': '#95a5a6',
-      'slashing': '#95a5a6',
-      'bludgeoning': '#95a5a6',
-      'falling': '#7f8c8d',
-      'restraint': '#34495e',
-      'teleport': '#9b59b6'
+      fire: '#e74c3c',
+      cold: '#3498db',
+      lightning: '#f1c40f',
+      poison: '#27ae60',
+      necrotic: '#8e44ad',
+      force: '#9b59b6',
+      psychic: '#e91e63',
+      piercing: '#95a5a6',
+      slashing: '#95a5a6',
+      bludgeoning: '#95a5a6',
+      falling: '#7f8c8d',
+      restraint: '#34495e',
+      teleport: '#9b59b6',
     };
     return colors[damageType] || colors.piercing;
   }
@@ -235,7 +236,7 @@ export class HazardGenerator extends BaseGenerator {
     if (saveResult) {
       const total = saveResult.roll + saveResult.modifier;
       output += `${hazard.saveType.toUpperCase()} save: ${saveResult.roll}+${saveResult.modifier}=${total} vs DC ${hazard.dc}\n`;
-      
+
       if (saveResult.success) {
         output += `Success! `;
         if (hazard.damage > 0) {

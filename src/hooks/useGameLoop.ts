@@ -18,7 +18,7 @@ export function useGameLoop(callback, isActive = true) {
   useEffect(() => {
     if (!isActive) return;
 
-    const animate = (time) => {
+    const animate = time => {
       if (previousTimeRef.current !== undefined) {
         const deltaTime = (time - previousTimeRef.current) / 1000; // Convert to seconds
         callbackRef.current(deltaTime);

@@ -45,13 +45,13 @@ export class Enemy {
       constitution: statTable.constitution,
       intelligence: statTable.intelligence,
       wisdom: statTable.wisdom,
-      charisma: statTable.charisma
+      charisma: statTable.charisma,
     };
 
     // Attack configuration
     this.attacks = statTable.attacks;
     this.multiattack = statTable.multiattack || 1;
-    
+
     // Movement (most monsters have 30 feet = 6 hexes)
     this.moveDistance = statTable.moveDistance || 6;
   }
@@ -76,7 +76,7 @@ export class Enemy {
         attacks: [{ name: 'Slam', damage: '1d4', damageType: 'bludgeoning' }],
         multiattack: 1,
         range: 1,
-        moveDistance: 6 // 30 feet
+        moveDistance: 6, // 30 feet
       },
       1: {
         hp: 36,
@@ -93,7 +93,7 @@ export class Enemy {
         attacks: [{ name: 'Strike', damage: '1d8+1', damageType: 'slashing' }],
         multiattack: 1,
         range: 1,
-        moveDistance: 6 // 30 feet
+        moveDistance: 6, // 30 feet
       },
       2: {
         hp: 52,
@@ -110,7 +110,7 @@ export class Enemy {
         attacks: [{ name: 'Weapon Attack', damage: '1d8+2', damageType: 'slashing' }],
         multiattack: 1,
         range: 1,
-        moveDistance: 6 // 30 feet
+        moveDistance: 6, // 30 feet
       },
       3: {
         hp: 66,
@@ -127,7 +127,7 @@ export class Enemy {
         attacks: [{ name: 'Claw', damage: '2d6+2', damageType: 'slashing' }],
         multiattack: 1,
         range: 1,
-        moveDistance: 6 // 30 feet
+        moveDistance: 6, // 30 feet
       },
       4: {
         hp: 84,
@@ -143,7 +143,7 @@ export class Enemy {
         charisma: 10,
         attacks: [{ name: 'Bite', damage: '2d8+3', damageType: 'piercing' }],
         multiattack: 1,
-        range: 1
+        range: 1,
       },
       5: {
         hp: 95,
@@ -159,7 +159,7 @@ export class Enemy {
         charisma: 10,
         attacks: [{ name: 'Greataxe', damage: '2d10+3', damageType: 'slashing' }],
         multiattack: 1,
-        range: 1
+        range: 1,
       },
       6: {
         hp: 112,
@@ -175,7 +175,7 @@ export class Enemy {
         charisma: 10,
         attacks: [{ name: 'Tail Attack', damage: '2d10+4', damageType: 'bludgeoning' }],
         multiattack: 2,
-        range: 1
+        range: 1,
       },
       7: {
         hp: 133,
@@ -191,7 +191,7 @@ export class Enemy {
         charisma: 12,
         attacks: [{ name: 'Boulder', damage: '3d10+4', damageType: 'bludgeoning' }],
         multiattack: 2,
-        range: 20
+        range: 20,
       },
       8: {
         hp: 136,
@@ -207,7 +207,7 @@ export class Enemy {
         charisma: 12,
         attacks: [{ name: 'Greatsword', damage: '4d8+5', damageType: 'slashing' }],
         multiattack: 2,
-        range: 1
+        range: 1,
       },
       9: {
         hp: 145,
@@ -223,7 +223,7 @@ export class Enemy {
         charisma: 14,
         attacks: [{ name: 'Fang', damage: '4d10+5', damageType: 'piercing' }],
         multiattack: 2,
-        range: 1
+        range: 1,
       },
       10: {
         hp: 157,
@@ -239,7 +239,7 @@ export class Enemy {
         charisma: 14,
         attacks: [{ name: 'Breath Weapon', damage: '5d10+6', damageType: 'fire' }],
         multiattack: 2,
-        range: 20
+        range: 20,
       },
       11: {
         hp: 175,
@@ -255,8 +255,8 @@ export class Enemy {
         charisma: 16,
         attacks: [{ name: 'Legendary Strike', damage: '6d10+6', damageType: 'force' }],
         multiattack: 3,
-        range: 1
-      }
+        range: 1,
+      },
     };
 
     // Return exact CR or nearest lower CR
@@ -265,7 +265,9 @@ export class Enemy {
     }
 
     // Find nearest lower CR
-    const availableCRs = Object.keys(tables).map(Number).sort((a, b) => a - b);
+    const availableCRs = Object.keys(tables)
+      .map(Number)
+      .sort((a, b) => a - b);
     for (let i = availableCRs.length - 1; i >= 0; i--) {
       if (availableCRs[i] <= cr) {
         return tables[availableCRs[i]];
@@ -321,7 +323,7 @@ export class Enemy {
       total,
       hit,
       crit,
-      targetAC: target.armorClass
+      targetAC: target.armorClass,
     };
   }
 
@@ -346,7 +348,7 @@ export class Enemy {
     return {
       damage,
       damageType: attack.damageType,
-      attackName: attack.name
+      attackName: attack.name,
     };
   }
 
@@ -384,7 +386,7 @@ export class Enemy {
       multiattack: this.multiattack,
       isDead: this.isDead,
       specialAbilities: [...this.specialAbilities],
-      range: this.range
+      range: this.range,
     };
   }
 

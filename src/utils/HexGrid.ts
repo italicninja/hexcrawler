@@ -1,7 +1,7 @@
 /**
  * HexGrid - Spatial index for fast hex lookups
  * Provides O(1) coordinate-based queries instead of O(n) array searches
- * 
+ *
  * Replaces linear searches through mapData arrays with hash map lookups
  */
 
@@ -32,11 +32,11 @@ export class HexGrid {
   private _buildIndex(): void {
     this.grid.clear();
     this.bounds = { minCol: Infinity, maxCol: -Infinity, minRow: Infinity, maxRow: -Infinity };
-    
+
     for (const hex of this.hexes) {
       const key = HexGrid.makeKey(hex.col, hex.row);
       this.grid.set(key, hex);
-      
+
       // Update bounds
       this.bounds.minCol = Math.min(this.bounds.minCol, hex.col);
       this.bounds.maxCol = Math.max(this.bounds.maxCol, hex.col);
@@ -160,20 +160,20 @@ export class HexGrid {
     const isEvenRow = row % 2 === 0;
     return isEvenRow
       ? [
-          { dc: 1, dr: 0 },   // East
-          { dc: 0, dr: -1 },  // Northeast
+          { dc: 1, dr: 0 }, // East
+          { dc: 0, dr: -1 }, // Northeast
           { dc: -1, dr: -1 }, // Northwest
-          { dc: -1, dr: 0 },  // West
-          { dc: -1, dr: 1 },  // Southwest
-          { dc: 0, dr: 1 }    // Southeast
+          { dc: -1, dr: 0 }, // West
+          { dc: -1, dr: 1 }, // Southwest
+          { dc: 0, dr: 1 }, // Southeast
         ]
       : [
-          { dc: 1, dr: 0 },   // East
-          { dc: 1, dr: -1 },  // Northeast
-          { dc: 0, dr: -1 },  // Northwest
-          { dc: -1, dr: 0 },  // West
-          { dc: 0, dr: 1 },   // Southwest
-          { dc: 1, dr: 1 }    // Southeast
+          { dc: 1, dr: 0 }, // East
+          { dc: 1, dr: -1 }, // Northeast
+          { dc: 0, dr: -1 }, // Northwest
+          { dc: -1, dr: 0 }, // West
+          { dc: 0, dr: 1 }, // Southwest
+          { dc: 1, dr: 1 }, // Southeast
         ];
   }
 

@@ -13,9 +13,24 @@ import logger from '../utils/logger.js';
  */
 function getHexNeighbors(col, row) {
   // Hex grid neighbor offsets (flat-top orientation)
-  const offsets = Math.abs(row % 2) === 0
-    ? [[-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]] // Even row
-    : [[0, -1], [1, -1], [-1, 0], [1, 0], [0, 1], [1, 1]]; // Odd row
+  const offsets =
+    Math.abs(row % 2) === 0
+      ? [
+          [-1, -1],
+          [0, -1],
+          [-1, 0],
+          [1, 0],
+          [-1, 1],
+          [0, 1],
+        ] // Even row
+      : [
+          [0, -1],
+          [1, -1],
+          [-1, 0],
+          [1, 0],
+          [0, 1],
+          [1, 1],
+        ]; // Odd row
 
   return offsets.map(([dc, dr]) => ({ col: col + dc, row: row + dr }));
 }
@@ -38,14 +53,14 @@ export class EncounterPositions {
     switch (encounterType) {
       case 'standard':
         return this._placeStandard(allies, enemies, battlefield, occupied);
-      
+
       case 'ambush':
       case 'surrounded':
         return this._placeAmbush(allies, enemies, battlefield, occupied);
-      
+
       case 'boss':
         return this._placeBoss(allies, enemies, battlefield, occupied);
-      
+
       default:
         return this._placeStandard(allies, enemies, battlefield, occupied);
     }
@@ -101,7 +116,7 @@ export class EncounterPositions {
       { col: centerCol, row: centerRow - 1 },
       { col: centerCol, row: centerRow + 1 },
       { col: centerCol - 1, row: centerRow + 1 },
-      { col: centerCol + 1, row: centerRow + 1 }
+      { col: centerCol + 1, row: centerRow + 1 },
     ];
 
     for (const ally of allies) {
@@ -193,7 +208,7 @@ export class EncounterPositions {
       { col: bossPos.col + 1, row: bossPos.row + 1 },
       { col: bossPos.col, row: bossPos.row + 2 },
       { col: bossPos.col - 2, row: bossPos.row + 2 },
-      { col: bossPos.col + 2, row: bossPos.row + 2 }
+      { col: bossPos.col + 2, row: bossPos.row + 2 },
     ];
 
     let minionIndex = 0;
@@ -246,7 +261,12 @@ export class EncounterPositions {
 
       for (const neighbor of neighbors) {
         // Check bounds
-        if (neighbor.col < 0 || neighbor.col >= width || neighbor.row < 0 || neighbor.row >= height) {
+        if (
+          neighbor.col < 0 ||
+          neighbor.col >= width ||
+          neighbor.row < 0 ||
+          neighbor.row >= height
+        ) {
           continue;
         }
 

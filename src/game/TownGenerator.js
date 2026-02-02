@@ -16,45 +16,45 @@ export class TownGenerator extends InteriorGenerator {
         key: 'road',
         name: 'Cobblestone Road',
         color: '#8B7355',
-        walkable: true
+        walkable: true,
       },
       grass: {
         key: 'grass',
         name: 'Grass',
         color: '#567d46',
-        walkable: true
+        walkable: true,
       },
       townSquare: {
         key: 'townSquare',
         name: 'Town Square',
         color: '#a89968',
-        walkable: true
+        walkable: true,
       },
       building: {
         key: 'building',
         name: 'Building',
         color: '#8B4513',
-        walkable: false
+        walkable: false,
       },
       buildingEntrance: {
         key: 'buildingEntrance',
         name: 'Building Entrance',
         color: '#654321',
         walkable: true,
-        isInteractive: true
+        isInteractive: true,
       },
       gate: {
         key: 'gate',
         name: 'Town Gate',
         color: '#5C4033',
-        walkable: true
+        walkable: true,
       },
       fence: {
         key: 'fence',
         name: 'Fence',
         color: '#4a3f35',
-        walkable: false
-      }
+        walkable: false,
+      },
     };
 
     // Building types with their metadata
@@ -64,78 +64,78 @@ export class TownGenerator extends InteriorGenerator {
         name: 'The Weary Traveler Inn',
         icon: '🏨',
         size: { width: 3, height: 3 },
-        entranceOffset: { col: 1, row: 2 } // Bottom center
+        entranceOffset: { col: 1, row: 2 }, // Bottom center
       },
       shop: {
         key: 'shop',
         name: 'General Store',
         icon: '🏪',
         size: { width: 3, height: 2 },
-        entranceOffset: { col: 1, row: 1 } // Bottom center
+        entranceOffset: { col: 1, row: 1 }, // Bottom center
       },
       questBoard: {
         key: 'questBoard',
         name: 'Quest Board',
         icon: '📋',
         size: { width: 2, height: 2 },
-        entranceOffset: { col: 0, row: 1 } // Bottom left
+        entranceOffset: { col: 0, row: 1 }, // Bottom left
       },
       blacksmith: {
         key: 'blacksmith',
         name: 'Blacksmith',
         icon: '⚒️',
         size: { width: 3, height: 2 },
-        entranceOffset: { col: 1, row: 1 }
+        entranceOffset: { col: 1, row: 1 },
       },
       temple: {
         key: 'temple',
         name: 'Temple',
         icon: '⛪',
         size: { width: 4, height: 3 },
-        entranceOffset: { col: 2, row: 2 }
+        entranceOffset: { col: 2, row: 2 },
       },
       house: {
         key: 'house',
         name: 'House',
         icon: '🏠',
         size: { width: 2, height: 2 },
-        entranceOffset: { col: 0, row: 1 }
+        entranceOffset: { col: 0, row: 1 },
       },
       tent: {
         key: 'tent',
         name: 'Tent',
         icon: '⛺',
         size: { width: 2, height: 1 },
-        entranceOffset: { col: 0, row: 0 }
+        entranceOffset: { col: 0, row: 0 },
       },
       campfire: {
         key: 'campfire',
         name: 'Campfire',
         icon: '🔥',
         size: { width: 1, height: 1 },
-        entranceOffset: { col: 0, row: 0 }
+        entranceOffset: { col: 0, row: 0 },
       },
       supplyWagon: {
         key: 'supplyWagon',
         name: 'Supply Wagon',
         icon: '🛒',
         size: { width: 2, height: 1 },
-        entranceOffset: { col: 0, row: 0 }
+        entranceOffset: { col: 0, row: 0 },
       },
       market: {
         key: 'market',
         name: 'Market',
         icon: '🏬',
         size: { width: 3, height: 2 },
-        entranceOffset: { col: 1, row: 1 }
+        entranceOffset: { col: 1, row: 1 },
       },
       barracks: {
         key: 'barracks',
         name: 'Barracks',
         icon: '🛡️',
         size: { width: 4, height: 2 },
-        entranceOffset: { col: 2, row: 1 }
-      }
+        entranceOffset: { col: 2, row: 1 },
+      },
     };
   }
 
@@ -189,20 +189,35 @@ export class TownGenerator extends InteriorGenerator {
     const tentPositions = [
       { col: centerCol - 3, row: centerRow - 2 },
       { col: centerCol + 2, row: centerRow - 2 },
-      { col: centerCol - 1, row: centerRow + 2 }
+      { col: centerCol - 1, row: centerRow + 2 },
     ];
 
     for (let i = 0; i < numTents && i < tentPositions.length; i++) {
-      const tent = this.placeBuilding(grid, this.buildingTypes.tent, tentPositions[i].col, tentPositions[i].row);
+      const tent = this.placeBuilding(
+        grid,
+        this.buildingTypes.tent,
+        tentPositions[i].col,
+        tentPositions[i].row
+      );
       if (tent) buildings.push(tent);
     }
 
     // Place supply wagon (acts as shop)
-    const wagon = this.placeBuilding(grid, this.buildingTypes.supplyWagon, centerCol + 3, centerRow + 1);
+    const wagon = this.placeBuilding(
+      grid,
+      this.buildingTypes.supplyWagon,
+      centerCol + 3,
+      centerRow + 1
+    );
     if (wagon) buildings.push(wagon);
 
     // Place quest board
-    const questBoard = this.placeBuilding(grid, this.buildingTypes.questBoard, centerCol - 4, centerRow + 1);
+    const questBoard = this.placeBuilding(
+      grid,
+      this.buildingTypes.questBoard,
+      centerCol - 4,
+      centerRow + 1
+    );
     if (questBoard) buildings.push(questBoard);
 
     // Place entrance at bottom center
@@ -226,7 +241,7 @@ export class TownGenerator extends InteriorGenerator {
       loot: [],
       hazards: [],
       entrance,
-      centerSquare
+      centerSquare,
     };
   }
 
@@ -273,7 +288,12 @@ export class TownGenerator extends InteriorGenerator {
     const shop = this.placeBuilding(grid, this.buildingTypes.shop, centerCol + 3, centerRow - 3);
     if (shop) buildings.push(shop);
 
-    const questBoard = this.placeBuilding(grid, this.buildingTypes.questBoard, centerCol - 1, centerRow - 4);
+    const questBoard = this.placeBuilding(
+      grid,
+      this.buildingTypes.questBoard,
+      centerCol - 1,
+      centerRow - 4
+    );
     if (questBoard) buildings.push(questBoard);
 
     // Place 2-4 houses
@@ -316,7 +336,7 @@ export class TownGenerator extends InteriorGenerator {
       loot: [],
       hazards: [],
       entrance,
-      centerSquare
+      centerSquare,
     };
   }
 
@@ -357,7 +377,7 @@ export class TownGenerator extends InteriorGenerator {
       loot: [], // Towns have no random loot
       hazards: [], // Towns have no hazards
       entrance,
-      centerSquare
+      centerSquare,
     };
   }
 
@@ -370,7 +390,7 @@ export class TownGenerator extends InteriorGenerator {
    */
   generateCityLayout(width, height, townData) {
     const isMetropolis = townData.settlementSize === 'metropolis';
-    
+
     // Initialize grid with grass
     const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
 
@@ -431,7 +451,7 @@ export class TownGenerator extends InteriorGenerator {
       { type: this.buildingTypes.blacksmith, position: { col: centerCol - 8, row: centerRow + 5 } },
       { type: this.buildingTypes.temple, position: { col: centerCol + 4, row: centerRow + 5 } },
       { type: this.buildingTypes.market, position: { col: centerCol - 12, row: centerRow - 2 } },
-      { type: this.buildingTypes.barracks, position: { col: centerCol + 8, row: centerRow - 2 } }
+      { type: this.buildingTypes.barracks, position: { col: centerCol + 8, row: centerRow - 2 } },
     ];
 
     // Metropolis gets duplicate inns and shops
@@ -493,7 +513,7 @@ export class TownGenerator extends InteriorGenerator {
       loot: [],
       hazards: [],
       entrance,
-      centerSquare
+      centerSquare,
     };
   }
 
@@ -596,7 +616,7 @@ export class TownGenerator extends InteriorGenerator {
       { type: this.buildingTypes.shop, position: { col: centerCol + 4, row: centerRow - 4 } },
       { type: this.buildingTypes.questBoard, position: { col: centerCol - 1, row: centerRow - 5 } },
       { type: this.buildingTypes.blacksmith, position: { col: centerCol - 6, row: centerRow + 3 } },
-      { type: this.buildingTypes.temple, position: { col: centerCol + 3, row: centerRow + 3 } }
+      { type: this.buildingTypes.temple, position: { col: centerCol + 3, row: centerRow + 3 } },
     ];
 
     // Place essential buildings
@@ -689,7 +709,7 @@ export class TownGenerator extends InteriorGenerator {
       row: startRow,
       width: bWidth,
       height: bHeight,
-      entrance: { col: entranceCol, row: entranceRow }
+      entrance: { col: entranceCol, row: entranceRow },
     };
   }
 
@@ -723,9 +743,10 @@ export class TownGenerator extends InteriorGenerator {
     let current = { col: startCol, row: startRow };
 
     // Move toward center roads
-    while (grid[current.row][current.col].terrain.key !== 'road' &&
-           grid[current.row][current.col].terrain.key !== 'townSquare') {
-      
+    while (
+      grid[current.row][current.col].terrain.key !== 'road' &&
+      grid[current.row][current.col].terrain.key !== 'townSquare'
+    ) {
       // Determine direction to move
       const dx = centerCol - current.col;
       const dy = centerRow - current.row;
@@ -784,7 +805,7 @@ export class TownGenerator extends InteriorGenerator {
         }
       }
     }
-    
+
     // Fallback to bottom center
     return { col: Math.floor(grid[0].length / 2), row: grid.length - 1 };
   }

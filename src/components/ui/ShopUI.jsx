@@ -18,8 +18,8 @@ function ShopUI({ poiKey, shopType, onClose }) {
       payload: {
         poiKey,
         shopType: shopType || 'general',
-        level: state.playerCharacter?.level || 1
-      }
+        level: state.playerCharacter?.level || 1,
+      },
     });
     return null; // Will re-render once shop is generated
   }
@@ -28,7 +28,7 @@ function ShopUI({ poiKey, shopType, onClose }) {
   const playerInventory = state.playerCharacter?.inventory || [];
 
   // Filter functions
-  const filterItem = (item) => {
+  const filterItem = item => {
     if (filter === 'all') return true;
     if (filter === 'weapons') return item.type === 'weapon';
     if (filter === 'armor') return item.type === 'armor';
@@ -41,23 +41,23 @@ function ShopUI({ poiKey, shopType, onClose }) {
   const filteredPlayerInventory = playerInventory.filter(filterItem);
 
   // Buy item handler
-  const handleBuyItem = (itemId) => {
+  const handleBuyItem = itemId => {
     dispatch({
       type: ACTIONS.BUY_ITEM,
-      payload: { poiKey, itemId }
+      payload: { poiKey, itemId },
     });
   };
 
   // Sell item handler
-  const handleSellItem = (itemId) => {
+  const handleSellItem = itemId => {
     dispatch({
       type: ACTIONS.SELL_ITEM,
-      payload: { poiKey, itemId }
+      payload: { poiKey, itemId },
     });
   };
 
   // Check if item is equipped
-  const isItemEquipped = (itemId) => {
+  const isItemEquipped = itemId => {
     if (!state.playerCharacter) return false;
     return Object.values(state.playerCharacter.equipment).some(
       equipped => equipped && equipped.id === itemId
@@ -70,7 +70,9 @@ function ShopUI({ poiKey, shopType, onClose }) {
         {/* Header */}
         <div className="shop-header">
           <h2>{shop.name}</h2>
-          <button className="shop-close-btn" onClick={onClose}>×</button>
+          <button className="shop-close-btn" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         {/* Gold Display */}
@@ -138,9 +140,7 @@ function ShopUI({ poiKey, shopType, onClose }) {
                         </div>
                         <div className="item-details">
                           <span className="item-type">{item.type}</span>
-                          {item.damage && (
-                            <span className="item-damage"> • {item.damage}</span>
-                          )}
+                          {item.damage && <span className="item-damage"> • {item.damage}</span>}
                           {item.effects.ac && (
                             <span className="item-ac"> • AC +{item.effects.ac}</span>
                           )}
@@ -191,9 +191,7 @@ function ShopUI({ poiKey, shopType, onClose }) {
                         </div>
                         <div className="item-details">
                           <span className="item-type">{item.type}</span>
-                          {item.damage && (
-                            <span className="item-damage"> • {item.damage}</span>
-                          )}
+                          {item.damage && <span className="item-damage"> • {item.damage}</span>}
                           {item.effects.ac && (
                             <span className="item-ac"> • AC +{item.effects.ac}</span>
                           )}
@@ -235,7 +233,7 @@ function ShopUI({ poiKey, shopType, onClose }) {
 ShopUI.propTypes = {
   poiKey: PropTypes.string.isRequired,
   shopType: PropTypes.oneOf(['weapon', 'armor', 'general', 'magic']),
-  onClose: PropTypes.func.isRequired
+  onClose: PropTypes.func.isRequired,
 };
 
 export default ShopUI;

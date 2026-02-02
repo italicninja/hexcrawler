@@ -33,7 +33,7 @@ export const POI_TYPES = {
   ENCOUNTER: 'encounter',
   RUINS: 'ruins',
   CAVE: 'cave',
-  TOWER: 'tower'
+  TOWER: 'tower',
 };
 
 /**
@@ -48,96 +48,156 @@ export class POISystem {
         { name: 'Giant fish', cr: 1, creatures: '1 Giant Pike' },
         { name: 'Naiads', cr: 3, creatures: '1d3 Naiads' },
         { name: 'Crocodiles', cr: 1, creatures: '1d4 Crocodiles' },
-        { name: 'Fishermen', cr: 0, creatures: 'Friendly Fishermen' }
+        { name: 'Fishermen', cr: 0, creatures: 'Friendly Fishermen' },
       ],
       grassland: [
         { name: 'Bandits', cr: 2, creatures: '2d4 Bandits' },
         { name: 'Wild horses', cr: 0, creatures: '1d6 Wild Horses' },
         { name: 'Traveling merchants', cr: 0, creatures: 'Merchant Caravan' },
         { name: 'Goblin scouts', cr: 1, creatures: '2d4 Goblins' },
-        { name: 'Giant spiders', cr: 1, creatures: '1d4 Giant Spiders' }
+        { name: 'Giant spiders', cr: 1, creatures: '1d4 Giant Spiders' },
       ],
       forest: [
         { name: 'Wolves', cr: 1, creatures: '2d4 Wolves' },
         { name: 'Bears', cr: 2, creatures: '1d2 Brown Bears' },
         { name: 'Elven patrol', cr: 3, creatures: '1d4 Elf Scouts' },
         { name: 'Giant spiders', cr: 2, creatures: '1d6 Giant Spiders' },
-        { name: 'Druids', cr: 3, creatures: '1d2 Druids' }
+        { name: 'Druids', cr: 3, creatures: '1d2 Druids' },
       ],
       hills: [
         { name: 'Hill giants', cr: 5, creatures: '1d2 Hill Giants' },
         { name: 'Gnolls', cr: 2, creatures: '2d4 Gnolls' },
         { name: 'Griffons', cr: 4, creatures: '1 Griffon' },
-        { name: 'Kobolds', cr: 1, creatures: '3d6 Kobolds' }
+        { name: 'Kobolds', cr: 1, creatures: '3d6 Kobolds' },
       ],
       mountains: [
         { name: 'Young dragon', cr: 10, creatures: '1 Young Dragon' },
         { name: 'Harpies', cr: 3, creatures: '1d6 Harpies' },
         { name: 'Stone giants', cr: 7, creatures: '1d2 Stone Giants' },
-        { name: 'Wyverns', cr: 6, creatures: '1d2 Wyverns' }
+        { name: 'Wyverns', cr: 6, creatures: '1d2 Wyverns' },
       ],
       desert: [
         { name: 'Giant scorpions', cr: 1, creatures: '1d4 Giant Scorpions' },
         { name: 'Mummies', cr: 5, creatures: '1d3 Mummies' },
         { name: 'Sand worms', cr: 8, creatures: '1 Purple Worm' },
-        { name: 'Desert nomads', cr: 1, creatures: '2d4 Nomads' }
+        { name: 'Desert nomads', cr: 1, creatures: '2d4 Nomads' },
       ],
       swamp: [
         { name: 'Lizardfolk', cr: 2, creatures: '2d4 Lizardfolk' },
         { name: 'Trolls', cr: 5, creatures: '1d2 Trolls' },
         { name: 'Will-o-wisps', cr: 4, creatures: '1d3 Will-o-wisps' },
-        { name: 'Giant crocodiles', cr: 3, creatures: '1d2 Giant Crocodiles' }
+        { name: 'Giant crocodiles', cr: 3, creatures: '1d2 Giant Crocodiles' },
       ],
       water: [
         { name: 'Pirates', cr: 2, creatures: '2d4 Pirates' },
         { name: 'Merfolk', cr: 1, creatures: '1d6 Merfolk' },
         { name: 'Sea serpents', cr: 7, creatures: '1 Sea Serpent' },
-        { name: 'Sahuagin', cr: 3, creatures: '2d4 Sahuagin' }
+        { name: 'Sahuagin', cr: 3, creatures: '2d4 Sahuagin' },
       ],
       tundra: [
         { name: 'Frost giants', cr: 8, creatures: '1d2 Frost Giants' },
         { name: 'Yetis', cr: 5, creatures: '1d3 Yetis' },
         { name: 'Winter wolves', cr: 3, creatures: '1d6 Winter Wolves' },
-        { name: 'Ice mephits', cr: 2, creatures: '2d4 Ice Mephits' }
-      ]
+        { name: 'Ice mephits', cr: 2, creatures: '2d4 Ice Mephits' },
+      ],
     };
 
     // Settlement name pools by tier
     this.campNames = [
-      'Hunter\'s Camp', 'Scout Outpost', 'Traveler\'s Rest', 'Wayside Camp',
-      'Ranger Station', 'Forward Camp', 'Patrol Post', 'Crossroads Camp',
-      'Trapper\'s Haven', 'Explorer Camp', 'Nomad Encampment', 'Merchant Stopover',
-      'Woodsman\'s Camp', 'Border Post', 'Frontier Camp'
+      "Hunter's Camp",
+      'Scout Outpost',
+      "Traveler's Rest",
+      'Wayside Camp',
+      'Ranger Station',
+      'Forward Camp',
+      'Patrol Post',
+      'Crossroads Camp',
+      "Trapper's Haven",
+      'Explorer Camp',
+      'Nomad Encampment',
+      'Merchant Stopover',
+      "Woodsman's Camp",
+      'Border Post',
+      'Frontier Camp',
     ];
 
     this.villageNames = [
-      'Little Creek', 'Brookhaven', 'Meadowvale', 'Quiet Hollow', 'Pinewood',
-      'Greenhill', 'Riverbend', 'Mossbrook', 'Willowdale', 'Fernwood',
-      'Hazelton', 'Springdale', 'Elmshire', 'Birchwood', 'Cloverfield'
+      'Little Creek',
+      'Brookhaven',
+      'Meadowvale',
+      'Quiet Hollow',
+      'Pinewood',
+      'Greenhill',
+      'Riverbend',
+      'Mossbrook',
+      'Willowdale',
+      'Fernwood',
+      'Hazelton',
+      'Springdale',
+      'Elmshire',
+      'Birchwood',
+      'Cloverfield',
     ];
 
     this.townNames = [
-      'Riverdale', 'Oakwood', 'Millbrook', 'Thornhaven', 'Crossroads',
-      'Westmarch', 'Eastvale', 'Northwind', 'Southport', 'Redstone',
-      'Silverpine', 'Goldleaf', 'Ironforge', 'Copperhill', 'Stonegate'
+      'Riverdale',
+      'Oakwood',
+      'Millbrook',
+      'Thornhaven',
+      'Crossroads',
+      'Westmarch',
+      'Eastvale',
+      'Northwind',
+      'Southport',
+      'Redstone',
+      'Silverpine',
+      'Goldleaf',
+      'Ironforge',
+      'Copperhill',
+      'Stonegate',
     ];
 
     this.cityNames = [
-      'Grandhaven', 'Kingsport', 'Valorhold', 'Highbridge', 'Stormwatch',
-      'Goldharbor', 'Ironkeep', 'Silvercrest', 'Brightwater', 'Liongate',
-      'Crownstead', 'Dragonport', 'Starfall', 'Thorncastle', 'Whitepeak'
+      'Grandhaven',
+      'Kingsport',
+      'Valorhold',
+      'Highbridge',
+      'Stormwatch',
+      'Goldharbor',
+      'Ironkeep',
+      'Silvercrest',
+      'Brightwater',
+      'Liongate',
+      'Crownstead',
+      'Dragonport',
+      'Starfall',
+      'Thorncastle',
+      'Whitepeak',
     ];
 
     this.metropolisNames = [
-      'Grand City of Lumina', 'Imperial Citadel', 'The Eternal City',
-      'Platinum Spire', 'Capital of the Realm', 'Crown Jewel',
-      'Golden Metropolis', 'Celestial City', 'The Grand Confluence', 'Archon\'s Seat'
+      'Grand City of Lumina',
+      'Imperial Citadel',
+      'The Eternal City',
+      'Platinum Spire',
+      'Capital of the Realm',
+      'Crown Jewel',
+      'Golden Metropolis',
+      'Celestial City',
+      'The Grand Confluence',
+      "Archon's Seat",
     ];
 
     // Dungeon name pools
     this.dungeonNames = [
-      'Ancient Crypt', 'Abandoned Mine', 'Cursed Fortress', 'Dark Tomb',
-      'Forgotten Temple', 'Underground Prison', 'Haunted Keep', 'Bone Citadel'
+      'Ancient Crypt',
+      'Abandoned Mine',
+      'Cursed Fortress',
+      'Dark Tomb',
+      'Forgotten Temple',
+      'Underground Prison',
+      'Haunted Keep',
+      'Bone Citadel',
     ];
 
     // Settlement descriptions by tier (3-5 variants each)
@@ -146,7 +206,7 @@ export class POISystem {
       'A temporary camp set up by travelers and traders.',
       'A modest outpost offering basic shelter and supplies.',
       'A rustic camp with weather-worn tents and a supply wagon.',
-      'A frontier camp manned by scouts and hunters.'
+      'A frontier camp manned by scouts and hunters.',
     ];
 
     this.villageDescriptions = [
@@ -154,7 +214,7 @@ export class POISystem {
       'A peaceful hamlet nestled among rolling hills.',
       'A small farming community with a general store and friendly locals.',
       'A cozy village where everyone knows each other.',
-      'A rustic settlement surrounded by fields and pastures.'
+      'A rustic settlement surrounded by fields and pastures.',
     ];
 
     this.townDescriptions = [
@@ -162,7 +222,7 @@ export class POISystem {
       'A well-established town with shops, an inn, and a temple.',
       'A thriving settlement built around a central square.',
       'A prosperous town with cobblestone streets and sturdy buildings.',
-      'A fortified town protected by wooden walls and a gate.'
+      'A fortified town protected by wooden walls and a gate.',
     ];
 
     this.cityDescriptions = [
@@ -170,7 +230,7 @@ export class POISystem {
       'A walled city bustling with merchants, artisans, and travelers.',
       'An impressive urban center with grand architecture.',
       'A prosperous city known for its trade and craftsmanship.',
-      'A fortified city protected by stone walls and vigilant guards.'
+      'A fortified city protected by stone walls and vigilant guards.',
     ];
 
     this.metropolisDescriptions = [
@@ -178,7 +238,7 @@ export class POISystem {
       'An awe-inspiring citadel that serves as a regional capital.',
       'A sprawling city of culture, commerce, and power.',
       'The jewel of the realm, with streets paved in prosperity.',
-      'A legendary city-state known throughout the land for its grandeur.'
+      'A legendary city-state known throughout the land for its grandeur.',
     ];
   }
 
@@ -238,7 +298,7 @@ export class POISystem {
       desert: [POI_TYPES.RUINS, POI_TYPES.CAMP, POI_TYPES.ENCOUNTER],
       tundra: [POI_TYPES.CAVE, POI_TYPES.CAMP, POI_TYPES.ENCOUNTER],
       grassland: [POI_TYPES.CAMP, POI_TYPES.ENCOUNTER, POI_TYPES.RUINS],
-      river: [POI_TYPES.CAMP, POI_TYPES.ENCOUNTER]
+      river: [POI_TYPES.CAMP, POI_TYPES.ENCOUNTER],
     };
 
     return preferences[terrainName] || [POI_TYPES.CAMP, POI_TYPES.ENCOUNTER];
@@ -324,7 +384,7 @@ export class POISystem {
   generateTown(random) {
     const name = this.townNames[Math.floor(random() * this.townNames.length)];
     const description = this.townDescriptions[Math.floor(random() * this.townDescriptions.length)];
-    
+
     return {
       type: POI_TYPES.TOWN,
       settlementSize: 'town',
@@ -334,7 +394,7 @@ export class POISystem {
       eventType: 'passive',
       icon: 'Settlement',
       color: '#8B4513',
-      questChance: 0.75
+      questChance: 0.75,
     };
   }
 
@@ -351,7 +411,7 @@ export class POISystem {
       cr: cr,
       creatures: encounter.creatures,
       icon: 'Dungeon',
-      color: '#2c3e50'
+      color: '#2c3e50',
     };
   }
 
@@ -366,7 +426,7 @@ export class POISystem {
       visibleWithoutDiscovery: true,
       eventType: 'passive',
       icon: 'Shrine',
-      color: '#e74c3c'
+      color: '#e74c3c',
     };
   }
 
@@ -382,14 +442,14 @@ export class POISystem {
       cr: encounter.cr,
       creatures: encounter.creatures,
       icon: null, // No icon for random encounters
-      color: null
+      color: null,
     };
   }
 
   generateCamp(cr, random) {
     const name = this.campNames[Math.floor(random() * this.campNames.length)];
     const description = this.campDescriptions[Math.floor(random() * this.campDescriptions.length)];
-    
+
     return {
       type: POI_TYPES.CAMP,
       settlementSize: 'camp',
@@ -399,14 +459,15 @@ export class POISystem {
       eventType: 'passive',
       icon: 'Camp',
       color: '#8B7355',
-      questChance: 0.25
+      questChance: 0.25,
     };
   }
 
   generateVillage(random) {
     const name = this.villageNames[Math.floor(random() * this.villageNames.length)];
-    const description = this.villageDescriptions[Math.floor(random() * this.villageDescriptions.length)];
-    
+    const description =
+      this.villageDescriptions[Math.floor(random() * this.villageDescriptions.length)];
+
     return {
       type: POI_TYPES.VILLAGE,
       settlementSize: 'village',
@@ -416,14 +477,14 @@ export class POISystem {
       eventType: 'passive',
       icon: 'Village',
       color: '#A0826D',
-      questChance: 0.50
+      questChance: 0.5,
     };
   }
 
   generateCity(random) {
     const name = this.cityNames[Math.floor(random() * this.cityNames.length)];
     const description = this.cityDescriptions[Math.floor(random() * this.cityDescriptions.length)];
-    
+
     return {
       type: POI_TYPES.CITY,
       settlementSize: 'city',
@@ -433,14 +494,15 @@ export class POISystem {
       eventType: 'passive',
       icon: 'City',
       color: '#654321',
-      questChance: 0.90
+      questChance: 0.9,
     };
   }
 
   generateMetropolis(random) {
     const name = this.metropolisNames[Math.floor(random() * this.metropolisNames.length)];
-    const description = this.metropolisDescriptions[Math.floor(random() * this.metropolisDescriptions.length)];
-    
+    const description =
+      this.metropolisDescriptions[Math.floor(random() * this.metropolisDescriptions.length)];
+
     return {
       type: POI_TYPES.METROPOLIS,
       settlementSize: 'metropolis',
@@ -450,7 +512,7 @@ export class POISystem {
       eventType: 'passive',
       icon: 'Metropolis',
       color: '#8B7500',
-      questChance: 1.0
+      questChance: 1.0,
     };
   }
 
@@ -466,7 +528,7 @@ export class POISystem {
       eventType: 'passive',
       cr: cr,
       icon: 'Ruins',
-      color: '#95a5a6'
+      color: '#95a5a6',
     };
   }
 
@@ -479,7 +541,7 @@ export class POISystem {
       eventType: 'passive',
       cr: cr,
       icon: 'Cave',
-      color: '#2c3e50'
+      color: '#2c3e50',
     };
   }
 
@@ -495,7 +557,7 @@ export class POISystem {
       eventType: 'passive',
       cr: cr,
       icon: 'Tower',
-      color: '#34495e'
+      color: '#34495e',
     };
   }
 }

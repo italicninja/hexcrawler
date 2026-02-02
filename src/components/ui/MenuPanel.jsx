@@ -7,7 +7,7 @@ import PropTypes from 'prop-types';
 function MenuPanel({ title, isOpen, onClose, children, width = '600px', maxWidth = '90vw' }) {
   if (!isOpen) return null;
 
-  const handleBackdropClick = (e) => {
+  const handleBackdropClick = e => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -28,7 +28,7 @@ function MenuPanel({ title, isOpen, onClose, children, width = '600px', maxWidth
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2000,
-        padding: '1rem'
+        padding: '1rem',
       }}
     >
       <div
@@ -42,7 +42,7 @@ function MenuPanel({ title, isOpen, onClose, children, width = '600px', maxWidth
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
         }}
       >
         {/* Header */}
@@ -54,15 +54,17 @@ function MenuPanel({ title, isOpen, onClose, children, width = '600px', maxWidth
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            backgroundColor: 'var(--bg-color)'
+            backgroundColor: 'var(--bg-color)',
           }}
         >
-          <h2 style={{
-            margin: 0,
-            color: 'var(--accent-color)',
-            fontSize: '1.5rem',
-            fontWeight: 600
-          }}>
+          <h2
+            style={{
+              margin: 0,
+              color: 'var(--accent-color)',
+              fontSize: '1.5rem',
+              fontWeight: 600,
+            }}
+          >
             {title}
           </h2>
           <button
@@ -75,10 +77,10 @@ function MenuPanel({ title, isOpen, onClose, children, width = '600px', maxWidth
               cursor: 'pointer',
               padding: '0.25rem 0.5rem',
               lineHeight: 1,
-              transition: 'color 0.2s'
+              transition: 'color 0.2s',
             }}
-            onMouseEnter={(e) => e.target.style.color = 'var(--text-color)'}
-            onMouseLeave={(e) => e.target.style.color = 'var(--text-muted)'}
+            onMouseEnter={e => (e.target.style.color = 'var(--text-color)')}
+            onMouseLeave={e => (e.target.style.color = 'var(--text-muted)')}
           >
             ✕
           </button>
@@ -90,7 +92,7 @@ function MenuPanel({ title, isOpen, onClose, children, width = '600px', maxWidth
           style={{
             padding: '1.5rem',
             overflowY: 'auto',
-            flex: 1
+            flex: 1,
           }}
         >
           {children}
@@ -106,7 +108,7 @@ MenuPanel.propTypes = {
   onClose: PropTypes.func.isRequired,
   children: PropTypes.node,
   width: PropTypes.string,
-  maxWidth: PropTypes.string
+  maxWidth: PropTypes.string,
 };
 
 export default MenuPanel;

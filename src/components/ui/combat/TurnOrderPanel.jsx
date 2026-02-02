@@ -19,7 +19,7 @@ function TurnOrderPanel({ turnOrder, currentTurnIndex, round }) {
       className="rounded-lg overflow-hidden"
       style={{
         backgroundColor: 'var(--panel-bg)',
-        border: '2px solid var(--border-color)'
+        border: '2px solid var(--border-color)',
       }}
     >
       {/* Header with collapse toggle */}
@@ -27,7 +27,7 @@ function TurnOrderPanel({ turnOrder, currentTurnIndex, round }) {
         className="flex justify-between items-center p-3 cursor-pointer select-none"
         style={{
           backgroundColor: 'var(--bg-lighter)',
-          borderBottom: isCollapsed ? 'none' : '1px solid var(--border-color)'
+          borderBottom: isCollapsed ? 'none' : '1px solid var(--border-color)',
         }}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
@@ -43,9 +43,9 @@ function TurnOrderPanel({ turnOrder, currentTurnIndex, round }) {
           className="text-2xl font-bold px-2 py-1 rounded transition-colors"
           style={{
             color: 'var(--text-color)',
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
           }}
-          onClick={(e) => {
+          onClick={e => {
             e.stopPropagation();
             setIsCollapsed(!isCollapsed);
           }}
@@ -60,7 +60,7 @@ function TurnOrderPanel({ turnOrder, currentTurnIndex, round }) {
         <div
           className="p-3 space-y-2 overflow-y-auto"
           style={{
-            maxHeight: '60vh'
+            maxHeight: '60vh',
           }}
         >
           {turnOrder.map((combatant, index) => (
@@ -79,10 +79,7 @@ function TurnOrderPanel({ turnOrder, currentTurnIndex, round }) {
           <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
             Current Turn:
           </div>
-          <CombatantCard
-            combatant={turnOrder[currentTurnIndex]}
-            isActive={true}
-          />
+          <CombatantCard combatant={turnOrder[currentTurnIndex]} isActive={true} />
         </div>
       )}
     </div>
@@ -98,11 +95,11 @@ TurnOrderPanel.propTypes = {
       currentHP: PropTypes.number.isRequired,
       maxHP: PropTypes.number.isRequired,
       armorClass: PropTypes.number,
-      isAlly: PropTypes.bool
+      isAlly: PropTypes.bool,
     })
   ).isRequired,
   currentTurnIndex: PropTypes.number.isRequired,
-  round: PropTypes.number.isRequired
+  round: PropTypes.number.isRequired,
 };
 
 export default TurnOrderPanel;

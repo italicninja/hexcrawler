@@ -23,10 +23,10 @@ function SaveSlotManager({ mode, onClose }) {
     setSlots(SaveManager.getAllSlots());
   };
 
-  const handleLoad = async (slotKey) => {
+  const handleLoad = async slotKey => {
     try {
       const gameData = SaveManager.loadFromSlot(slotKey);
-      
+
       if (!gameData) {
         addMessage('Failed to load save game', 'error');
         return;
@@ -35,9 +35,9 @@ function SaveSlotManager({ mode, onClose }) {
       // Dispatch LOAD_GAME action with the loaded data
       dispatch({ type: actions.LOAD_GAME, payload: gameData });
       dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'overworld' });
-      
+
       addMessage('Game loaded successfully', 'system');
-      
+
       if (onClose) onClose();
     } catch (error) {
       logger.storage.error('Error loading game:', { error, slotKey, message: error.message });
@@ -45,7 +45,7 @@ function SaveSlotManager({ mode, onClose }) {
     }
   };
 
-  const handleSave = async (slotKey) => {
+  const handleSave = async slotKey => {
     try {
       // Confirm overwrite if slot has data
       const slotMetadata = SaveManager.getSlotMetadata(slotKey);
@@ -58,7 +58,7 @@ function SaveSlotManager({ mode, onClose }) {
       }
 
       const success = SaveManager.saveToSlot(slotKey, state);
-      
+
       if (success) {
         addMessage('Game saved successfully', 'system');
         refreshSlots();
@@ -71,11 +71,11 @@ function SaveSlotManager({ mode, onClose }) {
     }
   };
 
-  const handleQuickSave = async (slotKey) => {
+  const handleQuickSave = async slotKey => {
     try {
       // Quick save never asks for confirmation - just overwrites
       const success = SaveManager.saveToSlot(slotKey, state);
-      
+
       if (success) {
         addMessage('Quick save successful', 'system');
         refreshSlots();
@@ -88,7 +88,7 @@ function SaveSlotManager({ mode, onClose }) {
     }
   };
 
-  const handleDelete = async (slotKey) => {
+  const handleDelete = async slotKey => {
     const slotMetadata = SaveManager.getSlotMetadata(slotKey);
     if (!slotMetadata) return;
 
@@ -110,7 +110,9 @@ function SaveSlotManager({ mode, onClose }) {
         <div className="save-slot-manager-header">
           <h2>{mode === 'load' ? 'Load Game' : 'Save Game'}</h2>
           {onClose && (
-            <button className="close-button" onClick={onClose}>×</button>
+            <button className="close-button" onClick={onClose}>
+              ×
+            </button>
           )}
         </div>
 
@@ -189,8 +191,8 @@ function SaveSlotManager({ mode, onClose }) {
         {mode === 'load' && (
           <div className="save-slot-manager-footer">
             <p className="save-notice">
-              💡 <strong>Save version:</strong> {SaveManager.SAVE_VERSION} 
-              {' '}- Older saves are not compatible
+              💡 <strong>Save version:</strong> {SaveManager.SAVE_VERSION} - Older saves are not
+              compatible
             </p>
           </div>
         )}
@@ -203,7 +205,7 @@ function SaveSlotManager({ mode, onClose }) {
 
 SaveSlotManager.propTypes = {
   mode: PropTypes.oneOf(['load', 'save']).isRequired,
-  onClose: PropTypes.func
+  onClose: PropTypes.func,
 };
 
 export default SaveSlotManager;

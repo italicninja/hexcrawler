@@ -11,7 +11,7 @@ class ErrorBoundary extends Component {
     this.state = {
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     };
   }
 
@@ -26,7 +26,7 @@ class ErrorBoundary extends Component {
 
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
   }
 
@@ -35,7 +35,7 @@ class ErrorBoundary extends Component {
     this.setState({
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     });
   };
 
@@ -47,42 +47,46 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: '#1a1a1a',
-          color: '#e0e0e0',
-          padding: '20px',
-          textAlign: 'center'
-        }}>
-          <div style={{
-            maxWidth: '600px',
-            background: '#2a2a2a',
-            border: '2px solid #e74c3c',
-            borderRadius: '8px',
-            padding: '30px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
-          }}>
-            <h1 style={{ color: '#e74c3c', marginTop: 0 }}>
-              ⚠️ Something went wrong
-            </h1>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100vh',
+            background: '#1a1a1a',
+            color: '#e0e0e0',
+            padding: '20px',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: '600px',
+              background: '#2a2a2a',
+              border: '2px solid #e74c3c',
+              borderRadius: '8px',
+              padding: '30px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+            }}
+          >
+            <h1 style={{ color: '#e74c3c', marginTop: 0 }}>⚠️ Something went wrong</h1>
 
             <p style={{ fontSize: '1.1em', marginBottom: '20px' }}>
               The application encountered an unexpected error.
             </p>
 
             {this.state.error && (
-              <details style={{
-                background: '#1a1a1a',
-                border: '1px solid #555',
-                borderRadius: '4px',
-                padding: '15px',
-                marginBottom: '20px',
-                textAlign: 'left'
-              }}>
+              <details
+                style={{
+                  background: '#1a1a1a',
+                  border: '1px solid #555',
+                  borderRadius: '4px',
+                  padding: '15px',
+                  marginBottom: '20px',
+                  textAlign: 'left',
+                }}
+              >
                 <summary style={{ cursor: 'pointer', color: '#f39c12', marginBottom: '10px' }}>
                   Error Details
                 </summary>
@@ -91,14 +95,16 @@ class ErrorBoundary extends Component {
                     <strong>Error:</strong> {this.state.error.toString()}
                   </p>
                   {this.state.errorInfo && (
-                    <pre style={{
-                      background: '#0d0d0d',
-                      padding: '10px',
-                      borderRadius: '4px',
-                      overflow: 'auto',
-                      fontSize: '0.8em',
-                      maxHeight: '200px'
-                    }}>
+                    <pre
+                      style={{
+                        background: '#0d0d0d',
+                        padding: '10px',
+                        borderRadius: '4px',
+                        overflow: 'auto',
+                        fontSize: '0.8em',
+                        maxHeight: '200px',
+                      }}
+                    >
                       {this.state.errorInfo.componentStack}
                     </pre>
                   )}
@@ -118,10 +124,10 @@ class ErrorBoundary extends Component {
                   cursor: 'pointer',
                   fontSize: '1em',
                   fontWeight: 'bold',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
                 }}
-                onMouseOver={(e) => e.target.style.background = '#5dade2'}
-                onMouseOut={(e) => e.target.style.background = '#3498db'}
+                onMouseOver={e => (e.target.style.background = '#5dade2')}
+                onMouseOut={e => (e.target.style.background = '#3498db')}
               >
                 Try Again
               </button>
@@ -137,10 +143,10 @@ class ErrorBoundary extends Component {
                   cursor: 'pointer',
                   fontSize: '1em',
                   fontWeight: 'bold',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
                 }}
-                onMouseOver={(e) => e.target.style.background = '#f39c12'}
-                onMouseOut={(e) => e.target.style.background = '#e67e22'}
+                onMouseOver={e => (e.target.style.background = '#f39c12')}
+                onMouseOut={e => (e.target.style.background = '#e67e22')}
               >
                 Reload App
               </button>

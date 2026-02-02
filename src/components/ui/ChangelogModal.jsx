@@ -12,7 +12,7 @@ function ChangelogModal({ isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleEscape = (e) => {
+    const handleEscape = e => {
       if (e.key === 'Escape') {
         onClose();
       }
@@ -29,10 +29,19 @@ function ChangelogModal({ isOpen, onClose }) {
 
     const commits = gitLogRaw.split('\n').map(line => {
       const [hash, subject, dateStr] = line.split('|');
-      
+
       // Strip common prefixes
       let cleanSubject = subject;
-      const prefixes = ['feat:', 'fix:', 'chore:', 'docs:', 'style:', 'refactor:', 'test:', 'perf:'];
+      const prefixes = [
+        'feat:',
+        'fix:',
+        'chore:',
+        'docs:',
+        'style:',
+        'refactor:',
+        'test:',
+        'perf:',
+      ];
       for (const prefix of prefixes) {
         if (cleanSubject.toLowerCase().startsWith(prefix)) {
           cleanSubject = cleanSubject.substring(prefix.length).trim();
@@ -44,10 +53,10 @@ function ChangelogModal({ isOpen, onClose }) {
 
       // Parse date
       const date = new Date(dateStr);
-      const dateKey = date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
+      const dateKey = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
       });
 
       return { hash, subject: cleanSubject, dateKey, date };
@@ -69,14 +78,10 @@ function ChangelogModal({ isOpen, onClose }) {
 
   return (
     <div className="changelog-overlay" onClick={onClose}>
-      <div className="changelog-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="changelog-modal" onClick={e => e.stopPropagation()}>
         <div className="changelog-header">
           <h2>Changelog</h2>
-          <button 
-            className="close-button" 
-            onClick={onClose}
-            aria-label="Close"
-          >
+          <button className="close-button" onClick={onClose} aria-label="Close">
             &times;
           </button>
         </div>
@@ -110,7 +115,7 @@ function ChangelogModal({ isOpen, onClose }) {
 
 ChangelogModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired
+  onClose: PropTypes.func.isRequired,
 };
 
 export default ChangelogModal;

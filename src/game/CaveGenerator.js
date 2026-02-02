@@ -46,7 +46,7 @@ export class CaveGenerator extends InteriorGenerator {
       encounters: [], // Will be populated later
       loot: [], // Will be populated later
       hazards: [], // Will be populated later
-      entrance
+      entrance,
     };
   }
 
@@ -68,9 +68,8 @@ export class CaveGenerator extends InteriorGenerator {
           grid[row][col].terrain = this.terrainTypes.wall;
         } else {
           // 45% chance of wall
-          grid[row][col].terrain = this.random() < 0.45
-            ? this.terrainTypes.wall
-            : this.terrainTypes.floor;
+          grid[row][col].terrain =
+            this.random() < 0.45 ? this.terrainTypes.wall : this.terrainTypes.floor;
         }
       }
     }
@@ -153,7 +152,7 @@ export class CaveGenerator extends InteriorGenerator {
       grid,
       startTile.col,
       startTile.row,
-      (hex) => hex.terrain.walkable
+      hex => hex.terrain.walkable
     );
 
     // Find isolated regions
@@ -191,8 +190,12 @@ export class CaveGenerator extends InteriorGenerator {
       }
 
       // Bounds check
-      if (current.row < 0 || current.row >= grid.length ||
-          current.col < 0 || current.col >= grid[0].length) {
+      if (
+        current.row < 0 ||
+        current.row >= grid.length ||
+        current.col < 0 ||
+        current.col >= grid[0].length
+      ) {
         break;
       }
     }
@@ -240,9 +243,10 @@ export class CaveGenerator extends InteriorGenerator {
     } else {
       // Fallback: find any floor tile
       const floorTiles = this.getWalkableTiles(grid);
-      entrance = floorTiles.length > 0
-        ? this.randomChoice(floorTiles)
-        : { col: Math.floor(width / 2), row: Math.floor(height / 2) };
+      entrance =
+        floorTiles.length > 0
+          ? this.randomChoice(floorTiles)
+          : { col: Math.floor(width / 2), row: Math.floor(height / 2) };
     }
 
     // Mark as entrance
@@ -280,9 +284,8 @@ export class CaveGenerator extends InteriorGenerator {
         return dist >= 3; // At least 3 hexes from entrance
       });
 
-      const tile = farTiles.length > 0
-        ? this.randomChoice(farTiles)
-        : this.randomChoice(floorTiles);
+      const tile =
+        farTiles.length > 0 ? this.randomChoice(farTiles) : this.randomChoice(floorTiles);
 
       // Remove from available tiles
       const index = floorTiles.indexOf(tile);
@@ -300,7 +303,7 @@ export class CaveGenerator extends InteriorGenerator {
         cr: cr,
         creatures: poiData.creatures || `CR ${cr} enemies`,
         defeated: false,
-        discovered: false
+        discovered: false,
       });
     }
 
@@ -335,10 +338,10 @@ export class CaveGenerator extends InteriorGenerator {
 
       // 25% chance of treasure chest, 75% regular loot
       const isChest = this.random() < 0.25;
-      
+
       let lootData;
       let contentType;
-      
+
       if (isChest) {
         // Generate DMG treasure hoard
         lootData = treasureGenerator.generateTreasureHoard(cr, partySize, () => this.random());
@@ -364,7 +367,7 @@ export class CaveGenerator extends InteriorGenerator {
         consumables: lootData.consumables || [],
         rarity: lootData.rarity,
         collected: false,
-        discovered: false
+        discovered: false,
       });
     }
 
@@ -410,7 +413,7 @@ export class CaveGenerator extends InteriorGenerator {
         row: tile.row,
         ...generatedHazard,
         triggered: false,
-        discovered: false
+        discovered: false,
       });
     }
 

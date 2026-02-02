@@ -17,7 +17,7 @@ export class RestManager {
         success: false,
         hpRecovered: 0,
         hitDiceSpent: 0,
-        message: 'Cannot short rest - no hit dice remaining!'
+        message: 'Cannot short rest - no hit dice remaining!',
       };
     }
 
@@ -33,7 +33,7 @@ export class RestManager {
         success: true,
         hpRecovered: 0,
         hitDiceSpent: 0,
-        message: 'Short rest completed. No hit dice spent.'
+        message: 'Short rest completed. No hit dice spent.',
       };
     }
 
@@ -64,7 +64,7 @@ export class RestManager {
       hpRecovered: actualRecovery,
       hitDiceSpent: diceToSpend,
       hitDiceRemaining: character.hitDiceRemaining,
-      message: `Short rest completed. Recovered ${actualRecovery} HP using ${diceToSpend} hit dice.`
+      message: `Short rest completed. Recovered ${actualRecovery} HP using ${diceToSpend} hit dice.`,
     };
   }
 
@@ -87,7 +87,7 @@ export class RestManager {
         success: false,
         hpRecovered: 0,
         hitDiceRecovered: 0,
-        message: canRest.reason
+        message: canRest.reason,
       };
     }
 
@@ -117,7 +117,7 @@ export class RestManager {
       hpRecovered,
       hitDiceRecovered: actualHitDiceRecovered,
       hitDiceRemaining: character.hitDiceRemaining,
-      message: `Long rest completed. Fully recovered HP and ${actualHitDiceRecovered} hit dice.`
+      message: `Long rest completed. Fully recovered HP and ${actualHitDiceRecovered} hit dice.`,
     };
   }
 
@@ -142,7 +142,7 @@ export class RestManager {
     if (character.lastLongRest === 0) {
       return {
         allowed: true,
-        reason: 'Can long rest.'
+        reason: 'Can long rest.',
       };
     }
 
@@ -153,13 +153,13 @@ export class RestManager {
       const hoursRemaining = Math.ceil(minHoursBetweenRests - hoursSinceLastRest);
       return {
         allowed: false,
-        reason: `Cannot long rest again for ${hoursRemaining} more hours.`
+        reason: `Cannot long rest again for ${hoursRemaining} more hours.`,
       };
     }
 
     return {
       allowed: true,
-      reason: 'Can long rest.'
+      reason: 'Can long rest.',
     };
   }
 
@@ -175,7 +175,7 @@ export class RestManager {
         if (ability.maxUses && ability.uses < ability.maxUses) {
           return {
             ...ability,
-            uses: ability.maxUses
+            uses: ability.maxUses,
           };
         }
         return ability;
@@ -192,7 +192,7 @@ export class RestManager {
     if (character.abilities_list && Array.isArray(character.abilities_list)) {
       character.abilities_list = character.abilities_list.map(ability => ({
         ...ability,
-        uses: ability.maxUses || ability.uses
+        uses: ability.maxUses || ability.uses,
       }));
     }
 
@@ -216,13 +216,13 @@ export class RestManager {
 
     // Adjust based on terrain type
     const terrainModifiers = {
-      'water': 0, // Safe
-      'grassland': 0,
-      'desert': 5,
-      'hills': 5,
-      'forest': 10,
-      'mountain': 15,
-      'swamp': 15
+      water: 0, // Safe
+      grassland: 0,
+      desert: 5,
+      hills: 5,
+      forest: 10,
+      mountain: 15,
+      swamp: 15,
     };
 
     const modifier = terrainModifiers[terrainType] || 5;
@@ -271,7 +271,7 @@ export class RestManager {
         hpRecovered: 0,
         hitDiceRecovered: 0,
         goldSpent: 0,
-        message: `Not enough gold! Inn rest costs ${totalCost} gold (${costPerPerson} per party member).`
+        message: `Not enough gold! Inn rest costs ${totalCost} gold (${costPerPerson} per party member).`,
       };
     }
 
@@ -282,7 +282,7 @@ export class RestManager {
         hpRecovered: 0,
         hitDiceRecovered: 0,
         goldSpent: 0,
-        message: 'Your party is already fully rested.'
+        message: 'Your party is already fully rested.',
       };
     }
 
@@ -316,7 +316,7 @@ export class RestManager {
       hitDiceRecovered: hitDiceMissing,
       goldSpent: totalCost,
       livingMembers,
-      message: `Rested at the inn for ${totalCost} gold. Fully recovered! (Meal and water included)`
+      message: `Rested at the inn for ${totalCost} gold. Fully recovered! (Meal and water included)`,
     };
   }
 }

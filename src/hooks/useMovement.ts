@@ -1,6 +1,6 @@
 /**
  * useMovement - Custom hook for hex movement and navigation
- * 
+ *
  * Extracted from OverworldScene for better testability
  */
 
@@ -14,17 +14,17 @@ export function useMovement() {
    * @param {string} direction - 'up', 'down', 'left', 'right', etc.
    * @returns {object|null} Hex object or null
    */
-  const getHexInDirection = (direction) => {
+  const getHexInDirection = direction => {
     if (!state.mapData) return null;
-    
+
     const { col, row } = state.playerPosition;
     let targetCol = col;
     let targetRow = row;
 
     // Hex grid movement offsets (offset coordinates)
     const isEvenRow = row % 2 === 0;
-    
-    switch(direction) {
+
+    switch (direction) {
       case 'up':
         targetRow = row - 1;
         break;
@@ -71,7 +71,7 @@ export function useMovement() {
    */
   const getCurrentHex = () => {
     if (!state.mapData) return null;
-    
+
     // Use HexGrid for O(1) lookup if available
     if (state.hexGrid) {
       return state.hexGrid.get(state.playerPosition.col, state.playerPosition.row);
@@ -98,20 +98,20 @@ export function useMovement() {
     const isEvenRow = row % 2 === 0;
     const offsets = isEvenRow
       ? [
-          { dc: -1, dr: 0 },  // left
-          { dc: 1, dr: 0 },   // right
+          { dc: -1, dr: 0 }, // left
+          { dc: 1, dr: 0 }, // right
           { dc: -1, dr: -1 }, // top-left
-          { dc: 0, dr: -1 },  // top-right
-          { dc: -1, dr: 1 },  // bottom-left
-          { dc: 0, dr: 1 }    // bottom-right
+          { dc: 0, dr: -1 }, // top-right
+          { dc: -1, dr: 1 }, // bottom-left
+          { dc: 0, dr: 1 }, // bottom-right
         ]
       : [
-          { dc: -1, dr: 0 },  // left
-          { dc: 1, dr: 0 },   // right
-          { dc: 0, dr: -1 },  // top-left
-          { dc: 1, dr: -1 },  // top-right
-          { dc: 0, dr: 1 },   // bottom-left
-          { dc: 1, dr: 1 }    // bottom-right
+          { dc: -1, dr: 0 }, // left
+          { dc: 1, dr: 0 }, // right
+          { dc: 0, dr: -1 }, // top-left
+          { dc: 1, dr: -1 }, // top-right
+          { dc: 0, dr: 1 }, // bottom-left
+          { dc: 1, dr: 1 }, // bottom-right
         ];
 
     const adjacent = [];
@@ -128,6 +128,6 @@ export function useMovement() {
   return {
     getHexInDirection,
     getCurrentHex,
-    getAdjacentHexes
+    getAdjacentHexes,
   };
 }

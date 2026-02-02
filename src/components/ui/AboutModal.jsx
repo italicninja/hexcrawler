@@ -11,7 +11,7 @@ function AboutModal({ isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleEscape = (e) => {
+    const handleEscape = e => {
       if (e.key === 'Escape') {
         onClose();
       }
@@ -29,14 +29,10 @@ function AboutModal({ isOpen, onClose }) {
 
   return (
     <div className="about-overlay" onClick={onClose}>
-      <div className="about-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="about-modal" onClick={e => e.stopPropagation()}>
         <div className="about-header">
           <h2>About Hexcrawler</h2>
-          <button 
-            className="close-button" 
-            onClick={onClose}
-            aria-label="Close"
-          >
+          <button className="close-button" onClick={onClose} aria-label="Close">
             &times;
           </button>
         </div>
@@ -48,9 +44,8 @@ function AboutModal({ isOpen, onClose }) {
 
           <div className="about-description">
             <p>
-              A web-based hexcrawl RPG for D&D 5e. Explore procedurally 
-              generated hex maps with party management, turn-based movement, 
-              and authentic D&D 5e mechanics.
+              A web-based hexcrawl RPG for D&D 5e. Explore procedurally generated hex maps with
+              party management, turn-based movement, and authentic D&D 5e mechanics.
             </p>
           </div>
 
@@ -76,9 +71,9 @@ function AboutModal({ isOpen, onClose }) {
             <h4>Links</h4>
             <ul>
               <li>
-                <a 
-                  href="https://github.com/italicninja/hexcrawler" 
-                  target="_blank" 
+                <a
+                  href="https://github.com/italicninja/hexcrawler"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="about-link"
                 >
@@ -105,7 +100,7 @@ function AboutModal({ isOpen, onClose }) {
 
 AboutModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired
+  onClose: PropTypes.func.isRequired,
 };
 
 export default AboutModal;

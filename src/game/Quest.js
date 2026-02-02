@@ -7,14 +7,14 @@ export const QuestStatus = {
   AVAILABLE: 'available',
   ACTIVE: 'active',
   COMPLETED: 'completed',
-  FAILED: 'failed'
+  FAILED: 'failed',
 };
 
 export const ObjectiveType = {
   KILL: 'kill',
   COLLECT: 'collect',
   VISIT: 'visit',
-  DELIVER: 'deliver'
+  DELIVER: 'deliver',
 };
 
 /**
@@ -122,7 +122,7 @@ export class Quest {
       rewards: { ...this.rewards, items: [...this.rewards.items] }, // Deep copy
       status: this.status,
       questGiver: this.questGiver,
-      location: this.location
+      location: this.location,
     };
   }
 
@@ -140,7 +140,7 @@ export class Quest {
       rewards: { ...json.rewards, items: [...(json.rewards.items || [])] }, // Deep copy
       status: json.status,
       questGiver: json.questGiver,
-      location: json.location
+      location: json.location,
     });
   }
 
@@ -156,7 +156,7 @@ export class Quest {
       target,
       current: 0,
       required,
-      description: `Defeat ${required} ${target}${required > 1 ? 's' : ''}`
+      description: `Defeat ${required} ${target}${required > 1 ? 's' : ''}`,
     };
   }
 
@@ -172,7 +172,7 @@ export class Quest {
       target,
       current: 0,
       required,
-      description: `Collect ${required} ${target}${required > 1 ? 's' : ''}`
+      description: `Collect ${required} ${target}${required > 1 ? 's' : ''}`,
     };
   }
 
@@ -188,7 +188,7 @@ export class Quest {
       target,
       current: 0,
       required,
-      description: `Visit ${target}`
+      description: `Visit ${target}`,
     };
   }
 
@@ -206,7 +206,7 @@ export class Quest {
       recipient,
       current: 0,
       required,
-      description: `Deliver ${required} ${target}${required > 1 ? 's' : ''} to ${recipient}`
+      description: `Deliver ${required} ${target}${required > 1 ? 's' : ''} to ${recipient}`,
     };
   }
 }

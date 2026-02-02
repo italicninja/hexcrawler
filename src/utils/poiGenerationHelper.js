@@ -47,7 +47,7 @@ export function generatePOIForHex(terrainGenerator, terrainType, col, row, chanc
     row,
     terrainType,
     10, // playerLevel
-    7,  // partySize
+    7, // partySize
     () => terrainGenerator.random()
   );
 
@@ -66,13 +66,27 @@ export function generatePOIForHex(terrainGenerator, terrainType, col, row, chanc
  * @param {number} poiChance - Probability of POI generation (0.0 to 1.0)
  * @returns {Object} Hex object with { row, col, terrain, poi, weather }
  */
-export function generateHex(terrainGenerator, col, row, mapWidth, mapHeight, terrainVariety = 0.5, poiChance = 0.2) {
+export function generateHex(
+  terrainGenerator,
+  col,
+  row,
+  mapWidth,
+  mapHeight,
+  terrainVariety = 0.5,
+  poiChance = 0.2
+) {
   if (!terrainGenerator) {
     throw new Error('poiGenerationHelper.generateHex: terrainGenerator is required');
   }
 
   // Generate terrain type
-  const terrainType = terrainGenerator.generateTerrain(col, row, mapWidth, mapHeight, terrainVariety);
+  const terrainType = terrainGenerator.generateTerrain(
+    col,
+    row,
+    mapWidth,
+    mapHeight,
+    terrainVariety
+  );
 
   // Generate POI (if applicable)
   const poi = generatePOIForHex(terrainGenerator, terrainType, col, row, poiChance);
@@ -85,6 +99,6 @@ export function generateHex(terrainGenerator, col, row, mapWidth, mapHeight, ter
     col,
     terrain: terrainType,
     poi,
-    weather
+    weather,
   };
 }

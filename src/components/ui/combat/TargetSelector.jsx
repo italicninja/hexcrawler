@@ -10,7 +10,7 @@ import PropTypes from 'prop-types';
 function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) {
   // Handle ESC key to cancel
   useEffect(() => {
-    const handleEsc = (e) => {
+    const handleEsc = e => {
       if (e.key === 'Escape') {
         onCancel();
       }
@@ -57,14 +57,14 @@ function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) 
     <div
       className="fixed inset-0 z-40 pointer-events-none"
       style={{
-        backgroundColor: 'rgba(0, 0, 0, 0.3)'
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
       }}
     >
       {/* Instruction Banner */}
       <div
         className="absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto"
         style={{
-          maxWidth: '90%'
+          maxWidth: '90%',
         }}
       >
         <div
@@ -72,7 +72,7 @@ function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) 
           style={{
             backgroundColor: 'var(--panel-bg)',
             border: `3px solid ${actionColor}`,
-            boxShadow: `0 0 20px ${actionColor}40`
+            boxShadow: `0 0 20px ${actionColor}40`,
           }}
         >
           <div className="flex items-center justify-between gap-4">
@@ -93,7 +93,7 @@ function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) 
               className="px-4 py-2 rounded-lg font-semibold transition-all hover:scale-105"
               style={{
                 backgroundColor: 'var(--border-color)',
-                color: 'var(--text-color)'
+                color: 'var(--text-color)',
               }}
               onClick={onCancel}
             >
@@ -108,14 +108,14 @@ function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) 
         <div
           className="absolute right-4 top-20 pointer-events-auto max-h-[70vh] overflow-y-auto"
           style={{
-            maxWidth: '300px'
+            maxWidth: '300px',
           }}
         >
           <div
             className="rounded-lg p-4"
             style={{
               backgroundColor: 'var(--panel-bg)',
-              border: '2px solid var(--border-color)'
+              border: '2px solid var(--border-color)',
             }}
           >
             <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--text-color)' }}>
@@ -128,13 +128,13 @@ function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) 
                   className="w-full text-left p-2 rounded transition-all hover:scale-102"
                   style={{
                     backgroundColor: 'var(--bg-lighter)',
-                    border: '1px solid var(--border-color)'
+                    border: '1px solid var(--border-color)',
                   }}
-                  onMouseEnter={(e) => {
+                  onMouseEnter={e => {
                     e.currentTarget.style.borderColor = actionColor;
                     e.currentTarget.style.backgroundColor = `${actionColor}20`;
                   }}
-                  onMouseLeave={(e) => {
+                  onMouseLeave={e => {
                     e.currentTarget.style.borderColor = 'var(--border-color)';
                     e.currentTarget.style.backgroundColor = 'var(--bg-lighter)';
                   }}
@@ -144,7 +144,9 @@ function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) 
                     {target.name}
                   </div>
                   <div className="text-xs flex gap-2 mt-1" style={{ color: 'var(--text-muted)' }}>
-                    <span>HP: {target.currentHP}/{target.maxHP}</span>
+                    <span>
+                      HP: {target.currentHP}/{target.maxHP}
+                    </span>
                     <span>AC: {target.armorClass || target.ac || 10}</span>
                   </div>
                 </button>
@@ -156,14 +158,12 @@ function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) 
 
       {/* No valid targets message */}
       {(!validTargets || validTargets.length === 0) && (
-        <div
-          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
-        >
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
           <div
             className="px-6 py-4 rounded-lg shadow-lg text-center"
             style={{
               backgroundColor: 'var(--panel-bg)',
-              border: '2px solid var(--border-color)'
+              border: '2px solid var(--border-color)',
             }}
           >
             <div className="text-lg font-bold mb-2" style={{ color: 'var(--text-color)' }}>
@@ -176,7 +176,7 @@ function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) 
               className="px-4 py-2 rounded-lg font-semibold transition-all hover:scale-105"
               style={{
                 backgroundColor: 'var(--primary-color)',
-                color: 'white'
+                color: 'white',
               }}
               onClick={onCancel}
             >
@@ -197,12 +197,12 @@ TargetSelector.propTypes = {
       currentHP: PropTypes.number.isRequired,
       maxHP: PropTypes.number.isRequired,
       armorClass: PropTypes.number,
-      ac: PropTypes.number
+      ac: PropTypes.number,
     })
   ),
   onTargetSelect: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
-  actionType: PropTypes.string
+  actionType: PropTypes.string,
 };
 
 export default TargetSelector;

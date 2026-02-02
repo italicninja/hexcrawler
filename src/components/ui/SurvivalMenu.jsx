@@ -17,13 +17,13 @@ function SurvivalMenu({ onClose }) {
 
   // Get current hex terrain (memoized, using HexGrid for O(1) lookup)
   const currentHex = useMemo(() => {
-    return state.hexGrid 
+    return state.hexGrid
       ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
       : state.mapData?.find(
           hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
         );
   }, [state.hexGrid, state.mapData, state.playerPosition.col, state.playerPosition.row]);
-  
+
   const terrainKey = currentHex?.terrain?.key || 'grassland';
   const terrainName = currentHex?.terrain?.name || 'Grassland';
 
@@ -37,14 +37,20 @@ function SurvivalMenu({ onClose }) {
     const isEvenRow = row % 2 === 0;
     const offsets = isEvenRow
       ? [
-          { dc: -1, dr: 0 }, { dc: 1, dr: 0 },
-          { dc: -1, dr: -1 }, { dc: 0, dr: -1 },
-          { dc: -1, dr: 1 }, { dc: 0, dr: 1 }
+          { dc: -1, dr: 0 },
+          { dc: 1, dr: 0 },
+          { dc: -1, dr: -1 },
+          { dc: 0, dr: -1 },
+          { dc: -1, dr: 1 },
+          { dc: 0, dr: 1 },
         ]
       : [
-          { dc: -1, dr: 0 }, { dc: 1, dr: 0 },
-          { dc: 0, dr: -1 }, { dc: 1, dr: -1 },
-          { dc: 0, dr: 1 }, { dc: 1, dr: 1 }
+          { dc: -1, dr: 0 },
+          { dc: 1, dr: 0 },
+          { dc: 0, dr: -1 },
+          { dc: 1, dr: -1 },
+          { dc: 0, dr: 1 },
+          { dc: 1, dr: 1 },
         ];
 
     const adjacent = [];
@@ -78,11 +84,13 @@ function SurvivalMenu({ onClose }) {
     const hexesOnCooldown = allHexes.filter(hex => {
       const hexKey = `${hex.col},${hex.row}`;
       const lastForaged = character.foragedHexes[hexKey];
-      return lastForaged && (currentDay - lastForaged < FORAGE_COOLDOWN);
+      return lastForaged && currentDay - lastForaged < FORAGE_COOLDOWN;
     });
 
     if (hexesOnCooldown.length === allHexes.length) {
-      const daysRemaining = FORAGE_COOLDOWN - (currentDay - character.foragedHexes[`${currentHex.col},${currentHex.row}`]);
+      const daysRemaining =
+        FORAGE_COOLDOWN -
+        (currentDay - character.foragedHexes[`${currentHex.col},${currentHex.row}`]);
       addMessage(
         `All hexes in this area have been foraged recently. Wait ${daysRemaining} more day(s).`,
         'warning'
@@ -106,18 +114,21 @@ function SurvivalMenu({ onClose }) {
     // Update character state
     dispatch({
       type: actions.UPDATE_CHARACTER,
-      payload: updatedCharacter
+      payload: updatedCharacter,
     });
 
     // Advance time (foraging takes 4 hours)
     dispatch({
       type: actions.ADVANCE_TIME,
-      payload: TIME_COSTS.FORAGE
+      payload: TIME_COSTS.FORAGE,
     });
 
     // Show foraging result (dice roll is already logged by DiceRoller)
     if (result.success) {
-      addMessage(`Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`, 'info');
+      addMessage(
+        `Found ${result.rationsGained} rations (${result.goodHexCount} rich hexes)`,
+        'info'
+      );
     } else {
       addMessage(`No food found`, 'info');
     }
@@ -138,10 +149,10 @@ function SurvivalMenu({ onClose }) {
     swamp: 12,
     tundra: 15,
     water: 20,
-    river: 12
+    river: 12,
   };
 
-  const getDifficultyLabel = (dc) => {
+  const getDifficultyLabel = dc => {
     if (dc <= 10) return 'Easy';
     if (dc <= 12) return 'Moderate';
     if (dc <= 15) return 'Hard';
@@ -152,21 +163,21 @@ function SurvivalMenu({ onClose }) {
   // Check cooldown status
   const currentDay = state.gameTime.day;
   const FORAGE_COOLDOWN = 3;
-  
+
   if (!currentHex) return null;
-  
+
   const adjacentHexes = getAdjacentHexes(state.playerPosition.col, state.playerPosition.row);
   const allHexes = [currentHex, ...adjacentHexes];
-  
+
   const hexesOnCooldown = allHexes.filter(hex => {
     const hexKey = `${hex.col},${hex.row}`;
     const lastForaged = character.foragedHexes?.[hexKey];
-    return lastForaged && (currentDay - lastForaged < FORAGE_COOLDOWN);
+    return lastForaged && currentDay - lastForaged < FORAGE_COOLDOWN;
   });
-  
+
   const isAreaFullyForaged = hexesOnCooldown.length === allHexes.length;
   const hasPartialCooldown = hexesOnCooldown.length > 0;
-  
+
   let cooldownMessage = '';
   if (isAreaFullyForaged && currentHex) {
     const hexKey = `${currentHex.col},${currentHex.row}`;
@@ -180,7 +191,7 @@ function SurvivalMenu({ onClose }) {
   const validHexes = allHexes.filter(hex => hex?.terrain?.key && hex.terrain.key !== 'water');
   let averageDC = 15;
   let goodHexCount = 0;
-  
+
   if (validHexes.length > 0) {
     let totalDC = 0;
     validHexes.forEach(hex => {
@@ -192,19 +203,30 @@ function SurvivalMenu({ onClose }) {
   }
 
   return (
-    <div className="survival-menu" style={{
-      padding: '1rem',
-      backgroundColor: 'var(--bg-primary)',
-      border: '1px solid var(--border-color)',
-      borderRadius: '0.5rem',
-      maxWidth: '400px'
-    }}>
+    <div
+      className="survival-menu"
+      style={{
+        padding: '1rem',
+        backgroundColor: 'var(--bg-primary)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '0.5rem',
+        maxWidth: '400px',
+      }}
+    >
       <h3 style={{ marginTop: 0 }}>Survival</h3>
 
       {/* Current Status */}
-      <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.25rem' }}>
+      <div
+        style={{
+          marginBottom: '1rem',
+          padding: '0.5rem',
+          backgroundColor: 'var(--bg-secondary)',
+          borderRadius: '0.25rem',
+        }}
+      >
         <p style={{ margin: '0.25rem 0' }}>
-          Rations: <span style={{ color: character.rations <= 2 ? '#e74c3c' : 'inherit' }}>
+          Rations:{' '}
+          <span style={{ color: character.rations <= 2 ? '#e74c3c' : 'inherit' }}>
             {character.rations} days
           </span>
         </p>
@@ -220,7 +242,15 @@ function SurvivalMenu({ onClose }) {
 
       {/* Exhaustion Warning */}
       {character.exhaustionLevel > 0 && (
-        <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(231, 76, 60, 0.1)', border: '1px solid #e74c3c', borderRadius: '0.25rem' }}>
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '0.5rem',
+            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+            border: '1px solid #e74c3c',
+            borderRadius: '0.25rem',
+          }}
+        >
           <p style={{ margin: 0, fontSize: '0.9rem', color: '#e74c3c' }}>
             <strong>⚠ {exhaustionEffects.description}</strong>
           </p>
@@ -231,13 +261,21 @@ function SurvivalMenu({ onClose }) {
       )}
 
       {/* Forage for Food */}
-      <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '0.25rem' }}>
+      <div
+        style={{
+          marginBottom: '1.5rem',
+          padding: '1rem',
+          border: '1px solid var(--border-color)',
+          borderRadius: '0.25rem',
+        }}
+      >
         <h4 style={{ marginTop: 0 }}>Forage for Food (4 hours)</h4>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
           Thoroughly search current hex + 6 adjacent hexes for food.
         </p>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-          Area DC: {averageDC} - <span style={{ fontWeight: 'bold' }}>{getDifficultyLabel(averageDC)}</span>
+          Area DC: {averageDC} -{' '}
+          <span style={{ fontWeight: 'bold' }}>{getDifficultyLabel(averageDC)}</span>
           <br />
           Success: 1d4 + {goodHexCount} rations ({goodHexCount} rich hexes)
           <br />
@@ -246,7 +284,14 @@ function SurvivalMenu({ onClose }) {
           Cooldown: 3 days per hex
         </p>
         {cooldownMessage && (
-          <p style={{ fontSize: '0.85rem', color: isAreaFullyForaged ? '#e74c3c' : '#f39c12', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+          <p
+            style={{
+              fontSize: '0.85rem',
+              color: isAreaFullyForaged ? '#e74c3c' : '#f39c12',
+              marginBottom: '0.5rem',
+              fontWeight: 'bold',
+            }}
+          >
             {cooldownMessage}
           </p>
         )}
@@ -257,12 +302,13 @@ function SurvivalMenu({ onClose }) {
           style={{
             width: '100%',
             padding: '0.5rem',
-            backgroundColor: isForaging || isAreaFullyForaged ? 'var(--bg-tertiary)' : 'var(--color-primary)',
+            backgroundColor:
+              isForaging || isAreaFullyForaged ? 'var(--bg-tertiary)' : 'var(--color-primary)',
             color: 'white',
             border: 'none',
             borderRadius: '0.25rem',
             cursor: isForaging || isAreaFullyForaged ? 'not-allowed' : 'pointer',
-            opacity: isAreaFullyForaged ? 0.6 : 1
+            opacity: isAreaFullyForaged ? 0.6 : 1,
           }}
         >
           {isForaging ? 'Foraging...' : isAreaFullyForaged ? 'Area on Cooldown' : 'Forage for Food'}
@@ -270,7 +316,15 @@ function SurvivalMenu({ onClose }) {
       </div>
 
       {/* Survival Tips */}
-      <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          padding: '0.75rem',
+          backgroundColor: 'var(--bg-secondary)',
+          borderRadius: '0.25rem',
+          fontSize: '0.85rem',
+          color: 'var(--text-muted)',
+        }}
+      >
         <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold', color: 'var(--text-color)' }}>
           Survival Tips:
         </p>
@@ -295,7 +349,7 @@ function SurvivalMenu({ onClose }) {
             color: 'var(--text-color)',
             border: '1px solid var(--border-color)',
             borderRadius: '0.25rem',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           Close
@@ -306,7 +360,7 @@ function SurvivalMenu({ onClose }) {
 }
 
 SurvivalMenu.propTypes = {
-  onClose: PropTypes.func
+  onClose: PropTypes.func,
 };
 
 export default SurvivalMenu;

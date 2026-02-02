@@ -1,6 +1,6 @@
 /**
  * Character Reducer - Handles character state, XP, leveling, and rest
- * 
+ *
  * Actions handled:
  * - SET_PLAYER_CHARACTER
  * - SET_PARTY
@@ -15,104 +15,114 @@
 
 import { advanceTime } from '../../game/TimeManager';
 import { TIME } from '../../constants/gameConstants';
+import { applyStarvation } from '../../game/SurvivalManager';
 
 export function characterReducer(state, action, ACTIONS) {
   switch (action.type) {
     case ACTIONS.SET_PLAYER_CHARACTER:
       return {
         ...state,
-        playerCharacter: action.payload
+        playerCharacter: action.payload,
       };
 
     case ACTIONS.SET_PARTY:
       return {
         ...state,
-        party: action.payload
+        party: action.payload,
       };
 
     case ACTIONS.UPDATE_CHARACTER:
       return {
         ...state,
-        playerCharacter: action.payload
+        playerCharacter: action.payload,
       };
 
     case ACTIONS.SHORT_REST: {
       const { character } = action.payload;
-      
+
       // Advance time
       const newGameTime = advanceTime(state.gameTime, TIME.SHORT_REST_MINUTES);
-      
+
       return {
         ...state,
         playerCharacter: character,
-        gameTime: newGameTime
+        gameTime: newGameTime,
       };
     }
 
     case ACTIONS.LONG_REST: {
       const { character } = action.payload;
-      
+
+      // Apply starvation check after long rest
+      // Character may have gained exhaustion from lack of food
+      const starvationResult = applyStarvation(character);
+
+      // Note: starvationResult modifies character in place
+      // Message is logged by the component that dispatched this action
+
       // Advance time
       const newGameTime = advanceTime(state.gameTime, TIME.LONG_REST_MINUTES);
-      
+
       return {
         ...state,
         playerCharacter: character,
-        gameTime: newGameTime
+        gameTime: newGameTime,
+        // Store starvation result for component to display
+        lastStarvationCheck: starvationResult,
       };
     }
 
     case ACTIONS.INN_REST: {
       const { character } = action.payload;
-      
+
       // Advance time
       const newGameTime = advanceTime(state.gameTime, TIME.INN_REST_MINUTES);
-      
+
       return {
         ...state,
         playerCharacter: character,
-        gameTime: newGameTime
+        gameTime: newGameTime,
       };
     }
 
     case ACTIONS.AWARD_XP: {
       const { xp } = action.payload;
-      
+
       if (!state.playerCharacter) return state;
-      
+
       const character = state.playerCharacter;
       const oldLevel = character.level;
       character.gainXP(xp);
       const newLevel = character.level;
-      
+
       return {
         ...state,
         playerCharacter: character,
-        leveledUp: newLevel > oldLevel
+        leveledUp: newLevel > oldLevel,
       };
     }
 
     case ACTIONS.LEVEL_UP_CHARACTER: {
       const { character } = action.payload;
-      
+
       return {
         ...state,
         playerCharacter: character,
-        leveledUp: false
+        leveledUp: false,
       };
     }
 
     case ACTIONS.APPLY_EXHAUSTION: {
       const { levels } = action.payload;
-      
+
       if (!state.playerCharacter) return state;
-      
+
       const character = state.playerCharacter;
       character.exhaustion = Math.min(6, character.exhaustion + levels);
-      
+
       return {
         ...state,
-        playerCharacter: character
+        playerCharacter: character,
       };
     }
 

@@ -49,12 +49,18 @@ function PartyMember({ member, index, isSelected, onClick }) {
           {' • '}Lv{member.level} {capitalize(member.class)}
         </div>
         {member.personality && (
-          <div className="party-personality" style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.2rem' }}>
+          <div
+            className="party-personality"
+            style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.2rem' }}
+          >
             {capitalize(member.personality)}
           </div>
         )}
         {member.background && (
-          <div className="party-background" style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '0.1rem', fontStyle: 'italic' }}>
+          <div
+            className="party-background"
+            style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '0.1rem', fontStyle: 'italic' }}
+          >
             {capitalize(member.background)}
           </div>
         )}
@@ -72,11 +78,11 @@ PartyMember.propTypes = {
     class: PropTypes.string.isRequired,
     personality: PropTypes.string,
     background: PropTypes.string,
-    gender: PropTypes.string
+    gender: PropTypes.string,
   }).isRequired,
   index: PropTypes.number.isRequired,
   isSelected: PropTypes.bool.isRequired,
-  onClick: PropTypes.func.isRequired
+  onClick: PropTypes.func.isRequired,
 };
 
 function PartyList({ party, onMemberSelect }) {
@@ -114,9 +120,9 @@ function PartyList({ party, onMemberSelect }) {
 
 PartyList.propTypes = {
   party: PropTypes.shape({
-    getAllMembers: PropTypes.func.isRequired
+    getAllMembers: PropTypes.func.isRequired,
   }),
-  onMemberSelect: PropTypes.func
+  onMemberSelect: PropTypes.func,
 };
 
 export default PartyList;

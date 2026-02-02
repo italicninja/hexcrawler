@@ -21,7 +21,7 @@ export async function submitBugReport(description, gameLog) {
   if (!token) {
     return {
       success: false,
-      error: 'GitHub PAT not configured. Please set VITE_GITHUB_PAT environment variable.'
+      error: 'GitHub PAT not configured. Please set VITE_GITHUB_PAT environment variable.',
     };
   }
 
@@ -29,7 +29,7 @@ export async function submitBugReport(description, gameLog) {
     // Get git info for context
     const gitInfo = {
       commit: import.meta.env.VITE_GIT_COMMIT || 'unknown',
-      branch: import.meta.env.VITE_GIT_BRANCH || 'unknown'
+      branch: import.meta.env.VITE_GIT_BRANCH || 'unknown',
     };
 
     // Format issue body
@@ -39,15 +39,15 @@ export async function submitBugReport(description, gameLog) {
     const response = await fetch(`${GITHUB_API_URL}/repos/${GITHUB_REPO}/issues`, {
       method: 'POST',
       headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         title: `Bug Report: ${truncateTitle(description)}`,
         body: issueBody,
-        labels: ['bug', 'user-reported']
-      })
+        labels: ['bug', 'user-reported'],
+      }),
     });
 
     if (!response.ok) {
@@ -56,17 +56,17 @@ export async function submitBugReport(description, gameLog) {
     }
 
     const issue = await response.json();
-    
+
     return {
       success: true,
       issueNumber: issue.number,
-      url: issue.html_url
+      url: issue.html_url,
     };
   } catch (error) {
     logger.general.error('Failed to submit bug report:', { error, message: error.message });
     return {
       success: false,
-      error: error.message || 'Failed to submit bug report'
+      error: error.message || 'Failed to submit bug report',
     };
   }
 }
@@ -122,10 +122,10 @@ ${gameLog || 'No game log available'}
 function truncateTitle(description) {
   const maxLength = 100;
   const firstLine = description.split('\n')[0].trim();
-  
+
   if (firstLine.length <= maxLength) {
     return firstLine;
   }
-  
+
   return firstLine.substring(0, maxLength - 3) + '...';
 }

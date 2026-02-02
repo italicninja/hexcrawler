@@ -12,11 +12,11 @@ export const REGION_TYPES = {
     moistureRange: [6, 8],
     tempRange: [10, 20],
     weatherTable: {
-      clear: 0.60,
+      clear: 0.6,
       rain: 0.25,
-      fog: 0.10,
-      storm: 0.05
-    }
+      fog: 0.1,
+      storm: 0.05,
+    },
   },
   TROPICAL_JUNGLE: {
     key: 'tropical_jungle',
@@ -25,11 +25,11 @@ export const REGION_TYPES = {
     moistureRange: [8, 10],
     tempRange: [25, 35],
     weatherTable: {
-      clear: 0.40,
-      rain: 0.40,
+      clear: 0.4,
+      rain: 0.4,
       storm: 0.15,
-      fog: 0.05
-    }
+      fog: 0.05,
+    },
   },
   ARID_DESERT: {
     key: 'arid_desert',
@@ -38,10 +38,10 @@ export const REGION_TYPES = {
     moistureRange: [1, 3],
     tempRange: [20, 40],
     weatherTable: {
-      clear: 0.80,
+      clear: 0.8,
       sandstorm: 0.15,
-      heatwave: 0.05
-    }
+      heatwave: 0.05,
+    },
   },
   ARCTIC_TUNDRA: {
     key: 'arctic_tundra',
@@ -50,11 +50,11 @@ export const REGION_TYPES = {
     moistureRange: [2, 5],
     tempRange: [-10, 5],
     weatherTable: {
-      clear: 0.40,
-      snow: 0.30,
-      blizzard: 0.20,
-      aurora: 0.10
-    }
+      clear: 0.4,
+      snow: 0.3,
+      blizzard: 0.2,
+      aurora: 0.1,
+    },
   },
   ALPINE_HIGHLANDS: {
     key: 'alpine_highlands',
@@ -63,11 +63,11 @@ export const REGION_TYPES = {
     moistureRange: [4, 7],
     tempRange: [0, 15],
     weatherTable: {
-      clear: 0.50,
+      clear: 0.5,
       wind: 0.25,
       snow: 0.15,
-      storm: 0.10
-    }
+      storm: 0.1,
+    },
   },
   WETLANDS: {
     key: 'wetlands',
@@ -76,11 +76,11 @@ export const REGION_TYPES = {
     moistureRange: [7, 10],
     tempRange: [15, 25],
     weatherTable: {
-      fog: 0.40,
+      fog: 0.4,
       rain: 0.35,
-      clear: 0.20,
-      mist: 0.05
-    }
+      clear: 0.2,
+      mist: 0.05,
+    },
   },
   COASTAL: {
     key: 'coastal',
@@ -89,12 +89,12 @@ export const REGION_TYPES = {
     moistureRange: [5, 8],
     tempRange: [10, 20],
     weatherTable: {
-      clear: 0.50,
+      clear: 0.5,
       rain: 0.25,
       fog: 0.15,
-      storm: 0.10
-    }
-  }
+      storm: 0.1,
+    },
+  },
 };
 
 /**
@@ -131,10 +131,10 @@ export class RegionGenerator {
     }
 
     logger.mapgen.time('region-generation');
-    logger.mapgen.info('Generating regions', { 
-      numRegions, 
+    logger.mapgen.info('Generating regions', {
+      numRegions,
       mapSize: `${this.width}x${this.height}`,
-      seed: this.seed 
+      seed: this.seed,
     });
 
     // 1. Scatter region centers
@@ -147,8 +147,8 @@ export class RegionGenerator {
 
     // 3. Characterize each region
     const regions = this.characterizeRegions(centers, hexToRegion);
-    logger.mapgen.debug('Regions characterized', { 
-      types: regions.map(r => r.biome.key) 
+    logger.mapgen.debug('Regions characterized', {
+      types: regions.map(r => r.biome.key),
     });
 
     // 4. Calculate boundaries
@@ -195,7 +195,7 @@ export class RegionGenerator {
     while (centers.length < numRegions) {
       centers.push({
         col: Math.floor(this.random() * this.width),
-        row: Math.floor(this.random() * this.height)
+        row: Math.floor(this.random() * this.height),
       });
     }
 
@@ -236,14 +236,8 @@ export class RegionGenerator {
     return centers.map((center, idx) => {
       // Use noise to determine region properties (scale for larger features)
       const elevationNoise = this.noise.noise2D(center.col / 15, center.row / 15);
-      const moistureNoise = this.noise.noise2D(
-        (center.col / 15) + 100, 
-        (center.row / 15) + 100
-      );
-      const tempNoise = this.noise.noise2D(
-        (center.col / 15) + 200, 
-        (center.row / 15) + 200
-      );
+      const moistureNoise = this.noise.noise2D(center.col / 15 + 100, center.row / 15 + 100);
+      const tempNoise = this.noise.noise2D(center.col / 15 + 200, center.row / 15 + 200);
 
       // Normalize to 0-10 range
       const elevation = ((elevationNoise + 1) / 2) * 10;
@@ -265,7 +259,7 @@ export class RegionGenerator {
         moisture,
         temperature,
         weatherPattern: null, // Will be set by WeatherSystem
-        boundaries: new Set()
+        boundaries: new Set(),
       };
     });
   }
@@ -293,7 +287,7 @@ export class RegionGenerator {
     if (m < 0.3) {
       return REGION_TYPES.ARID_DESERT;
     }
-    
+
     if (m > 0.7) {
       return REGION_TYPES.WETLANDS;
     }
@@ -358,15 +352,23 @@ export class RegionGenerator {
     const neighbors = [];
     const isOddRow = Math.abs(row % 2) === 1;
 
-    const offsets = isOddRow ? [
-      [-1, 0], [-1, 1],  // top-left, top-right
-      [0, -1], [0, 1],   // left, right
-      [1, 0], [1, 1]     // bottom-left, bottom-right
-    ] : [
-      [-1, -1], [-1, 0], // top-left, top-right
-      [0, -1], [0, 1],   // left, right
-      [1, -1], [1, 0]    // bottom-left, bottom-right
-    ];
+    const offsets = isOddRow
+      ? [
+          [-1, 0],
+          [-1, 1], // top-left, top-right
+          [0, -1],
+          [0, 1], // left, right
+          [1, 0],
+          [1, 1], // bottom-left, bottom-right
+        ]
+      : [
+          [-1, -1],
+          [-1, 0], // top-left, top-right
+          [0, -1],
+          [0, 1], // left, right
+          [1, -1],
+          [1, 0], // bottom-left, bottom-right
+        ];
 
     for (const [dRow, dCol] of offsets) {
       const newRow = row + dRow;

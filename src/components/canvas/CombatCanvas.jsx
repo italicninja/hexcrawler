@@ -7,7 +7,7 @@ import {
   calculateHexPosition,
   drawHexShape,
   drawHexOutline,
-  findHexAtPoint
+  findHexAtPoint,
 } from '../../utils/hexRenderer';
 import { HexTextureGenerator } from '../../utils/hexTextureGenerator.js';
 import { PerlinNoise } from '../../noise.js';
@@ -30,7 +30,7 @@ function CombatCanvas({
   onHexHover,
   cameraOffset,
   cameraZoom,
-  onCameraChange
+  onCameraChange,
 }) {
   const canvasRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -115,7 +115,11 @@ function CombatCanvas({
 
     const classLower = (className || 'fighter').toLowerCase();
 
-    if (classLower.includes('fighter') || classLower.includes('barbarian') || classLower.includes('paladin')) {
+    if (
+      classLower.includes('fighter') ||
+      classLower.includes('barbarian') ||
+      classLower.includes('paladin')
+    ) {
       // Sword icon
       ctx.beginPath();
       ctx.moveTo(x, y - size * 0.3);
@@ -125,7 +129,11 @@ function CombatCanvas({
       ctx.moveTo(x - size * 0.15, y - size * 0.2);
       ctx.lineTo(x + size * 0.15, y - size * 0.2);
       ctx.stroke();
-    } else if (classLower.includes('wizard') || classLower.includes('sorcerer') || classLower.includes('warlock')) {
+    } else if (
+      classLower.includes('wizard') ||
+      classLower.includes('sorcerer') ||
+      classLower.includes('warlock')
+    ) {
       // Staff icon
       ctx.beginPath();
       ctx.moveTo(x, y - size * 0.3);
@@ -200,70 +208,72 @@ function CombatCanvas({
    * @param {Object} combatant - Combatant object
    * @param {boolean} isCurrentTurn - Whether it's this combatant's turn
    */
-  const drawCombatant = useCallback((ctx, combatant, isCurrentTurn) => {
-    if (!combatant.position) {
-      console.warn('[CombatCanvas] drawCombatant called but no position:', combatant.name);
-      return;
-    }
+  const drawCombatant = useCallback(
+    (ctx, combatant, isCurrentTurn) => {
+      if (!combatant.position) return;
 
-    const { x, y } = calculateHexPosition(combatant.position.col, combatant.position.row, HEX_SIZE);
-    const radius = HEX_SIZE * 0.4;
-    
-    console.log(`[CombatCanvas] Drawing ${combatant.name} at (${combatant.position.col}, ${combatant.position.row}) => screen (${x}, ${y}), isAlly: ${combatant.isAlly}`);
+      const { x, y } = calculateHexPosition(
+        combatant.position.col,
+        combatant.position.row,
+        HEX_SIZE
+      );
+      const radius = HEX_SIZE * 0.4;
 
-    ctx.save();
+      ctx.save();
 
-    // Pulsing glow effect for current turn
-    if (isCurrentTurn) {
-      const pulseOffset = Math.sin(Date.now() / 300) * 5 + 5;
-      ctx.shadowBlur = pulseOffset + 10;
-      ctx.shadowColor = combatant.isAlly ? '#FFD700' : '#FF0000';
-    }
+      // Pulsing glow effect for current turn
+      if (isCurrentTurn) {
+        const pulseOffset = Math.sin(Date.now() / 300) * 5 + 5;
+        ctx.shadowBlur = pulseOffset + 10;
+        ctx.shadowColor = combatant.isAlly ? '#FFD700' : '#FF0000';
+      }
 
-    // Calculate HP percentage
-    const hpPercent = combatant.currentHP / combatant.maxHP;
+      // Calculate HP percentage
+      const hpPercent = combatant.currentHP / combatant.maxHP;
 
-    // Circle fill color based on HP
-    let fillColor = '#00ff00'; // Green > 60%
-    if (hpPercent < 0.3) {
-      fillColor = '#ff0000'; // Red < 30%
-    } else if (hpPercent < 0.6) {
-      fillColor = '#ffff00'; // Yellow 30-60%
-    }
+      // Circle fill color based on HP
+      let fillColor = '#00ff00'; // Green > 60%
+      if (hpPercent < 0.3) {
+        fillColor = '#ff0000'; // Red < 30%
+      } else if (hpPercent < 0.6) {
+        fillColor = '#ffff00'; // Yellow 30-60%
+      }
 
-    // Draw circle
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = fillColor;
-    ctx.fill();
+      // Draw circle
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = fillColor;
+      ctx.fill();
 
-    // Border: gold for ally, red for enemy
-    ctx.strokeStyle = combatant.isAlly ? '#FFD700' : '#FF0000';
-    ctx.lineWidth = 3;
-    ctx.stroke();
+      // Border: gold for ally, red for enemy
+      ctx.strokeStyle = combatant.isAlly ? '#FFD700' : '#FF0000';
+      ctx.lineWidth = 3;
+      ctx.stroke();
 
-    ctx.restore();
+      ctx.restore();
 
-    // Draw class icon
-    drawClassIcon(ctx, x, y, combatant.characterClass, HEX_SIZE * 0.3);
+      // Draw class icon
+      drawClassIcon(ctx, x, y, combatant.characterClass, HEX_SIZE * 0.3);
 
-    // Draw HP bar below circle
-    const barY = y + radius + 6;
-    drawHPBar(ctx, x, barY, HEX_SIZE * 1.2, hpPercent);
+      // Draw HP bar below circle
+      const barY = y + radius + 6;
+      drawHPBar(ctx, x, barY, HEX_SIZE * 1.2, hpPercent);
 
-    // Draw name label below HP bar
-    ctx.save();
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    ctx.font = `bold ${HEX_SIZE * 0.4}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const nameY = barY + 6;
-    ctx.strokeText(combatant.name, x, nameY);
-    ctx.fillText(combatant.name, x, nameY);
-    ctx.restore();
-  }, [drawClassIcon, drawHPBar]);
+      // Draw name label below HP bar
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      ctx.font = `bold ${HEX_SIZE * 0.4}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const nameY = barY + 6;
+      ctx.strokeText(combatant.name, x, nameY);
+      ctx.fillText(combatant.name, x, nameY);
+      ctx.restore();
+    },
+    [drawClassIcon, drawHPBar]
+  );
 
   /**
    * Main draw function
@@ -276,29 +286,10 @@ function CombatCanvas({
     }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.log('[CombatCanvas] Context not ready');
-      return;
-    }
-    
-    // Null check for battlefield
-    if (!battlefield || !battlefield.hexes) {
-      console.warn('[CombatCanvas] Battlefield not ready', { 
-        hasBattlefield: !!battlefield, 
-        hasHexes: !!battlefield?.hexes,
-        hexCount: battlefield?.hexes?.length
-      });
-      logger.render.warn('CombatCanvas: battlefield not ready', { hasBattlefield: !!battlefield, hasHexes: !!battlefield?.hexes });
-      return;
-    }
+    if (!ctx) return;
 
-    console.log('[CombatCanvas] Drawing battlefield', {
-      canvasSize: `${canvas.width}x${canvas.height}`,
-      hexCount: battlefield.hexes.length,
-      combatantCount: combatants.length,
-      cameraOffset,
-      zoom: FIXED_ZOOM
-    });
+    // Null check for battlefield
+    if (!battlefield || !battlefield.hexes) return;
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -320,7 +311,13 @@ function CombatCanvas({
 
       // Draw terrain with procedural texture
       if (textureGenerator.current && hex.terrain) {
-        const pattern = textureGenerator.current.getPattern(ctx, hex.terrain, HEX_SIZE, hex.col, hex.row);
+        const pattern = textureGenerator.current.getPattern(
+          ctx,
+          hex.terrain,
+          HEX_SIZE,
+          hex.col,
+          hex.row
+        );
         drawHexShape(ctx, x, y, HEX_SIZE, pattern, '#444', 1);
       } else {
         // Fallback to solid color
@@ -383,11 +380,7 @@ function CombatCanvas({
         );
 
         if (distance <= attackRange) {
-          const hasLoS = checkLineOfSight(
-            currentCombatant.position,
-            target.position,
-            battlefield
-          );
+          const hasLoS = checkLineOfSight(currentCombatant.position, target.position, battlefield);
 
           const pos = calculateHexPosition(target.position.col, target.position.row, HEX_SIZE);
           const outlineColor = hasLoS ? '#00ff00' : '#ff0000';
@@ -397,21 +390,6 @@ function CombatCanvas({
     }
 
     // Draw combatants
-    const combatantDebug = combatants.map(c => ({
-      name: c.name,
-      position: c.position,
-      hasPosition: !!c.position,
-      isAlly: c.isAlly,
-      currentHP: c.currentHP,
-      maxHP: c.maxHP,
-      characterClass: c.characterClass
-    }));
-    
-    console.log('[CombatCanvas] Drawing combatants:', {
-      count: combatants.length,
-      combatants: combatantDebug
-    });
-    
     let drawnCount = 0;
     combatants.forEach((combatant, index) => {
       if (combatant.position) {
@@ -422,8 +400,6 @@ function CombatCanvas({
         console.warn('[CombatCanvas] Combatant has no position:', combatant.name);
       }
     });
-    
-    console.log(`[CombatCanvas] Drew ${drawnCount}/${combatants.length} combatants`);
 
     // Draw hovered hex
     if (hoveredHex) {
@@ -443,7 +419,7 @@ function CombatCanvas({
     cameraZoom,
     drawTree,
     drawRock,
-    drawCombatant
+    drawCombatant,
   ]);
 
   /**
@@ -482,7 +458,7 @@ function CombatCanvas({
 
       const newWidth = parent.clientWidth;
       const newHeight = parent.clientHeight;
-      
+
       // Only resize if dimensions actually changed
       if (canvas.width !== newWidth || canvas.height !== newHeight) {
         canvas.width = newWidth;
@@ -505,75 +481,86 @@ function CombatCanvas({
    * @param {number} clientY - Screen Y coordinate
    * @returns {Object} - {x, y} canvas coordinates
    */
-  const screenToCanvas = useCallback((clientX, clientY) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
+  const screenToCanvas = useCallback(
+    (clientX, clientY) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
 
-    const rect = canvas.getBoundingClientRect();
-    const x = (clientX - rect.left - cameraOffset.x) / FIXED_ZOOM;
-    const y = (clientY - rect.top - cameraOffset.y) / FIXED_ZOOM;
+      const rect = canvas.getBoundingClientRect();
+      const x = (clientX - rect.left - cameraOffset.x) / FIXED_ZOOM;
+      const y = (clientY - rect.top - cameraOffset.y) / FIXED_ZOOM;
 
-    return { x, y };
-  }, [cameraOffset]);
+      return { x, y };
+    },
+    [cameraOffset]
+  );
 
   /**
    * Handle mouse down (start dragging)
    */
-  const handleMouseDown = useCallback((e) => {
-    setIsDragging(true);
-    setHasDragged(false); // Reset drag flag
-    setDragStart({ x: e.clientX - cameraOffset.x, y: e.clientY - cameraOffset.y });
-  }, [cameraOffset]);
+  const handleMouseDown = useCallback(
+    e => {
+      setIsDragging(true);
+      setHasDragged(false); // Reset drag flag
+      setDragStart({ x: e.clientX - cameraOffset.x, y: e.clientY - cameraOffset.y });
+    },
+    [cameraOffset]
+  );
 
   /**
    * Handle mouse move (pan camera or hover)
    */
-  const handleMouseMove = useCallback((e) => {
-    if (isDragging) {
-      // Pan camera
-      const newOffset = {
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      };
-      
-      // Check if mouse moved significantly (more than 3 pixels)
-      const lastCamera = lastCameraRef.current;
-      const movedSignificantly = 
-        Math.abs(newOffset.x - lastCamera.offset.x) > 3 ||
-        Math.abs(newOffset.y - lastCamera.offset.y) > 3;
-      
-      if (movedSignificantly) {
-        setHasDragged(true); // Mark as actual drag
-        lastCameraRef.current = { offset: newOffset, zoom: FIXED_ZOOM };
-        onCameraChange(newOffset, FIXED_ZOOM);
-      }
-    } else {
-      // Hover detection - null check battlefield
-      if (!battlefield || !battlefield.hexes) return;
-      
-      const canvasPos = screenToCanvas(e.clientX, e.clientY);
-      
-      // Create positioned hexes for hit detection
-      const positionedHexes = battlefield.hexes.map(hex => {
-        const pos = calculateHexPosition(hex.col, hex.row, HEX_SIZE);
-        return { ...hex, x: pos.x, y: pos.y };
-      });
+  const handleMouseMove = useCallback(
+    e => {
+      if (isDragging) {
+        // Pan camera
+        const newOffset = {
+          x: e.clientX - dragStart.x,
+          y: e.clientY - dragStart.y,
+        };
 
-      const newHoveredHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
-      
-      // Only call onHexHover if the hovered hex actually changed
-      const lastHex = lastHoveredHexRef.current;
-      const hexChanged = 
-        (!lastHex && newHoveredHex) ||
-        (lastHex && !newHoveredHex) ||
-        (lastHex && newHoveredHex && (lastHex.col !== newHoveredHex.col || lastHex.row !== newHoveredHex.row));
-      
-      if (hexChanged) {
-        lastHoveredHexRef.current = newHoveredHex;
-        onHexHover(newHoveredHex);
+        // Check if mouse moved significantly (more than 3 pixels)
+        const lastCamera = lastCameraRef.current;
+        const movedSignificantly =
+          Math.abs(newOffset.x - lastCamera.offset.x) > 3 ||
+          Math.abs(newOffset.y - lastCamera.offset.y) > 3;
+
+        if (movedSignificantly) {
+          setHasDragged(true); // Mark as actual drag
+          lastCameraRef.current = { offset: newOffset, zoom: FIXED_ZOOM };
+          onCameraChange(newOffset, FIXED_ZOOM);
+        }
+      } else {
+        // Hover detection - null check battlefield
+        if (!battlefield || !battlefield.hexes) return;
+
+        const canvasPos = screenToCanvas(e.clientX, e.clientY);
+
+        // Create positioned hexes for hit detection
+        const positionedHexes = battlefield.hexes.map(hex => {
+          const pos = calculateHexPosition(hex.col, hex.row, HEX_SIZE);
+          return { ...hex, x: pos.x, y: pos.y };
+        });
+
+        const newHoveredHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
+
+        // Only call onHexHover if the hovered hex actually changed
+        const lastHex = lastHoveredHexRef.current;
+        const hexChanged =
+          (!lastHex && newHoveredHex) ||
+          (lastHex && !newHoveredHex) ||
+          (lastHex &&
+            newHoveredHex &&
+            (lastHex.col !== newHoveredHex.col || lastHex.row !== newHoveredHex.row));
+
+        if (hexChanged) {
+          lastHoveredHexRef.current = newHoveredHex;
+          onHexHover(newHoveredHex);
+        }
       }
-    }
-  }, [isDragging, dragStart, cameraZoom, battlefield, screenToCanvas, onCameraChange, onHexHover]);
+    },
+    [isDragging, dragStart, cameraZoom, battlefield, screenToCanvas, onCameraChange, onHexHover]
+  );
 
   /**
    * Handle mouse up (stop dragging)
@@ -585,45 +572,52 @@ function CombatCanvas({
   /**
    * Handle mouse click (hex selection)
    */
-  const handleClick = useCallback((e) => {
-    console.log('[CombatCanvas] Click event', { isDragging, hasDragged, hasBattlefield: !!battlefield });
-    
-    // Don't register clicks if we actually dragged (moved camera)
-    if (hasDragged) {
-      console.log('[CombatCanvas] Click ignored - was dragging camera');
-      return;
-    }
-    
-    // Null check battlefield
-    if (!battlefield || !battlefield.hexes) {
-      console.log('[CombatCanvas] Click ignored - no battlefield');
-      return;
-    }
+  const handleClick = useCallback(
+    e => {
+      console.log('[CombatCanvas] Click event', {
+        isDragging,
+        hasDragged,
+        hasBattlefield: !!battlefield,
+      });
 
-    const canvasPos = screenToCanvas(e.clientX, e.clientY);
-    console.log('[CombatCanvas] Canvas position', canvasPos);
+      // Don't register clicks if we actually dragged (moved camera)
+      if (hasDragged) {
+        console.log('[CombatCanvas] Click ignored - was dragging camera');
+        return;
+      }
 
-    // Create positioned hexes for hit detection
-    const positionedHexes = battlefield.hexes.map(hex => {
-      const pos = calculateHexPosition(hex.col, hex.row, HEX_SIZE);
-      return { ...hex, x: pos.x, y: pos.y };
-    });
+      // Null check battlefield
+      if (!battlefield || !battlefield.hexes) {
+        console.log('[CombatCanvas] Click ignored - no battlefield');
+        return;
+      }
 
-    const clickedHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
-    console.log('[CombatCanvas] Clicked hex', clickedHex);
-    
-    if (clickedHex) {
-      console.log('[CombatCanvas] Calling onHexClick with', clickedHex);
-      onHexClick(clickedHex);
-    } else {
-      console.log('[CombatCanvas] No hex found at click position');
-    }
-  }, [hasDragged, battlefield, screenToCanvas, onHexClick]);
+      const canvasPos = screenToCanvas(e.clientX, e.clientY);
+      console.log('[CombatCanvas] Canvas position', canvasPos);
+
+      // Create positioned hexes for hit detection
+      const positionedHexes = battlefield.hexes.map(hex => {
+        const pos = calculateHexPosition(hex.col, hex.row, HEX_SIZE);
+        return { ...hex, x: pos.x, y: pos.y };
+      });
+
+      const clickedHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
+      console.log('[CombatCanvas] Clicked hex', clickedHex);
+
+      if (clickedHex) {
+        console.log('[CombatCanvas] Calling onHexClick with', clickedHex);
+        onHexClick(clickedHex);
+      } else {
+        console.log('[CombatCanvas] No hex found at click position');
+      }
+    },
+    [hasDragged, battlefield, screenToCanvas, onHexClick]
+  );
 
   /**
    * Handle mouse wheel (zoom) - DISABLED for combat
    */
-  const handleWheel = useCallback((e) => {
+  const handleWheel = useCallback(e => {
     // Note: preventDefault on wheel events can cause warnings
     // Zoom is disabled for combat, so we just ignore the event
   }, []);
@@ -640,35 +634,41 @@ function CombatCanvas({
   /**
    * Handle touch start (pan or zoom)
    */
-  const handleTouchStart = useCallback((e) => {
-    if (e.touches.length === 1) {
-      // Single touch: start panning
-      setIsDragging(true);
-      setDragStart({
-        x: e.touches[0].clientX - cameraOffset.x,
-        y: e.touches[0].clientY - cameraOffset.y
-      });
-    }
-    // Two-finger zoom disabled for combat
-  }, [cameraOffset]);
+  const handleTouchStart = useCallback(
+    e => {
+      if (e.touches.length === 1) {
+        // Single touch: start panning
+        setIsDragging(true);
+        setDragStart({
+          x: e.touches[0].clientX - cameraOffset.x,
+          y: e.touches[0].clientY - cameraOffset.y,
+        });
+      }
+      // Two-finger zoom disabled for combat
+    },
+    [cameraOffset]
+  );
 
   /**
    * Handle touch move (pan only, zoom disabled)
    */
-  const handleTouchMove = useCallback((e) => {
-    // Note: Don't call e.preventDefault() here - use touchAction: 'none' in CSS instead
-    // to avoid "passive event listener" warnings
+  const handleTouchMove = useCallback(
+    e => {
+      // Note: Don't call e.preventDefault() here - use touchAction: 'none' in CSS instead
+      // to avoid "passive event listener" warnings
 
-    if (e.touches.length === 1 && isDragging) {
-      // Single touch: pan
-      const newOffset = {
-        x: e.touches[0].clientX - dragStart.x,
-        y: e.touches[0].clientY - dragStart.y
-      };
-      onCameraChange(newOffset, FIXED_ZOOM);
-    }
-    // Two-finger zoom disabled for combat
-  }, [isDragging, dragStart, onCameraChange]);
+      if (e.touches.length === 1 && isDragging) {
+        // Single touch: pan
+        const newOffset = {
+          x: e.touches[0].clientX - dragStart.x,
+          y: e.touches[0].clientY - dragStart.y,
+        };
+        onCameraChange(newOffset, FIXED_ZOOM);
+      }
+      // Two-finger zoom disabled for combat
+    },
+    [isDragging, dragStart, onCameraChange]
+  );
 
   /**
    * Handle touch end
@@ -693,7 +693,7 @@ function CombatCanvas({
         width: '100%',
         height: '100%',
         cursor: isDragging ? 'grabbing' : 'grab',
-        touchAction: 'none'
+        touchAction: 'none',
       }}
     />
   );
@@ -701,45 +701,49 @@ function CombatCanvas({
 
 CombatCanvas.propTypes = {
   battlefield: PropTypes.shape({
-    hexes: PropTypes.arrayOf(PropTypes.shape({
-      col: PropTypes.number.isRequired,
-      row: PropTypes.number.isRequired,
-      terrain: PropTypes.object,
-      blocked: PropTypes.bool,
-      obstacleType: PropTypes.string,
-      difficultTerrain: PropTypes.bool,
-      blocksLineOfSight: PropTypes.bool
-    })).isRequired,
+    hexes: PropTypes.arrayOf(
+      PropTypes.shape({
+        col: PropTypes.number.isRequired,
+        row: PropTypes.number.isRequired,
+        terrain: PropTypes.object,
+        blocked: PropTypes.bool,
+        obstacleType: PropTypes.string,
+        difficultTerrain: PropTypes.bool,
+        blocksLineOfSight: PropTypes.bool,
+      })
+    ).isRequired,
     width: PropTypes.number.isRequired,
-    height: PropTypes.number.isRequired
+    height: PropTypes.number.isRequired,
   }).isRequired,
-  combatants: PropTypes.arrayOf(PropTypes.shape({
-    name: PropTypes.string.isRequired,
-    position: PropTypes.shape({
-      col: PropTypes.number.isRequired,
-      row: PropTypes.number.isRequired
-    }),
-    currentHP: PropTypes.number.isRequired,
-    maxHP: PropTypes.number.isRequired,
-    isAlly: PropTypes.bool.isRequired,
-    characterClass: PropTypes.string,
-    attackRange: PropTypes.number
-  })).isRequired,
+  combatants: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      position: PropTypes.shape({
+        col: PropTypes.number.isRequired,
+        row: PropTypes.number.isRequired,
+      }),
+      currentHP: PropTypes.number.isRequired,
+      maxHP: PropTypes.number.isRequired,
+      isAlly: PropTypes.bool.isRequired,
+      characterClass: PropTypes.string,
+      attackRange: PropTypes.number,
+    })
+  ).isRequired,
   currentTurnIndex: PropTypes.number.isRequired,
   selectedAction: PropTypes.oneOf(['move', 'attack', 'spell', 'ability', null]),
   hoveredHex: PropTypes.shape({
     col: PropTypes.number.isRequired,
-    row: PropTypes.number.isRequired
+    row: PropTypes.number.isRequired,
   }),
   movementRemaining: PropTypes.number.isRequired,
   onHexClick: PropTypes.func.isRequired,
   onHexHover: PropTypes.func.isRequired,
   cameraOffset: PropTypes.shape({
     x: PropTypes.number.isRequired,
-    y: PropTypes.number.isRequired
+    y: PropTypes.number.isRequired,
   }).isRequired,
   cameraZoom: PropTypes.number.isRequired,
-  onCameraChange: PropTypes.func.isRequired
+  onCameraChange: PropTypes.func.isRequired,
 };
 
 export default CombatCanvas;
