@@ -1,0 +1,162 @@
+.ai-inspector {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 400px;
+  max-height: 90vh;
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid #0f0;
+  color: #0f0;
+  padding: 15px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  overflow-y: auto;
+  z-index: 10000;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.ai-inspector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #0f0;
+  padding-bottom: 10px;
+}
+
+.ai-inspector h3 {
+  margin: 0;
+  color: #0f0;
+  font-size: 16px;
+}
+
+.reload-btn {
+  background: #003300;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+}
+
+.reload-btn:hover {
+  background: #004400;
+}
+
+.ai-info {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: rgba(0, 50, 0, 0.3);
+  border: 1px solid #0a0;
+}
+
+.ai-info p {
+  margin: 5px 0;
+}
+
+.ai-tree,
+.ai-scorers {
+  margin-bottom: 15px;
+}
+
+.ai-tree h4,
+.ai-scorers h4 {
+  margin: 10px 0 5px 0;
+  color: #0ff;
+  font-size: 14px;
+  border-bottom: 1px solid #0ff;
+}
+
+.tree-node {
+  margin: 5px 0;
+}
+
+.node-header {
+  padding: 3px 5px;
+  margin: 2px 0;
+  border-left: 3px solid #0f0;
+}
+
+.node-selector {
+  background: rgba(0, 100, 100, 0.2);
+  border-left-color: #0ff;
+}
+
+.node-sequence {
+  background: rgba(100, 0, 100, 0.2);
+  border-left-color: #f0f;
+}
+
+.node-condition {
+  background: rgba(100, 100, 0, 0.2);
+  border-left-color: #ff0;
+}
+
+.node-action {
+  background: rgba(0, 100, 0, 0.2);
+  border-left-color: #0f0;
+}
+
+.node-type {
+  font-weight: bold;
+  color: #fff;
+}
+
+.node-name {
+  color: #aaa;
+  font-style: italic;
+}
+
+.node-details {
+  margin-left: 10px;
+  color: #888;
+  font-size: 11px;
+}
+
+.scorer-group {
+  margin: 10px 0;
+  padding: 8px;
+  background: rgba(50, 50, 0, 0.2);
+  border: 1px solid #aa0;
+}
+
+.scorer-group h5 {
+  margin: 0 0 5px 0;
+  color: #ff0;
+  font-size: 12px;
+}
+
+.scorer-group ul {
+  margin: 0;
+  padding-left: 20px;
+  list-style: square;
+}
+
+.scorer-group li {
+  margin: 3px 0;
+  color: #ccc;
+}
+
+.no-ai,
+.no-scorers {
+  color: #888;
+  font-style: italic;
+}
+
+/* Scrollbar styling */
+.ai-inspector::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ai-inspector::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.ai-inspector::-webkit-scrollbar-thumb {
+  background: #0f0;
+}
+
+.ai-inspector::-webkit-scrollbar-thumb:hover {
+  background: #0ff;
+}

@@ -111,6 +111,7 @@ export function combatReducer(state, action, ACTIONS) {
           initiative: init.initiative,
           position: null, // Will be set by EncounterPositions
           statusEffects: [],
+          aiConfig: !isAlly ? combatant.aiConfig : null, // Copy AI config from enemy
         };
       });
 
@@ -321,143 +322,42 @@ export function combatReducer(state, action, ACTIONS) {
       console.log('[PROCESS_COMBAT_ACTION] Called', { actionType, attacker, target });
 
       if (actionType === 'attack') {
-        // Process attack action
-        const attackerChar = attacker.character || attacker.enemy;
-        const targetChar = target.character || target.enemy;
+        // Use Combat instance to process attack (handles dice rolling with logger)
+        const combat = state.combatState.combat;
 
-        console.log('[PROCESS_COMBAT_ACTION] Attack processing', {
-          attackerChar: attackerChar?.name,
-          targetChar: targetChar?.name,
-          hasAttackerChar: !!attackerChar,
-          hasTargetChar: !!targetChar,
-          attackerObj: attacker,
-          targetObj: target,
-        });
-
-        if (!attackerChar || !targetChar) {
-          console.error('[PROCESS_COMBAT_ACTION] Invalid attacker or target', { attacker, target });
+        if (!combat) {
+          console.error('[PROCESS_COMBAT_ACTION] Combat instance not available');
           return state;
         }
 
-        // Get weapon info
-        let weaponDamage = '1d6';
-        let damageType = 'slashing';
-        let attackBonus = 0;
-        let damageBonus = 0;
-        let weaponRange = 1;
+        console.log('[PROCESS_COMBAT_ACTION] Processing attack via Combat instance', {
+          attacker: attacker.name,
+          target: target.name,
+        });
 
-        if (attackerChar.equipment && attackerChar.equipment.mainHand) {
-          const weapon = attackerChar.equipment.mainHand;
-          weaponDamage = weapon.damage || '1d6';
-          damageType = weapon.damageType || 'slashing';
-          weaponRange = weapon.range || 1;
-          if (weapon.effects) {
-            attackBonus = weapon.effects.attackBonus || 0;
-            damageBonus = weapon.effects.damageBonus || 0;
-          }
+        // Use Combat.processAttack which uses DiceRoller with auto-logging
+        const attackResult = combat.processAttack(attacker.id, target.id);
+
+        if (!attackResult.success) {
+          console.error('[PROCESS_COMBAT_ACTION] Attack failed', attackResult.message);
+          return state;
         }
 
-        // Determine attack type and ability modifier
-        const attackType = weaponRange > 1 ? 'ranged' : 'melee';
-        const abilityMod =
-          attackType === 'melee'
-            ? Math.floor((attackerChar.abilities.strength - 10) / 2)
-            : Math.floor((attackerChar.abilities.dexterity - 10) / 2);
-
-        // Roll attack
-        const attackRoll = Math.floor(Math.random() * 20) + 1;
-        const profBonus = attackerChar.proficiencyBonus || 2;
-        const attackTotal = attackRoll + abilityMod + profBonus + attackBonus;
-
-        // Get target AC
-        const targetAC = targetChar.armorClass || targetChar.ac || 10;
-
-        // Check for Dodge condition
-        const targetDodging = target.conditions?.some(c => c.type === 'Dodging');
-        const effectiveAC = targetDodging ? targetAC + 2 : targetAC;
-
-        const hit = attackRoll === 20 || (attackRoll !== 1 && attackTotal >= effectiveAC);
-        const critical = attackRoll === 20;
-
-        let damage = 0;
-        let updatedTurnOrder = state.combatState.turnOrder;
-
-        if (hit) {
-          // Parse damage dice (e.g., "2d6+3")
-          const match = weaponDamage.match(/(\d+)d(\d+)([+-]\d+)?/);
-          if (match) {
-            const count = parseInt(match[1]);
-            const sides = parseInt(match[2]);
-            const bonus = match[3] ? parseInt(match[3]) : 0;
-
-            // Roll damage
-            let baseDamage = 0;
-            for (let i = 0; i < count; i++) {
-              baseDamage += Math.floor(Math.random() * sides) + 1;
-            }
-            damage = baseDamage + bonus + abilityMod + damageBonus;
-
-            // Double dice damage on crit
-            if (critical) {
-              let critDamage = 0;
-              for (let i = 0; i < count; i++) {
-                critDamage += Math.floor(Math.random() * sides) + 1;
-              }
-              damage += critDamage;
+        // Apply damage to target HP (Combat.processAttack already updated combatant.hp)
+        // We need to sync the turn order HP from the Combat instance
+        const syncedTurnOrder = state.combatState.turnOrder.map(c => {
+          if (c.id === attacker.id || c.id === target.id) {
+            // Find matching combatant in combat.turnOrder
+            const combatantFromCombat = combat.turnOrder.find(ct => ct.id === c.id);
+            if (combatantFromCombat) {
+              return { ...c, currentHP: combatantFromCombat.hp };
             }
           }
+          return c;
+        });
 
-          // Apply damage to target
-          updatedTurnOrder = state.combatState.turnOrder.map(c => {
-            if (c.id === target.id) {
-              const newHP = Math.max(0, c.currentHP - damage);
-              logger.combat.info('Damage applied', {
-                target: c.name,
-                oldHP: c.currentHP,
-                damage,
-                newHP,
-              });
-              return {
-                ...c,
-                currentHP: newHP,
-              };
-            }
-            return c;
-          });
-
-          // Log attack result
-          if (critical) {
-            logger.combat.info('CRITICAL HIT!', {
-              attacker: attackerChar.name,
-              target: targetChar.name,
-              roll: attackRoll,
-              total: attackTotal,
-              ac: effectiveAC,
-              damage,
-              damageType,
-            });
-          } else {
-            logger.combat.info('Attack hit', {
-              attacker: attackerChar.name,
-              target: targetChar.name,
-              roll: attackRoll,
-              modifier: abilityMod + profBonus + attackBonus,
-              total: attackTotal,
-              ac: effectiveAC,
-              damage,
-              damageType,
-            });
-          }
-        } else {
-          logger.combat.info('Attack missed', {
-            attacker: attackerChar.name,
-            target: targetChar.name,
-            roll: attackRoll,
-            modifier: abilityMod + profBonus + attackBonus,
-            total: attackTotal,
-            ac: effectiveAC,
-          });
-        }
+        // Get attacker character for action economy
+        const attackerChar = attacker.character || attacker.enemy;
 
         // Calculate max attacks for this combatant (Extra Attack feature)
         const maxAttacks = attackerChar?.getAttacksPerAction
@@ -480,7 +380,7 @@ export function combatReducer(state, action, ACTIONS) {
           ...state,
           combatState: {
             ...state.combatState,
-            turnOrder: updatedTurnOrder,
+            turnOrder: syncedTurnOrder,
             turnState: {
               ...state.combatState.turnState,
               actionUsed: actionNowUsed,

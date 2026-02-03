@@ -6,10 +6,15 @@
 import { DiceRoller } from './DiceRoller.js';
 
 export class Enemy {
-  constructor(name, cr, type = 'generic') {
+  constructor(name, cr, type = 'generic', family = null, variant = null) {
     this.name = name;
     this.cr = cr;
     this.type = type; // beast, humanoid, undead, dragon, etc.
+
+    // AI configuration
+    this.family = family || this._inferFamilyFromType(type);
+    this.variant = variant; // null or variant name ('berserker', 'dire', etc.)
+    this.aiConfig = null; // Loaded on combat start
 
     // Apply CR-based stats
     this.applyStatsByCR(cr);
@@ -23,6 +28,24 @@ export class Enemy {
     // Special abilities (for tactical AI)
     this.specialAbilities = [];
     this.range = 1; // Default melee range (set by stat table)
+  }
+
+  /**
+   * Infer AI family from creature type
+   * @param {string} type - Creature type
+   * @returns {string} AI family name
+   */
+  _inferFamilyFromType(type) {
+    const typeToFamily = {
+      beast: 'beast',
+      humanoid: 'humanoid',
+      undead: 'undead',
+      dragon: 'humanoid', // Dragons use intelligent tactics
+      goblinoid: 'goblinoid',
+      generic: 'humanoid',
+    };
+
+    return typeToFamily[type.toLowerCase()] || 'humanoid';
   }
 
   /**
@@ -375,6 +398,8 @@ export class Enemy {
       name: this.name,
       cr: this.cr,
       type: this.type,
+      family: this.family,
+      variant: this.variant,
       maxHP: this.maxHP,
       currentHP: this.currentHP,
       ac: this.ac,
@@ -394,7 +419,7 @@ export class Enemy {
    * Load from JSON
    */
   static fromJSON(data) {
-    const enemy = new Enemy(data.name, data.cr, data.type);
+    const enemy = new Enemy(data.name, data.cr, data.type, data.family, data.variant);
     enemy.currentHP = data.currentHP;
     enemy.isDead = data.isDead || false;
     enemy.specialAbilities = data.specialAbilities || [];
@@ -407,15 +432,17 @@ export class Enemy {
    * @param {string} creatureString - String like "2d4 Goblins", "1 Young Dragon"
    * @param {number} cr - Challenge Rating for the encounter
    * @param {DiceRoller} diceRoller - DiceRoller instance for random generation
+   * @param {string} family - AI family override (optional)
+   * @param {string} variant - AI variant override (optional)
    * @returns {Array<Enemy>} Array of Enemy instances
    */
-  static parseCreatureString(creatureString, cr, diceRoller) {
+  static parseCreatureString(creatureString, cr, diceRoller, family = null, variant = null) {
     // Parse patterns like "2d4 Goblins", "1 Young Dragon", "1d2 Hill Giants"
     const match = creatureString.match(/^(\d+d\d+|\d+)\s+(.+)$/i);
 
     if (!match) {
       // Fallback: create a single enemy with the full string as name
-      return [new Enemy(creatureString, cr)];
+      return [new Enemy(creatureString, cr, 'generic', family, variant)];
     }
 
     const countPart = match[1];
@@ -432,14 +459,49 @@ export class Enemy {
       count = parseInt(countPart);
     }
 
+    // Infer type from name if not provided
+    const inferredType = this._inferTypeFromName(namePart);
+
     // Create enemies
     const enemies = [];
     for (let i = 0; i < count; i++) {
       const enemyName = count > 1 ? `${namePart} #${i + 1}` : namePart;
-      enemies.push(new Enemy(enemyName, cr));
+      enemies.push(new Enemy(enemyName, cr, inferredType, family, variant));
     }
 
     return enemies;
+  }
+
+  /**
+   * Infer creature type from name
+   * @param {string} name - Creature name
+   * @returns {string} Inferred type
+   */
+  static _inferTypeFromName(name) {
+    const nameLower = name.toLowerCase();
+
+    if (
+      nameLower.includes('goblin') ||
+      nameLower.includes('hobgoblin') ||
+      nameLower.includes('bugbear')
+    ) {
+      return 'goblinoid';
+    }
+    if (nameLower.includes('wolf') || nameLower.includes('bear') || nameLower.includes('boar')) {
+      return 'beast';
+    }
+    if (
+      nameLower.includes('skeleton') ||
+      nameLower.includes('zombie') ||
+      nameLower.includes('undead')
+    ) {
+      return 'undead';
+    }
+    if (nameLower.includes('dragon')) {
+      return 'dragon';
+    }
+
+    return 'humanoid'; // Default
   }
 }
 

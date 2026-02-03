@@ -9,6 +9,8 @@ import { DND, COMBAT } from '../constants/gameConstants';
 import { checkLineOfSight } from './LineOfSight.js';
 import { AbilityEffects } from './AbilityEffects.js';
 import { getSpell, hasSpellSlot, useSpellSlot } from './SpellManager.js';
+import { AIEngine } from './ai/AIEngine.js';
+import logger from '../utils/logger.js';
 
 /**
  * D&D 5e CR to XP Conversion Table
@@ -110,6 +112,63 @@ export class Combat {
     this.canFlee = options.canFlee !== false; // Default true
     this.fleeAttempted = false;
     this.fleeDC = 10 + Math.floor(this.getAverageCR() / 2); // Higher CR = harder to flee
+
+    // AI initialization flag
+    this.aiInitialized = false;
+  }
+
+  /**
+   * Initialize AI for all enemy combatants
+   * Must be called before combat starts (after construction)
+   * @returns {Promise<void>}
+   */
+  async initializeAI() {
+    if (this.aiInitialized) {
+      logger.combat.warn('AI already initialized');
+      return;
+    }
+
+    logger.combat.info('Initializing AI for combat', {
+      enemyCount: this.enemyCombatants.length,
+    });
+
+    // Load AI for each enemy
+    const aiLoadPromises = this.enemyCombatants.map(async combatant => {
+      const enemy = combatant.character;
+
+      if (!enemy || !enemy.family) {
+        logger.combat.warn('Enemy missing family, skipping AI load', {
+          combatant: combatant.id,
+        });
+        return;
+      }
+
+      try {
+        combatant.aiConfig = await AIEngine.loadAI(enemy.family, enemy.variant);
+        enemy.aiConfig = combatant.aiConfig; // Store on enemy too
+
+        logger.combat.info('AI loaded for enemy', {
+          name: enemy.name,
+          family: enemy.family,
+          variant: enemy.variant,
+        });
+      } catch (error) {
+        logger.combat.error('Failed to load AI', {
+          name: enemy.name,
+          family: enemy.family,
+          variant: enemy.variant,
+          error: error.message,
+        });
+
+        // Use fallback AI
+        combatant.aiConfig = AIEngine.getFallbackAI();
+      }
+    });
+
+    await Promise.all(aiLoadPromises);
+
+    this.aiInitialized = true;
+    logger.combat.info('AI initialization complete');
   }
 
   /**
@@ -748,17 +807,8 @@ export class Combat {
       }
     }
 
-    // Determine attack type and ability modifier
+    // Determine attack type
     const attackType = weaponRange > 1 ? 'ranged' : 'melee';
-    const abilityMod =
-      attackType === 'melee'
-        ? Math.floor((attackerChar.abilities.strength - 10) / 2)
-        : Math.floor((attackerChar.abilities.dexterity - 10) / 2);
-
-    // Roll attack
-    const attackRoll = this.diceRoller.rollD20();
-    const profBonus = attackerChar.proficiencyBonus || 0;
-    const attackTotal = attackRoll + abilityMod + profBonus + attackBonus;
 
     // Get target AC
     const targetAC = targetChar.armorClass || targetChar.ac || 10;
@@ -767,26 +817,45 @@ export class Combat {
     const targetDodging = target.statusEffects?.some(e => e.name === 'Dodge');
     const effectiveAC = targetDodging ? targetAC + 2 : targetAC;
 
-    const hit =
-      attackRoll === DND.NATURAL_20 || (attackRoll !== DND.NATURAL_1 && attackTotal >= effectiveAC);
-    const critical = attackRoll === DND.NATURAL_20;
+    // Get weapon name for logging
+    const weaponName =
+      attackerChar.equipment?.mainHand?.name ||
+      (attackType === 'melee' ? 'Melee Attack' : 'Ranged Attack');
+
+    // Use DiceRoller.attackRoll() for automatic logging
+    const attackResult = this.diceRoller.attackRoll(
+      attackerChar,
+      attackType,
+      effectiveAC,
+      weaponName
+    );
+
+    const hit = attackResult.hit;
+    const critical = attackResult.crit;
 
     let damage = 0;
     let message = '';
 
     if (hit) {
-      // Roll damage
-      damage = this.diceRoller.damageRoll(weaponDamage) + abilityMod + damageBonus;
+      // Get ability modifier for damage
+      const abilityMod =
+        attackType === 'melee'
+          ? Math.floor((attackerChar.abilities.strength - 10) / 2)
+          : Math.floor((attackerChar.abilities.dexterity - 10) / 2);
+
+      // Roll base damage (auto-logs with damage type)
+      const baseDamage = this.diceRoller.damageRoll(weaponDamage, damageType);
+      damage = baseDamage + abilityMod + damageBonus;
 
       // Double dice damage on crit
       if (critical) {
-        damage += this.diceRoller.damageRoll(weaponDamage);
-        message = `CRITICAL HIT! ${attackerChar.name} deals ${damage} ${damageType} damage to ${targetChar.name}`;
-      } else {
-        message = `${attackerChar.name} hits ${targetChar.name} for ${damage} ${damageType} damage`;
+        const critDamage = this.diceRoller.damageRoll(weaponDamage, damageType);
+        damage += critDamage;
       }
+
+      message = `${damage} ${damageType} damage to ${targetChar.name}`;
     } else {
-      message = `${attackerChar.name} misses ${targetChar.name} (rolled ${attackTotal} vs AC ${effectiveAC})`;
+      message = `${attackerChar.name} misses ${targetChar.name}`;
     }
 
     return {

@@ -1,0 +1,47 @@
+{
+  "family": "Goblinoid",
+  "variant": "Berserker",
+  "description": "Rage-filled goblin that never flees and attacks recklessly",
+  "overrides": {
+    "tree": {
+      "type": "Selector",
+      "children": [
+        {
+          "type": "Sequence",
+          "name": "Rage when injured",
+          "children": [
+            { "type": "Condition", "check": "hpBelow", "value": 0.5 },
+            { "type": "Condition", "check": "hasAbility", "ability": "Rage" },
+            { "type": "Action", "action": "useAbility", "ability": "Rage" }
+          ]
+        },
+        {
+          "type": "Selector",
+          "name": "Combat actions",
+          "children": [
+            {
+              "type": "Sequence",
+              "name": "Melee attack if in range",
+              "children": [
+                { "type": "Condition", "check": "inMeleeRange" },
+                { "type": "Action", "action": "attack", "attackType": "melee", "needsTarget": true }
+              ]
+            },
+            { "type": "Action", "action": "moveTo", "needsTarget": true }
+          ]
+        }
+      ]
+    },
+    "scorers": {
+      "attack": [
+        { "type": "targetHP", "curve": "inverse", "weight": 0.8 },
+        { "type": "distance", "curve": "inverse", "weight": 0.2 }
+      ]
+    },
+    "config": {
+      "fleeThreshold": 0,
+      "abilityChance": 0.6,
+      "preferredRange": "melee"
+    }
+  }
+}

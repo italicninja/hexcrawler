@@ -1,0 +1,69 @@
+{
+  "family": "Goblinoid",
+  "description": "Small humanoids that prefer melee combat and flee when injured",
+  "tree": {
+    "type": "Selector",
+    "children": [
+      {
+        "type": "Sequence",
+        "name": "Flee if low HP",
+        "children": [
+          { "type": "Condition", "check": "hpBelow", "value": 0.25 },
+          { "type": "Condition", "check": "notInBackline" },
+          { "type": "Action", "action": "flee" }
+        ]
+      },
+      {
+        "type": "Sequence",
+        "name": "Use special ability",
+        "children": [
+          { "type": "Condition", "check": "hasAbility" },
+          { "type": "Condition", "check": "randomChance", "value": 0.3 },
+          { "type": "Action", "action": "useAbility", "needsTarget": true }
+        ]
+      },
+      {
+        "type": "Selector",
+        "name": "Combat actions",
+        "children": [
+          {
+            "type": "Sequence",
+            "name": "Melee attack if in range",
+            "children": [
+              { "type": "Condition", "check": "inMeleeRange" },
+              { "type": "Action", "action": "attack", "attackType": "melee", "needsTarget": true }
+            ]
+          },
+          {
+            "type": "Sequence",
+            "name": "Ranged attack if possible",
+            "children": [
+              { "type": "Condition", "check": "hasRangedAttack" },
+              { "type": "Condition", "check": "hasLineOfSight" },
+              { "type": "Condition", "check": "inRange", "value": 12 },
+              { "type": "Action", "action": "attack", "attackType": "ranged", "needsTarget": true }
+            ]
+          },
+          { "type": "Action", "action": "moveTo", "needsTarget": true }
+        ]
+      }
+    ]
+  },
+  "scorers": {
+    "attack": [
+      { "type": "targetHP", "curve": "inverse", "weight": 0.6 },
+      { "type": "distance", "curve": "inverse", "weight": 0.3 },
+      { "type": "random", "weight": 0.1 }
+    ],
+    "useAbility": [
+      { "type": "targetHP", "curve": "inverse", "weight": 0.7 },
+      { "type": "random", "weight": 0.3 }
+    ],
+    "moveTo": [{ "type": "distance", "curve": "inverse", "weight": 1.0 }]
+  },
+  "config": {
+    "fleeThreshold": 0.25,
+    "abilityChance": 0.3,
+    "preferredRange": "melee"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "family": "Humanoid",
+  "description": "Intelligent humanoids with tactical combat and strategic retreat",
+  "tree": {
+    "type": "Selector",
+    "children": [
+      {
+        "type": "Sequence",
+        "name": "Tactical retreat if critically injured",
+        "children": [
+          { "type": "Condition", "check": "hpBelow", "value": 0.15 },
+          { "type": "Condition", "check": "notInBackline" },
+          { "type": "Action", "action": "flee" }
+        ]
+      },
+      {
+        "type": "Sequence",
+        "name": "Use special ability intelligently",
+        "children": [
+          { "type": "Condition", "check": "hasAbility" },
+          { "type": "Condition", "check": "randomChance", "value": 0.4 },
+          { "type": "Action", "action": "useAbility", "needsTarget": true }
+        ]
+      },
+      {
+        "type": "Selector",
+        "name": "Combat actions",
+        "children": [
+          {
+            "type": "Sequence",
+            "name": "Melee attack if in range",
+            "children": [
+              { "type": "Condition", "check": "inMeleeRange" },
+              { "type": "Action", "action": "attack", "attackType": "melee", "needsTarget": true }
+            ]
+          },
+          {
+            "type": "Sequence",
+            "name": "Ranged attack if possible",
+            "children": [
+              { "type": "Condition", "check": "hasRangedAttack" },
+              { "type": "Condition", "check": "hasLineOfSight" },
+              { "type": "Condition", "check": "inRange", "value": 12 },
+              { "type": "Action", "action": "attack", "attackType": "ranged", "needsTarget": true }
+            ]
+          },
+          { "type": "Action", "action": "moveTo", "needsTarget": true }
+        ]
+      }
+    ]
+  },
+  "scorers": {
+    "attack": [
+      { "type": "targetIsSpellcaster", "weight": 0.4 },
+      { "type": "targetHP", "curve": "inverse", "weight": 0.3 },
+      { "type": "distance", "curve": "inverse", "weight": 0.2 },
+      { "type": "random", "weight": 0.1 }
+    ],
+    "useAbility": [
+      { "type": "targetIsSpellcaster", "weight": 0.5 },
+      { "type": "targetHP", "curve": "inverse", "weight": 0.3 },
+      { "type": "random", "weight": 0.2 }
+    ],
+    "moveTo": [{ "type": "distance", "curve": "inverse", "weight": 1.0 }]
+  },
+  "config": {
+    "fleeThreshold": 0.15,
+    "abilityChance": 0.4,
+    "preferredRange": "mixed"
+  }
+}
