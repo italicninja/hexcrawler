@@ -1011,11 +1011,16 @@ button:active {
   min-height: 70px;
 }
 
-.class-button:hover {
+.class-button:hover:not(.disabled) {
   border-color: var(--accent-color);
   background: rgba(20, 184, 166, 0.1);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px var(--shadow);
+}
+
+.class-button.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .class-button.selected {

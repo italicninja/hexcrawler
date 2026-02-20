@@ -91,9 +91,24 @@ const generateRandomName = () => {
   return getRandomElement(HERO_NAMES);
 };
 
-// Helper function to get random class key
+// Classes currently disabled (not yet fully fleshed out) - re-enable as each class is implemented
+const DISABLED_CLASSES = new Set([
+  'bard',
+  'cleric',
+  'druid',
+  'fighter',
+  'monk',
+  'paladin',
+  'ranger',
+  'rogue',
+  'sorcerer',
+  'warlock',
+  'wizard',
+]);
+
+// Helper function to get random class key (only enabled classes)
 const getRandomClass = () => {
-  const classKeys = Object.keys(CLASS_DATA);
+  const classKeys = Object.keys(CLASS_DATA).filter(key => !DISABLED_CLASSES.has(key));
   return getRandomElement(classKeys);
 };
 
@@ -285,7 +300,7 @@ function CharacterCreationScene() {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
   const [characterName, setCharacterName] = useState('');
-  const [selectedClass, setSelectedClass] = useState('paladin');
+  const [selectedClass, setSelectedClass] = useState('barbarian');
   const [error, setError] = useState('');
 
   const handleCreateCharacter = () => {
@@ -392,17 +407,22 @@ function CharacterCreationScene() {
           <div className="control-group">
             <label>Class:</label>
             <div className="class-selection-grid">
-              {Object.entries(CLASS_DATA).map(([key, data]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`class-button ${selectedClass === key ? 'selected' : ''}`}
-                  onClick={() => setSelectedClass(key)}
-                >
-                  <div className="class-button-name">{data.name}</div>
-                  <div className="class-button-hitdie">{data.hitDie}</div>
-                </button>
-              ))}
+              {Object.entries(CLASS_DATA).map(([key, data]) => {
+                const isDisabled = DISABLED_CLASSES.has(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`class-button ${selectedClass === key ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                    onClick={() => !isDisabled && setSelectedClass(key)}
+                    disabled={isDisabled}
+                    title={isDisabled ? `${data.name} - Coming soon` : data.name}
+                  >
+                    <div className="class-button-name">{data.name}</div>
+                    <div className="class-button-hitdie">{isDisabled ? 'soon' : data.hitDie}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

@@ -1,271 +1,125 @@
 # Hexcrawler - Consolidated TODO
 
-**Last Updated:** January 17, 2026  
-**Current Completeness:** ~85% (Core gameplay complete)  
-**Focus:** Technical debt cleanup + remaining features
+**Last Updated:** February 20, 2026
+**Current Completeness:** ~92% (Core gameplay complete, TypeScript migration done)
+**Focus:** Code quality + remaining polish
 
 ---
 
-## 🚨 CRITICAL - Must Do Immediately
+## DONE - Completed Since Last TODO Update
 
-### 1. Delete Dead Code ⚠️ BLOCKING
-**Priority:** 🔴 Highest | **Time:** 2 hours
+The following items from the previous TODO were completed as part of v0.5.0 and related work:
 
-**File:** `src/contexts/GameStateContext.jsx`
-
-**Task:**
-- Delete lines 178-1298 (legacy monolithic reducer - 1,120 lines)
-- Already replaced by modular reducers in `src/contexts/reducers/`
-- Remove unused imports
-
-**Validation:**
-```bash
-npm run dev
-# Test: New game, movement, combat, shops, quests, save/load
-```
-
-**Commit:** `refactor: Remove legacy monolithic reducer (1120 lines)`
+- [x] **Delete dead code** - `GameStateContext.tsx` is 361 lines, cleanly delegates to `src/contexts/reducers/`
+- [x] **Delete backup files** - No `.backup`/`.bak`/`.bak2` files remain
+- [x] **Add ESLint + Prettier** - `.eslintrc.cjs`, `.prettierrc` exist; `lint`/`format` scripts in `package.json`
+- [x] **TypeScript migration** - Entire codebase migrated to `.ts`/`.tsx` (v0.5.0)
+- [x] **Code splitting** - `App.tsx` uses `lazy()` + `Suspense` for all 4 scenes
+- [x] **CI/CD pipeline** - `.github/workflows/qa-tests.yml` runs Playwright E2E on push/PR
+- [x] **Rations system** - `SurvivalManager.ts` (319 lines), full exhaustion/foraging implemented
+- [x] **Party AI** - `src/game/ai/` directory with `AIEngine.ts`, `scorers.ts`, `conditions.ts`, `actions.ts` (1,264 lines total)
+- [x] **Full combat UI** - `src/components/ui/combat/` has 11 components; no auto-resolve
+- [x] **All 12 character classes** - Fighter, Wizard, Rogue, Cleric, Paladin, Barbarian, Bard, Druid, Monk, Ranger, Sorcerer, Warlock all in `Character.ts`
+- [x] **Combat.ts audit** - No `autoResolveCombat` or `processAutoTurn` found; fully turn-based
 
 ---
 
-### 2. Delete Backup Files
-**Priority:** 🟡 Medium | **Time:** 15 minutes
+## CRITICAL
 
-**Files to Delete:**
-- `src/contexts/GameStateContext.jsx.backup`
-- `src/contexts/GameStateContext.jsx.bak2`
+### 1. Remove `// @ts-nocheck` Suppressions
 
-**Update `.gitignore`:**
-```gitignore
-# Backup files
-*.backup
-*.bak
-*.bak2
-*.old
-*~
-```
+**Priority:** High | **Time:** 8-12 hours
 
-**Commit:** `chore: Remove backup files and update .gitignore`
+**Problem:** `tsconfig.json` has `strict: true` enabled, but the majority of source files begin with `// @ts-nocheck`, which completely bypasses TypeScript checking. The TypeScript migration is structurally complete but type safety is not enforced.
+
+**Scope:** `App.tsx`, `OverworldScene.tsx`, `Combat.ts`, all `ai/` files, most `hooks/`, `contexts/reducers/` files, canvas components.
+
+**Approach:**
+
+1. Remove `// @ts-nocheck` one file at a time, starting with smallest/simplest files
+2. Run `npm run typecheck` after each removal
+3. Fix errors before moving to the next file
+4. Recommended order: `utils/` → `game/` pure classes → `contexts/reducers/` → `hooks/` → `components/`
+
+**Commit pattern:** `chore: Remove @ts-nocheck from [filename], fix type errors`
 
 ---
 
-### 3. Test Save/Load System ⚠️ CRITICAL
-**Priority:** 🔴 Highest | **Time:** 2 hours
+### 2. Test Save/Load System
 
-**Why Critical:** Data corruption = lost progress
+**Priority:** High | **Time:** 2 hours
+
+**Why:** Recent commits show save/load bug fixes (quest/shop/explorationState reconstruction) — regression risk is real.
 
 **Test Cases:**
+
 - [ ] Save to slots 1-3
 - [ ] Load from each slot
-- [ ] Auto-save triggers on state changes
-- [ ] Save metadata displays correctly
-- [ ] Playtime increments
+- [ ] Auto-save triggers on scene change
+- [ ] Save metadata displays correctly (playtime, character name, level)
 - [ ] Delete save slot
 - [ ] Version mismatch handling
-- [ ] localStorage quota exceeded
-- [ ] Complex object serialization (Character, Party, Combat)
 - [ ] Set reconstruction (exploredHexes, discoveredPOIs)
 
 **Edge Cases:**
+
 - Save during combat
 - Save in interior/dungeon
 - Save with full inventory
-- Character at max level
-- Character dead/unconscious
+- Character with exhaustion levels
 
 ---
 
-## 🔧 TECHNICAL DEBT - Code Quality
+## TECHNICAL DEBT
 
-### 4. Add ESLint + Prettier
-**Priority:** 🔴 High | **Time:** 3 hours
+### 3. Split OverworldScene.tsx
 
-**Install:**
-```bash
-npm install -D eslint @eslint/js eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-react-refresh prettier eslint-config-prettier
-```
+**Priority:** High | **Time:** 12-16 hours
 
-**Create `.eslintrc.cjs`:**
-```javascript
-module.exports = {
-  root: true,
-  env: { browser: true, es2020: true },
-  extends: [
-    'eslint:recommended',
-    'plugin:react/recommended',
-    'plugin:react/jsx-runtime',
-    'plugin:react-hooks/recommended',
-    'prettier'
-  ],
-  ignorePatterns: ['dist', '.eslintrc.cjs'],
-  parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
-  settings: { react: { version: '18.2' } },
-  plugins: ['react-refresh'],
-  rules: {
-    'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-    'react/prop-types': 'warn',
-    'no-unused-vars': 'warn',
-    'no-console': 'off'
-  },
-}
-```
+`OverworldScene.tsx` is **1,960 lines** — the largest file and the primary maintainability problem. It currently handles overworld movement, interior exploration, combat rendering, all UI panel rendering, and survival/AI logic. This grew from the estimated 1,648 lines in the previous TODO.
 
-**Create `.prettierrc`:**
-```json
-{
-  "semi": true,
-  "trailingComma": "es5",
-  "singleQuote": true,
-  "printWidth": 100,
-  "tabWidth": 2,
-  "useTabs": false,
-  "arrowParens": "avoid"
-}
-```
+**Current responsibilities to extract:**
 
-**Add to `package.json`:**
-```json
-{
-  "scripts": {
-    "lint": "eslint src --ext .js,.jsx,.ts,.tsx --max-warnings 0",
-    "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
-    "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,css,md}'",
-    "format:check": "prettier --check 'src/**/*.{js,jsx,ts,tsx,css,md}'"
-  }
-}
-```
+| Responsibility                                        | Target File                        | Estimated Lines |
+| ----------------------------------------------------- | ---------------------------------- | --------------- |
+| Interior exploration logic + rendering                | `InteriorScene.tsx`                | ~400            |
+| Combat orchestration (AI turns, action handlers)      | `CombatSceneWrapper.tsx`           | ~300            |
+| Overworld movement + keyboard controls                | `useOverworldInput.ts` (hook)      | ~200            |
+| Combat state management                               | `useCombatOrchestration.ts` (hook) | ~200            |
+| Core OverworldScene (hex grid, fog of war, UI panels) | `OverworldScene.tsx`               | ~600            |
 
 **Steps:**
-1. Install dependencies
-2. Create config files
-3. Run `npm run format` (auto-fix)
-4. Run `npm run lint` (review warnings)
-5. Commit: `chore: Add ESLint and Prettier`
 
----
-
-### 5. Add Git Hooks (Pre-commit)
-**Priority:** 🟢 Low | **Time:** 1 hour
-
-**Install:**
-```bash
-npm install -D husky lint-staged
-npx husky init
-```
-
-**Create `.husky/pre-commit`:**
-```bash
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-npx lint-staged
-```
-
-**Add to `package.json`:**
-```json
-{
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx}": ["eslint --fix", "prettier --write"],
-    "*.{css,md}": ["prettier --write"]
-  }
-}
-```
-
-**Commit:** `chore: Add pre-commit hooks`
-
----
-
-### 6. Split Large Files
-**Priority:** 🔴 High | **Time:** 16-20 hours
-
-#### 6.1: Split OverworldScene.jsx (1,648 → 400 lines)
-**Time:** 8-10 hours
-
-**New Structure:**
-```
-src/components/scenes/
-├── OverworldScene.jsx (400 lines) - Overworld hex grid only
-├── InteriorScene.jsx (400 lines) - Interior exploration
-├── CombatSceneWrapper.jsx (200 lines) - Combat scene container
-└── SceneManager.jsx (150 lines) - Scene routing
-
-src/hooks/
-├── useOverworldLogic.js (150 lines)
-├── useInteriorLogic.js (150 lines)
-└── useSceneTransitions.js (100 lines)
-```
-
-**Steps:**
-1. Extract InteriorScene
-2. Extract CombatSceneWrapper
-3. Extract SceneManager
-4. Cleanup OverworldScene
+1. Extract `InteriorScene.tsx` (interior canvas + related state)
+2. Extract `CombatSceneWrapper.tsx` (combatState rendering branch + AI useEffects)
+3. Extract `useCombatOrchestration.ts` hook (AI turn processing logic)
+4. Extract `useOverworldInput.ts` hook (keyboard handling)
+5. Clean up remaining `OverworldScene.tsx`
 
 **Commits:**
+
 - `refactor: Extract InteriorScene from OverworldScene`
 - `refactor: Extract CombatSceneWrapper from OverworldScene`
-- `refactor: Extract SceneManager for scene routing`
-- `refactor: Cleanup OverworldScene (1648 → ~400 lines)`
-
-#### 6.2: Split CombatScene.jsx (1,218 → 400 lines)
-**Time:** 8-10 hours
-
-**New Structure:**
-```
-src/components/scenes/
-├── CombatScene.jsx (400 lines)
-└── combat/
-    ├── CombatController.jsx (300 lines)
-    ├── CombatUI.jsx (300 lines)
-    └── CombatEventHandler.jsx (200 lines)
-
-src/hooks/
-└── useCombatState.js (200 lines)
-```
-
-**Steps:**
-1. Extract CombatController
-2. Extract CombatUI
-3. Extract CombatEventHandler
-4. Cleanup CombatScene
-
-**Commits:**
-- `refactor: Extract CombatController from CombatScene`
-- `refactor: Extract CombatUI from CombatScene`
-- `refactor: Extract CombatEventHandler from CombatScene`
-- `refactor: Cleanup CombatScene (1218 → ~400 lines)`
-
-#### 6.3: Audit Combat.js (1,010 lines)
-**Time:** 2 hours
-
-**Task:**
-- Search for legacy auto-combat references
-- Determine if lines 63-505 are still used
-- If unused: Delete legacy code
-- If used: Split into `LegacyCombat.js` and `TacticalCombat.js`
-
-**Check:**
-```bash
-grep -r "autoResolveCombat" src/
-grep -r "processAutoTurn" src/
-```
-
-**Commit:** `refactor: Remove/split legacy combat code`
+- `refactor: Extract combat hooks from OverworldScene`
+- `refactor: Cleanup OverworldScene (1960 → ~600 lines)`
 
 ---
 
-## 🧪 TESTING & QUALITY
+### 4. Add Vitest Unit Testing
 
-### 7. Add Vitest Unit Testing
-**Priority:** 🔴 High | **Time:** 6-8 hours
+**Priority:** High | **Time:** 6-8 hours
+
+**Current state:** Playwright E2E tests exist (`.github/workflows/qa-tests.yml`), but there is no unit test framework. Game logic has no coverage at the unit level.
 
 **Install:**
+
 ```bash
 npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom
 ```
 
-**Create `vitest.config.js`:**
-```javascript
+**Create `vitest.config.ts`:**
+
+```typescript
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
@@ -274,18 +128,19 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './tests/setup.js',
+    setupFiles: './tests/setup.ts',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'tests/', '*.config.js', 'src/main.jsx']
-    }
-  }
+      exclude: ['node_modules/', 'tests/', '*.config.ts', 'src/main.tsx'],
+    },
+  },
 });
 ```
 
-**Create `tests/setup.js`:**
-```javascript
+**Create `tests/setup.ts`:**
+
+```typescript
 import { expect, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
@@ -294,279 +149,144 @@ expect.extend(matchers);
 afterEach(() => cleanup());
 ```
 
-**Priority Test Files:**
-1. `tests/game/DiceRoller.test.js`
-2. `tests/game/Character.test.js`
-3. `tests/utils/hexMath.test.js`
-4. `tests/utils/HexGrid.test.js`
-5. `tests/contexts/reducers/gameReducer.test.js`
+**Priority test files:**
+
+1. `tests/game/DiceRoller.test.ts`
+2. `tests/game/Character.test.ts`
+3. `tests/utils/hexMath.test.ts`
+4. `tests/utils/HexGrid.test.ts`
+5. `tests/game/SurvivalManager.test.ts`
+6. `tests/contexts/reducers/combatReducer.test.ts`
+
+**Add to `package.json` scripts:**
+
+```json
+"test:unit": "vitest",
+"test:unit:ui": "vitest --ui",
+"test:unit:coverage": "vitest --coverage"
+```
+
+**Goal:** 60%+ coverage on `src/game/` and `src/utils/`
+
+**Commit:** `test: Add Vitest unit testing framework and initial tests`
+
+---
+
+### 5. Add Git Pre-commit Hooks
+
+**Priority:** Low | **Time:** 1 hour
+
+ESLint and Prettier are installed but not enforced at commit time.
+
+**Install:**
+
+```bash
+npm install -D husky lint-staged
+npx husky init
+```
+
+**Create `.husky/pre-commit`:**
+
+```sh
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+npx lint-staged
+```
 
 **Add to `package.json`:**
+
 ```json
-{
-  "scripts": {
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
-  }
+"lint-staged": {
+  "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "*.{css,md}": ["prettier --write"]
 }
 ```
 
-**Goal:** 60%+ coverage on core game logic
-
-**Commit:** `test: Add Vitest and initial unit tests`
+**Commit:** `chore: Add husky pre-commit hooks with lint-staged`
 
 ---
 
-### 8. Enable TypeScript Strict Mode
-**Priority:** 🟡 Medium | **Time:** 4-6 hours
+### 6. Upgrade Dependencies
 
-**Current Status:** 40% migrated (infrastructure complete)
+**Priority:** Low | **Time:** 2-3 hours
 
-**Update `tsconfig.json`:**
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
-    "alwaysStrict": true
-  }
-}
-```
+| Package                | Current       | Latest     | Notes                                    |
+| ---------------------- | ------------- | ---------- | ---------------------------------------- |
+| `vite`                 | `^5.0.0`      | 7.x        | Major version bump, check config changes |
+| `@vitejs/plugin-react` | `^4.2.1`      | 5.x        | Goes with Vite upgrade                   |
+| `typescript`           | `^6.0.0-beta` | 6.0 stable | Pin to stable when released              |
+
+**Note:** Tailwind v4 has breaking changes — defer.
 
 **Steps:**
-1. Enable `"strict": true`
-2. Run `npm run typecheck`
-3. Fix errors incrementally (utils → game → components)
-4. Add `// @ts-expect-error` for unavoidable errors
 
-**Commit:** `chore: Enable TypeScript strict mode`
+1. Branch: `chore/upgrade-vite-v7`
+2. Upgrade Vite + plugin-react
+3. Update `vite.config.ts` as needed
+4. `npm run build` + `npm run dev` smoke test
+5. Run Playwright suite
 
----
-
-### 9. Add CI/CD Pipeline
-**Priority:** 🟡 Medium | **Time:** 3-4 hours
-
-**Create `.github/workflows/ci.yml`:**
-```yaml
-name: CI
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
-
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run test -- --run
-      - run: npm run build
-```
-
-**Commit:** `ci: Add CI/CD pipeline`
+**Commit:** `chore: Upgrade Vite to v7 and plugin-react to v5`
 
 ---
 
-## 🎮 GAMEPLAY FEATURES
+## PERFORMANCE & POLISH
 
-### 10. Rations & Water System
-**Priority:** 🟡 Medium | **Time:** 4-6 hours | **Depends:** Item System
+### 7. Canvas Rendering Optimization
 
-**Files to Create:**
-- `src/game/SurvivalManager.js`
+**Priority:** Medium | **Time:** 4-5 hours
 
-**Files to Modify:**
-- `src/game/Character.js` - Add `rations`, `water`, `daysWithoutFood`, `daysWithoutWater`
-- `src/contexts/reducers/characterReducer.ts` - Add `CONSUME_RATIONS`, `CONSUME_WATER`, `FORAGE`, `FIND_WATER`
-- `src/components/ui/CharacterStats.jsx` - Show rations/water count
-- `src/components/scenes/OverworldScene.jsx` - Add Forage/Find Water buttons
+**Files:**
 
-**Features:**
-- Consume 1 ration + 1 water per long rest
-- Starvation/dehydration tracking (exhaustion levels)
-- Foraging with Survival checks
-- Find water in appropriate terrain
-
-**Commit:** `feat: Add rations and water survival system`
-
----
-
-### 11. Party AI for Combat
-**Priority:** 🟡 Medium | **Time:** 6-8 hours | **Depends:** Combat System, NPC Generation
-
-**Files to Create:**
-- `src/game/CombatAI.js`
-
-**Files to Modify:**
-- `src/game/Combat.js` - Integrate NPC AI into turn order
-
-**Features:**
-- AI selects targets (Warriors: lowest HP, Healers: heal <50% allies, Ranged: distance attacks)
-- NPCs act automatically during their turn
-- NPC death handling
-- Actions logged to combat log
-
-**Commit:** `feat: Add party AI for combat`
-
----
-
-### 12. Party Management UI
-**Priority:** 🟢 Low | **Time:** 2-3 hours | **Depends:** NPC Generation
-
-**Files to Modify:**
-- `src/components/ui/PartyList.jsx`
-
-**Features:**
-- Expandable NPC entries
-- Full stat block when expanded
-- Equipment and inventory view
-- Personality and background display
-- Party stats summary (total HP, average level, composition)
-
-**Commit:** `feat: Add party management UI`
-
----
-
-### 13. Full Combat UI (Replace Auto-Resolve)
-**Priority:** 🟡 Medium | **Time:** 16-20 hours | **Depends:** Combat System
-
-**Status:** Currently uses auto-resolve. Combat scene exists but UI incomplete.
-
-**Files to Create:**
-- `src/components/scenes/CombatScene.jsx` (refactor existing)
-
-**Features:**
-- Turn-based tactical combat interface
-- Initiative tracker
-- Action selection (Attack, Defend, Use Item, Flee)
-- Target selection
-- Combat log
-- Turn order display
-- Action animations (optional)
-
-**Commit:** `feat: Implement full combat UI`
-
----
-
-### 14. Additional Character Classes
-**Priority:** 🟢 Low | **Time:** 6-8 hours each
-
-**Current Status:** Only Paladin implemented
-
-**Classes to Add:**
-1. Fighter (Action Surge, Second Wind)
-2. Wizard (Spell system, spellbook)
-3. Rogue (Sneak Attack, Cunning Action)
-4. Cleric (Healing spells, Channel Divinity)
-
-**Files to Modify:**
-- `src/game/Character.js`
-- `src/components/scenes/TitleScene.jsx`
-
-**Commits:**
-- `feat: Add Fighter class`
-- `feat: Add Wizard class and spell system`
-- `feat: Add Rogue class`
-- `feat: Add Cleric class`
-
----
-
-## ⚡ PERFORMANCE & POLISH
-
-### 15. Code Splitting (Lazy Loading)
-**Priority:** 🔴 High | **Time:** 4-6 hours
-
-**Update `src/App.jsx`:**
-```javascript
-import { lazy, Suspense } from 'react';
-
-const TitleScene = lazy(() => import('./components/scenes/TitleScene'));
-const OverworldScene = lazy(() => import('./components/scenes/OverworldScene'));
-const CombatScene = lazy(() => import('./components/scenes/CombatScene'));
-
-function LoadingScreen() {
-  return <div className="loading-screen">Loading...</div>;
-}
-
-function App() {
-  return (
-    <Suspense fallback={<LoadingScreen />}>
-      {/* Scene rendering */}
-    </Suspense>
-  );
-}
-```
-
-**Expected:** 30-40% reduction in initial bundle size
-
-**Commit:** `perf: Add code splitting for scenes`
-
----
-
-### 16. Canvas Rendering Optimization
-**Priority:** 🟡 Medium | **Time:** 4-5 hours
-
-**Files to Optimize:**
-- `src/components/canvas/HexGridCanvas.jsx`
-- `src/components/canvas/CombatCanvas.jsx`
-- `src/components/canvas/InteriorHexCanvas.jsx`
+- `src/components/canvas/HexGridCanvas.tsx` (393 lines)
+- `src/components/canvas/CombatCanvas.tsx` (702 lines)
+- `src/components/canvas/InteriorHexCanvas.tsx` (543 lines)
 
 **Optimizations:**
-1. Cache hex positions
-2. Debounce canvas redraws (~60fps)
-3. Memoize texture generator
-4. Only redraw changed hexes
 
-**Commit:** `perf: Optimize canvas rendering`
+1. Cache hex positions (avoid recalculating per-frame)
+2. Debounce canvas redraws to ~60fps cap
+3. Memoize `hexTextureGenerator` results
+4. Dirty-flag pattern: only redraw hexes that changed
 
----
-
-### 17. Upgrade Dependencies
-**Priority:** 🟢 Low | **Time:** 3-4 hours
-
-**Major Upgrades Available:**
-- Vite: 5.4.21 → 7.3.1
-- @vitejs/plugin-react: 4.7.0 → 5.1.2
-
-**Note:** Defer Tailwind CSS upgrade (v4 has breaking changes)
-
-**Steps:**
-1. Create branch: `feat/upgrade-vite-v7`
-2. Upgrade Vite and plugin-react
-3. Update `vite.config.js` if needed
-4. Test dev server and production build
-5. Run full test suite
-
-**Commit:** `chore: Upgrade Vite to v7`
+**Commit:** `perf: Optimize canvas rendering with caching and dirty flags`
 
 ---
 
-## 🎯 ADVANCED FEATURES (Lower Priority)
+### 8. Weather Effects on Gameplay
 
-### 18. Movement Costs by Terrain
-**Priority:** 🟢 Low | **Time:** 3-4 hours
+**Priority:** Low | **Time:** 2-3 hours
+
+Weather system (`WeatherSystem.ts`) generates conditions but they don't affect gameplay mechanics.
 
 **Files to Modify:**
+
 - `src/contexts/reducers/gameReducer.ts`
-- `src/terrainGenerator.js`
+- `src/components/scenes/OverworldScene.tsx`
 
 **Features:**
-- Water: 3 movement (boats needed)
+
+- Rain: ranged attack disadvantage, double movement cost
+- Snow: difficult terrain, cold damage (Constitution save)
+- Fog: reduced vision distance
+- Storm: no long rest, lightning damage
+
+**Commit:** `feat: Add weather gameplay effects`
+
+---
+
+### 9. Movement Costs by Terrain
+
+**Priority:** Low | **Time:** 3-4 hours
+
+**Files to Modify:**
+
+- `src/contexts/reducers/gameReducer.ts`
+- `src/terrainGenerator.ts`
+
+**Features:**
+
+- Water: 3 movement (raft/boat required)
 - Mountains: 2 movement
 - Hills/Forest: 1.5 movement
 - Grassland/Desert: 1 movement
@@ -577,150 +297,440 @@ function App() {
 
 ---
 
-### 19. Weather Effects on Gameplay
-**Priority:** 🟢 Low | **Time:** 2-3 hours
+### 10. Minimap & Navigation
 
-**Files to Modify:**
-- `src/contexts/reducers/gameReducer.ts`
-- `src/terrainGenerator.js`
-
-**Features:**
-- Rain: ranged attack disadvantage, double movement cost
-- Snow: difficult terrain, cold damage
-- Fog: reduced vision
-- Storm: no long rest, lightning damage
-
-**Commit:** `feat: Add weather gameplay effects`
-
----
-
-### 20. Minimap & Navigation
-**Priority:** 🟢 Low | **Time:** 4-5 hours
+**Priority:** Low | **Time:** 4-5 hours
 
 **Files to Create:**
-- `src/components/ui/Minimap.jsx`
+
+- `src/components/ui/Minimap.tsx`
 
 **Features:**
+
 - Small canvas showing explored area
 - Player position marker
 - POI markers
-- Fog of war
-- Click to navigate
+- Fog of war overlay
+- Click to center map view
 
 **Commit:** `feat: Add minimap navigation`
 
 ---
 
-### 21. Status Effects & Conditions
-**Priority:** 🟡 Medium | **Time:** 8-10 hours
+### 11. Status Effects & Conditions
+
+**Priority:** Medium | **Time:** 8-10 hours
+
+D&D 5e conditions exist partially (exhaustion is implemented via SurvivalManager) but a general condition system is missing.
 
 **Files to Create:**
-- `src/game/StatusEffect.js`
+
+- `src/game/StatusEffect.ts`
 
 **Files to Modify:**
-- `src/game/Character.js`
-- `src/game/Enemy.js`
-- `src/game/Combat.js`
+
+- `src/game/Character.ts`
+- `src/game/Enemy.ts`
+- `src/game/Combat.ts`
 
 **Features:**
-- D&D 5e conditions (blinded, charmed, frightened, poisoned, etc.)
-- Duration tracking
-- Effect application (disadvantage, speed reduction)
-- Visual indicators
+
+- D&D 5e conditions: blinded, charmed, frightened, paralyzed, poisoned, prone, restrained, stunned
+- Duration tracking (rounds / until rest)
+- Effect application (disadvantage, speed reduction, auto-fail saves)
+- Visual indicators in combat UI
 
 **Commit:** `feat: Add D&D 5e status effects and conditions`
 
 ---
 
-## 📋 EXECUTION CHECKLIST
+### 12. Party Management UI Improvements
 
-### Pre-Work
-- [ ] Review consolidated TODO
-- [ ] Create feature branch: `git checkout -b refactor/cleanup`
-- [ ] Backup: `git tag pre-cleanup-backup`
+**Priority:** Low | **Time:** 2-3 hours
 
-### Phase 1: Critical Cleanup (Week 1)
-- [ ] 1. Delete dead code (GameStateContext.jsx)
-- [ ] 2. Delete backup files
-- [ ] 3. Test save/load system
-- [ ] 4. Add ESLint + Prettier
-- [ ] 5. Add Git hooks
+**File:** `src/components/ui/PartyList.tsx`
 
-### Phase 2: Code Quality (Weeks 2-3)
-- [ ] 6. Split OverworldScene
-- [ ] 6. Split CombatScene
-- [ ] 6. Audit Combat.js
-- [ ] 7. Add Vitest testing (60%+ coverage)
-- [ ] 8. Enable TypeScript strict mode
-- [ ] 9. Add CI/CD pipeline
+**Features:**
 
-### Phase 3: Remaining Features (Weeks 4-5)
-- [ ] 10. Rations & Water System
-- [ ] 11. Party AI for Combat
-- [ ] 12. Party Management UI
-- [ ] 13. Full Combat UI
-- [ ] 14. Additional Character Classes
+- Expandable NPC entries showing full stat block
+- Equipment and inventory view per party member
+- Personality/background display
+- Party summary stats (total HP, avg level, composition)
 
-### Phase 4: Performance (Week 6)
-- [ ] 15. Code Splitting
-- [ ] 16. Canvas Optimization
-- [ ] 17. Upgrade Dependencies
-
-### Phase 5: Polish (Optional)
-- [ ] 18. Movement Costs
-- [ ] 19. Weather Effects
-- [ ] 20. Minimap
-- [ ] 21. Status Effects
+**Commit:** `feat: Improve party management UI`
 
 ---
 
-## 📊 SUCCESS METRICS
+## CLASS IMPLEMENTATION BACKLOG
+
+All classes except Barbarian are currently **disabled** in character creation (see `DISABLED_CLASSES` in `CharacterCreationScene.tsx`). Each class needs its unique mechanics fully designed and implemented before being re-enabled. Remove the class from `DISABLED_CLASSES` once complete.
+
+The Barbarian serves as the reference implementation. All classes share the base `Character.ts` stat block, hit die, proficiencies, and saving throw setup — what needs fleshing out is the **unique gameplay loop** each class creates in the hexcrawl context.
+
+---
+
+### 13. Fighter — Flesh Out & Enable
+
+**Priority:** High | **Estimated Time:** 3-4 hours
+
+**Design Questions to Resolve:**
+
+- Second Wind: short-rest heal (1d10 + level) — how does short rest work on the overworld?
+- Action Surge: extra action in combat — what actions does it unlock specifically?
+- Fighting Style: which styles to implement (Archery, Defense, Dueling, Great Weapon, Protection, Two-Weapon)?
+- Martial Archetypes at level 3: Champion (crit on 19-20) vs Battle Master (maneuvers) — scope?
+
+**Mechanics to Implement:**
+
+- [ ] Second Wind ability (short rest recovery on overworld)
+- [ ] Action Surge (extra combat action, 1/short rest)
+- [ ] Fighting Style passive bonuses applied to attack/damage rolls
+- [ ] Extra Attack at level 5 (multiattack)
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, `src/components/ui/combat/`
+
+**Commit:** `feat: Implement Fighter class mechanics and re-enable`
+
+---
+
+### 14. Rogue — Flesh Out & Enable
+
+**Priority:** High | **Estimated Time:** 4-5 hours
+
+**Design Questions to Resolve:**
+
+- Sneak Attack: trigger conditions (ally adjacent, target has disadvantage) — how to detect in combat?
+- Cunning Action: Dash/Disengage/Hide as bonus action — is bonus action system implemented?
+- Expertise: double proficiency on two skills — which overworld skills benefit most (Stealth, Perception)?
+- Thieves' Tools: trap disarming at POIs — tie into interior/dungeon system?
+
+**Mechanics to Implement:**
+
+- [ ] Sneak Attack damage dice (1d6 per 2 levels) with trigger detection
+- [ ] Cunning Action bonus action (Dash, Disengage, Hide)
+- [ ] Expertise on selected skills
+- [ ] Uncanny Dodge (halve damage once per round, reaction)
+- [ ] Evasion at level 7 (Dex save: no damage on success, half on fail)
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, combat UI components
+
+**Commit:** `feat: Implement Rogue class mechanics and re-enable`
+
+---
+
+### 15. Ranger — Flesh Out & Enable
+
+**Priority:** High | **Estimated Time:** 4-5 hours
+
+**Design Questions to Resolve:**
+
+- Favored Enemy: bonus to tracking/recall vs specific creature types — which enemy types exist in the game?
+- Natural Explorer: ignore difficult terrain, no getting lost, double food from foraging — how does foraging interact?
+- Spellcasting: half-caster (spell slots at level 2) — is the spell system ready for half-casters?
+- Hunter's Mark: concentration spell — how is concentration tracked in combat?
+- Fighting Style: subset of Fighter styles (Archery, Defense, Dueling, Two-Weapon)
+
+**Mechanics to Implement:**
+
+- [ ] Favored Enemy type selection at creation + combat/skill bonuses
+- [ ] Natural Explorer terrain bonus (tie into `SurvivalManager.ts` foraging)
+- [ ] Ranger spell list (Hunter's Mark, Cure Wounds, Goodberry, Spike Growth, etc.)
+- [ ] Hunter's Mark concentration tracking in combat
+- [ ] Colossus Slayer / Hunter's Prey features at level 3
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/SurvivalManager.ts`, `src/game/Combat.ts`, spell system
+
+**Commit:** `feat: Implement Ranger class mechanics and re-enable`
+
+---
+
+### 16. Paladin — Flesh Out & Enable
+
+**Priority:** High | **Estimated Time:** 5-6 hours
+
+**Design Questions to Resolve:**
+
+- Divine Smite: expend spell slot on hit for radiant damage — how does slot selection work mid-combat?
+- Lay on Hands: HP pool (5 × level), cure disease/poison — is disease/poison tracked?
+- Aura of Protection: +CHA modifier to all saves within 10ft — does party proximity matter in combat?
+- Sacred Oath at level 3: Devotion vs Ancients vs Vengeance — scope for v1?
+- Half-caster: spell slots at level 2, Paladin spell list
+
+**Mechanics to Implement:**
+
+- [ ] Lay on Hands pool (heal or cure poison/disease, tracked separately from HP)
+- [ ] Divine Smite (post-hit slot expenditure for 2d8 radiant + 1d8 per extra slot level)
+- [ ] Aura of Protection (party saving throw bonus in combat)
+- [ ] Divine Sense (detect undead/fiends within 60ft at POIs)
+- [ ] Channel Divinity options (Sacred Weapon, Turn the Unholy)
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, `src/components/ui/combat/`
+
+**Commit:** `feat: Implement Paladin class mechanics and re-enable`
+
+---
+
+### 17. Cleric — Flesh Out & Enable
+
+**Priority:** Medium | **Estimated Time:** 5-6 hours
+
+**Design Questions to Resolve:**
+
+- Divine Domain at level 1: which domains to support? (Life, Light, War, Trickery, Knowledge, Nature, Tempest)
+- Life Domain: Disciple of Life (bonus healing), Preserve Life channel divinity — is this the default domain?
+- Channel Divinity: Turn Undead — how does it interact with undead enemy types in the encounter system?
+- Spellcasting: full caster (spell slots from level 1), Cleric spell list
+- Ritual Casting: can cast ritual spells without expending a slot — what ritual spells exist?
+
+**Mechanics to Implement:**
+
+- [ ] Divine Domain selection at character creation (start with Life + War domains)
+- [ ] Channel Divinity: Turn Undead (undead Wisdom save or flee for 1 minute)
+- [ ] Channel Divinity: Domain-specific (e.g., Preserve Life for healing pool)
+- [ ] Cleric spell list (Cure Wounds, Guiding Bolt, Sacred Flame, Bless, Shield of Faith, etc.)
+- [ ] Ritual casting flag on applicable spells
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, spell system, character creation UI
+
+**Commit:** `feat: Implement Cleric class mechanics and re-enable`
+
+---
+
+### 18. Druid — Flesh Out & Enable
+
+**Priority:** Medium | **Estimated Time:** 6-8 hours
+
+**Design Questions to Resolve:**
+
+- Wild Shape: transform into CR 1/4 beast (level 2) — how does beast form work in combat? Separate stat block?
+- Wild Shape overworld use: scouting (Eagle for flight, Fish for swim) — interact with fog-of-war/movement?
+- Druidic Circle at level 2: Circle of the Land vs Circle of the Moon — Moon gives better Wild Shape forms
+- Spellcasting: full caster, Druid spell list (Entangle, Moonbeam, Conjure Animals, etc.)
+- No metal armor restriction — enforce or skip?
+
+**Mechanics to Implement:**
+
+- [ ] Wild Shape transformation (combat: temporary beast stat block overlay on character)
+- [ ] Beast form HP pool (separate from regular HP, revert at 0)
+- [ ] Wild Shape overworld scouting (expanded view distance, river crossing as fish, etc.)
+- [ ] Druid spell list (Healing Word, Entangle, Faerie Fire, Spike Growth, Moonbeam, Call Lightning)
+- [ ] Wildshape forms list by CR and environment type
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, `src/game/Enemy.ts` (reuse for beast forms), overworld movement
+
+**Commit:** `feat: Implement Druid class mechanics (Wild Shape + spells) and re-enable`
+
+---
+
+### 19. Bard — Flesh Out & Enable
+
+**Priority:** Medium | **Estimated Time:** 5-6 hours
+
+**Design Questions to Resolve:**
+
+- Bardic Inspiration: d6 die given to ally, used on attack/ability/save — how does ally AI use it?
+- Jack of All Trades: +half proficiency to non-proficient checks — which overworld checks does this affect?
+- Bard College at level 3: College of Lore (extra skills, Cutting Words) vs College of Valor (combat buffs)
+- Song of Rest: extra HD recovery during short rest — short rest system needed
+- Spellcasting: full caster, Bard spell list (Charm Person, Healing Word, Vicious Mockery, Hypnotic Pattern, etc.)
+- Expertise: double proficiency on two skills (same as Rogue)
+
+**Mechanics to Implement:**
+
+- [ ] Bardic Inspiration die (pool = CHA modifier, recharge on long rest)
+- [ ] Inspiration die used by allies in combat (reaction or AI-triggered)
+- [ ] Jack of All Trades half-proficiency on all untrained skills
+- [ ] Bard spell list with focus on crowd control and support
+- [ ] Cutting Words (College of Lore): reaction to impose penalty on enemy attack/check
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, party AI (`src/game/ai/`), spell system
+
+**Commit:** `feat: Implement Bard class mechanics and re-enable`
+
+---
+
+### 20. Monk — Flesh Out & Enable
+
+**Priority:** Medium | **Estimated Time:** 5-6 hours
+
+**Design Questions to Resolve:**
+
+- Ki points: fuel for Flurry of Blows, Patient Defense, Step of the Wind — recharge on short rest
+- Martial Arts: unarmed strike as bonus action, unarmed die scales by level (d4→d6→d8→d10)
+- Unarmored Defense: AC = 10 + DEX + WIS — does this already apply in Character.ts?
+- Stunning Strike: spend 1 ki on hit, target CON save or stunned — is stunned condition implemented?
+- Monastic Tradition at level 3: Way of the Open Hand vs Way of Shadow vs Way of the Four Elements
+
+**Mechanics to Implement:**
+
+- [ ] Ki point pool (= level, recharge on short rest)
+- [ ] Flurry of Blows (2 unarmed strikes as bonus action, 1 ki)
+- [ ] Patient Defense (Dodge as bonus action, 1 ki)
+- [ ] Step of the Wind (Dash/Disengage as bonus action, 1 ki; jump distance doubled)
+- [ ] Martial Arts unarmed die progression
+- [ ] Stunning Strike (1 ki, CON save or stunned until end of next turn)
+- [ ] Slow Fall (reaction, reduce fall damage by 5 × level) — if fall damage exists
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, `StatusEffect.ts` (stunned condition)
+
+**Commit:** `feat: Implement Monk class mechanics and re-enable`
+
+---
+
+### 21. Sorcerer — Flesh Out & Enable
+
+**Priority:** Low | **Estimated Time:** 5-6 hours
+
+**Design Questions to Resolve:**
+
+- Sorcery Points: fuel for Metamagic and slot conversion — separate resource pool needed
+- Metamagic options: Careful, Distant, Empowered, Extended, Heightened, Quickened, Subtle, Twinned — which to implement first?
+- Quickened Spell: cast spell as bonus action — requires bonus action system
+- Twinned Spell: target second creature with single-target spell — how to select second target in combat UI?
+- Sorcerous Origin at level 1: Draconic Bloodline vs Wild Magic — Wild Magic surge table is complex
+- Spellcasting: full caster, Sorcerer spell list (overlap with Wizard but more charisma-flavored)
+
+**Mechanics to Implement:**
+
+- [ ] Sorcery Points pool (= level, recharge on long rest)
+- [ ] Font of Magic: convert slots to sorcery points and vice versa
+- [ ] Metamagic: Empowered Spell (reroll damage dice, 1 point) and Quickened Spell (bonus action cast, 2 points) as starting two
+- [ ] Draconic Bloodline: Draconic Resilience (AC 13 + DEX unarmored), damage affinity with chosen element
+- [ ] Sorcerer spell list
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, spell system, combat UI
+
+**Commit:** `feat: Implement Sorcerer class mechanics and re-enable`
+
+---
+
+### 22. Warlock — Flesh Out & Enable
+
+**Priority:** Low | **Estimated Time:** 5-6 hours
+
+**Design Questions to Resolve:**
+
+- Pact Magic: short-rest spell slot recharge (only 1-2 slots, always highest level) — different from standard spellcasting
+- Eldritch Blast: cantrip that scales with level, can be modified by Invocations — is it a standard cantrip or special-cased?
+- Invocations at level 2: Agonizing Blast (+CHA to EB damage), Devil's Sight, Fiendish Vigor, etc. — select 2 at level 2
+- Otherworldly Patron at level 1: The Fiend vs The Great Old One vs The Archfey — Fiend is simplest (temp HP on kill)
+- Pact Boon at level 3: Pact of the Blade (melee), Pact of the Chain (familiar), Pact of the Tome (extra cantrips)
+
+**Mechanics to Implement:**
+
+- [ ] Pact Magic slot system (short-rest recharge, all slots are highest level)
+- [ ] Eldritch Blast as signature cantrip (1d10 force, +1 beam per 5 levels)
+- [ ] Eldritch Invocations selection at level 2 (start with Agonizing Blast + one other)
+- [ ] The Fiend patron: Dark One's Blessing (temp HP = CHA mod + level on kill)
+- [ ] Warlock spell list (Hex, Armor of Agathys, Hunger of Hadar, Banishment, etc.)
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, spell system
+
+**Commit:** `feat: Implement Warlock class mechanics and re-enable`
+
+---
+
+### 23. Wizard — Flesh Out & Enable
+
+**Priority:** Low | **Estimated Time:** 5-6 hours
+
+**Design Questions to Resolve:**
+
+- Spellbook: starts with 6 spells, copies spells found as loot — is there a loot-spellbook interaction at POIs?
+- Arcane Recovery: recover spell slots on short rest (slots whose total level ≤ half wizard level, rounded up)
+- Arcane Tradition at level 2: which schools to implement? (Evocation is most combat-relevant)
+- Evocation Savant: halve gold/time to copy Evocation spells — relevant if spellbook economy exists
+- Sculpt Spells: exclude allies from Evocation AoE — how does AoE targeting work in combat?
+- Signature Spells at level 18: always prepared, cast once free per rest — long-term feature
+
+**Mechanics to Implement:**
+
+- [ ] Spellbook system (known spells list, copy mechanic at POIs/loot)
+- [ ] Arcane Recovery (short rest: recover slots up to half level total)
+- [ ] Prepared spells = INT modifier + wizard level (choose subset of spellbook each long rest)
+- [ ] Evocation Tradition: Sculpt Spells (protect allies in AoE), Potent Cantrip (damage on save)
+- [ ] Wizard spell list (Magic Missile, Shield, Fireball, Counterspell, Fly, Wish — level-gated)
+
+**Files to Modify:** `src/game/Character.ts`, `src/game/Combat.ts`, spell system, POI interaction for spellbook
+
+**Commit:** `feat: Implement Wizard class mechanics and re-enable`
+
+---
+
+## EXECUTION CHECKLIST
+
+### Now (High Priority)
+
+- [ ] 1. Remove `// @ts-nocheck` suppressions (file by file)
+- [ ] 2. Test save/load system thoroughly
+- [ ] 3. Split OverworldScene.tsx (1,960 lines)
+- [ ] 4. Add Vitest unit testing
+- [ ] 13. Fighter — implement & re-enable
+- [ ] 14. Rogue — implement & re-enable
+- [ ] 15. Ranger — implement & re-enable
+- [ ] 16. Paladin — implement & re-enable
+
+### Soon (Medium Priority)
+
+- [ ] 5. Add git pre-commit hooks
+- [ ] 6. Upgrade Vite to v7
+- [ ] 7. Canvas rendering optimization
+- [ ] 11. Status effects & conditions
+- [ ] 17. Cleric — implement & re-enable
+- [ ] 18. Druid — implement & re-enable
+- [ ] 19. Bard — implement & re-enable
+- [ ] 20. Monk — implement & re-enable
+
+### Later (Low Priority / Polish)
+
+- [ ] 8. Weather gameplay effects
+- [ ] 9. Movement costs by terrain
+- [ ] 10. Minimap navigation
+- [ ] 12. Party management UI improvements
+- [ ] 21. Sorcerer — implement & re-enable
+- [ ] 22. Warlock — implement & re-enable
+- [ ] 23. Wizard — implement & re-enable
+
+---
+
+## SUCCESS METRICS
 
 **Technical Health:**
-- ✅ Zero dead code
-- ✅ All files <600 lines
-- ✅ ESLint/Prettier passing
-- ✅ 60%+ test coverage
-- ✅ TypeScript strict mode
-- ✅ CI/CD green
+
+- [ ] Zero `// @ts-nocheck` suppressions
+- [ ] All files <600 lines (OverworldScene.tsx is 1,960 — primary blocker)
+- [x] ESLint/Prettier configured
+- [ ] 60%+ unit test coverage on game logic
+- [x] TypeScript strict mode configured (`tsconfig.json`)
+- [x] CI/CD pipeline (Playwright E2E on push/PR)
 
 **Gameplay Completeness:**
-- ✅ All core systems functional
-- ✅ Save/load reliable
-- ✅ Party AI working
-- ✅ Full combat UI
-- ✅ All 5 base classes
+
+- [x] All core systems functional
+- [x] Save/load implemented (reliability testing needed)
+- [x] AI system (`src/game/ai/` — AIEngine + behavior trees)
+- [x] Full turn-based combat UI (11 combat components)
+- [ ] All 12 D&D 5e base classes implemented (Barbarian done; 11 classes in backlog #13-23)
+- [x] Survival system (rations, foraging, exhaustion)
 
 **Performance:**
-- ✅ <100KB initial bundle (gzipped)
-- ✅ 60fps canvas rendering
-- ✅ <1s load time
+
+- [ ] Canvas rendering optimized (dirty-flag redraw)
+- [ ] 60fps combat canvas target
+- [x] Code splitting (lazy scene loading)
 
 ---
 
-## 🎯 PRIORITY SUMMARY
+## KNOWN ARCHITECTURE NOTES
 
-**MUST DO (This Week):**
-1. Delete dead code (2 hrs)
-2. Test save/load (2 hrs)
-3. Add ESLint + Prettier (3 hrs)
-4. Split large files (16-20 hrs)
-
-**SHOULD DO (Next 2 Weeks):**
-- Add unit tests (6-8 hrs)
-- TypeScript strict mode (4-6 hrs)
-- CI/CD pipeline (3-4 hrs)
-- Rations & Water (4-6 hrs)
-- Party AI (6-8 hrs)
-
-**NICE TO HAVE (Later):**
-- Full combat UI
-- Additional classes
-- Performance optimization
-- Advanced features
+- **No `CombatScene` file** — combat is an embedded rendering branch inside `OverworldScene.tsx` (triggered when `state.combatState?.battlefield` is truthy)
+- **Water survival removed** — `SurvivalManager.ts` notes water system was deprecated; only rations remain
+- **Playwright for E2E, nothing for unit tests** — `tests/qa-agent/` uses Playwright, not Vitest/Jest
+- **`src/scenes/` and `src/ui/` are empty** — scenes live in `src/components/scenes/`, UI in `src/components/ui/`
+- **AGENTS.md is outdated** — references `.jsx`/`.js` and `Character.js`, but codebase is fully `.ts`/`.tsx`
 
 ---
 
-**Total Estimated Time:** 80-100 hours  
-**Timeline:** 6-8 weeks part-time  
-**Status:** Ready for execution ✅
+**Total Estimated Remaining Time:** 45-60 hours
+**Timeline:** 3-4 weeks part-time
+**Status:** Solid foundation, primary work is quality/refactor
