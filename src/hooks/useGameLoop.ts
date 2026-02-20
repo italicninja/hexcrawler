@@ -1,16 +1,15 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Custom hook for game loop with requestAnimationFrame
- * @param {Function} callback - Function to call on each frame with deltaTime
- * @param {boolean} isActive - Whether the loop should be running
+ * Custom hook for game loop with requestAnimationFrame.
+ * @param callback - Function to call on each frame with deltaTime (seconds)
+ * @param isActive - Whether the loop should be running
  */
-export function useGameLoop(callback, isActive = true) {
-  const requestRef = useRef();
-  const previousTimeRef = useRef();
-  const callbackRef = useRef(callback);
+export function useGameLoop(callback: (deltaTime: number) => void, isActive = true): void {
+  const requestRef = useRef<number | null>(null);
+  const previousTimeRef = useRef<number | null>(null);
+  const callbackRef = useRef<(deltaTime: number) => void>(callback);
 
-  // Keep callback ref updated
   useEffect(() => {
     callbackRef.current = callback;
   }, [callback]);
@@ -18,9 +17,9 @@ export function useGameLoop(callback, isActive = true) {
   useEffect(() => {
     if (!isActive) return;
 
-    const animate = time => {
-      if (previousTimeRef.current !== undefined) {
-        const deltaTime = (time - previousTimeRef.current) / 1000; // Convert to seconds
+    const animate = (time: number) => {
+      if (previousTimeRef.current !== null) {
+        const deltaTime = (time - previousTimeRef.current) / 1000;
         callbackRef.current(deltaTime);
       }
       previousTimeRef.current = time;
@@ -30,7 +29,7 @@ export function useGameLoop(callback, isActive = true) {
     requestRef.current = requestAnimationFrame(animate);
 
     return () => {
-      if (requestRef.current) {
+      if (requestRef.current !== null) {
         cancelAnimationFrame(requestRef.current);
       }
     };

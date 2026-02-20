@@ -1,3 +1,4 @@
+// @ts-nocheck -- TODO: Remove after GameStateContext → .tsx and game/ files → .ts (Phase 3 & 6)
 /**
  * useCombatHandler - Custom hook for handling combat initiation
  *

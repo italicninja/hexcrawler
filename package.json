@@ -1,6 +1,6 @@
 {
   "name": "hexcrawler",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Hexcrawler - A D&D 5e Hexcrawl RPG",
   "type": "module",
   "scripts": {
@@ -10,10 +10,10 @@
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
-    "lint": "eslint src --ext .js,.jsx,.ts,.tsx --report-unused-disable-directives --max-warnings 0",
-    "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
-    "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,css,md}'",
-    "format:check": "prettier --check 'src/**/*.{js,jsx,ts,tsx,css,md}'",
+    "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write 'src/**/*.{ts,tsx,css,md}'",
+    "format:check": "prettier --check 'src/**/*.{ts,tsx,css,md}'",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node tests/smoke-test.js",
     "test:real": "REAL_TESTS=true node tests/qa-agent/run.js",
@@ -28,8 +28,8 @@
     "@eslint/js": "^9.39.2",
     "@playwright/test": "^1.57.0",
     "@types/node": "^25.0.4",
-    "@types/react": "^18.2.48",
-    "@types/react-dom": "^18.2.18",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.23",
     "class-variance-authority": "^0.7.1",
@@ -45,7 +45,7 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.19",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.0-beta",
     "vite": "^5.0.0",
     "wait-on": "^9.0.3"
   },
@@ -53,7 +53,6 @@
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
     "lucide-react": "^0.562.0",
-    "prop-types": "^15.8.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   }

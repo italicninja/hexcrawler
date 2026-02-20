@@ -12,8 +12,13 @@
 
 import { HexGrid } from '../../utils/HexGrid';
 import { GAME_DEFAULTS } from '../../constants/gameConstants';
+import type { GameState, Action } from '../../types/state';
 
-export function mapReducer(state, action, ACTIONS) {
+export function mapReducer(
+  state: GameState,
+  action: Action,
+  ACTIONS: Record<string, string>
+): (GameState & Record<string, unknown>) | null {
   switch (action.type) {
     case ACTIONS.SET_PLAYER_POSITION:
       return {

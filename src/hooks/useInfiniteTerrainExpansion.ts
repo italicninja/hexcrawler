@@ -1,3 +1,4 @@
+// @ts-nocheck -- TODO: Remove after GameStateContext → .tsx and utils → .ts (Phase 5 & 6)
 import { useEffect, useRef } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
 import { generateHex } from '../utils/poiGenerationHelper';

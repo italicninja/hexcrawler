@@ -1,53 +1,47 @@
 {
   "compilerOptions": {
     /* Language and Environment */
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "target": "ES2025",
+    "lib": ["ES2020", "DOM", "DOM.Iterable", "ESNext"],
     "jsx": "react-jsx",
-    
+
     /* Modules */
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    
+    "verbatimModuleSyntax": false,
+
     /* Emit */
     "noEmit": true,
     "sourceMap": true,
-    
+
     /* Interop Constraints */
-    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    
-    /* Type Checking - Gradual strictness */
-    "strict": false,
+
+    /* Type Checking - Full strict mode */
+    "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
     "noImplicitReturns": true,
-    
+    "noUncheckedIndexedAccess": false,
+
+    /* TS 6.0 compatibility */
+    "ignoreDeprecations": "6.0",
+    "types": [],
+    "libReplacement": false,
+
     /* Skip lib check for faster builds */
     "skipLibCheck": true,
-    
-    /* Paths */
-    "baseUrl": ".",
+
+    /* Paths - baseUrl removed (deprecated in TS 6.0), paths prefixed with ./src/ */
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.js",
-    "src/**/*.jsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx", "vite.config.ts"],
+  "exclude": ["node_modules", "dist", "build", "tests"]
 }

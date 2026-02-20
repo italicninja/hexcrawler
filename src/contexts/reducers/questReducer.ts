@@ -10,9 +10,13 @@
  * - REFRESH_QUESTS
  */
 
-import Quest from '../../game/Quest';
+import type { GameState, Action } from '../../types/state';
 
-export function questReducer(state, action, ACTIONS) {
+export function questReducer(
+  state: GameState,
+  action: Action,
+  ACTIONS: Record<string, string>
+): GameState | null {
   switch (action.type) {
     case ACTIONS.ACCEPT_QUEST: {
       const { quest } = action.payload;

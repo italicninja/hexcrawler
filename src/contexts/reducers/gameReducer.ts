@@ -9,15 +9,25 @@
  * - UPDATE_PLAYTIME
  */
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { Character } from '../../game/Character';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { Party } from '../../game/Party';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { Quest } from '../../game/Quest';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { Shop } from '../../game/Shop';
 import { createGameTime, advanceTime } from '../../game/TimeManager';
 import { GAME_DEFAULTS, COMBAT } from '../../constants/gameConstants';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { WeatherSystem } from '../../WeatherSystem';
+import type { GameState, Action } from '../../types/state';
 
-export function gameReducer(state, action, ACTIONS) {
+export function gameReducer(
+  state: GameState,
+  action: Action,
+  ACTIONS: Record<string, string>
+): GameState | null {
   switch (action.type) {
     case ACTIONS.SET_CURRENT_SCENE:
       return {
@@ -97,9 +107,11 @@ export function gameReducer(state, action, ACTIONS) {
       const discoveredPOIs = new Set(loadedState.discoveredPOIs || []);
 
       // Reconstruct regions (convert boundaries back to Sets)
-      let regions = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let regions: any[] = [];
       if (loadedState.regions) {
-        regions = loadedState.regions.map(region => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        regions = (loadedState.regions as any[]).map((region: any) => ({
           ...region,
           boundaries: new Set(region.boundaries || []),
         }));
@@ -123,37 +135,43 @@ export function gameReducer(state, action, ACTIONS) {
       }
 
       // Reconstruct explorationState Sets
+      const clearedEncounters: Record<string, Set<string>> = {};
+      const collectedLoot: Record<string, Set<string>> = {};
+      const triggeredHazards: Record<string, Set<string>> = {};
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const es = loadedState.explorationState as any;
+      Object.keys(es?.clearedEncounters || {}).forEach(key => {
+        clearedEncounters[key] = new Set(es.clearedEncounters[key]);
+      });
+      Object.keys(es?.collectedLoot || {}).forEach(key => {
+        collectedLoot[key] = new Set(es.collectedLoot[key]);
+      });
+      Object.keys(es?.triggeredHazards || {}).forEach(key => {
+        triggeredHazards[key] = new Set(es.triggeredHazards[key]);
+      });
+
       const explorationState = {
-        searchedPOIs: new Set(loadedState.explorationState?.searchedPOIs || []),
-        clearedEncounters: {},
-        collectedLoot: {},
-        triggeredHazards: {},
+        searchedPOIs: new Set<string>(es?.searchedPOIs || []),
+        clearedEncounters,
+        collectedLoot,
+        triggeredHazards,
       };
 
-      // Reconstruct nested Sets in explorationState
-      Object.keys(loadedState.explorationState?.clearedEncounters || {}).forEach(key => {
-        explorationState.clearedEncounters[key] = new Set(
-          loadedState.explorationState.clearedEncounters[key]
-        );
-      });
-      Object.keys(loadedState.explorationState?.collectedLoot || {}).forEach(key => {
-        explorationState.collectedLoot[key] = new Set(
-          loadedState.explorationState.collectedLoot[key]
-        );
-      });
-      Object.keys(loadedState.explorationState?.triggeredHazards || {}).forEach(key => {
-        explorationState.triggeredHazards[key] = new Set(
-          loadedState.explorationState.triggeredHazards[key]
-        );
-      });
-
       // Reconstruct Quest instances
-      const activeQuests = (loadedState.activeQuests || []).map(q => Quest.fromJSON(q));
-      const completedQuests = (loadedState.completedQuests || []).map(q => Quest.fromJSON(q));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const activeQuests = ((loadedState.activeQuests as any[]) || []).map((q: any) =>
+        Quest.fromJSON(q)
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const completedQuests = ((loadedState.completedQuests as any[]) || []).map((q: any) =>
+        Quest.fromJSON(q)
+      );
 
       // Reconstruct Shop instances
-      const shopInventories = {};
-      Object.entries(loadedState.shopInventories || {}).forEach(([key, shopData]) => {
+      const shopInventories: Record<string, unknown> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Object.entries((loadedState.shopInventories as any) || {}).forEach(([key, shopData]) => {
         shopInventories[key] = Shop.fromJSON(shopData);
       });
 

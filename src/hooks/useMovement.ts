@@ -1,3 +1,4 @@
+// @ts-nocheck -- TODO: Remove after GameStateContext → .tsx (Phase 6)
 /**
  * useMovement - Custom hook for hex movement and navigation
  *
@@ -5,6 +6,16 @@
  */
 
 import { useGameState } from '../contexts/GameStateContext';
+
+type Direction =
+  | 'up'
+  | 'down'
+  | 'left'
+  | 'right'
+  | 'up-left'
+  | 'up-right'
+  | 'down-left'
+  | 'down-right';
 
 export function useMovement() {
   const { state } = useGameState();

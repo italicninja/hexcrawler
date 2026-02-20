@@ -220,6 +220,8 @@ export interface Quest {
   status: QuestStatus;
   progress: number;
   location?: HexCoordinates;
+  completedAt?: number;
+  failedAt?: number;
 }
 
 // ============================================================================

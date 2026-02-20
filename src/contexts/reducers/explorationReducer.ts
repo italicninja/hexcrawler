@@ -18,7 +18,13 @@
  * - EXIT_TOWN
  */
 
-export function explorationReducer(state, action, ACTIONS) {
+import type { GameState, Action } from '../../types/state';
+
+export function explorationReducer(
+  state: GameState,
+  action: Action,
+  ACTIONS: Record<string, string>
+): GameState | null {
   switch (action.type) {
     case ACTIONS.SET_ACTIVE_EVENT:
       return {
@@ -27,11 +33,11 @@ export function explorationReducer(state, action, ACTIONS) {
       };
 
     case ACTIONS.SEARCH_POI: {
-      const { col, row, discovered } = action.payload;
+      const { col, row } = action.payload;
 
       return {
         ...state,
-        discoveredPOIs: new Set([...state.discoveredPOIs, `${col},${row}`]),
+        discoveredPOIs: new Set([...Array.from(state.discoveredPOIs), `${col},${row}`]),
       };
     }
 
@@ -129,7 +135,7 @@ export function explorationReducer(state, action, ACTIONS) {
     }
 
     case ACTIONS.TRIGGER_HAZARD: {
-      const { hazard, damage } = action.payload;
+      const { damage } = action.payload;
 
       if (!state.playerCharacter) return state;
 

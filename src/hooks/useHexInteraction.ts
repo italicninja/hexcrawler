@@ -1,3 +1,4 @@
+// @ts-nocheck -- TODO: Remove after GameStateContext → .tsx and game/ files → .ts (Phase 3 & 6)
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import DiceRoller from '../game/DiceRoller';

@@ -1,76 +1,72 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hexcrawler</title>
-    <link rel="stylesheet" href="/src/style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
 
     <!-- Legacy HTML structure (will be replaced by React components) -->
-    <div id="app" style="display: none;">
-        <div class="container">
-            <div class="left-column">
-                <aside class="controls">
-                    <div class="tabs">
-                        <button class="tab-button active" data-tab="equipment">Equipment</button>
-                    </div>
-
-                    <div class="tab-content active" id="equipment-tab">
-                        <div id="equipment-container">
-                            <div class="equipment-placeholder">
-                                Select a party member to view equipment
-                            </div>
-                        </div>
-                    </div>
-                </aside>
-
-                <aside class="controls controls-bottom">
-                    <div class="tabs">
-                        <button class="tab-button active" data-tab="party">Party</button>
-                        <button class="tab-button" data-tab="character">Character</button>
-                    </div>
-
-                    <div class="tab-content active" id="party-tab">
-                        <div id="party-container"></div>
-                    </div>
-
-                    <div class="tab-content" id="character-tab">
-                        <div id="character-container"></div>
-                    </div>
-                </aside>
+    <div id="app" style="display: none">
+      <div class="container">
+        <div class="left-column">
+          <aside class="controls">
+            <div class="tabs">
+              <button class="tab-button active" data-tab="equipment">Equipment</button>
             </div>
 
-            <main class="canvas-container">
-                <canvas id="hexCanvas"></canvas>
-            </main>
+            <div class="tab-content active" id="equipment-tab">
+              <div id="equipment-container">
+                <div class="equipment-placeholder">Select a party member to view equipment</div>
+              </div>
+            </div>
+          </aside>
 
-            <aside class="hex-detail-panel">
-                <div class="tabs">
-                    <button class="tab-button active" data-tab="hexinfo">Hex Info</button>
-                    <button class="tab-button" data-tab="config">Config</button>
-                </div>
+          <aside class="controls controls-bottom">
+            <div class="tabs">
+              <button class="tab-button active" data-tab="party">Party</button>
+              <button class="tab-button" data-tab="character">Character</button>
+            </div>
 
-                <div class="tab-content active" id="hexinfo-tab">
-                    <div id="hex-detail-container">
-                        <div class="hex-info-placeholder">
-                            Click a hex to view details
-                        </div>
-                    </div>
-                </div>
+            <div class="tab-content active" id="party-tab">
+              <div id="party-container"></div>
+            </div>
 
-                <div class="tab-content" id="config-tab">
-                    <div id="config-container"></div>
-                </div>
-            </aside>
+            <div class="tab-content" id="character-tab">
+              <div id="character-container"></div>
+            </div>
+          </aside>
         </div>
 
-        <div class="game-log-container">
-            <div id="game-log"></div>
-        </div>
+        <main class="canvas-container">
+          <canvas id="hexCanvas"></canvas>
+        </main>
+
+        <aside class="hex-detail-panel">
+          <div class="tabs">
+            <button class="tab-button active" data-tab="hexinfo">Hex Info</button>
+            <button class="tab-button" data-tab="config">Config</button>
+          </div>
+
+          <div class="tab-content active" id="hexinfo-tab">
+            <div id="hex-detail-container">
+              <div class="hex-info-placeholder">Click a hex to view details</div>
+            </div>
+          </div>
+
+          <div class="tab-content" id="config-tab">
+            <div id="config-container"></div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="game-log-container">
+        <div id="game-log"></div>
+      </div>
     </div>
-</body>
+  </body>
 </html>

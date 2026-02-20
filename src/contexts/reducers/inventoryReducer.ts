@@ -12,11 +12,15 @@
  * - FIND_WATER
  */
 
-import SurvivalManager from '../../game/SurvivalManager';
 import { advanceTime } from '../../game/TimeManager';
 import { TIME } from '../../constants/gameConstants';
+import type { GameState, Action } from '../../types/state';
 
-export function inventoryReducer(state, action, ACTIONS) {
+export function inventoryReducer(
+  state: GameState,
+  action: Action,
+  ACTIONS: Record<string, string>
+): GameState | null {
   switch (action.type) {
     case ACTIONS.ADD_ITEM: {
       const { item } = action.payload;
@@ -36,7 +40,8 @@ export function inventoryReducer(state, action, ACTIONS) {
 
       if (!state.playerCharacter) return state;
 
-      const index = state.playerCharacter.inventory.findIndex(i => i.id === itemId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const index = state.playerCharacter.inventory.findIndex((i: any) => i.id === itemId);
       if (index >= 0) {
         state.playerCharacter.inventory.splice(index, 1);
       }
@@ -53,7 +58,8 @@ export function inventoryReducer(state, action, ACTIONS) {
       if (!state.playerCharacter) return state;
 
       // Remove from inventory
-      const index = state.playerCharacter.inventory.findIndex(i => i.id === item.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const index = state.playerCharacter.inventory.findIndex((i: any) => i.id === item.id);
       if (index >= 0) {
         state.playerCharacter.inventory.splice(index, 1);
       }

@@ -1,30 +1,48 @@
 import { useState, useCallback } from 'react';
 
+interface ConfirmState {
+  open: boolean;
+  title: string;
+  description: string;
+  resolve: ((value: boolean) => void) | null;
+}
+
+export interface DialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export interface UseConfirmReturn {
+  confirm: (title: string, description: string) => Promise<boolean>;
+  dialogProps: DialogProps;
+}
+
 /**
- * useConfirm hook - Provides a confirm() function that returns a Promise
+ * useConfirm hook - Provides a confirm() function that returns a Promise.
  *
  * Usage:
- * const { confirm, ConfirmDialog } = useConfirm();
+ * const { confirm, dialogProps } = useConfirm();
  *
  * // In your component JSX:
- * <ConfirmDialog />
+ * <ConfirmDialog {...dialogProps} />
  *
  * // To show a confirm dialog:
  * const confirmed = await confirm("Are you sure?", "This will delete your data");
- * if (confirmed) {
- *   // User clicked confirm
- * }
  */
-export function useConfirm() {
-  const [state, setState] = useState({
+export function useConfirm(): UseConfirmReturn {
+  const [state, setState] = useState<ConfirmState>({
     open: false,
     title: '',
     description: '',
     resolve: null,
   });
 
-  const confirm = useCallback((title, description) => {
-    return new Promise(resolve => {
+  const confirm = useCallback((title: string, description: string): Promise<boolean> => {
+    return new Promise<boolean>(resolve => {
       setState({
         open: true,
         title,
@@ -36,29 +54,22 @@ export function useConfirm() {
 
   const handleConfirm = useCallback(() => {
     setState(prev => {
-      if (prev.resolve) {
-        prev.resolve(true);
-      }
+      prev.resolve?.(true);
       return { open: false, title: '', description: '', resolve: null };
     });
   }, []);
 
   const handleCancel = useCallback(() => {
     setState(prev => {
-      if (prev.resolve) {
-        prev.resolve(false);
-      }
+      prev.resolve?.(false);
       return { open: false, title: '', description: '', resolve: null };
     });
   }, []);
 
-  const handleOpenChange = useCallback(open => {
+  const handleOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setState(prev => {
-        // Dialog was closed without clicking a button (e.g., ESC key or clicking overlay)
-        if (prev.resolve) {
-          prev.resolve(false);
-        }
+        prev.resolve?.(false);
         return { ...prev, open };
       });
     } else {

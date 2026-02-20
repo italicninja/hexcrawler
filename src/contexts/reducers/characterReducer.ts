@@ -16,8 +16,13 @@
 import { advanceTime } from '../../game/TimeManager';
 import { TIME } from '../../constants/gameConstants';
 import { applyStarvation } from '../../game/SurvivalManager';
+import type { GameState, Action } from '../../types/state';
 
-export function characterReducer(state, action, ACTIONS) {
+export function characterReducer(
+  state: GameState,
+  action: Action,
+  ACTIONS: Record<string, string>
+): GameState | null {
   switch (action.type) {
     case ACTIONS.SET_PLAYER_CHARACTER:
       return {
@@ -55,7 +60,7 @@ export function characterReducer(state, action, ACTIONS) {
 
       // Apply starvation check after long rest
       // Character may have gained exhaustion from lack of food
-      const starvationResult = applyStarvation(character);
+      applyStarvation(character);
 
       // Note: starvationResult modifies character in place
       // Message is logged by the component that dispatched this action
@@ -67,9 +72,7 @@ export function characterReducer(state, action, ACTIONS) {
         ...state,
         playerCharacter: character,
         gameTime: newGameTime,
-        // Store starvation result for component to display
-        lastStarvationCheck: starvationResult,
-      };
+      } as GameState;
     }
 
     case ACTIONS.INN_REST: {

@@ -1,3 +1,5 @@
+// @ts-nocheck -- TODO: Remove after src/game/Combat.js is converted to TypeScript (Phase 3)
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Combat Reducer - Handles combat state, turns, and combat actions
  *
@@ -23,13 +25,22 @@
  * - TRIGGER_READY_ACTION
  */
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { Combat } from '../../game/Combat';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { CombatTerrainGenerator } from '../../game/CombatTerrainGenerator';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { EncounterPositions } from '../../game/EncounterPositions';
 import { COMBAT } from '../../constants/gameConstants';
-import logger from '../../utils/logger.js';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import logger from '../../utils/logger';
+import type { GameState, Action } from '../../types/state';
 
-export function combatReducer(state, action, ACTIONS) {
+export function combatReducer(
+  state: GameState,
+  action: Action,
+  ACTIONS: Record<string, string>
+): GameState | null {
   switch (action.type) {
     case ACTIONS.START_COMBAT: {
       // Legacy combat log support (keep for backward compatibility)
