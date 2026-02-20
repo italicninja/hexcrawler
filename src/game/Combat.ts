@@ -650,43 +650,6 @@ export class Combat {
   }
 
   /**
-   * Process movement action for a combatant
-   * @param {string} combatantId - ID of combatant moving
-   * @param {Array} path - Array of hex positions [{col, row}, ...]
-   * @param {number} cost - Movement cost in hexes
-   * @returns {object} Result {success, message, movementCost}
-   */
-  processMovement(combatantId, path, cost) {
-    const combatant = this.getCombatantById(combatantId);
-
-    if (!combatant) {
-      return {
-        success: false,
-        message: 'Combatant not found',
-        movementCost: 0,
-      };
-    }
-
-    if (!path || path.length === 0) {
-      return {
-        success: false,
-        message: 'Invalid path',
-        movementCost: 0,
-      };
-    }
-
-    // Update position to end of path
-    const newPosition = path[path.length - 1];
-    combatant.position = newPosition;
-
-    return {
-      success: true,
-      message: `Moved to (${newPosition.col}, ${newPosition.row})`,
-      movementCost: cost,
-    };
-  }
-
-  /**
    * Process attack action for a combatant
    * @param {string} attackerId - ID of attacking combatant
    * @param {string} targetId - ID of target combatant
@@ -717,12 +680,16 @@ export class Combat {
     }
 
     // Get weapon range (default to melee range 1)
+    // attacker.character is null for enemies — use .enemy fallback
     let weaponRange = 1;
-    const attackerChar = attacker.character;
+    const attackerChar = attacker.character || attacker.enemy;
 
-    if (attackerChar.equipment && attackerChar.equipment.mainHand) {
+    if (attackerChar?.equipment && attackerChar.equipment.mainHand) {
       const weapon = attackerChar.equipment.mainHand;
       weaponRange = weapon.range || 1;
+    } else if (attacker.enemy) {
+      // Enemy — use their range property directly
+      weaponRange = attacker.enemy.range || 1;
     }
 
     // Check range
@@ -766,9 +733,11 @@ export class Combat {
       target.hp -= attackResult.damage;
       if (target.hp < 0) target.hp = 0;
 
-      // Update character's HP
+      // Update underlying character/enemy object HP to keep in sync
       if (target.character) {
         target.character.currentHP = target.hp;
+      } else if (target.enemy) {
+        target.enemy.currentHP = target.hp;
       }
     }
 
@@ -788,76 +757,118 @@ export class Combat {
    * @returns {object} Result {hit, critical, damage, message}
    */
   _resolveAttack(attacker, target) {
-    const attackerChar = attacker.character;
-    const targetChar = target.character;
+    // Support both hero combatants (attacker.character) and enemy combatants (attacker.enemy)
+    const attackerChar = attacker.character || attacker.enemy;
+    const targetChar = target.character || target.enemy;
 
-    // Get weapon info
+    if (!attackerChar) {
+      logger.combat.error('_resolveAttack: attacker has neither .character nor .enemy');
+      return { hit: false, critical: false, damage: 0, message: 'Invalid attacker' };
+    }
+    if (!targetChar) {
+      logger.combat.error('_resolveAttack: target has neither .character nor .enemy');
+      return { hit: false, critical: false, damage: 0, message: 'Invalid target' };
+    }
+
+    // Get weapon info — heroes use equipment; enemies use their attacks[] / stats
     let weaponDamage = '1d6';
     let damageType = 'slashing';
     let attackBonus = 0;
     let damageBonus = 0;
     let weaponRange = 1;
+    let weaponName = 'Melee Attack';
 
-    if (attackerChar.equipment && attackerChar.equipment.mainHand) {
-      const weapon = attackerChar.equipment.mainHand;
+    if (attacker.character && attacker.character.equipment?.mainHand) {
+      // Hero attacker — read from equipped weapon
+      const weapon = attacker.character.equipment.mainHand;
       weaponDamage = weapon.damage || '1d6';
       damageType = weapon.damageType || 'slashing';
       weaponRange = weapon.range || 1;
+      weaponName = weapon.name || (weaponRange > 1 ? 'Ranged Attack' : 'Melee Attack');
       if (weapon.effects) {
         attackBonus = weapon.effects.attackBonus || 0;
         damageBonus = weapon.effects.damageBonus || 0;
       }
+    } else if (attacker.enemy) {
+      // Enemy attacker — read from Enemy stat block
+      const enemy = attacker.enemy;
+      const primaryAttack = enemy.attacks?.[0];
+      weaponDamage = primaryAttack?.damage || '1d6';
+      damageType = primaryAttack?.damageType || 'slashing';
+      weaponName = primaryAttack?.name || 'Attack';
+      weaponRange = enemy.range || 1;
+      attackBonus = enemy.attackBonus || 0;
+      // Enemies roll straight attackBonus without extra modifiers through the DiceRoller path
+      // We handle this below by passing attackBonus into the manual roll
     }
 
     // Determine attack type
     const attackType = weaponRange > 1 ? 'ranged' : 'melee';
 
-    // Get target AC
-    const targetAC = targetChar.armorClass || targetChar.ac || 10;
+    // Get target AC — Character uses .armorClass, Enemy uses .ac
+    const targetAC = targetChar.armorClass ?? targetChar.ac ?? 10;
 
     // Check for Dodge status effect
     const targetDodging = target.statusEffects?.some(e => e.name === 'Dodge');
     const effectiveAC = targetDodging ? targetAC + 2 : targetAC;
 
-    // Get weapon name for logging
-    const weaponName =
-      attackerChar.equipment?.mainHand?.name ||
-      (attackType === 'melee' ? 'Melee Attack' : 'Ranged Attack');
-
-    // Use DiceRoller.attackRoll() for automatic logging
-    const attackResult = this.diceRoller.attackRoll(
-      attackerChar,
-      attackType,
-      effectiveAC,
-      weaponName
-    );
-
-    const hit = attackResult.hit;
-    const critical = attackResult.crit;
-
+    let hit = false;
+    let critical = false;
     let damage = 0;
     let message = '';
 
-    if (hit) {
-      // Get ability modifier for damage
-      const abilityMod =
-        attackType === 'melee'
-          ? Math.floor((attackerChar.abilities.strength - 10) / 2)
-          : Math.floor((attackerChar.abilities.dexterity - 10) / 2);
+    if (attacker.character) {
+      // Hero attacker — use DiceRoller.attackRoll() which auto-logs and uses character stats
+      const attackResult = this.diceRoller.attackRoll(
+        attackerChar,
+        attackType,
+        effectiveAC,
+        weaponName
+      );
+      hit = attackResult.hit;
+      critical = attackResult.crit;
 
-      // Roll base damage (auto-logs with damage type)
-      const baseDamage = this.diceRoller.damageRoll(weaponDamage, damageType);
-      damage = baseDamage + abilityMod + damageBonus;
+      if (hit) {
+        const abilityMod =
+          attackType === 'melee'
+            ? Math.floor((attackerChar.abilities.strength - 10) / 2)
+            : Math.floor((attackerChar.abilities.dexterity - 10) / 2);
 
-      // Double dice damage on crit
-      if (critical) {
-        const critDamage = this.diceRoller.damageRoll(weaponDamage, damageType);
-        damage += critDamage;
+        const baseDamage = this.diceRoller.damageRoll(weaponDamage, damageType);
+        damage = baseDamage + abilityMod + damageBonus;
+
+        if (critical) {
+          damage += this.diceRoller.damageRoll(weaponDamage, damageType);
+        }
+        message = `${damage} ${damageType} damage to ${targetChar.name}`;
+      } else {
+        message = `${attackerChar.name} misses ${targetChar.name}`;
+      }
+    } else {
+      // Enemy attacker — manual roll using enemy.attackBonus (no DiceRoller character path)
+      const roll = this.diceRoller.rollD20();
+      const total = roll + attackBonus;
+      hit = roll === 20 || (roll !== 1 && total >= effectiveAC);
+      critical = roll === 20;
+
+      if (this.logger) {
+        const hitStr = hit ? (critical ? 'CRITICAL HIT!' : 'Hit') : 'Miss';
+        this.logger(
+          `${weaponName} ${roll}+${attackBonus}=${total} vs AC ${effectiveAC}: ${hitStr}`,
+          'encounter'
+        );
       }
 
-      message = `${damage} ${damageType} damage to ${targetChar.name}`;
-    } else {
-      message = `${attackerChar.name} misses ${targetChar.name}`;
+      if (hit) {
+        const baseDamage = this.diceRoller.damageRoll(weaponDamage, damageType);
+        damage = baseDamage;
+        if (critical) {
+          damage += this.diceRoller.damageRoll(weaponDamage, damageType);
+        }
+        message = `${damage} ${damageType} damage to ${targetChar.name}`;
+      } else {
+        message = `${attackerChar.name} misses ${targetChar.name}`;
+      }
     }
 
     return {
@@ -1017,41 +1028,6 @@ export class Combat {
     return {
       success: true,
       message: `${combatant.character.name} takes the Dash action (movement doubled)`,
-    };
-  }
-
-  /**
-   * Check victory/defeat conditions for hex combat
-   * @returns {object} {victory, defeat, ongoing, xp}
-   */
-  checkHexVictory() {
-    const livingAllies = this.allies.filter(a => a.hp > 0).length;
-    const livingEnemies = this.enemyCombatants.filter(e => e.hp > 0).length;
-
-    if (livingEnemies === 0) {
-      const xp = this._calculateXP();
-      return {
-        victory: true,
-        defeat: false,
-        ongoing: false,
-        xp,
-      };
-    }
-
-    if (livingAllies === 0) {
-      return {
-        victory: false,
-        defeat: true,
-        ongoing: false,
-        xp: 0,
-      };
-    }
-
-    return {
-      victory: false,
-      defeat: false,
-      ongoing: true,
-      xp: 0,
     };
   }
 

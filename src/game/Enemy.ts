@@ -12,11 +12,86 @@ export class Enemy {
     this.variant = variant;
     this.aiConfig = null;
 
-    this.applyStatsByCR(cr);
+    // Pass name so applyStatsByCR can try the named creature table first
+    this.applyStatsByCR(cr, name);
     this.currentHP = this.maxHP;
     this.isDead = false;
     this.specialAbilities = [];
-    this.range = 1;
+    // Apply role overrides AFTER named/CR lookup for things like "Archer" variants
+    // that share a base stat block but need different weapon loadouts.
+    this._applyRoleOverrides(name);
+  }
+
+  /**
+   * Apply stat overrides based on role keywords in the enemy name.
+   * Runs after applyStatsByCR so role-specific values take precedence.
+   * Allows named variants like "Goblin Archer" or "Skeleton Bowman" to have
+   * ranged attacks without needing a separate CR table entry per role.
+   */
+  _applyRoleOverrides(name) {
+    const nameLower = (name || '').toLowerCase();
+
+    // Skip role overrides for named creatures that already have full stat blocks —
+    // their attacks are already correct from getStatTableByName().
+    const hasNamedStatBlock = !!this.getStatTableByName(nameLower);
+    if (hasNamedStatBlock) {
+      // Only override weapons for archer/ranged roles that SHARE a base named block
+      // (e.g. "Goblin Archer" shares Goblin stats but prefers shortbow)
+      if (
+        nameLower.includes('archer') ||
+        nameLower.includes('bowman') ||
+        nameLower.includes('shooter')
+      ) {
+        // Goblin shortbow: +4, 80/320 ft, 1d6+2 piercing (DEX mod already +2)
+        this.range = 16; // 80 ft / 5 = 16 hexes (normal range)
+        this.attacks = [{ name: 'Shortbow', damage: '1d6+2', damageType: 'piercing', range: 16 }];
+      }
+      return;
+    }
+
+    // Generic (non-named) role overrides based on name keywords
+    // ── Archer / Bowman / Shooter ───────────────────────────────────────────
+    if (
+      nameLower.includes('archer') ||
+      nameLower.includes('bowman') ||
+      nameLower.includes('shooter')
+    ) {
+      this.range = 16; // 80-ft shortbow normal range
+      this.attacks = [{ name: 'Shortbow', damage: '1d6+2', damageType: 'piercing', range: 16 }];
+    }
+
+    // ── Crossbowman ─────────────────────────────────────────────────────────
+    else if (nameLower.includes('crossbow')) {
+      this.range = 16; // 80-ft heavy crossbow
+      this.attacks = [
+        { name: 'Heavy Crossbow', damage: '1d10+1', damageType: 'piercing', range: 16 },
+      ];
+    }
+
+    // ── Shaman / Mage / Wizard / Sorcerer / Warlock ─────────────────────────
+    else if (
+      nameLower.includes('shaman') ||
+      nameLower.includes('mage') ||
+      nameLower.includes('wizard') ||
+      nameLower.includes('sorcerer') ||
+      nameLower.includes('warlock')
+    ) {
+      this.range = 10; // 50-ft spell range
+      this.attacks = [{ name: 'Eldritch Blast', damage: '1d10', damageType: 'force', range: 10 }];
+    }
+
+    // ── Spear / Javelin / Thrower ────────────────────────────────────────────
+    else if (
+      nameLower.includes('spear') ||
+      nameLower.includes('javelin') ||
+      nameLower.includes('thrower')
+    ) {
+      this.range = 6; // 30-ft thrown
+      this.attacks = [{ name: 'Javelin', damage: '1d6+2', damageType: 'piercing', range: 6 }];
+    }
+
+    // ── Berserker / Warrior / Brute / Knight ────────────────────────────────
+    // Explicitly melee — range stays at 1 from stat table
   }
 
   _inferFamilyFromType(type) {
@@ -31,8 +106,11 @@ export class Enemy {
     return typeToFamily[type.toLowerCase()] || 'humanoid';
   }
 
-  applyStatsByCR(cr) {
-    const statTable = this.getStatTableByCR(cr);
+  applyStatsByCR(cr, name = '') {
+    // Named lookup takes priority over generic CR bracket
+    const namedTable = this.getStatTableByName(name);
+    const statTable = namedTable || this.getStatTableByCR(cr);
+
     this.maxHP = statTable.hp;
     this.ac = statTable.ac;
     this.attackBonus = statTable.attackBonus;
@@ -49,6 +127,342 @@ export class Enemy {
     this.attacks = statTable.attacks;
     this.multiattack = statTable.multiattack || 1;
     this.moveDistance = statTable.moveDistance || 6;
+    this.range = statTable.range || 1;
+  }
+
+  /**
+   * Look up stats by creature name keywords.
+   * Returns a full stat block if a match is found, otherwise null (fall back to CR table).
+   * Stats sourced from MM 2025 / SRD 5.2.
+   */
+  getStatTableByName(name) {
+    const n = (name || '').toLowerCase();
+
+    // ── Goblinoid family ─────────────────────────────────────────────────────
+
+    // Goblin (Warrior / Fighter / Scout / Archer — base goblin stats)
+    // CR 1/4 | MM'25 p143
+    if (
+      n.includes('goblin') &&
+      !n.includes('hexer') &&
+      !n.includes('boss') &&
+      !n.includes('king') &&
+      !n.includes('warchief')
+    ) {
+      return {
+        hp: 10, // 3d6
+        ac: 15, // Leather armor + shield
+        attackBonus: 4,
+        damagePerRound: 5,
+        saveDC: 12,
+        strength: 8,
+        dexterity: 15,
+        constitution: 10,
+        intelligence: 10,
+        wisdom: 8,
+        charisma: 8,
+        // Default: scimitar (melee). _applyRoleOverrides will swap to shortbow for archers.
+        attacks: [{ name: 'Scimitar', damage: '1d6+2', damageType: 'slashing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      };
+    }
+
+    // Goblin Hexer
+    // CR 3 | MM'25 p143
+    if (n.includes('goblin') && n.includes('hexer')) {
+      return {
+        hp: 45, // 10d6+10
+        ac: 13,
+        attackBonus: 5,
+        damagePerRound: 12,
+        saveDC: 13,
+        strength: 8,
+        dexterity: 16,
+        constitution: 12,
+        intelligence: 16,
+        wisdom: 10,
+        charisma: 10,
+        attacks: [{ name: 'Hex Stick', damage: '2d8+3', damageType: 'psychic', range: 12 }],
+        multiattack: 2,
+        range: 12, // 60-ft melee-or-ranged hex stick
+        moveDistance: 6,
+      };
+    }
+
+    // Hobgoblin
+    // CR 1/2 (treat as CR 1 for bracket purposes) | MM'25
+    if (n.includes('hobgoblin') && !n.includes('warlord') && !n.includes('captain')) {
+      return {
+        hp: 18, // 4d8
+        ac: 18, // Chain mail + shield
+        attackBonus: 3,
+        damagePerRound: 5,
+        saveDC: 13,
+        strength: 13,
+        dexterity: 12,
+        constitution: 12,
+        intelligence: 10,
+        wisdom: 10,
+        charisma: 9,
+        attacks: [{ name: 'Longsword', damage: '1d8+1', damageType: 'slashing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      };
+    }
+
+    // Bugbear
+    // CR 1 | MM'25
+    if (n.includes('bugbear') && !n.includes('chief')) {
+      return {
+        hp: 27, // 5d8+5
+        ac: 14, // Hide armor
+        attackBonus: 4,
+        damagePerRound: 11,
+        saveDC: 13,
+        strength: 15,
+        dexterity: 14,
+        constitution: 13,
+        intelligence: 8,
+        wisdom: 11,
+        charisma: 9,
+        attacks: [{ name: 'Morningstar', damage: '2d8+2', damageType: 'piercing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      };
+    }
+
+    // ── Undead ───────────────────────────────────────────────────────────────
+
+    // Skeleton
+    // CR 1/4 | SRD 5.2
+    if (n.includes('skeleton') && !n.includes('minotaur') && !n.includes('warhorse')) {
+      return {
+        hp: 13, // 2d8+4
+        ac: 13, // Armor scraps
+        attackBonus: 4,
+        damagePerRound: 5,
+        saveDC: 12,
+        strength: 10,
+        dexterity: 14,
+        constitution: 15,
+        intelligence: 6,
+        wisdom: 8,
+        charisma: 5,
+        attacks: [{ name: 'Shortsword', damage: '1d6+2', damageType: 'piercing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      };
+    }
+
+    // Zombie
+    // CR 1/4 | SRD 5.2
+    if (n.includes('zombie')) {
+      return {
+        hp: 22, // 3d8+9
+        ac: 8,
+        attackBonus: 3,
+        damagePerRound: 4,
+        saveDC: 12,
+        strength: 13,
+        dexterity: 6,
+        constitution: 16,
+        intelligence: 3,
+        wisdom: 6,
+        charisma: 5,
+        attacks: [{ name: 'Slam', damage: '1d6+1', damageType: 'bludgeoning', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 4,
+      };
+    }
+
+    // Ghoul
+    // CR 1 | SRD 5.2
+    if (n.includes('ghoul') && !n.includes('ghast')) {
+      return {
+        hp: 22, // 5d8
+        ac: 12,
+        attackBonus: 2,
+        damagePerRound: 7,
+        saveDC: 10,
+        strength: 13,
+        dexterity: 15,
+        constitution: 10,
+        intelligence: 7,
+        wisdom: 10,
+        charisma: 6,
+        attacks: [{ name: 'Claw', damage: '2d4+2', damageType: 'slashing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      };
+    }
+
+    // ── Beasts ───────────────────────────────────────────────────────────────
+
+    // Wolf
+    // CR 1/4 | SRD 5.2
+    if (n.includes('wolf') && !n.includes('dire') && !n.includes('winter')) {
+      return {
+        hp: 11, // 2d8+2
+        ac: 13, // Natural armor
+        attackBonus: 4,
+        damagePerRound: 7,
+        saveDC: 11,
+        strength: 12,
+        dexterity: 15,
+        constitution: 12,
+        intelligence: 3,
+        wisdom: 12,
+        charisma: 6,
+        attacks: [{ name: 'Bite', damage: '2d4+2', damageType: 'piercing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 8,
+      };
+    }
+
+    // Dire Wolf
+    // CR 1 | SRD 5.2
+    if (n.includes('dire wolf') || (n.includes('dire') && n.includes('wolf'))) {
+      return {
+        hp: 37, // 5d10+10
+        ac: 14,
+        attackBonus: 5,
+        damagePerRound: 10,
+        saveDC: 13,
+        strength: 17,
+        dexterity: 15,
+        constitution: 15,
+        intelligence: 3,
+        wisdom: 12,
+        charisma: 7,
+        attacks: [{ name: 'Bite', damage: '2d6+3', damageType: 'piercing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 10,
+      };
+    }
+
+    // Brown Bear
+    // CR 1 | SRD 5.2
+    if (n.includes('bear') && !n.includes('polar') && !n.includes('cave') && !n.includes('black')) {
+      return {
+        hp: 34, // 4d10+12
+        ac: 11,
+        attackBonus: 5,
+        damagePerRound: 11,
+        saveDC: 13,
+        strength: 19,
+        dexterity: 10,
+        constitution: 16,
+        intelligence: 2,
+        wisdom: 13,
+        charisma: 7,
+        attacks: [{ name: 'Claws', damage: '2d6+4', damageType: 'slashing', range: 1 }],
+        multiattack: 2,
+        range: 1,
+        moveDistance: 8,
+      };
+    }
+
+    // Boar
+    // CR 1/4 | SRD 5.2
+    if (n.includes('boar')) {
+      return {
+        hp: 11, // 2d8+2
+        ac: 11,
+        attackBonus: 3,
+        damagePerRound: 5,
+        saveDC: 11,
+        strength: 13,
+        dexterity: 11,
+        constitution: 12,
+        intelligence: 2,
+        wisdom: 9,
+        charisma: 5,
+        attacks: [{ name: 'Tusk', damage: '1d6+1', damageType: 'slashing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 8,
+      };
+    }
+
+    // ── Humanoid bandits / guards ─────────────────────────────────────────────
+
+    // Bandit
+    // CR 1/8 (treat similar to CR 0) | SRD 5.2
+    if (n.includes('bandit') && !n.includes('captain')) {
+      return {
+        hp: 11, // 2d8+2
+        ac: 12, // Leather armor
+        attackBonus: 3,
+        damagePerRound: 5,
+        saveDC: 11,
+        strength: 11,
+        dexterity: 12,
+        constitution: 12,
+        intelligence: 10,
+        wisdom: 10,
+        charisma: 10,
+        attacks: [{ name: 'Scimitar', damage: '1d6+1', damageType: 'slashing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      };
+    }
+
+    // Bandit Captain
+    // CR 2 | SRD 5.2
+    if (n.includes('bandit') && n.includes('captain')) {
+      return {
+        hp: 65, // 10d8+20
+        ac: 15, // Studded leather
+        attackBonus: 5,
+        damagePerRound: 18,
+        saveDC: 13,
+        strength: 15,
+        dexterity: 16,
+        constitution: 14,
+        intelligence: 14,
+        wisdom: 11,
+        charisma: 14,
+        attacks: [{ name: 'Scimitar', damage: '1d6+3', damageType: 'slashing', range: 1 }],
+        multiattack: 3,
+        range: 1,
+        moveDistance: 6,
+      };
+    }
+
+    // Guard
+    // CR 1/8 | SRD 5.2
+    if (n.includes('guard') || n.includes('soldier')) {
+      return {
+        hp: 11,
+        ac: 16, // Chain shirt + shield
+        attackBonus: 3,
+        damagePerRound: 4,
+        saveDC: 11,
+        strength: 13,
+        dexterity: 12,
+        constitution: 12,
+        intelligence: 10,
+        wisdom: 11,
+        charisma: 10,
+        attacks: [{ name: 'Spear', damage: '1d6+1', damageType: 'piercing', range: 1 }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      };
+    }
+
+    // No named match — fall back to CR bracket table
+    return null;
   }
 
   getStatTableByCR(cr) {
@@ -136,6 +550,7 @@ export class Enemy {
         attacks: [{ name: 'Bite', damage: '2d8+3', damageType: 'piercing' }],
         multiattack: 1,
         range: 1,
+        moveDistance: 6,
       },
       5: {
         hp: 95,
@@ -152,6 +567,7 @@ export class Enemy {
         attacks: [{ name: 'Greataxe', damage: '2d10+3', damageType: 'slashing' }],
         multiattack: 1,
         range: 1,
+        moveDistance: 6,
       },
       6: {
         hp: 112,
@@ -168,6 +584,7 @@ export class Enemy {
         attacks: [{ name: 'Tail Attack', damage: '2d10+4', damageType: 'bludgeoning' }],
         multiattack: 2,
         range: 1,
+        moveDistance: 6,
       },
       7: {
         hp: 133,
@@ -181,7 +598,7 @@ export class Enemy {
         intelligence: 12,
         wisdom: 14,
         charisma: 12,
-        attacks: [{ name: 'Boulder', damage: '3d10+4', damageType: 'bludgeoning' }],
+        attacks: [{ name: 'Boulder', damage: '3d10+4', damageType: 'bludgeoning', range: 20 }],
         multiattack: 2,
         range: 20,
       },
@@ -229,7 +646,7 @@ export class Enemy {
         intelligence: 14,
         wisdom: 16,
         charisma: 14,
-        attacks: [{ name: 'Breath Weapon', damage: '5d10+6', damageType: 'fire' }],
+        attacks: [{ name: 'Breath Weapon', damage: '5d10+6', damageType: 'fire', range: 20 }],
         multiattack: 2,
         range: 20,
       },

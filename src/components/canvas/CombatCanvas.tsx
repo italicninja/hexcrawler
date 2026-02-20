@@ -19,6 +19,9 @@ const FIXED_ZOOM = 1.0; // Zoom is disabled - always use 1.0
 /**
  * CombatCanvas - Renders 20x20 hex grid battlefield with combatants and interactive controls
  */
+// Duration (ms) spent sliding between each individual hex step
+const STEP_DURATION_MS = 120;
+
 function CombatCanvas({
   battlefield,
   combatants,
@@ -31,6 +34,8 @@ function CombatCanvas({
   cameraOffset,
   cameraZoom,
   onCameraChange,
+  pendingAnimation,
+  onAnimationComplete,
 }) {
   const canvasRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -41,6 +46,12 @@ function CombatCanvas({
   const lastHoveredHexRef = useRef(null);
   const lastCameraRef = useRef({ offset: cameraOffset, zoom: FIXED_ZOOM });
   const textureGenerator = useRef(null);
+
+  // Active movement animation state (stored as a ref so rAF reads latest without closures)
+  // Shape: { combatantId, path, stepIndex, stepStartTime } | null
+  const movementAnimRef = useRef(null);
+  // Visual override positions: Map<combatantId, {x, y}> pixel coords
+  const visualOverridesRef = useRef(new Map());
 
   // Initialize texture generator once
   useEffect(() => {
@@ -207,16 +218,21 @@ function CombatCanvas({
    * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
    * @param {Object} combatant - Combatant object
    * @param {boolean} isCurrentTurn - Whether it's this combatant's turn
+   * @param {{x:number,y:number}|null} overridePixel - Optional pixel position override for animation
    */
   const drawCombatant = useCallback(
-    (ctx, combatant, isCurrentTurn) => {
-      if (!combatant.position) return;
+    (ctx, combatant, isCurrentTurn, overridePixel = null) => {
+      if (!combatant.position && !overridePixel) return;
 
-      const { x, y } = calculateHexPosition(
-        combatant.position.col,
-        combatant.position.row,
-        HEX_SIZE
-      );
+      let x, y;
+      if (overridePixel) {
+        x = overridePixel.x;
+        y = overridePixel.y;
+      } else {
+        const pos = calculateHexPosition(combatant.position.col, combatant.position.row, HEX_SIZE);
+        x = pos.x;
+        y = pos.y;
+      }
       const radius = HEX_SIZE * 0.4;
 
       ctx.save();
@@ -389,12 +405,13 @@ function CombatCanvas({
       });
     }
 
-    // Draw combatants
+    // Draw combatants (use animated pixel position if available)
     let drawnCount = 0;
     combatants.forEach((combatant, index) => {
-      if (combatant.position) {
+      const overridePixel = visualOverridesRef.current.get(combatant.id) || null;
+      if (combatant.position || overridePixel) {
         const isCurrentTurn = index === currentTurnIndex;
-        drawCombatant(ctx, combatant, isCurrentTurn);
+        drawCombatant(ctx, combatant, isCurrentTurn, overridePixel);
         drawnCount++;
       } else {
         console.warn('[CombatCanvas] Combatant has no position:', combatant.name);
@@ -423,12 +440,113 @@ function CombatCanvas({
   ]);
 
   /**
-   * Render once when dependencies change (no animation loop)
-   * Combat scenes are turn-based, no need for continuous rendering
+   * Hex-by-hex movement animation.
+   * Starts a requestAnimationFrame loop whenever pendingAnimation changes.
+   * Each step lerps the combatant from one hex center to the next over STEP_DURATION_MS.
+   * When all steps complete, clears the visual override and fires onAnimationComplete.
    */
   useEffect(() => {
-    draw();
-    // No animation loop - only redraw when dependencies change
+    if (!pendingAnimation || !pendingAnimation.path || pendingAnimation.path.length < 2) {
+      // No animation to run – clear any leftover override and redraw once
+      visualOverridesRef.current.clear();
+      movementAnimRef.current = null;
+      draw();
+      return;
+    }
+
+    const { combatantId, path } = pendingAnimation;
+
+    // Start animating from step 0 (path[0] → path[1])
+    movementAnimRef.current = {
+      combatantId,
+      path,
+      stepIndex: 0,
+      stepStartTime: performance.now(),
+    };
+
+    let rafId = null;
+    let running = true;
+
+    const tick = now => {
+      if (!running) return;
+
+      const anim = movementAnimRef.current;
+      if (!anim) {
+        draw();
+        return;
+      }
+
+      const { path: animPath, stepIndex, stepStartTime } = anim;
+      const elapsed = now - stepStartTime;
+      const progress = Math.min(elapsed / STEP_DURATION_MS, 1);
+
+      // Ease-out cubic for a natural deceleration into each hex
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      const fromHex = animPath[stepIndex];
+      const toHex = animPath[stepIndex + 1];
+
+      if (!fromHex || !toHex) {
+        // Path exhausted – clean up
+        visualOverridesRef.current.delete(anim.combatantId);
+        movementAnimRef.current = null;
+        draw();
+        running = false;
+        if (onAnimationComplete) onAnimationComplete();
+        return;
+      }
+
+      const fromPx = calculateHexPosition(fromHex.col, fromHex.row, HEX_SIZE);
+      const toPx = calculateHexPosition(toHex.col, toHex.row, HEX_SIZE);
+
+      const currentPx = {
+        x: fromPx.x + (toPx.x - fromPx.x) * eased,
+        y: fromPx.y + (toPx.y - fromPx.y) * eased,
+      };
+
+      visualOverridesRef.current.set(anim.combatantId, currentPx);
+      draw();
+
+      if (progress >= 1) {
+        // Step complete – advance to next hex
+        const nextStep = stepIndex + 1;
+        if (nextStep >= animPath.length - 1) {
+          // Reached final hex – clean up
+          visualOverridesRef.current.delete(anim.combatantId);
+          movementAnimRef.current = null;
+          draw();
+          running = false;
+          if (onAnimationComplete) onAnimationComplete();
+          return;
+        }
+        // Move to next step
+        movementAnimRef.current = {
+          ...anim,
+          stepIndex: nextStep,
+          stepStartTime: now,
+        };
+      }
+
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+
+    return () => {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAnimation]);
+
+  /**
+   * Render once when non-animation dependencies change.
+   * Skip if a movement animation is actively running (it drives its own draws).
+   */
+  useEffect(() => {
+    if (!movementAnimRef.current) {
+      draw();
+    }
   }, [draw]);
 
   /**
@@ -574,6 +692,12 @@ function CombatCanvas({
    */
   const handleClick = useCallback(
     e => {
+      // Block clicks while a movement animation is running
+      if (movementAnimRef.current) {
+        logger.combat.debug('[CombatCanvas] Click ignored - movement animation in progress');
+        return;
+      }
+
       console.log('[CombatCanvas] Click event', {
         isDragging,
         hasDragged,

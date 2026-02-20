@@ -6,7 +6,7 @@
  */
 
 import { findPath } from '../Pathfinding';
-import { getHexDistance } from '../../contexts/GameStateContext';
+import { getHexDistance } from '../../utils/hexMath';
 import logger from '../../utils/logger';
 
 /**
@@ -89,7 +89,67 @@ export function useAbility(context) {
 }
 
 /**
- * Move toward target action
+ * Build a hex lookup map from the flat hexes array.
+ * Called once per action so the inner loops are O(1) per hex lookup.
+ */
+function buildHexMap(hexes) {
+  const map = new Map();
+  hexes.forEach(h => map.set(`${h.col},${h.row}`, h));
+  return map;
+}
+
+/**
+ * Get all valid, unblocked hex neighbours for a given position.
+ * Uses the same row-parity offset scheme as Pathfinding.ts so both systems
+ * agree on adjacency.
+ */
+function getNeighbours(pos, battlefield, hexMap) {
+  const { col, row } = pos;
+  const { width, height } = battlefield;
+
+  // Same offsets as Pathfinding.getHexNeighbors — row-parity (even/odd row)
+  const offsets =
+    Math.abs(row % 2) === 0
+      ? [
+          [-1, -1],
+          [0, -1],
+          [-1, 0],
+          [1, 0],
+          [-1, 1],
+          [0, 1],
+        ] // even row
+      : [
+          [0, -1],
+          [1, -1],
+          [-1, 0],
+          [1, 0],
+          [0, 1],
+          [1, 1],
+        ]; // odd row
+
+  const neighbours = [];
+  for (const [dc, dr] of offsets) {
+    const nc = col + dc;
+    const nr = row + dr;
+    if (nc < 0 || nr < 0 || nc >= width || nr >= height) continue;
+    const hex = hexMap.get(`${nc},${nr}`);
+    if (!hex || hex.blocked) continue;
+    neighbours.push({ col: nc, row: nr });
+  }
+  return neighbours;
+}
+
+/**
+ * Move toward target action — weighted random walk.
+ * Scores each reachable neighbour by:
+ *   score = cos(angle_toward_target) * 0.75 + random * 0.25
+ * Picks the highest-scored unoccupied neighbour that is reachable.
+ * Repeats step-by-step up to maxMoveHexes, building a path.
+ *
+ * This gives natural-looking movement that generally converges on the
+ * target while occasionally deviating one hex off the optimal line,
+ * preventing enemies from queuing up in single-file columns.
+ *
  * @param {ActionContext} context
  * @returns {Object} Move action
  */
@@ -109,58 +169,99 @@ export function moveTo(context) {
   }
 
   const maxMoveHexes = Math.floor(movementRemaining / 5); // Convert feet to hexes
+  if (maxMoveHexes <= 0) return { type: 'wait' };
 
-  // Try to find path to adjacent hex near target
-  const path = findPath(combatant.position, target.position, battlefield, maxMoveHexes);
+  // Build lookup structures once
+  const hexMap = buildHexMap(battlefield.hexes);
 
-  if (!path || path.length <= 1) {
-    logger.combat.debug('MoveTo action: no path found', {
-      combatant: combatant.name,
-      target: target.name,
-    });
-    return { type: 'wait' };
-  }
+  // Build an occupancy set for fast lookup
+  const occupiedSet = new Set(
+    turnOrder
+      .filter(c => c.position && c.id !== combatant.id)
+      .map(c => `${c.position.col},${c.position.row}`)
+  );
 
-  // Find furthest unoccupied hex along path
-  let destination = null;
-  let actualDistance = 0;
+  // Direction vector toward target
+  const dx = target.position.col - combatant.position.col;
+  const dy = target.position.row - combatant.position.row;
+  const targetDist = Math.sqrt(dx * dx + dy * dy);
 
-  for (let i = 1; i < path.length && i <= maxMoveHexes; i++) {
-    const hex = path[i];
-    const occupied = turnOrder.some(
-      c => c.position && c.position.col === hex.col && c.position.row === hex.row
+  // Walk step-by-step, building path
+  const path = [combatant.position];
+  let current = combatant.position;
+
+  for (let step = 0; step < maxMoveHexes; step++) {
+    // Stop one hex away from target so we don't move onto the target's hex
+    const distToTarget = getHexDistance(
+      current.col,
+      current.row,
+      target.position.col,
+      target.position.row
     );
+    if (distToTarget <= 1) break;
 
-    if (occupied) {
-      break; // Stop before occupied hex
-    }
+    const neighbours = getNeighbours(current, battlefield, hexMap);
 
-    destination = hex;
-    actualDistance = i;
+    // Score each unoccupied neighbour
+    const candidates = neighbours
+      .filter(n => !occupiedSet.has(`${n.col},${n.row}`))
+      .map(n => {
+        // Vector from current to this neighbour
+        const ndx = n.col - current.col;
+        const ndy = n.row - current.row;
+        const nLen = Math.sqrt(ndx * ndx + ndy * ndy) || 1;
+
+        // Cosine similarity toward target direction (ranges -1 to +1)
+        let cosAngle = 0;
+        if (targetDist > 0) {
+          cosAngle = (ndx / nLen) * (dx / targetDist) + (ndy / nLen) * (dy / targetDist);
+        }
+
+        // Normalise to 0–1 range, weight toward target (0.75) + randomness (0.25)
+        const score = ((cosAngle + 1) / 2) * 0.75 + Math.random() * 0.25;
+        return { hex: n, score };
+      });
+
+    if (candidates.length === 0) break;
+
+    // Sort descending and pick the top candidate
+    candidates.sort((a, b) => b.score - a.score);
+    const chosen = candidates[0].hex;
+
+    occupiedSet.add(`${chosen.col},${chosen.row}`);
+    path.push(chosen);
+    current = chosen;
   }
 
-  if (!destination || actualDistance === 0) {
-    logger.combat.debug('MoveTo action: path blocked', { combatant: combatant.name });
+  if (path.length <= 1) {
+    logger.combat.debug('MoveTo action: no movement possible', { combatant: combatant.name });
     return { type: 'wait' };
   }
 
-  logger.combat.debug('AI move action', {
+  const destination = path[path.length - 1];
+  const actualDistance = path.length - 1;
+
+  logger.combat.debug('AI move action (weighted walk)', {
     combatant: combatant.name,
     from: combatant.position,
     to: destination,
-    distance: actualDistance,
+    steps: actualDistance,
   });
 
   return {
     type: 'move',
     destination,
-    path: path.slice(0, actualDistance + 1),
+    path,
     moveCost: actualDistance,
   };
 }
 
 /**
- * Flee to backline action
+ * Flee action — move away from the nearest enemy.
+ * Computes the direction vector away from the nearest threat and uses the
+ * weighted random walk (same logic as moveTo) but inverted: prefers hexes
+ * that move away from enemies rather than toward them.
+ *
  * @param {ActionContext} context
  * @returns {Object} Move action
  */
@@ -175,44 +276,86 @@ export function flee(context) {
   }
 
   const maxMoveHexes = Math.floor(movementRemaining / 5);
+  if (maxMoveHexes <= 0) return { type: 'wait' };
 
-  // Find furthest unoccupied hex in backline
-  const backlineRow = battlefield.height - 1;
-  const targetCol = Math.floor(battlefield.width / 2); // Center column
+  // Find nearest enemy (opposite faction)
+  const threats = turnOrder.filter(c => {
+    if (!c.position || c.currentHP <= 0) return false;
+    return combatant.isEnemy ? c.isAlly : c.isEnemy;
+  });
 
-  const targetPos = { col: targetCol, row: backlineRow };
-  const path = findPath(combatant.position, targetPos, battlefield, maxMoveHexes);
+  if (threats.length === 0) return { type: 'wait' };
 
-  if (!path || path.length <= 1) {
-    logger.combat.debug('Flee action: no path to backline', {
-      combatant: combatant.name,
-    });
-    return { type: 'wait' };
-  }
-
-  // Find furthest unoccupied hex along path
-  let destination = null;
-  let actualDistance = 0;
-
-  for (let i = 1; i < path.length && i <= maxMoveHexes; i++) {
-    const hex = path[i];
-    const occupied = turnOrder.some(
-      c => c.position && c.position.col === hex.col && c.position.row === hex.row
+  // Find closest threat
+  const nearest = threats.reduce((closest, c) => {
+    const d = getHexDistance(
+      combatant.position.col,
+      combatant.position.row,
+      c.position.col,
+      c.position.row
     );
+    const dc = getHexDistance(
+      combatant.position.col,
+      combatant.position.row,
+      closest.position.col,
+      closest.position.row
+    );
+    return d < dc ? c : closest;
+  });
 
-    if (occupied) break;
+  // Direction AWAY from nearest threat
+  const dx = combatant.position.col - nearest.position.col;
+  const dy = combatant.position.row - nearest.position.row;
+  const threatDist = Math.sqrt(dx * dx + dy * dy) || 1;
 
-    destination = hex;
-    actualDistance = i;
+  const hexMap = buildHexMap(battlefield.hexes);
+
+  const occupiedSet = new Set(
+    turnOrder
+      .filter(c => c.position && c.id !== combatant.id)
+      .map(c => `${c.position.col},${c.position.row}`)
+  );
+
+  const path = [combatant.position];
+  let current = combatant.position;
+
+  for (let step = 0; step < maxMoveHexes; step++) {
+    const neighbours = getNeighbours(current, battlefield, hexMap);
+
+    const candidates = neighbours
+      .filter(n => !occupiedSet.has(`${n.col},${n.row}`))
+      .map(n => {
+        const ndx = n.col - current.col;
+        const ndy = n.row - current.row;
+        const nLen = Math.sqrt(ndx * ndx + ndy * ndy) || 1;
+
+        // Cosine similarity in the AWAY direction
+        const cosAngle = (ndx / nLen) * (dx / threatDist) + (ndy / nLen) * (dy / threatDist);
+        const score = ((cosAngle + 1) / 2) * 0.75 + Math.random() * 0.25;
+        return { hex: n, score };
+      });
+
+    if (candidates.length === 0) break;
+
+    candidates.sort((a, b) => b.score - a.score);
+    const chosen = candidates[0].hex;
+
+    occupiedSet.add(`${chosen.col},${chosen.row}`);
+    path.push(chosen);
+    current = chosen;
   }
 
-  if (!destination || actualDistance === 0) {
-    logger.combat.debug('Flee action: path blocked', { combatant: combatant.name });
+  if (path.length <= 1) {
+    logger.combat.debug('Flee action: no movement possible', { combatant: combatant.name });
     return { type: 'wait' };
   }
 
-  logger.combat.info('AI fleeing to backline', {
+  const destination = path[path.length - 1];
+  const actualDistance = path.length - 1;
+
+  logger.combat.info('AI fleeing away from threat', {
     combatant: combatant.name,
+    fleeingFrom: nearest.name,
     from: combatant.position,
     to: destination,
   });
@@ -220,7 +363,7 @@ export function flee(context) {
   return {
     type: 'move',
     destination,
-    path: path.slice(0, actualDistance + 1),
+    path,
     moveCost: actualDistance,
   };
 }

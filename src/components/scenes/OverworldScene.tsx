@@ -24,6 +24,7 @@ import { Enemy } from '../../game/Enemy';
 import { Character } from '../../game/Character';
 import { Party } from '../../game/Party';
 import { findPath } from '../../game/Pathfinding';
+import { getHexDistance } from '../../utils/hexMath';
 import SurvivalManager from '../../game/SurvivalManager';
 import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
@@ -557,9 +558,9 @@ function OverworldScene() {
     // Create test enemies (3 goblins CR 1)
     const diceRoller = new DiceRoller();
     const enemies = [
-      new Enemy('Goblin Warrior', 1, 'goblinoid'),
-      new Enemy('Goblin Archer', 1, 'goblinoid'),
-      new Enemy('Goblin Shaman', 1, 'goblinoid'),
+      new Enemy('Goblin Warrior', 0.25, 'goblinoid'),
+      new Enemy('Goblin Archer', 0.25, 'goblinoid'),
+      new Enemy('Goblin Warrior', 0.25, 'goblinoid'),
     ];
 
     // Get terrain type from current hex
@@ -1190,6 +1191,14 @@ function OverworldScene() {
     addMessage,
   ]);
 
+  // Keep a ref that always holds the latest combatState so AI timers can read
+  // current state without needing it as a useCallback dependency (which would
+  // cause the cleanup to cancel in-flight timers on every state update).
+  const combatStateRef = useRef(state.combatState);
+  useEffect(() => {
+    combatStateRef.current = state.combatState;
+  });
+
   // Process AI turn
   const processAITurn = useCallback(
     combatant => {
@@ -1198,7 +1207,10 @@ function OverworldScene() {
         return;
       }
 
-      if (!state.combatState || !state.combatState.battlefield) {
+      // Read battlefield from the ref so we always have the current value
+      // without requiring state.combatState as a useCallback dependency.
+      const currentCombatState = combatStateRef.current;
+      if (!currentCombatState || !currentCombatState.battlefield) {
         logger.combat.error('Combat state invalid');
         return;
       }
@@ -1220,19 +1232,20 @@ function OverworldScene() {
       }, 5000);
 
       try {
-        // Use AIEngine to decide action
+        // Use AIEngine to decide action — read from ref for fresh state
         const action = AIEngine.decideAction(
           combatant,
-          state.combatState.battlefield,
-          state.combatState.turnOrder,
-          state.combatState.movementRemaining
+          currentCombatState.battlefield,
+          currentCombatState.turnOrder,
+          currentCombatState.movementRemaining
         );
 
         logger.combat.debug('AI action decided', { action });
 
         // Wait 800ms for player to see AI thinking
         aiTimeoutRefs.current.action = setTimeout(() => {
-          if (!state.combatState) {
+          // Read current state from ref — avoids stale closure
+          if (!combatStateRef.current) {
             logger.combat.warn('Combat ended during AI turn');
             clearTimeout(aiTimeoutRefs.current.turnTimeout);
             return;
@@ -1245,6 +1258,11 @@ function OverworldScene() {
             );
 
             if (actions.PROCESS_COMBAT_MOVEMENT) {
+              // Mark that we need to advance the turn after the movement animation completes.
+              // The onAnimationComplete callback (below) will fire ADVANCE_COMBAT_TURN once
+              // the canvas finishes animating the combatant hex-by-hex.
+              pendingAIAdvanceRef.current = true;
+
               dispatch({
                 type: actions.PROCESS_COMBAT_MOVEMENT,
                 payload: {
@@ -1252,6 +1270,10 @@ function OverworldScene() {
                   cost: action.moveCost * 5, // Convert hexes to feet
                 },
               });
+
+              // Skip the normal 500ms advance timer for move actions – animation drives it.
+              // Clear the fallback turnTimeout: onAnimationComplete handles clean advance.
+              // (The overall 5s safety timeout in aiTimeoutRefs.turnTimeout still guards against hangs.)
             }
           } else if (action.type === 'attack') {
             const targetName = action.target.character?.name || action.target.enemy?.name;
@@ -1289,19 +1311,23 @@ function OverworldScene() {
             addMessage(`${enemy.name} waits`, 'encounter');
           }
 
-          // Wait 500ms more, then advance turn
-          aiTimeoutRefs.current.advance = setTimeout(() => {
-            if (!state.combatState) {
+          // For move actions the turn advance is driven by onAnimationComplete (see below).
+          // For all other actions (attack, ability, wait) use the normal 500ms timer.
+          if (!pendingAIAdvanceRef.current) {
+            aiTimeoutRefs.current.advance = setTimeout(() => {
+              // Read from ref — avoids stale closure
+              if (!combatStateRef.current) {
+                clearTimeout(aiTimeoutRefs.current.turnTimeout);
+                return;
+              }
+
+              // Clear timeout fallback
               clearTimeout(aiTimeoutRefs.current.turnTimeout);
-              return;
-            }
 
-            // Clear timeout fallback
-            clearTimeout(aiTimeoutRefs.current.turnTimeout);
-
-            logger.combat.info('Advancing turn after AI action', { combatant: enemy.name });
-            dispatch({ type: actions.ADVANCE_COMBAT_TURN });
-          }, 500);
+              logger.combat.info('Advancing turn after AI action', { combatant: enemy.name });
+              dispatch({ type: actions.ADVANCE_COMBAT_TURN });
+            }, 500);
+          }
         }, 800);
       } catch (error) {
         logger.combat.error('AI turn processing failed', {
@@ -1319,12 +1345,18 @@ function OverworldScene() {
         dispatch({ type: actions.ADVANCE_COMBAT_TURN });
       }
     },
-    [state.combatState, dispatch, actions, addMessage]
+    // Remove state.combatState from deps — we read it via combatStateRef to avoid
+    // the useCallback recreating on every action dispatch, which would trigger the
+    // useEffect cleanup and cancel in-flight action/advance timers mid-turn.
+    [dispatch, actions, addMessage]
   );
 
   // Auto-process AI turns
   const lastProcessedTurnRef = useRef(null);
   const aiTimeoutRefs = useRef({ action: null, advance: null, turnTimeout: null });
+  // Set to true when an AI movement animation is playing and we need to advance
+  // the turn once the animation finishes (instead of using the fixed 500ms timer)
+  const pendingAIAdvanceRef = useRef(false);
 
   useEffect(() => {
     if (!state.combatState) {
@@ -1369,22 +1401,19 @@ function OverworldScene() {
       processAITurn(currentCombatant);
     }
 
-    // Cleanup function - clear any pending AI timeouts
+    // Cleanup: only cancel timers when the turn index itself changes (new combatant's
+    // turn started) — NOT on every state update. This prevents mid-turn state changes
+    // (e.g. HP update from PROCESS_COMBAT_ACTION) from cancelling the advance timer.
     return () => {
-      if (aiTimeoutRefs.current.turnTimeout) {
-        clearTimeout(aiTimeoutRefs.current.turnTimeout);
-        aiTimeoutRefs.current.turnTimeout = null;
-      }
-      if (aiTimeoutRefs.current.action) {
-        clearTimeout(aiTimeoutRefs.current.action);
-        aiTimeoutRefs.current.action = null;
-      }
-      if (aiTimeoutRefs.current.advance) {
-        clearTimeout(aiTimeoutRefs.current.advance);
-        aiTimeoutRefs.current.advance = null;
-      }
+      clearTimeout(aiTimeoutRefs.current.turnTimeout);
+      aiTimeoutRefs.current.turnTimeout = null;
+      clearTimeout(aiTimeoutRefs.current.action);
+      aiTimeoutRefs.current.action = null;
+      clearTimeout(aiTimeoutRefs.current.advance);
+      aiTimeoutRefs.current.advance = null;
     };
   }, [
+    // Only re-run (and clean up) when the turn changes, not on every state update.
     state.combatState?.currentTurnIndex,
     state.combatState?.waitingForPlayerAction,
     processAITurn,
@@ -1490,9 +1519,38 @@ function OverworldScene() {
         !targetCombatant.isAlly
       ) {
         // Attack action already selected, clicking enemy executes attack
+        // Validate range before dispatching
+        const weapon = currentCombatant.character?.equipment?.mainHand;
+        const weaponRange = weapon?.range || 1;
+        const attackDistance = getHexDistance(
+          currentCombatant.position.col,
+          currentCombatant.position.row,
+          targetCombatant.position.col,
+          targetCombatant.position.row
+        );
+
+        if (attackDistance > weaponRange) {
+          if (weaponRange <= 1) {
+            // Melee weapon or unarmed — target too far, no ranged option
+            const weaponName = weapon?.name || 'your weapon';
+            addMessage(
+              `${weaponName} is a melee weapon. Equip a ranged weapon to attack at distance.`,
+              'warning'
+            );
+          } else {
+            addMessage(
+              `Target out of range (${attackDistance} hexes, max ${weaponRange}).`,
+              'warning'
+            );
+          }
+          return;
+        }
+
         logger.combat.info('Executing attack on target', {
           attacker: currentCombatant.name,
           target: targetCombatant.name,
+          attackDistance,
+          weaponRange,
         });
 
         dispatch({
@@ -1755,6 +1813,20 @@ function OverworldScene() {
               onCameraChange={(offset, zoom) =>
                 setCombatUIState(prev => ({ ...prev, cameraOffset: offset, cameraZoom: zoom }))
               }
+              pendingAnimation={state.combatState.pendingAnimation ?? null}
+              onAnimationComplete={() => {
+                // Clear the animation marker from state
+                dispatch({ type: actions.CLEAR_COMBAT_ANIMATION });
+
+                // If an AI move triggered this animation, advance the combat turn now
+                if (pendingAIAdvanceRef.current) {
+                  pendingAIAdvanceRef.current = false;
+                  clearTimeout(aiTimeoutRefs.current.turnTimeout);
+                  aiTimeoutRefs.current.turnTimeout = null;
+                  logger.combat.info('Advancing turn after AI movement animation completed');
+                  dispatch({ type: actions.ADVANCE_COMBAT_TURN });
+                }
+              }}
             />
           ) : state.inInterior && interiorMap ? (
             /* Interior Mode */

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import PropTypes from 'prop-types';
 import ActionEconomyDisplay from './ActionEconomyDisplay';
 
 /**

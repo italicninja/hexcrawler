@@ -1,6 +1,6 @@
 {
   "name": "hexcrawler",
-  "version": "0.5.0",
+  "version": "0.7.1",
   "description": "Hexcrawler - A D&D 5e Hexcrawl RPG",
   "type": "module",
   "scripts": {

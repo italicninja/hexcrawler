@@ -31,6 +31,8 @@ import { Combat } from '../../game/Combat';
 import { CombatTerrainGenerator } from '../../game/CombatTerrainGenerator';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { EncounterPositions } from '../../game/EncounterPositions';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
 import { COMBAT } from '../../constants/gameConstants';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import logger from '../../utils/logger';
@@ -52,7 +54,8 @@ export function combatReducer(
       }
 
       // New tactical combat system
-      const { allies, enemies, encounterName, encounterType, terrainType } = action.payload;
+      const { allies, enemies, encounterName, encounterType, terrainType, gameLogger } =
+        action.payload;
 
       console.log('[START_COMBAT] Payload:', {
         allies,
@@ -96,8 +99,10 @@ export function combatReducer(
         hexCount: battlefield.hexes.length,
       });
 
-      // Create combat instance
-      const combat = new Combat(allies, enemies, battlefield);
+      // Create combat instance, wiring up GameLog so attack rolls and results surface to the player
+      const combat = new Combat(allies, enemies, battlefield, {
+        logger: gameLogger || null,
+      });
 
       // Roll initiative
       const initiativeOrder = combat.rollInitiative();
@@ -108,6 +113,12 @@ export function combatReducer(
       const turnOrder = initiativeOrder.map((init, index) => {
         const isAlly = init.type === 'character';
         const combatant = init.combatant;
+
+        // Derive attack range for this combatant so the canvas overlay is accurate.
+        // Heroes: read from equipped mainHand weapon; Enemies: read from their .range stat.
+        const attackRange = isAlly
+          ? combatant.equipment?.mainHand?.range || 1
+          : combatant.range || 1;
 
         return {
           id: isAlly ? `ally-${index}` : `enemy-${index}`,
@@ -123,6 +134,7 @@ export function combatReducer(
           position: null, // Will be set by EncounterPositions
           statusEffects: [],
           aiConfig: !isAlly ? combatant.aiConfig : null, // Copy AI config from enemy
+          attackRange, // Weapon/stat range for canvas overlay and attack validation
         };
       });
 
@@ -307,16 +319,82 @@ export function combatReducer(
         newTurnOrder: updatedTurnOrder.map(c => ({ name: c.name, position: c.position })),
       });
 
+      // Opportunity attack check: did the moving combatant leave any enemy's melee range?
+      const fromHex = currentCombatant.position;
+      const toHex = destination;
+      const opportunityAttackers = OpportunityAttackSystem.checkOpportunityAttacks(
+        currentCombatant,
+        fromHex,
+        toHex,
+        state.combatState.turnOrder
+      );
+
+      // Sync updated positions into the Combat instance so processAttack (called for OAs)
+      // sees current positions, not starting positions.
+      const combat = state.combatState.combat;
+      if (combat) {
+        updatedTurnOrder.forEach(c => {
+          const combatEntry = combat.turnOrder.find(ct => ct.id === c.id);
+          if (combatEntry && c.position) {
+            combatEntry.position = c.position;
+            combatEntry.hp = c.currentHP;
+          }
+        });
+      }
+
+      // Process opportunity attacks immediately (AI auto-confirms; player OA prompts are
+      // stored in pendingOpportunityAttacks for the UI to handle)
+      let oaTurnOrder = updatedTurnOrder;
+      const pendingPlayerOAs = [];
+
+      for (const oaAttacker of opportunityAttackers) {
+        if (oaAttacker.isEnemy && combat) {
+          // AI auto-confirms — resolve the attack immediately
+          logger.combat.info('Opportunity attack (AI)', {
+            attacker: oaAttacker.name,
+            target: currentCombatant.name,
+          });
+          const oaResult = combat.processAttack(oaAttacker.id, currentCombatant.id);
+          if (oaResult.success && combat) {
+            // Sync HP after OA
+            oaTurnOrder = oaTurnOrder.map(c => {
+              if (c.id === oaAttacker.id || c.id === currentCombatant.id) {
+                const fromCombat = combat.turnOrder.find(ct => ct.id === c.id);
+                if (fromCombat) return { ...c, currentHP: fromCombat.hp };
+              }
+              return c;
+            });
+          }
+          // Mark OA attacker's reaction as used
+          oaTurnOrder = oaTurnOrder.map(c =>
+            c.id === oaAttacker.id ? { ...c, reactionUsed: true } : c
+          );
+        } else if (oaAttacker.isAlly) {
+          // Player-controlled — queue for UI prompt
+          pendingPlayerOAs.push({ attacker: oaAttacker, target: currentCombatant });
+        }
+      }
+
       const newCombatState = {
         ...state.combatState,
-        turnOrder: updatedTurnOrder,
+        turnOrder: oaTurnOrder,
         movementRemaining: Math.max(0, state.combatState.movementRemaining - cost),
+        // Store the full path for the canvas animation system.
+        // CombatCanvas will animate the combatant hex-by-hex along this path
+        // and call onAnimationComplete when done, which dispatches CLEAR_COMBAT_ANIMATION.
+        pendingAnimation: {
+          combatantId: currentCombatant.id,
+          path: path, // full path including start hex
+        },
+        // Player-side opportunity attack prompts (if any)
+        pendingOpportunityAttacks: pendingPlayerOAs.length > 0 ? pendingPlayerOAs : null,
       };
 
       console.log('[PROCESS_COMBAT_MOVEMENT] New combat state:', {
         turnOrderCount: newCombatState.turnOrder.length,
         updatedCombatant: newCombatState.turnOrder[state.combatState.currentTurnIndex],
         movementRemaining: newCombatState.movementRemaining,
+        animationPath: path.length,
       });
 
       return {
@@ -346,11 +424,27 @@ export function combatReducer(
           target: target.name,
         });
 
+        // Sync current positions from Redux state into the Combat instance's turnOrder
+        // before calling processAttack. PROCESS_COMBAT_MOVEMENT updates the Redux copy
+        // immutably but does not mutate the Combat instance, so positions would be stale
+        // without this sync.
+        state.combatState.turnOrder.forEach(c => {
+          const combatEntry = combat.turnOrder.find(ct => ct.id === c.id);
+          if (combatEntry && c.position) {
+            combatEntry.position = c.position;
+            combatEntry.hp = c.currentHP;
+          }
+        });
+
         // Use Combat.processAttack which uses DiceRoller with auto-logging
         const attackResult = combat.processAttack(attacker.id, target.id);
 
         if (!attackResult.success) {
-          console.error('[PROCESS_COMBAT_ACTION] Attack failed', attackResult.message);
+          logger.combat.warn('[PROCESS_COMBAT_ACTION] Attack failed', attackResult.message);
+          // Surface failure message to player via GameLog if logger is available
+          if (combat.logger) {
+            combat.logger(attackResult.message, 'warning');
+          }
           return state;
         }
 
@@ -503,12 +597,22 @@ export function combatReducer(
     case ACTIONS.ADVANCE_COMBAT_TURN: {
       if (!state.combatState) return state;
 
-      const nextIndex =
-        (state.combatState.currentTurnIndex + 1) % state.combatState.turnOrder.length;
+      // Find next LIVING combatant, skipping dead ones
+      const turnOrderLength = state.combatState.turnOrder.length;
+      let nextIndex = (state.combatState.currentTurnIndex + 1) % turnOrderLength;
+
+      // Iterate forward until we find a living combatant (guard: max one full cycle)
+      for (let i = 0; i < turnOrderLength; i++) {
+        if (state.combatState.turnOrder[nextIndex].currentHP > 0) break;
+        nextIndex = (nextIndex + 1) % turnOrderLength;
+      }
+
       const nextCombatant = state.combatState.turnOrder[nextIndex];
 
-      // Increment round if we've wrapped back to index 0
-      const newRound = nextIndex === 0 ? state.combatState.round + 1 : state.combatState.round;
+      // Increment round if we wrapped past index 0 during this advance
+      const prevIndex = state.combatState.currentTurnIndex;
+      const newRound =
+        nextIndex <= prevIndex ? state.combatState.round + 1 : state.combatState.round;
 
       // Reset movement for new turn
       const moveDistance =
@@ -826,6 +930,17 @@ export function combatReducer(
             readyAction: null,
             reactionUsed: true,
           },
+        },
+      };
+    }
+
+    case ACTIONS.CLEAR_COMBAT_ANIMATION: {
+      if (!state.combatState) return state;
+      return {
+        ...state,
+        combatState: {
+          ...state.combatState,
+          pendingAnimation: null,
         },
       };
     }
