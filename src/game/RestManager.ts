@@ -127,14 +127,26 @@ export class RestManager {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static recoverShortRestAbilities(character: any): void {
-    if (character.abilities_list && Array.isArray(character.abilities_list)) {
-      character.abilities_list = character.abilities_list.map((ability: any) => {
-        if (ability.maxUses && ability.uses < ability.maxUses) {
-          return { ...ability, uses: ability.maxUses };
-        }
-        return ability;
-      });
-    }
+    if (!character.abilities_list || !Array.isArray(character.abilities_list)) return;
+
+    character.abilities_list = character.abilities_list.map((ability: any) => {
+      if (!ability.maxUses || ability.maxUses === -1) return ability; // Unlimited — no change
+
+      // PHB'24 Rage: recover 1 use on Short Rest, not all uses
+      if (ability.name === 'Rage' && ability.uses < ability.maxUses) {
+        return { ...ability, uses: ability.uses + 1 };
+      }
+
+      // Default short-rest abilities: recover all uses on a short rest
+      // (e.g. Fighter Second Wind, Monk Ki, etc.)
+      if (ability.restType === 'short' && ability.uses < ability.maxUses) {
+        return { ...ability, uses: ability.maxUses };
+      }
+
+      // Long-rest-only abilities: do not recover on short rest
+      // (uses maxUses being present but restType is 'long' or unset means long rest only)
+      return ability;
+    });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

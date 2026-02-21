@@ -815,9 +815,35 @@ export class Combat {
     // Get target AC — Character uses .armorClass, Enemy uses .ac
     const targetAC = targetChar.armorClass ?? targetChar.ac ?? 10;
 
-    // Check for Dodge status effect
+    // --- Determine roll type (normal / advantage / disadvantage) ---
+    // Per D&D 5e rules, any number of advantage/disadvantage sources collapse to one pair;
+    // if both advantage AND disadvantage apply, they cancel to normal.
+    let hasAdvantage = false;
+    let hasDisadvantage = false;
+
+    // Attacker: Rage grants Advantage on STR melee attacks
+    if (attacker.character) {
+      const attackerRage = attacker.statusEffects?.find(
+        e => e.name === 'Rage' && e.effects?.strengthAdvantage
+      );
+      if (attackerRage && attackType === 'melee') {
+        hasAdvantage = true;
+      }
+    }
+
+    // Defender: Dodge gives attackers disadvantage (existing mechanic, replacing the +2 AC hack)
     const targetDodging = target.statusEffects?.some(e => e.name === 'Dodge');
-    const effectiveAC = targetDodging ? targetAC + 2 : targetAC;
+    if (targetDodging) {
+      hasDisadvantage = true;
+    }
+
+    // Resolve to a single rollType (advantage + disadvantage cancel out)
+    let rollType = 'normal';
+    if (hasAdvantage && !hasDisadvantage) rollType = 'advantage';
+    else if (hasDisadvantage && !hasAdvantage) rollType = 'disadvantage';
+
+    // Effective AC — keep the +2 dodge bonus for enemy attackers who don't go through DiceRoller
+    const effectiveAC = targetDodging && !attacker.character ? targetAC + 2 : targetAC;
 
     let hit = false;
     let critical = false;
@@ -826,11 +852,13 @@ export class Combat {
 
     if (attacker.character) {
       // Hero attacker — use DiceRoller.attackRoll() which auto-logs and uses character stats
+      // Pass rollType so advantage/disadvantage is reflected in the roll and log
       const attackResult = this.diceRoller.attackRoll(
         attackerChar,
         attackType,
-        effectiveAC,
-        weaponName
+        targetAC, // use raw targetAC; disadvantage handled via rollType for hero attackers
+        weaponName,
+        rollType
       );
       hit = attackResult.hit;
       critical = attackResult.crit;
@@ -847,6 +875,36 @@ export class Combat {
         if (critical) {
           damage += this.diceRoller.damageRoll(weaponDamage, damageType);
         }
+
+        // --- Rage damage bonus (PHB'24): applies to STR-based melee and unarmed attacks ---
+        const attackerRage = attacker.statusEffects?.find(e => e.name === 'Rage');
+        if (attackerRage && attackType === 'melee') {
+          const rageBonus = attackerRage.effects?.rageDamageBonus || 2;
+          damage += rageBonus;
+          // Mark rage as extended since an attack was made
+          attackerRage.extendedThisTurn = true;
+          logger.combat.debug('Rage damage bonus applied', {
+            attacker: attackerChar.name,
+            rageBonus,
+            totalDamage: damage,
+          });
+        }
+
+        // --- Rage resistance (PHB'24): target with Rage takes half BPS damage ---
+        const targetRage = target.statusEffects?.find(
+          e => e.name === 'Rage' && e.effects?.physicalResistance
+        );
+        const isPhysicalDamage = ['bludgeoning', 'piercing', 'slashing'].includes(damageType);
+        if (targetRage && isPhysicalDamage) {
+          damage = Math.floor(damage / 2);
+          if (this.logger) {
+            this.logger(
+              `${targetChar.name} resists physical damage (Rage). Damage halved to ${damage}.`,
+              'info'
+            );
+          }
+        }
+
         message = `${damage} ${damageType} damage to ${targetChar.name}`;
       } else {
         message = `${attackerChar.name} misses ${targetChar.name}`;
@@ -872,6 +930,22 @@ export class Combat {
         if (critical) {
           damage += this.diceRoller.damageRoll(weaponDamage, damageType);
         }
+
+        // --- Rage resistance (PHB'24): target with Rage takes half BPS damage ---
+        const targetRage = target.statusEffects?.find(
+          e => e.name === 'Rage' && e.effects?.physicalResistance
+        );
+        const isPhysicalDamage = ['bludgeoning', 'piercing', 'slashing'].includes(damageType);
+        if (targetRage && isPhysicalDamage) {
+          damage = Math.floor(damage / 2);
+          if (this.logger) {
+            this.logger(
+              `${targetChar.name} resists physical damage (Rage). Damage halved to ${damage}.`,
+              'info'
+            );
+          }
+        }
+
         message = `${damage} ${damageType} damage to ${targetChar.name}`;
       } else {
         message = `${attackerChar.name} misses ${targetChar.name}`;
@@ -1046,6 +1120,84 @@ export class Combat {
     return this.enemies.reduce((sum, enemy) => {
       return sum + getXPForCR(enemy.cr);
     }, 0);
+  }
+
+  /**
+   * Tick Rage at the START of the raging combatant's turn (PHB'24).
+   * Rage lasts until end of the rager's next turn. Each turn we check whether
+   * an extension criteria was met the previous turn; if not, Rage ends.
+   * Also enforces the 10-round maximum duration.
+   *
+   * @param {object} combatant - Combatant whose Rage to tick (turnOrder entry)
+   */
+  tickRage(combatant) {
+    if (!combatant.statusEffects) return;
+
+    const rageEffect = combatant.statusEffects.find(e => e.name === 'Rage');
+    if (!rageEffect) return;
+
+    const name = combatant.character?.name || combatant.name || 'Combatant';
+
+    // Increment total rounds active
+    rageEffect.roundsActive = (rageEffect.roundsActive || 0) + 1;
+
+    // Hard cap: 10 rounds maximum (10 minutes)
+    if (rageEffect.roundsActive > rageEffect.maxDuration) {
+      combatant.statusEffects = combatant.statusEffects.filter(e => e.name !== 'Rage');
+      if (this.logger) {
+        this.logger(`${name}'s Rage ends — 10-round limit reached.`, 'info');
+      }
+      logger.combat.info('Rage ended: max duration reached', { name });
+      return;
+    }
+
+    // First turn of Rage: extendedThisTurn starts false but we give it the turn to prove itself
+    if (rageEffect.roundsActive === 1) {
+      // First real turn — Rage just started, no extension check yet
+      rageEffect.extendedThisTurn = false;
+      return;
+    }
+
+    // Subsequent turns: check if extension criteria were met on the previous turn
+    if (rageEffect.extendedThisTurn) {
+      // Extension met — reset flag and let Rage continue
+      rageEffect.extendedThisTurn = false;
+      logger.combat.debug('Rage extended', { name, roundsActive: rageEffect.roundsActive });
+    } else {
+      // No qualifying action last turn — Rage ends
+      combatant.statusEffects = combatant.statusEffects.filter(e => e.name !== 'Rage');
+      if (this.logger) {
+        this.logger(`${name}'s Rage fades — no qualifying action last turn.`, 'info');
+      }
+      logger.combat.info('Rage ended: no extension', { name });
+    }
+  }
+
+  /**
+   * Determine the roll type (advantage/disadvantage/normal) for an ability check or saving throw,
+   * accounting for active status effects like Rage (STR advantage).
+   *
+   * @param {object} combatant - The combatant making the check
+   * @param {string} ability - The ability being checked ('strength', 'dexterity', etc.)
+   * @returns {'advantage'|'disadvantage'|'normal'}
+   */
+  getRollTypeForAbilityCheck(combatant, ability) {
+    let hasAdvantage = false;
+    let hasDisadvantage = false;
+
+    // Rage: Advantage on STR checks and STR saving throws
+    const rage = combatant.statusEffects?.find(
+      e => e.name === 'Rage' && e.effects?.strengthAdvantage
+    );
+    if (rage && ability === 'strength') {
+      hasAdvantage = true;
+    }
+
+    // Advantage and disadvantage cancel each other out (PHB rule)
+    if (hasAdvantage && hasDisadvantage) return 'normal';
+    if (hasAdvantage) return 'advantage';
+    if (hasDisadvantage) return 'disadvantage';
+    return 'normal';
   }
 
   /**

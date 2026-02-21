@@ -336,7 +336,17 @@ export class Character {
           'Strength Saves',
           'Constitution Saves',
         ],
-        abilities_list: [{ name: 'Rage', uses: 2, maxUses: 2, actionType: 'bonusAction' }],
+        abilities_list: [
+          {
+            name: 'Rage',
+            uses: 2,
+            maxUses: 2,
+            actionType: 'bonusAction',
+            restType: 'short', // PHB'24: recover 1 use on Short Rest, all on Long Rest
+            description:
+              'Enter a Rage as a Bonus Action. Resistance to BPS damage, bonus STR damage, Advantage on STR checks/saves. Lasts until end of next turn; extend by attacking, forcing a save, or Bonus Action.',
+          },
+        ],
       },
       bard: {
         hitDie: 'd8',

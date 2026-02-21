@@ -42,6 +42,7 @@ import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import CombatCanvas from '../canvas/CombatCanvas';
 import ActionPanel from '../ui/combat/ActionPanel';
 import TurnOrderDisplay from '../ui/combat/TurnOrderDisplay';
+import AbilityMenu from '../ui/combat/AbilityMenu';
 import MenuSidebar from '../ui/MenuSidebar';
 import MenuPanel from '../ui/MenuPanel';
 import { SaveManager } from '../../utils/SaveManager';
@@ -64,6 +65,9 @@ function OverworldScene() {
     width: window.innerWidth,
     height: window.innerHeight,
   });
+
+  // Combat ability menu
+  const [showAbilityMenu, setShowAbilityMenu] = useState(false);
 
   // AI Inspector toggle (via URL param)
   const [showAIInspector] = useState(() => {
@@ -1885,20 +1889,47 @@ function OverworldScene() {
             /* Combat Actions Panel */
             <>
               {getCurrentCombatant() && getCurrentCombatant().isAlly ? (
-                <ActionPanel
-                  combatant={getCurrentCombatant()}
-                  selectedAction={combatUIState.selectedAction}
-                  movementRemaining={state.combatState.movementRemaining}
-                  attacksUsedThisTurn={combatUIState.attacksUsedThisTurn}
-                  onActionSelect={action =>
-                    setCombatUIState(prev => ({ ...prev, selectedAction: action }))
-                  }
-                  onAbilityClick={() => addMessage('Abilities not yet implemented', 'info')}
-                  onSpellClick={() => addMessage('Spells not yet implemented', 'info')}
-                  onDodgeClick={() => addMessage('Dodge not yet implemented', 'info')}
-                  onDashClick={() => addMessage('Dash not yet implemented', 'info')}
-                  onEndTurn={handleCombatEndTurn}
-                />
+                <>
+                  <ActionPanel
+                    combatant={getCurrentCombatant()}
+                    selectedAction={combatUIState.selectedAction}
+                    movementRemaining={state.combatState.movementRemaining}
+                    attacksUsedThisTurn={combatUIState.attacksUsedThisTurn}
+                    turnState={state.combatState.turnState}
+                    onActionSelect={action =>
+                      setCombatUIState(prev => ({ ...prev, selectedAction: action }))
+                    }
+                    onAbilityClick={() => setShowAbilityMenu(true)}
+                    onSpellClick={() => addMessage('Spells not yet implemented', 'info')}
+                    onDodgeClick={() => addMessage('Dodge not yet implemented', 'info')}
+                    onDashClick={() => addMessage('Dash not yet implemented', 'info')}
+                    onEndTurn={handleCombatEndTurn}
+                  />
+
+                  {/* Ability Menu modal — rendered as a portal-like overlay */}
+                  {showAbilityMenu && getCurrentCombatant()?.character && (
+                    <AbilityMenu
+                      character={getCurrentCombatant().character}
+                      combatant={getCurrentCombatant()}
+                      onSelect={ability => {
+                        const currentCombatant = getCurrentCombatant();
+                        const character = currentCombatant?.character;
+                        setShowAbilityMenu(false);
+                        dispatch({
+                          type: actions.PROCESS_COMBAT_ACTION,
+                          payload: {
+                            actionType: 'ability',
+                            attacker: currentCombatant,
+                            target: currentCombatant,
+                            ability,
+                          },
+                        });
+                        addMessage(`${character?.name} uses ${ability.name}!`, 'action');
+                      }}
+                      onClose={() => setShowAbilityMenu(false)}
+                    />
+                  )}
+                </>
               ) : getCurrentCombatant() && getCurrentCombatant().isEnemy ? (
                 <div
                   style={{

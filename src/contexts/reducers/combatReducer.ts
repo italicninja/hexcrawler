@@ -629,6 +629,32 @@ export function combatReducer(
         newRound,
       });
 
+      // --- Rage tick (PHB'24): processed at the START of the raging combatant's turn ---
+      // tickRage() checks whether the extension criteria were met last turn and ends Rage if not.
+      // We build an updated turnOrder that reflects any Rage expiry before the new turn begins.
+      const combat = state.combatState.combat;
+      let updatedTurnOrder = state.combatState.turnOrder;
+
+      if (
+        combat &&
+        nextCombatant?.isAlly &&
+        nextCombatant.statusEffects?.some(e => e.name === 'Rage')
+      ) {
+        // Mutate a copy of the combatant's statusEffects via tickRage, then spread to a new ref
+        // so React detects the change. tickRage operates on the live combatant object reference.
+        const nextCombatantInCombat = combat.turnOrder.find(c => c.id === nextCombatant.id);
+        if (nextCombatantInCombat) {
+          combat.tickRage(nextCombatantInCombat);
+          // Sync the updated statusEffects back into the immutable Redux turnOrder
+          updatedTurnOrder = state.combatState.turnOrder.map(c => {
+            if (c.id === nextCombatant.id) {
+              return { ...c, statusEffects: [...(nextCombatantInCombat.statusEffects || [])] };
+            }
+            return c;
+          });
+        }
+      }
+
       return {
         ...state,
         combatState: {
@@ -637,6 +663,7 @@ export function combatReducer(
           round: newRound,
           movementRemaining: moveDistance * 5, // Convert hexes to feet
           waitingForPlayerAction: waitingForPlayer,
+          turnOrder: updatedTurnOrder,
           // Reset turn state for new turn
           turnState: {
             actionUsed: false,

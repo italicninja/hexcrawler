@@ -28,6 +28,9 @@ export class AbilityEffects {
       case 'Rage':
         return this.rage(combatant, diceRoller);
 
+      case 'Extend Rage':
+        return this.extendRage(combatant);
+
       case 'Second Wind':
         return this.secondWind(combatant, diceRoller);
 
@@ -67,33 +70,101 @@ export class AbilityEffects {
   }
 
   /**
-   * Barbarian - Rage
-   * Duration: 10 rounds
-   * Effect: Damage resistance to physical (half damage), +2 damage on melee attacks
+   * Barbarian - Rage (PHB'24 p51)
+   * Entry: Bonus action; cannot be wearing Heavy armor.
+   * Effects while active:
+   *   - Resistance to Bludgeoning, Piercing, and Slashing damage
+   *   - Bonus damage on STR attacks (melee weapon or unarmed strike): +2 / +3 / +4 by level
+   *   - Advantage on Strength checks and Strength saving throws
+   *   - Cannot maintain Concentration or cast spells
+   * Duration: Until end of next turn; extends each turn by:
+   *   - Making an attack roll against an enemy
+   *   - Forcing an enemy to make a saving throw
+   *   - Taking a Bonus Action to extend
+   * Maximum 10 minutes (10 rounds in combat).
+   * Uses: recover 1 on Short Rest, all on Long Rest.
    */
   static rage(combatant, diceRoller) {
+    // combatant here is the turnOrder entry: { id, character, enemy, statusEffects, hp, ... }
+    const character = combatant.character;
+
+    // PHB'24: Cannot enter Rage while wearing Heavy armor
+    const chestArmor = character?.equipment?.chest;
+    if (chestArmor && chestArmor.armorType === 'heavy') {
+      return {
+        success: false,
+        message: `${combatant.name} cannot enter Rage while wearing heavy armor.`,
+      };
+    }
+
+    // Rage damage bonus scales with Barbarian level (PHB'24 Barbarian table)
+    const level = character?.level || 1;
+    const rageDamageBonus = level >= 16 ? 4 : level >= 9 ? 3 : 2;
+
     // Initialize statusEffects array if needed
     if (!combatant.statusEffects) {
       combatant.statusEffects = [];
     }
 
-    // Apply rage status effect
+    // Remove any existing Rage (re-entering refreshes it)
+    combatant.statusEffects = combatant.statusEffects.filter(e => e.name !== 'Rage');
+
     combatant.statusEffects.push({
       name: 'Rage',
-      duration: 10,
+      // Duration tracks whether extension criteria were met this turn.
+      // tickRage() in Combat.ts processes the real turn-by-turn expiry.
+      duration: 1, // 1 = active; tickRage decrements / removes on turn start
+      maxDuration: 10, // Hard cap: 10 rounds (10-minute maximum)
+      roundsActive: 0, // How many turns have elapsed while raging
+      extendedThisTurn: false, // Set to true when an attack or qualifying action occurs
       effects: {
-        physicalResistance: true, // Half damage from physical
-        meleeDamageBonus: 2,
+        physicalResistance: true, // Resistance to BPS damage (halve incoming)
+        rageDamageBonus, // +2/+3/+4 added to STR-based melee/unarmed damage
+        strengthAdvantage: true, // Advantage on STR checks and STR saving throws
       },
     });
 
     return {
       success: true,
-      message: `${combatant.name} enters a rage! +2 melee damage, resistance to physical damage for 10 rounds.`,
+      message: `${combatant.name} enters a Rage! Resistance to physical damage, +${rageDamageBonus} damage on STR attacks, Advantage on Strength.`,
       effect: {
         type: 'buff',
         name: 'Rage',
-        duration: 10,
+        duration: 1,
+      },
+    };
+  }
+
+  /**
+   * Barbarian - Extend Rage (PHB'24 p51)
+   * Bonus action used on the rager's turn to extend Rage for another round
+   * when no attack or forced save was made.
+   */
+  static extendRage(combatant) {
+    if (!combatant.statusEffects) {
+      return { success: false, message: `${combatant.name} is not currently raging.` };
+    }
+
+    const rageEffect = combatant.statusEffects.find(e => e.name === 'Rage');
+    if (!rageEffect) {
+      return { success: false, message: `${combatant.name} is not currently raging.` };
+    }
+
+    if (rageEffect.roundsActive >= rageEffect.maxDuration) {
+      return {
+        success: false,
+        message: `${combatant.name}'s Rage has reached the 10-round limit.`,
+      };
+    }
+
+    rageEffect.extendedThisTurn = true;
+
+    return {
+      success: true,
+      message: `${combatant.name} channels their fury, extending the Rage.`,
+      effect: {
+        type: 'buff',
+        name: 'ExtendRage',
       },
     };
   }

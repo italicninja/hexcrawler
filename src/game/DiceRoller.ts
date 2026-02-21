@@ -129,7 +129,13 @@ export class DiceRoller {
     return this.skillCheck(character, ability, proficient, dc, rollType, saveName);
   }
 
-  attackRoll(character, attackType = 'melee', targetAC = 10, attackName = null) {
+  attackRoll(
+    character,
+    attackType = 'melee',
+    targetAC = 10,
+    attackName = null,
+    rollType = 'normal'
+  ) {
     if (!character) {
       throw new Error('DiceRoller.attackRoll: character is required');
     }
@@ -140,7 +146,18 @@ export class DiceRoller {
     const modifier = this.getAbilityModifier(abilityScore);
     const proficiencyBonus = character.proficiencyBonus || 2;
 
-    const roll = this.rollD20();
+    let roll;
+    let rollText = '';
+    if (rollType === 'advantage') {
+      roll = this.rollWithAdvantage();
+      rollText = ' (advantage)';
+    } else if (rollType === 'disadvantage') {
+      roll = this.rollWithDisadvantage();
+      rollText = ' (disadvantage)';
+    } else {
+      roll = this.rollD20();
+    }
+
     const total = roll + modifier + proficiencyBonus;
 
     const hit = roll === 20 || (roll !== 1 && total >= targetAC);
@@ -150,17 +167,17 @@ export class DiceRoller {
       const displayName = attackName || (attackType === 'melee' ? 'Melee Attack' : 'Ranged Attack');
       if (crit) {
         this.log(
-          `${displayName} CRITICAL HIT! ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}`,
+          `${displayName}${rollText} CRITICAL HIT! ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}`,
           'success'
         );
       } else if (hit) {
         this.log(
-          `${displayName} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Hit`,
+          `${displayName}${rollText} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Hit`,
           'success'
         );
       } else {
         this.log(
-          `${displayName} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Miss`,
+          `${displayName}${rollText} ${roll}+${modifier + proficiencyBonus}=${total} vs AC ${targetAC}: Miss`,
           'warning'
         );
       }
@@ -173,6 +190,7 @@ export class DiceRoller {
       hit,
       crit,
       targetAC,
+      rollType,
     };
   }
 

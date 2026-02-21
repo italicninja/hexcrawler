@@ -3,14 +3,40 @@ import { useEffect } from 'react';
 
 /**
  * AbilityMenu - Modal overlay for selecting class ability
- * Shows available abilities with uses remaining, descriptions, and effects
+ * Shows available abilities with uses remaining, descriptions, and effects.
+ *
+ * Props:
+ *   character  - Character instance (abilities_list, class, level, etc.)
+ *   combatant  - turnOrder entry (statusEffects, id) — used to surface dynamic
+ *                combat abilities like "Extend Rage"
+ *   onSelect   - Called with the selected ability object
+ *   onClose    - Called when the menu is dismissed
  */
-function AbilityMenu({ character, onSelect, onClose }) {
+function AbilityMenu({ character, combatant, onSelect, onClose }) {
   // Filter abilities with uses remaining (or unlimited uses)
-  const availableAbilities =
+  const baseAbilities =
     character?.abilities_list?.filter(
       ability => !ability.maxUses || ability.maxUses === -1 || ability.uses > 0
     ) || [];
+
+  // Dynamically surface "Extend Rage" as a bonus action when the combatant is
+  // currently raging and the bonus action hasn't been used yet.
+  const rageEffect = combatant?.statusEffects?.find(e => e.name === 'Rage');
+  const extendRageOption =
+    rageEffect && rageEffect.roundsActive > 0
+      ? {
+          name: 'Extend Rage',
+          uses: -1,
+          maxUses: -1,
+          actionType: 'bonusAction',
+          description:
+            'Spend your Bonus Action to keep your Rage burning for another round when you have not made an attack or forced a saving throw.',
+        }
+      : null;
+
+  const availableAbilities = extendRageOption
+    ? [...baseAbilities, extendRageOption]
+    : baseAbilities;
 
   // Handle ESC key to close
   useEffect(() => {
@@ -70,7 +96,9 @@ function AbilityMenu({ character, onSelect, onClose }) {
    */
   const getAbilityDescription = ability => {
     const descriptions = {
-      Rage: 'Enter a rage, gaining advantage on Strength checks and saving throws, bonus damage on melee attacks, and resistance to physical damage.',
+      Rage: 'Enter a Rage (Bonus Action). Resistance to Bludgeoning/Piercing/Slashing damage, +2 bonus damage on Strength attacks, and Advantage on Strength checks and saving throws. Lasts until end of next turn — extend by attacking, forcing a save, or using Bonus Action.',
+      'Extend Rage':
+        'Spend your Bonus Action to extend your Rage for another round when you have not made an attack or forced a saving throw this turn.',
       'Bardic Inspiration':
         'Grant an ally a d6 inspiration die they can add to an ability check, attack roll, or saving throw.',
       'Channel Divinity': 'Harness divine energy to produce a magical effect based on your domain.',
