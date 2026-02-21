@@ -5,7 +5,8 @@ import ActionEconomyDisplay from './ActionEconomyDisplay';
 /**
  * ActionPanel - Display available actions for current combatant
  * Dynamically generates action buttons based on combatant class and state
- * Actions: Move, Attack, Dodge, Dash, Disengage, Help, Hide, Search, Abilities, Cast Spell, End Turn
+ * Actions: Move, Attack, Dodge, Dash, Disengage, Hide, Abilities, Cast Spell, End Turn
+ * Bonus Actions: Rage (barbarian), class bonus actions
  */
 function ActionPanel({
   combatant,
@@ -15,13 +16,12 @@ function ActionPanel({
   turnState,
   onActionSelect,
   onAbilityClick,
+  onBonusActionClick,
   onSpellClick,
   onDodgeClick,
   onDashClick,
   onDisengageClick,
-  onHelpClick,
   onHideClick,
-  onSearchClick,
   onEndTurn,
 }) {
   if (!combatant) {
@@ -32,52 +32,77 @@ function ActionPanel({
     );
   }
 
+  // Character instance lives on combatant.character for allies
+  const character = combatant.character;
+
   // Check if combatant has Extra Attack feature
+  const characterClass = (character?.class || combatant.characterClass || '').toLowerCase();
+  const characterLevel = character?.level || combatant.level || 1;
   const hasExtraAttack =
-    combatant.level >= 5 &&
-    ['fighter', 'barbarian', 'paladin', 'ranger', 'monk'].includes(combatant.class?.toLowerCase());
+    characterLevel >= 5 &&
+    ['fighter', 'barbarian', 'paladin', 'ranger', 'monk'].includes(characterClass);
 
   const maxAttacks = hasExtraAttack ? 2 : 1;
   const canAttackAgain = attacksUsedThisTurn < maxAttacks;
 
-  // Check for abilities with remaining uses
-  const availableAbilities =
-    combatant.abilities_list?.filter(
-      ability => !ability.maxUses || ability.maxUses === -1 || ability.uses > 0
-    ) || [];
+  // Pull abilities from the Character instance, falling back to flat combatant prop
+  const abilitiesList = character?.abilities_list || combatant.abilities_list || [];
+
+  // Abilities usable as an Action (non-bonus-action, with uses remaining)
+  const availableAbilities = abilitiesList.filter(
+    ability =>
+      ability.actionType !== 'bonusAction' &&
+      (!ability.maxUses || ability.maxUses === -1 || ability.uses > 0)
+  );
+
+  // Bonus actions available this turn (Rage, Cunning Action, etc.)
+  const availableBonusActions = character?.getAvailableBonusActions
+    ? character.getAvailableBonusActions()
+    : abilitiesList.filter(
+        ability =>
+          ability.actionType === 'bonusAction' &&
+          (!ability.maxUses || ability.maxUses === -1 || ability.uses > 0)
+      );
 
   // Check for spell slots (simplified - just check if they have spells)
-  const hasSpells = combatant.spells && combatant.spells.length > 0;
+  const hasSpells = (character?.spells || combatant.spells || []).length > 0;
 
   const actionUsed = turnState?.actionUsed || false;
+  const bonusActionUsed = turnState?.bonusActionUsed || false;
 
   /**
-   * Render an action button
+   * Render an action button — full-width horizontal row, no icon
    */
-  const ActionButton = ({ action, label, icon, disabled, color, onClick }) => {
+  const ActionButton = ({ action, label, disabled, color, onClick }) => {
     const isSelected = selectedAction === action;
     const baseColor = color || 'var(--primary-color)';
 
     return (
       <button
-        className={`
-          rounded-lg p-3 font-semibold transition-all duration-200
-          flex flex-col items-center justify-center gap-2
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 cursor-pointer'}
-          ${isSelected ? 'ring-2' : ''}
-        `}
-        style={{
-          backgroundColor: isSelected ? baseColor : 'var(--bg-lighter)',
-          color: isSelected ? 'white' : 'var(--text-color)',
-          border: `2px solid ${disabled ? 'var(--border-color)' : baseColor}`,
-          ringColor: baseColor,
-        }}
         onClick={onClick}
         disabled={disabled}
         aria-label={label}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          padding: '6px 12px',
+          borderRadius: '4px',
+          fontSize: '0.875rem',
+          fontWeight: '600',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.4 : 1,
+          backgroundColor: isSelected ? baseColor : 'var(--bg-lighter)',
+          color: isSelected ? 'white' : 'var(--text-color)',
+          border: `1px solid ${disabled ? 'var(--border-color)' : baseColor}`,
+          transition: 'filter 0.15s',
+        }}
       >
-        <div className="text-2xl">{icon}</div>
-        <div className="text-sm">{label}</div>
+        {label}
+        {isSelected && <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>selected</span>}
       </button>
     );
   };
@@ -85,7 +110,6 @@ function ActionPanel({
   ActionButton.propTypes = {
     action: PropTypes.string.isRequired,
     label: PropTypes.string.isRequired,
-    icon: PropTypes.string.isRequired,
     disabled: PropTypes.bool,
     color: PropTypes.string,
     onClick: PropTypes.func.isRequired,
@@ -102,6 +126,30 @@ function ActionPanel({
       {/* Action Economy Display */}
       {turnState && <ActionEconomyDisplay turnState={turnState} character={combatant.character} />}
 
+      {/* Rage banner — shown whenever the combatant has an active Rage status effect */}
+      {(() => {
+        const rageEffect = combatant.statusEffects?.find(e => e.name === 'Rage');
+        if (!rageEffect) return null;
+        const bonus = rageEffect.effects?.rageDamageBonus ?? 2;
+        return (
+          <div
+            style={{
+              margin: '8px 0 4px',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              background: 'linear-gradient(135deg, #7f1d1d, #c0392b)',
+              border: '1px solid #e74c3c',
+              color: 'white',
+            }}
+          >
+            <div style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '3px' }}>RAGING</div>
+            <div style={{ fontSize: '0.78rem', opacity: 0.9 }}>
+              +{bonus} damage · BPS resistance · STR advantage
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Header */}
       <h3 className="font-bold text-lg mb-1 mt-3" style={{ color: 'var(--text-color)' }}>
         Actions
@@ -110,134 +158,114 @@ function ActionPanel({
         {combatant.name}
       </div>
 
-      {/* Movement Info */}
-      {movementRemaining !== undefined && movementRemaining !== null && (
-        <div
-          className="mb-4 p-2 rounded"
-          style={{
-            backgroundColor: 'var(--bg-lighter)',
-            border: '1px solid var(--border-color)',
-          }}
-        >
-          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Movement Remaining
-          </div>
-          <div className="text-sm font-bold" style={{ color: 'var(--text-color)' }}>
-            {movementRemaining} ft
-          </div>
-        </div>
-      )}
-
-      {/* Action Grid - 3 columns */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        {/* Move */}
+      {/* Actions — vertical stack */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
         <ActionButton
           action="move"
-          label="Move"
-          icon="🚶"
+          label={`Move${movementRemaining !== undefined ? ` (${movementRemaining} ft)` : ''}`}
           disabled={movementRemaining <= 0}
           color="var(--primary-color)"
           onClick={() => onActionSelect('move')}
         />
-
-        {/* Attack */}
         <ActionButton
           action="attack"
           label={
             attacksUsedThisTurn > 0 ? `Attack (${attacksUsedThisTurn}/${maxAttacks})` : 'Attack'
           }
-          icon="⚔️"
           disabled={!canAttackAgain}
           color="#e74c3c"
           onClick={() => onActionSelect('attack')}
         />
-
-        {/* Dodge */}
         <ActionButton
           action="dodge"
           label="Dodge"
-          icon="🛡️"
           disabled={actionUsed}
           color="#3498db"
           onClick={onDodgeClick}
         />
-
-        {/* Dash */}
         <ActionButton
           action="dash"
           label="Dash"
-          icon="💨"
           disabled={actionUsed}
           color="#2ecc71"
           onClick={onDashClick}
         />
-
-        {/* Disengage */}
         <ActionButton
           action="disengage"
           label="Disengage"
-          icon="🏃"
           disabled={actionUsed}
           color="#f39c12"
           onClick={onDisengageClick}
         />
-
-        {/* Help */}
-        <ActionButton
-          action="help"
-          label="Help"
-          icon="🤝"
-          disabled={actionUsed}
-          color="#3498db"
-          onClick={onHelpClick}
-        />
-
-        {/* Hide */}
         <ActionButton
           action="hide"
           label="Hide"
-          icon="🥷"
           disabled={actionUsed}
           color="#9b59b6"
           onClick={onHideClick}
         />
-
-        {/* Search */}
-        <ActionButton
-          action="search"
-          label="Search"
-          icon="🔍"
-          disabled={actionUsed}
-          color="#95a5a6"
-          onClick={onSearchClick}
-        />
-
-        {/* Abilities */}
         {availableAbilities.length > 0 && (
           <ActionButton
             action="ability"
             label={`Abilities (${availableAbilities.length})`}
-            icon="✨"
+            disabled={actionUsed}
             color="#9b59b6"
             onClick={onAbilityClick}
           />
         )}
-
-        {/* Cast Spell */}
         {hasSpells && (
           <ActionButton
             action="spell"
             label="Cast Spell"
-            icon="🔮"
+            disabled={actionUsed}
             color="#f39c12"
             onClick={onSpellClick}
           />
         )}
       </div>
 
-      {/* End Turn Button */}
+      {/* Bonus Actions — vertical stack, deduplicated, charges on label */}
+      {availableBonusActions.length > 0 && (
+        <>
+          <div
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: '600',
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginTop: '8px',
+              marginBottom: '4px',
+            }}
+          >
+            Bonus Actions
+          </div>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}
+          >
+            {Array.from(new Map(availableBonusActions.map(a => [a.name, a])).values()).map(
+              ability => {
+                const hasCharges = ability.maxUses !== undefined && ability.maxUses !== -1;
+                const chargeLabel = hasCharges ? ` (${ability.uses}/${ability.maxUses})` : '';
+                return (
+                  <ActionButton
+                    key={ability.name}
+                    action={`bonus-${ability.name}`}
+                    label={`${ability.name}${chargeLabel}`}
+                    disabled={bonusActionUsed}
+                    color="#c0392b"
+                    onClick={() => onBonusActionClick(ability)}
+                  />
+                );
+              }
+            )}
+          </div>
+        </>
+      )}
+
+      {/* End Turn */}
       <button
-        className="w-full py-3 rounded-lg font-bold text-lg transition-all duration-200 hover:scale-105"
+        className="w-full py-2 rounded font-bold text-sm transition-all duration-150 hover:brightness-110 mt-1"
         style={{
           backgroundColor: 'var(--accent-color)',
           color: 'var(--bg-color)',
@@ -247,33 +275,6 @@ function ActionPanel({
       >
         End Turn
       </button>
-
-      {/* Ability Uses Display */}
-      {availableAbilities.length > 0 && (
-        <div
-          className="mt-4 p-3 rounded"
-          style={{
-            backgroundColor: 'var(--bg-lighter)',
-            border: '1px solid var(--border-color)',
-          }}
-        >
-          <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-            Ability Uses
-          </div>
-          {availableAbilities.map((ability, idx) => (
-            <div
-              key={idx}
-              className="flex justify-between text-sm mb-1"
-              style={{ color: 'var(--text-light)' }}
-            >
-              <span>{ability.name}</span>
-              <span className="font-semibold">
-                {ability.maxUses === -1 ? '∞' : `${ability.uses}/${ability.maxUses}`}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

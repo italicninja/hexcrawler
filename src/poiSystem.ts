@@ -6,20 +6,7 @@
  * Includes visibility rules, event types, and CR scaling
  */
 
-/**
- * Calculate hex distance (cube coordinates)
- */
-function getHexDistance(col1, row1, col2, row2) {
-  const x1 = col1 - Math.floor(row1 / 2);
-  const z1 = row1;
-  const y1 = -x1 - z1;
-
-  const x2 = col2 - Math.floor(row2 / 2);
-  const z2 = row2;
-  const y2 = -x2 - z2;
-
-  return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2), Math.abs(z1 - z2));
-}
+import { getHexDistance } from './utils/hexMath';
 
 /**
  * POI Type Definitions

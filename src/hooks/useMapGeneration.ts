@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import { logRegionStats } from '../utils/regionDebug';
+import logger from '../utils/logger';
 
 /**
  * useMapGeneration Hook
@@ -24,7 +25,7 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
     if (state.mapData) return; // Map already exists, don't regenerate
     if (mapGeneratedRef.current) return; // Already generated in this session
 
-    console.log('Generating map with seed:', state.mapSeed);
+    logger.mapgen.info('Generating map with seed:', state.mapSeed);
     mapGeneratedRef.current = true;
 
     // Set seed for reproducible generation

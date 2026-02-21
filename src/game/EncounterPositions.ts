@@ -6,36 +6,7 @@
  */
 
 import logger from '../utils/logger';
-
-/**
- * Get hex neighbors using flat-top hex offset coordinates
- * @param {number} col - Column coordinate
- * @param {number} row - Row coordinate
- * @returns {Array} Array of {col, row} neighbors
- */
-function getHexNeighbors(col, row) {
-  // Hex grid neighbor offsets (flat-top orientation)
-  const offsets =
-    Math.abs(row % 2) === 0
-      ? [
-          [-1, -1],
-          [0, -1],
-          [-1, 0],
-          [1, 0],
-          [-1, 1],
-          [0, 1],
-        ] // Even row
-      : [
-          [0, -1],
-          [1, -1],
-          [-1, 0],
-          [1, 0],
-          [0, 1],
-          [1, 1],
-        ]; // Odd row
-
-  return offsets.map(([dc, dr]) => ({ col: col + dc, row: row + dr }));
-}
+import { getHexNeighbors } from '../utils/hexMath';
 
 export class EncounterPositions {
   /**

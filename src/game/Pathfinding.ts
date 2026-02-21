@@ -5,7 +5,7 @@
  * Handles movement calculation on hex-based battlefield
  */
 
-import { getHexDistance } from '../contexts/GameStateContext';
+import { getHexDistance } from '../utils/hexMath';
 
 /**
  * Get hex neighbors using flat-top hex offset coordinates

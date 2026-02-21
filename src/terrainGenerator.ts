@@ -7,6 +7,7 @@ import { POISystem, POI_TYPES } from './poiSystem';
 import { RegionGenerator } from './RegionGenerator';
 import { WeatherSystem } from './WeatherSystem';
 import logger from './utils/logger';
+import { getHexDistance } from './utils/hexMath';
 
 export class TerrainGenerator {
   constructor() {
@@ -245,12 +246,7 @@ export class TerrainGenerator {
     }
 
     const region = this.regions[regionId];
-    const distanceFromCenter = this.regionGenerator.hexDistance(
-      col,
-      row,
-      region.centerHex.col,
-      region.centerHex.row
-    );
+    const distanceFromCenter = getHexDistance(col, row, region.centerHex.col, region.centerHex.row);
     const edgeFactor = distanceFromCenter / region.radius;
 
     // Use noise for local elevation variation

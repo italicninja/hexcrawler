@@ -655,8 +655,7 @@ export class Character {
 
     switch (cls) {
       case 'barbarian':
-        this.equipment.mainHand = W('Handaxe', '1d6', 'slashing', { weight: 2 });
-        this.equipment.offHand = W('Handaxe', '1d6', 'slashing', { weight: 2, slot: 'offHand' });
+        this.equipment.mainHand = W('Greataxe', '1d12', 'slashing', { weight: 7, twoHanded: true });
         this.gold = 10;
         break;
 

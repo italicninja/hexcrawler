@@ -12,6 +12,7 @@
  * - FIND_WATER
  */
 
+import { Character } from '../../game/Character';
 import { advanceTime } from '../../game/TimeManager';
 import { TIME } from '../../constants/gameConstants';
 import type { GameState, Action } from '../../types/state';
@@ -27,11 +28,12 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
-      state.playerCharacter.inventory.push(item);
+      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      character.inventory.push(item);
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
+        playerCharacter: character,
       };
     }
 
@@ -40,15 +42,16 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
+      const character = Character.fromJSON(state.playerCharacter.toJSON());
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const index = state.playerCharacter.inventory.findIndex((i: any) => i.id === itemId);
+      const index = character.inventory.findIndex((i: any) => i.id === itemId);
       if (index >= 0) {
-        state.playerCharacter.inventory.splice(index, 1);
+        character.inventory.splice(index, 1);
       }
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
+        playerCharacter: character,
       };
     }
 
@@ -57,19 +60,21 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
+      const character = Character.fromJSON(state.playerCharacter.toJSON());
+
       // Remove from inventory
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const index = state.playerCharacter.inventory.findIndex((i: any) => i.id === item.id);
+      const index = character.inventory.findIndex((i: any) => i.id === item.id);
       if (index >= 0) {
-        state.playerCharacter.inventory.splice(index, 1);
+        character.inventory.splice(index, 1);
       }
 
       // Add to equipped
-      state.playerCharacter.equipped[item.slot] = item;
+      character.equipped[item.slot] = item;
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
+        playerCharacter: character,
       };
     }
 
@@ -78,15 +83,16 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
-      const item = state.playerCharacter.equipped[slot];
+      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      const item = character.equipped[slot];
       if (item) {
-        delete state.playerCharacter.equipped[slot];
-        state.playerCharacter.inventory.push(item);
+        delete character.equipped[slot];
+        character.inventory.push(item);
       }
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
+        playerCharacter: character,
       };
     }
 
@@ -95,11 +101,12 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
-      state.playerCharacter.rations = Math.max(0, state.playerCharacter.rations - amount);
+      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      character.rations = Math.max(0, character.rations - amount);
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
+        playerCharacter: character,
       };
     }
 
@@ -108,11 +115,12 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
-      state.playerCharacter.water = Math.max(0, state.playerCharacter.water - amount);
+      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      character.water = Math.max(0, character.water - amount);
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
+        playerCharacter: character,
       };
     }
 

@@ -19,7 +19,7 @@ import {
   generatePOIFlavor,
   generateCombatIntro,
 } from '../../utils/flavorTextGenerator';
-import { Combat } from '../../game/Combat';
+import { Combat, getXPForCR } from '../../game/Combat';
 import { Enemy } from '../../game/Enemy';
 import { Character } from '../../game/Character';
 import { Party } from '../../game/Party';
@@ -48,6 +48,7 @@ import MenuPanel from '../ui/MenuPanel';
 import { SaveManager } from '../../utils/SaveManager';
 import { AIEngine } from '../../game/ai/AIEngine';
 import AIInspector from '../debug/AIInspector';
+import DevTools from '../debug/DevTools';
 
 function OverworldScene() {
   const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } =
@@ -155,6 +156,8 @@ function OverworldScene() {
         label: 'Survival',
         icon: '🌲',
         description: 'Forage and hunt',
+        disabled: !!state.combatState?.active,
+        disabledReason: 'Cannot forage during combat',
       },
       {
         id: 'quests',
@@ -178,7 +181,7 @@ function OverworldScene() {
     ];
 
     return items;
-  }, [state.party?.npcs, state.activeQuests?.length]);
+  }, [state.party?.npcs, state.activeQuests?.length, state.combatState]);
 
   const handleMenuItemClick = item => {
     // If survival is clicked, trigger foraging directly instead of opening panel
@@ -545,73 +548,6 @@ function OverworldScene() {
     } else {
       addMessage(`No food found`, 'info');
     }
-  };
-
-  // DEV ONLY: Force combat for rapid testing
-  const handleForceCombat = async () => {
-    addMessage('[DEV] Starting test combat...', 'system');
-
-    // Get party members
-    const allies = state.party.getAllMembers().filter(m => m);
-
-    if (allies.length === 0) {
-      addMessage('[DEV] No party members found!', 'error');
-      return;
-    }
-
-    // Create test enemies (3 goblins CR 1)
-    const diceRoller = new DiceRoller();
-    const enemies = [
-      new Enemy('Goblin Warrior', 0.25, 'goblinoid'),
-      new Enemy('Goblin Archer', 0.25, 'goblinoid'),
-      new Enemy('Goblin Warrior', 0.25, 'goblinoid'),
-    ];
-
-    // Get terrain type from current hex
-    const currentHex = state.mapData.find(
-      h => h.col === state.playerPosition.col && h.row === state.playerPosition.row
-    );
-    const terrainType = currentHex?.terrain?.name || 'plains';
-
-    logger.combat.info('DEV Force Combat', {
-      allies: allies.map(a => a.name),
-      enemies: enemies.map(e => e.name),
-      terrainType,
-    });
-
-    // Pre-load AI for enemies before combat starts
-    logger.combat.info('Pre-loading AI for enemies');
-    const aiLoadPromises = enemies.map(async enemy => {
-      try {
-        enemy.aiConfig = await AIEngine.loadAI(enemy.family, enemy.variant);
-        logger.combat.info('AI loaded for enemy', {
-          name: enemy.name,
-          family: enemy.family,
-        });
-      } catch (error) {
-        logger.combat.error('Failed to load AI', {
-          name: enemy.name,
-          error: error.message,
-        });
-        enemy.aiConfig = AIEngine.getFallbackAI();
-      }
-    });
-
-    await Promise.all(aiLoadPromises);
-    logger.combat.info('All enemy AI loaded');
-
-    // Dispatch START_COMBAT
-    dispatch({
-      type: actions.START_COMBAT,
-      payload: {
-        allies,
-        enemies,
-        encounterName: 'Test Combat (DEV)',
-        encounterType: 'standard',
-        terrainType,
-        gameLogger: addMessage,
-      },
-    });
   };
 
   // Handle engaging in combat with a POI
@@ -1074,7 +1010,7 @@ function OverworldScene() {
     // Don't check on the very first round/turn (combat just started)
     if (combatStartRoundRef.current === null) {
       combatStartRoundRef.current = state.combatState.round;
-      console.log('[Combat] Combat started, skipping initial victory check');
+      logger.combat.debug('Combat started, skipping initial victory check');
       return;
     }
 
@@ -1084,7 +1020,7 @@ function OverworldScene() {
     const livingAllies = state.combatState.turnOrder.filter(c => c.isAlly && c.currentHP > 0);
     const livingEnemies = state.combatState.turnOrder.filter(c => c.isEnemy && c.currentHP > 0);
 
-    console.log('[Combat] Victory check:', {
+    logger.combat.debug('Victory check', {
       livingAllies: livingAllies.length,
       livingEnemies: livingEnemies.length,
       allAllies: state.combatState.turnOrder
@@ -1097,17 +1033,52 @@ function OverworldScene() {
 
     if (livingEnemies.length === 0 && livingAllies.length > 0) {
       combatEndHandledRef.current = true;
+
+      // Calculate XP from all defeated enemies
+      const defeatedEnemies = state.combatState.turnOrder.filter(c => c.isEnemy && c.enemy);
+      const totalXP = defeatedEnemies.reduce((sum, c) => sum + getXPForCR(c.enemy.cr ?? 0), 0);
+      const livingAllyCount = livingAllies.length;
+      const xpPerCharacter = livingAllyCount > 0 ? Math.floor(totalXP / livingAllyCount) : 0;
+
       addMessage('Victory! All enemies defeated!', 'success');
-      setTimeout(() => {
+
+      if (defeatedEnemies.length > 0) {
+        defeatedEnemies.forEach(c => {
+          const xp = getXPForCR(c.enemy.cr ?? 0);
+          addMessage(`  ${c.name} defeated — ${xp} XP (CR ${c.enemy.cr ?? 0})`, 'info');
+        });
+        addMessage(
+          `Total XP: ${totalXP} / ${livingAllyCount} ally = ${xpPerCharacter} XP each`,
+          'success'
+        );
+      }
+
+      aiTimeoutRefs.current.victory = setTimeout(() => {
+        if (xpPerCharacter > 0) {
+          dispatch({ type: actions.AWARD_XP, payload: { xp: xpPerCharacter } });
+        }
         dispatch({ type: actions.END_COMBAT, payload: { victory: true } });
+        aiTimeoutRefs.current.victory = null;
       }, 2000);
     } else if (livingAllies.length === 0) {
       combatEndHandledRef.current = true;
       addMessage('Defeat! All party members have fallen...', 'error');
-      setTimeout(() => {
+      aiTimeoutRefs.current.defeat = setTimeout(() => {
         dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'gameover' });
+        aiTimeoutRefs.current.defeat = null;
       }, 2000);
     }
+
+    return () => {
+      if (aiTimeoutRefs.current.victory) {
+        clearTimeout(aiTimeoutRefs.current.victory);
+        aiTimeoutRefs.current.victory = null;
+      }
+      if (aiTimeoutRefs.current.defeat) {
+        clearTimeout(aiTimeoutRefs.current.defeat);
+        aiTimeoutRefs.current.defeat = null;
+      }
+    };
   }, [
     state.combatState?.currentTurnIndex,
     state.combatState?.round,
@@ -1208,222 +1179,209 @@ function OverworldScene() {
     combatStateRef.current = state.combatState;
   });
 
-  // Process AI turn
+  // ─── AI Turn System ──────────────────────────────────────────────────────────
+  //
+  // Design principles:
+  //  1. A "turn token" (round:index string) is minted when an enemy's turn begins.
+  //     Every timer callback checks it before doing anything — if the token no
+  //     longer matches the live combat state the callback is a no-op (stale turn).
+  //  2. Timers are NEVER cancelled by the useEffect cleanup.  Cancellation was the
+  //     root cause of stuck turns: React's strict-mode double-invoke and mid-turn
+  //     state updates (HP sync after attack) can retrigger the effect and wipe
+  //     in-flight timers before they fire.
+  //  3. The 5-second hard-fallback is cancelled on unmount only (via the ref the
+  //     onAnimationComplete callback also holds), so it doesn't linger post-combat.
+
+  // Tracks "round:index" of the turn currently being processed.
+  const lastProcessedTurnRef = useRef<string | null>(null);
+  // Holds the fallback timeout ID so onAnimationComplete can cancel it early.
+  const aiTimeoutRefs = useRef<{
+    turnTimeout: ReturnType<typeof setTimeout> | null;
+    victory: ReturnType<typeof setTimeout> | null;
+    defeat: ReturnType<typeof setTimeout> | null;
+  }>({
+    turnTimeout: null,
+    victory: null,
+    defeat: null,
+  });
+  // Set to true when an AI move animation is running; advance fires from onAnimationComplete.
+  const pendingAIAdvanceRef = useRef(false);
+
   const processAITurn = useCallback(
-    combatant => {
+    (combatant, turnToken: string) => {
       if (!combatant || !combatant.enemy) {
         logger.combat.error('Invalid combatant for AI turn', { combatant });
         return;
       }
 
-      // Read battlefield from the ref so we always have the current value
-      // without requiring state.combatState as a useCallback dependency.
       const currentCombatState = combatStateRef.current;
       if (!currentCombatState || !currentCombatState.battlefield) {
-        logger.combat.error('Combat state invalid');
+        logger.combat.error('Combat state invalid at AI turn start');
         return;
       }
 
       const enemy = combatant.enemy;
       addMessage(`${enemy.name} is thinking...`, 'encounter');
+      pendingAIAdvanceRef.current = false;
 
-      logger.combat.info('Processing AI turn', { name: enemy.name });
+      logger.combat.info('Processing AI turn', { name: enemy.name, turnToken });
 
-      // Timeout fallback: Force advance turn after 5 seconds
-      aiTimeoutRefs.current.turnTimeout = setTimeout(() => {
-        logger.combat.warn('AI turn timeout - forcing advance', {
-          combatant: enemy.name,
-        });
-        clearTimeout(aiTimeoutRefs.current.action);
-        clearTimeout(aiTimeoutRefs.current.advance);
-        addMessage(`${enemy.name}'s turn timed out`, 'warning');
-        dispatch({ type: actions.ADVANCE_COMBAT_TURN });
-      }, 5000);
+      // Helper: check whether this turn is still the active one before acting.
+      const isTokenStale = () => lastProcessedTurnRef.current !== turnToken;
 
+      // Decide action synchronously so the closure captures it for the 800ms timer.
+      let action: { type: string; [key: string]: unknown };
       try {
-        // Use AIEngine to decide action — read from ref for fresh state
-        const action = AIEngine.decideAction(
+        action = AIEngine.decideAction(
           combatant,
           currentCombatState.battlefield,
           currentCombatState.turnOrder,
           currentCombatState.movementRemaining
         );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.combat.error('AIEngine.decideAction threw', { combatant: enemy.name, error: msg });
+        addMessage(`${enemy.name} failed to act`, 'error');
+        dispatch({ type: actions.ADVANCE_COMBAT_TURN });
+        return;
+      }
 
-        logger.combat.debug('AI action decided', { action });
+      logger.combat.debug('AI action decided', { action, turnToken });
 
-        // Wait 800ms for player to see AI thinking
-        aiTimeoutRefs.current.action = setTimeout(() => {
-          // Read current state from ref — avoids stale closure
-          if (!combatStateRef.current) {
-            logger.combat.warn('Combat ended during AI turn');
-            clearTimeout(aiTimeoutRefs.current.turnTimeout);
-            return;
-          }
+      // 5-second hard fallback — fires if the normal path never advances the turn.
+      if (aiTimeoutRefs.current.turnTimeout) clearTimeout(aiTimeoutRefs.current.turnTimeout);
+      aiTimeoutRefs.current.turnTimeout = setTimeout(() => {
+        if (isTokenStale()) return; // already advanced
+        logger.combat.warn('AI turn timeout – forcing advance', { combatant: enemy.name });
+        addMessage(`${enemy.name}'s turn timed out`, 'warning');
+        pendingAIAdvanceRef.current = false;
+        dispatch({ type: actions.ADVANCE_COMBAT_TURN });
+      }, 5000);
 
+      // 800ms delay so the player can read the "thinking…" message.
+      setTimeout(() => {
+        if (isTokenStale()) {
+          logger.combat.debug('AI action timer stale, skipping', { turnToken });
+          return;
+        }
+        if (!combatStateRef.current) {
+          logger.combat.warn('Combat ended during AI turn');
+          clearTimeout(aiTimeoutRefs.current.turnTimeout);
+          return;
+        }
+
+        try {
           if (action.type === 'move') {
-            addMessage(
-              `${enemy.name} moves to (${action.destination.col}, ${action.destination.row})`,
-              'encounter'
-            );
-
-            if (actions.PROCESS_COMBAT_MOVEMENT) {
-              // Mark that we need to advance the turn after the movement animation completes.
-              // The onAnimationComplete callback (below) will fire ADVANCE_COMBAT_TURN once
-              // the canvas finishes animating the combatant hex-by-hex.
-              pendingAIAdvanceRef.current = true;
-
-              dispatch({
-                type: actions.PROCESS_COMBAT_MOVEMENT,
-                payload: {
-                  path: action.path,
-                  cost: action.moveCost * 5, // Convert hexes to feet
-                },
-              });
-
-              // Skip the normal 500ms advance timer for move actions – animation drives it.
-              // Clear the fallback turnTimeout: onAnimationComplete handles clean advance.
-              // (The overall 5s safety timeout in aiTimeoutRefs.turnTimeout still guards against hangs.)
-            }
+            const dest = action.destination as { col: number; row: number };
+            addMessage(`${enemy.name} moves to (${dest.col}, ${dest.row})`, 'encounter');
+            pendingAIAdvanceRef.current = true;
+            dispatch({
+              type: actions.PROCESS_COMBAT_MOVEMENT,
+              payload: {
+                path: action.path,
+                cost: (action.moveCost as number) * 5,
+              },
+            });
+            // Turn advance driven by onAnimationComplete — no advance timer here.
           } else if (action.type === 'attack') {
-            const targetName = action.target.character?.name || action.target.enemy?.name;
+            const tgt = action.target as { character?: { name: string }; enemy?: { name: string } };
+            const targetName = tgt.character?.name || tgt.enemy?.name;
             addMessage(`${enemy.name} attacks ${targetName}!`, 'encounter');
-
-            if (actions.PROCESS_COMBAT_ACTION) {
-              dispatch({
-                type: actions.PROCESS_COMBAT_ACTION,
-                payload: {
-                  actionType: 'attack',
-                  target: action.target,
-                  attacker: combatant,
-                },
-              });
-            }
+            dispatch({
+              type: actions.PROCESS_COMBAT_ACTION,
+              payload: { actionType: 'attack', target: action.target, attacker: combatant },
+            });
           } else if (action.type === 'ability') {
-            const targetName = action.target?.character?.name || action.target?.enemy?.name;
+            const tgt = action.target as
+              | { character?: { name: string }; enemy?: { name: string } }
+              | undefined;
+            const targetName = tgt?.character?.name || tgt?.enemy?.name;
             addMessage(
               `${enemy.name} uses ${action.ability}${targetName ? ` on ${targetName}` : ''}!`,
               'encounter'
             );
-
-            if (actions.PROCESS_COMBAT_ACTION) {
-              dispatch({
-                type: actions.PROCESS_COMBAT_ACTION,
-                payload: {
-                  actionType: 'ability',
-                  abilityName: action.ability,
-                  target: action.target,
-                  attacker: combatant,
-                },
-              });
-            }
+            dispatch({
+              type: actions.PROCESS_COMBAT_ACTION,
+              payload: {
+                actionType: 'ability',
+                abilityName: action.ability,
+                target: action.target,
+                attacker: combatant,
+              },
+            });
+          } else if (action.type === 'dodge') {
+            addMessage(`${enemy.name} takes the Dodge action`, 'encounter');
+          } else if (action.type === 'dash') {
+            addMessage(`${enemy.name} takes the Dash action`, 'encounter');
           } else if (action.type === 'wait') {
             addMessage(`${enemy.name} waits`, 'encounter');
+          } else {
+            logger.combat.warn('AI returned unhandled action type — treating as wait', {
+              combatant: enemy.name,
+              actionType: action.type,
+            });
           }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.combat.error('AI action dispatch threw', { combatant: enemy.name, error: msg });
+          pendingAIAdvanceRef.current = false;
+          clearTimeout(aiTimeoutRefs.current.turnTimeout);
+          addMessage(`${enemy.name} failed to act`, 'error');
+          dispatch({ type: actions.ADVANCE_COMBAT_TURN });
+          return;
+        }
 
-          // For move actions the turn advance is driven by onAnimationComplete (see below).
-          // For all other actions (attack, ability, wait) use the normal 500ms timer.
-          if (!pendingAIAdvanceRef.current) {
-            aiTimeoutRefs.current.advance = setTimeout(() => {
-              // Read from ref — avoids stale closure
-              if (!combatStateRef.current) {
-                clearTimeout(aiTimeoutRefs.current.turnTimeout);
-                return;
-              }
-
-              // Clear timeout fallback
-              clearTimeout(aiTimeoutRefs.current.turnTimeout);
-
-              logger.combat.info('Advancing turn after AI action', { combatant: enemy.name });
-              dispatch({ type: actions.ADVANCE_COMBAT_TURN });
-            }, 500);
-          }
-        }, 800);
-      } catch (error) {
-        logger.combat.error('AI turn processing failed', {
-          combatant: enemy.name,
-          error: error.message,
-        });
-
-        // Clear timeouts on error
-        clearTimeout(aiTimeoutRefs.current.turnTimeout);
-        clearTimeout(aiTimeoutRefs.current.action);
-        clearTimeout(aiTimeoutRefs.current.advance);
-
-        // Advance turn even on error
-        addMessage(`${enemy.name} failed to act`, 'error');
-        dispatch({ type: actions.ADVANCE_COMBAT_TURN });
-      }
+        // Advance turn 500ms after non-move actions.
+        if (!pendingAIAdvanceRef.current) {
+          setTimeout(() => {
+            if (isTokenStale()) return; // already advanced
+            if (!combatStateRef.current) return;
+            clearTimeout(aiTimeoutRefs.current.turnTimeout);
+            logger.combat.info('Advancing turn after AI action', { combatant: enemy.name });
+            dispatch({ type: actions.ADVANCE_COMBAT_TURN });
+          }, 500);
+        }
+      }, 800);
     },
-    // Remove state.combatState from deps — we read it via combatStateRef to avoid
-    // the useCallback recreating on every action dispatch, which would trigger the
-    // useEffect cleanup and cancel in-flight action/advance timers mid-turn.
     [dispatch, actions, addMessage]
   );
 
-  // Auto-process AI turns
-  const lastProcessedTurnRef = useRef(null);
-  const aiTimeoutRefs = useRef({ action: null, advance: null, turnTimeout: null });
-  // Set to true when an AI movement animation is playing and we need to advance
-  // the turn once the animation finishes (instead of using the fixed 500ms timer)
-  const pendingAIAdvanceRef = useRef(false);
-
   useEffect(() => {
-    if (!state.combatState) {
-      // Cleanup timeouts if combat ended
-      if (aiTimeoutRefs.current.turnTimeout) {
-        clearTimeout(aiTimeoutRefs.current.turnTimeout);
-        aiTimeoutRefs.current.turnTimeout = null;
-      }
-      if (aiTimeoutRefs.current.action) {
-        clearTimeout(aiTimeoutRefs.current.action);
-        aiTimeoutRefs.current.action = null;
-      }
-      if (aiTimeoutRefs.current.advance) {
-        clearTimeout(aiTimeoutRefs.current.advance);
-        aiTimeoutRefs.current.advance = null;
-      }
-      return;
-    }
+    if (!state.combatState?.active) return;
 
-    const currentTurnIndex = state.combatState.currentTurnIndex;
-    const waitingForPlayer = state.combatState.waitingForPlayerAction;
+    const { currentTurnIndex, round, waitingForPlayerAction } = state.combatState;
+    const turnKey = `${round}:${currentTurnIndex}`;
 
-    // Skip if already processed this turn
-    if (lastProcessedTurnRef.current === currentTurnIndex) {
-      return;
-    }
+    // Already processed this exact turn — skip.
+    if (lastProcessedTurnRef.current === turnKey) return;
 
     const currentCombatant = state.combatState.turnOrder[currentTurnIndex];
     if (!currentCombatant) return;
 
-    console.log('[AI] Turn check:', {
+    logger.combat.debug('AI turn check', {
       combatant: currentCombatant.name,
-      isAlly: currentCombatant.isAlly,
       isEnemy: currentCombatant.isEnemy,
-      waitingForPlayer,
-      currentTurnIndex,
+      waitingForPlayer: waitingForPlayerAction,
+      turnKey,
     });
 
-    // Only process AI turns (enemies)
-    if (currentCombatant.isEnemy && !waitingForPlayer) {
-      lastProcessedTurnRef.current = currentTurnIndex;
-      processAITurn(currentCombatant);
+    if (currentCombatant.isEnemy && !waitingForPlayerAction) {
+      lastProcessedTurnRef.current = turnKey;
+      processAITurn(currentCombatant, turnKey);
     }
 
-    // Cleanup: only cancel timers when the turn index itself changes (new combatant's
-    // turn started) — NOT on every state update. This prevents mid-turn state changes
-    // (e.g. HP update from PROCESS_COMBAT_ACTION) from cancelling the advance timer.
+    // Only clean up the fallback timeout on unmount, not on every dep change.
+    // Individual timer callbacks are self-guarded via isTokenStale().
     return () => {
-      clearTimeout(aiTimeoutRefs.current.turnTimeout);
-      aiTimeoutRefs.current.turnTimeout = null;
-      clearTimeout(aiTimeoutRefs.current.action);
-      aiTimeoutRefs.current.action = null;
-      clearTimeout(aiTimeoutRefs.current.advance);
-      aiTimeoutRefs.current.advance = null;
+      if (aiTimeoutRefs.current.turnTimeout) {
+        clearTimeout(aiTimeoutRefs.current.turnTimeout);
+        aiTimeoutRefs.current.turnTimeout = null;
+      }
     };
   }, [
-    // Only re-run (and clean up) when the turn changes, not on every state update.
+    state.combatState?.active,
     state.combatState?.currentTurnIndex,
+    state.combatState?.round,
     state.combatState?.waitingForPlayerAction,
     processAITurn,
   ]);
@@ -1642,90 +1600,8 @@ function OverworldScene() {
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <h2 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.25rem' }}>hexcrawler</h2>
 
-          {/* Dev Tools Dropdown */}
-          {import.meta.env.DEV && (
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={e => {
-                  e.stopPropagation();
-                  setOpenPanel(openPanel === 'dev-tools' ? null : 'dev-tools');
-                }}
-                style={{
-                  padding: '0.25rem 0.5rem',
-                  fontSize: '0.85rem',
-                  backgroundColor:
-                    openPanel === 'dev-tools' ? 'var(--primary-color)' : 'var(--accent-color)',
-                  color: 'var(--bg-color)',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  transition: 'background-color 0.2s',
-                }}
-              >
-                🛠️ Dev Tools
-              </button>
-
-              {openPanel === 'dev-tools' && (
-                <div
-                  onClick={e => e.stopPropagation()}
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '0.25rem',
-                    backgroundColor: 'var(--panel-bg)',
-                    border: '2px solid var(--border-color)',
-                    borderRadius: '4px',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                    minWidth: '200px',
-                    zIndex: 1000,
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      handleForceCombat();
-                      setOpenPanel(null);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 1rem',
-                      fontSize: '0.9rem',
-                      backgroundColor: 'transparent',
-                      color: 'var(--text-color)',
-                      border: 'none',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      transition: 'background-color 0.15s',
-                    }}
-                    onMouseEnter={e =>
-                      (e.currentTarget.style.backgroundColor = 'var(--bg-lighter)')
-                    }
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-                  >
-                    <span>⚔️</span>
-                    <span>Force Combat</span>
-                  </button>
-
-                  {/* Placeholder for future dev tools */}
-                  <div
-                    style={{
-                      padding: '0.5rem 1rem',
-                      fontSize: '0.75rem',
-                      color: 'var(--text-muted)',
-                      fontStyle: 'italic',
-                      borderTop: '1px solid var(--border-color)',
-                    }}
-                  >
-                    More dev tools coming soon...
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Dev Tools */}
+          <DevTools terrainGeneratorRef={terrainGeneratorRef} />
         </div>
 
         <div
@@ -1900,9 +1776,41 @@ function OverworldScene() {
                       setCombatUIState(prev => ({ ...prev, selectedAction: action }))
                     }
                     onAbilityClick={() => setShowAbilityMenu(true)}
+                    onBonusActionClick={ability => {
+                      const currentCombatant = getCurrentCombatant();
+                      const character = currentCombatant?.character;
+                      if (!currentCombatant || !character) return;
+                      dispatch({
+                        type: actions.PROCESS_COMBAT_ACTION,
+                        payload: {
+                          actionType: 'ability',
+                          attacker: currentCombatant,
+                          target: currentCombatant,
+                          ability,
+                        },
+                      });
+                      addMessage(`${character.name} uses ${ability.name}!`, 'action');
+                    }}
                     onSpellClick={() => addMessage('Spells not yet implemented', 'info')}
-                    onDodgeClick={() => addMessage('Dodge not yet implemented', 'info')}
+                    onDodgeClick={() => {
+                      const currentCombatant = getCurrentCombatant();
+                      if (!currentCombatant) return;
+                      dispatch({
+                        type: actions.PROCESS_COMBAT_ACTION,
+                        payload: {
+                          actionType: 'dodge',
+                          attacker: currentCombatant,
+                          target: currentCombatant,
+                        },
+                      });
+                      addMessage(
+                        `${currentCombatant.name} takes the Dodge action. Attacks against you have disadvantage until your next turn.`,
+                        'action'
+                      );
+                    }}
                     onDashClick={() => addMessage('Dash not yet implemented', 'info')}
+                    onDisengageClick={() => addMessage('Disengage not yet implemented', 'info')}
+                    onHideClick={() => addMessage('Hide not yet implemented', 'info')}
                     onEndTurn={handleCombatEndTurn}
                   />
 

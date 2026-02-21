@@ -7,6 +7,7 @@
 
 import { getHexDistance } from '../../contexts/GameStateContext';
 import { checkLineOfSight } from '../LineOfSight';
+import logger from '../../utils/logger';
 
 /**
  * Condition context passed to all condition functions
@@ -270,7 +271,7 @@ export function executeCondition(conditionName, context) {
   const condition = CONDITIONS[conditionName];
 
   if (!condition) {
-    console.error(`[AI] Unknown condition: ${conditionName}`);
+    logger.combat.error(`[AI] Unknown condition: ${conditionName}`);
     return false;
   }
 

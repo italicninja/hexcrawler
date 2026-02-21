@@ -83,6 +83,36 @@ export function getHexesInRadius(
 }
 
 /**
+ * Get the 6 immediate neighbors of a hex in offset coordinates
+ * @param col - Column of center hex
+ * @param row - Row of center hex
+ * @returns Array of 6 neighboring hex coordinates
+ */
+export function getHexNeighbors(col: number, row: number): HexCoordinates[] {
+  // Offset directions differ based on whether the row is even or odd
+  const isOdd = row % 2 !== 0;
+  const offsets = isOdd
+    ? [
+        { col: 1, row: 0 },
+        { col: 1, row: -1 },
+        { col: 0, row: -1 },
+        { col: -1, row: 0 },
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+      ]
+    : [
+        { col: 1, row: 0 },
+        { col: 0, row: -1 },
+        { col: -1, row: -1 },
+        { col: -1, row: 0 },
+        { col: -1, row: 1 },
+        { col: 0, row: 1 },
+      ];
+
+  return offsets.map(offset => ({ col: col + offset.col, row: row + offset.row }));
+}
+
+/**
  * Check if hex is reachable within movement distance
  * @param fromCol - Starting column
  * @param fromRow - Starting row

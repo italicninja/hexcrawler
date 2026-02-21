@@ -6,7 +6,7 @@
  */
 
 import { findPath } from '../Pathfinding';
-import { getHexDistance } from '../../utils/hexMath';
+import { getHexDistance, getHexNeighbors } from '../../utils/hexMath';
 import logger from '../../utils/logger';
 
 /**
@@ -100,43 +100,17 @@ function buildHexMap(hexes) {
 
 /**
  * Get all valid, unblocked hex neighbours for a given position.
- * Uses the same row-parity offset scheme as Pathfinding.ts so both systems
- * agree on adjacency.
+ * Uses getHexNeighbors from hexMath for offsets, then filters by
+ * battlefield bounds and blocked status.
  */
 function getNeighbours(pos, battlefield, hexMap) {
-  const { col, row } = pos;
   const { width, height } = battlefield;
 
-  // Same offsets as Pathfinding.getHexNeighbors — row-parity (even/odd row)
-  const offsets =
-    Math.abs(row % 2) === 0
-      ? [
-          [-1, -1],
-          [0, -1],
-          [-1, 0],
-          [1, 0],
-          [-1, 1],
-          [0, 1],
-        ] // even row
-      : [
-          [0, -1],
-          [1, -1],
-          [-1, 0],
-          [1, 0],
-          [0, 1],
-          [1, 1],
-        ]; // odd row
-
-  const neighbours = [];
-  for (const [dc, dr] of offsets) {
-    const nc = col + dc;
-    const nr = row + dr;
-    if (nc < 0 || nr < 0 || nc >= width || nr >= height) continue;
-    const hex = hexMap.get(`${nc},${nr}`);
-    if (!hex || hex.blocked) continue;
-    neighbours.push({ col: nc, row: nr });
-  }
-  return neighbours;
+  return getHexNeighbors(pos.col, pos.row).filter(n => {
+    if (n.col < 0 || n.row < 0 || n.col >= width || n.row >= height) return false;
+    const hex = hexMap.get(`${n.col},${n.row}`);
+    return hex && !hex.blocked;
+  });
 }
 
 /**

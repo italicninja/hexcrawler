@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect } from 'react';
+import { useEventListener } from '../../hooks/useEventListener';
 import './AboutModal.css';
 
 /**
@@ -8,18 +8,11 @@ import './AboutModal.css';
  */
 function AboutModal({ isOpen, onClose }) {
   // Escape key handler
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleEscape = e => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
+  useEventListener('keydown', e => {
+    if (e.key === 'Escape' && isOpen) {
+      onClose();
+    }
+  });
 
   if (!isOpen) return null;
 

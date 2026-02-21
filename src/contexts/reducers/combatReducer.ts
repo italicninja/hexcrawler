@@ -36,6 +36,7 @@ import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
 import { COMBAT } from '../../constants/gameConstants';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import logger from '../../utils/logger';
+import { Character } from '../../game/Character';
 import type { GameState, Action } from '../../types/state';
 
 export function combatReducer(
@@ -57,7 +58,7 @@ export function combatReducer(
       const { allies, enemies, encounterName, encounterType, terrainType, gameLogger } =
         action.payload;
 
-      console.log('[START_COMBAT] Payload:', {
+      logger.combat.info('[START_COMBAT] Payload:', {
         allies,
         enemies,
         encounterName,
@@ -66,21 +67,21 @@ export function combatReducer(
       });
 
       if (!allies || !enemies) {
-        console.error('START_COMBAT requires allies and enemies');
+        logger.combat.error('START_COMBAT requires allies and enemies');
         return state;
       }
 
       if (allies.length === 0) {
-        console.error('START_COMBAT: allies array is empty');
+        logger.combat.error('START_COMBAT: allies array is empty');
         return state;
       }
 
       if (enemies.length === 0) {
-        console.error('START_COMBAT: enemies array is empty');
+        logger.combat.error('START_COMBAT: enemies array is empty');
         return state;
       }
 
-      console.log('[START_COMBAT] Generating battlefield...', {
+      logger.combat.info('[START_COMBAT] Generating battlefield...', {
         encounterType,
         terrainType,
         seed: state.mapSeed,
@@ -93,7 +94,7 @@ export function combatReducer(
         state.mapSeed
       );
 
-      console.log('[START_COMBAT] Battlefield generated:', {
+      logger.combat.info('[START_COMBAT] Battlefield generated:', {
         width: battlefield.width,
         height: battlefield.height,
         hexCount: battlefield.hexes.length,
@@ -156,23 +157,22 @@ export function combatReducer(
           : placedEnemies.find(e => e.id === combatant.id);
 
         if (!placed || !placed.position) {
-          console.error('Failed to place combatant:', combatant.name);
+          logger.combat.error('Failed to place combatant', { name: combatant.name });
           return { ...combatant, position: { col: 0, row: 0 } }; // Fallback position
         }
 
         return { ...combatant, position: placed.position };
       });
 
-      console.log(
-        '[START_COMBAT] Turn order created:',
-        updatedTurnOrder.map(c => ({
+      logger.combat.info('[START_COMBAT] Turn order created:', {
+        turnOrder: updatedTurnOrder.map(c => ({
           name: c.name,
           position: c.position,
           isAlly: c.isAlly,
           currentHP: c.currentHP,
           maxHP: c.maxHP,
-        }))
-      );
+        })),
+      });
 
       // Update combat instance with positioned combatants
       combat.turnOrder = updatedTurnOrder;
@@ -211,7 +211,7 @@ export function combatReducer(
         },
       };
 
-      console.log('[START_COMBAT] Combat state created:', {
+      logger.combat.info('[START_COMBAT] Combat state created:', {
         hasBattlefield: !!newCombatState.battlefield,
         hasHexes: !!newCombatState.battlefield?.hexes,
         hexCount: newCombatState.battlefield?.hexes?.length,
@@ -221,7 +221,7 @@ export function combatReducer(
         waitingForPlayer: waitingForPlayer,
       });
 
-      console.log('[START_COMBAT] Combat initialized (staying on overworld scene)');
+      logger.combat.info('[START_COMBAT] Combat initialized (staying on overworld scene)');
 
       return {
         ...state,
@@ -237,12 +237,12 @@ export function combatReducer(
 
       let updates = { ...state };
 
-      if (victory) {
-        // Award XP
+      if (victory && state.playerCharacter) {
+        // Award XP immutably
         const xp = state.combat.calculateXPReward();
-        if (state.playerCharacter) {
-          state.playerCharacter.gainXP(xp);
-        }
+        const character = Character.fromJSON(state.playerCharacter.toJSON());
+        character.gainXP(xp);
+        updates.playerCharacter = character;
       }
 
       return updates;
@@ -254,7 +254,7 @@ export function combatReducer(
       const { path, cost } = action.payload;
 
       if (!path || path.length === 0) {
-        console.warn('[PROCESS_COMBAT_MOVEMENT] No path provided');
+        logger.combat.warn('[PROCESS_COMBAT_MOVEMENT] No path provided');
         return state;
       }
 
@@ -267,21 +267,20 @@ export function combatReducer(
         typeof destination.col !== 'number' ||
         typeof destination.row !== 'number'
       ) {
-        console.error('[PROCESS_COMBAT_MOVEMENT] Invalid destination:', destination);
+        logger.combat.error('[PROCESS_COMBAT_MOVEMENT] Invalid destination', { destination });
         return state;
       }
 
       // Update current combatant's position in turnOrder
       const currentCombatant = state.combatState.turnOrder[state.combatState.currentTurnIndex];
       if (!currentCombatant) {
-        console.warn(
-          '[PROCESS_COMBAT_MOVEMENT] No current combatant at index:',
-          state.combatState.currentTurnIndex
-        );
+        logger.combat.warn('[PROCESS_COMBAT_MOVEMENT] No current combatant at index', {
+          index: state.combatState.currentTurnIndex,
+        });
         return state;
       }
 
-      console.log('[PROCESS_COMBAT_MOVEMENT] Updating position:', {
+      logger.combat.debug('[PROCESS_COMBAT_MOVEMENT] Updating position:', {
         combatant: currentCombatant.name,
         oldPosition: currentCombatant.position,
         newPosition: destination,
@@ -293,14 +292,11 @@ export function combatReducer(
 
       const updatedTurnOrder = state.combatState.turnOrder.map((combatant, idx) => {
         if (idx === state.combatState.currentTurnIndex) {
-          console.log(
-            '[PROCESS_COMBAT_MOVEMENT] Updating combatant:',
-            combatant.name,
-            'from',
-            combatant.position,
-            'to',
-            destination
-          );
+          logger.combat.debug('[PROCESS_COMBAT_MOVEMENT] Updating combatant position', {
+            name: combatant.name,
+            from: combatant.position,
+            to: destination,
+          });
           return {
             ...combatant,
             position: { col: destination.col, row: destination.row },
@@ -390,7 +386,7 @@ export function combatReducer(
         pendingOpportunityAttacks: pendingPlayerOAs.length > 0 ? pendingPlayerOAs : null,
       };
 
-      console.log('[PROCESS_COMBAT_MOVEMENT] New combat state:', {
+      logger.combat.debug('[PROCESS_COMBAT_MOVEMENT] New combat state:', {
         turnOrderCount: newCombatState.turnOrder.length,
         updatedCombatant: newCombatState.turnOrder[state.combatState.currentTurnIndex],
         movementRemaining: newCombatState.movementRemaining,
@@ -408,18 +404,18 @@ export function combatReducer(
 
       const { actionType, attacker, target, ability, spell, spellLevel } = action.payload;
 
-      console.log('[PROCESS_COMBAT_ACTION] Called', { actionType, attacker, target });
+      logger.combat.info('[PROCESS_COMBAT_ACTION] Called', { actionType, attacker, target });
 
       if (actionType === 'attack') {
         // Use Combat instance to process attack (handles dice rolling with logger)
         const combat = state.combatState.combat;
 
         if (!combat) {
-          console.error('[PROCESS_COMBAT_ACTION] Combat instance not available');
+          logger.combat.error('[PROCESS_COMBAT_ACTION] Combat instance not available');
           return state;
         }
 
-        console.log('[PROCESS_COMBAT_ACTION] Processing attack via Combat instance', {
+        logger.combat.info('[PROCESS_COMBAT_ACTION] Processing attack via Combat instance', {
           attacker: attacker.name,
           target: target.name,
         });
@@ -501,7 +497,7 @@ export function combatReducer(
         const userChar = user.character || user.enemy;
 
         if (!userChar || !ability) {
-          console.error('[PROCESS_COMBAT_ACTION] Invalid ability action', { user, ability });
+          logger.combat.error('[PROCESS_COMBAT_ACTION] Invalid ability action', { user, ability });
           return state;
         }
 
@@ -517,13 +513,36 @@ export function combatReducer(
             message: result.message,
           });
 
+          if (result.message && combat.logger) {
+            combat.logger(result.message, result.success ? 'action' : 'warning');
+          }
+
           // Determine action type (action, bonus action, reaction)
           const abilityActionType = ability.actionType || 'action';
+
+          // Sync abilities_list uses back from the Combat instance into Redux turnOrder
+          // so the UI reflects the decremented charge count immediately.
+          const syncedTurnOrder = state.combatState.turnOrder.map(c => {
+            if (c.id === user.id && c.character) {
+              const combatEntry = combat.turnOrder.find(ct => ct.id === c.id);
+              if (combatEntry?.character?.abilities_list) {
+                return {
+                  ...c,
+                  character: {
+                    ...c.character,
+                    abilities_list: combatEntry.character.abilities_list.map(a => ({ ...a })),
+                  },
+                };
+              }
+            }
+            return c;
+          });
 
           return {
             ...state,
             combatState: {
               ...state.combatState,
+              turnOrder: syncedTurnOrder,
               turnState: {
                 ...state.combatState.turnState,
                 actionUsed:
@@ -542,13 +561,54 @@ export function combatReducer(
         }
       }
 
+      if (actionType === 'dodge') {
+        const combat = state.combatState.combat;
+        if (!combat) return state;
+
+        const dodgerEntry = combat.turnOrder.find(c => c.id === attacker.id);
+        if (!dodgerEntry) return state;
+
+        // Call Combat.processDodge — adds the Dodge status effect to the combatant
+        const result = combat.processDodge(attacker.id);
+
+        logger.combat.info('Dodge action', {
+          combatant: attacker.name,
+          success: result.success,
+        });
+
+        if (result.message && combat.logger) {
+          combat.logger(result.message, 'action');
+        }
+
+        // Sync the updated statusEffects back into the immutable Redux turnOrder
+        const syncedTurnOrder = state.combatState.turnOrder.map(c => {
+          if (c.id === attacker.id) {
+            const combatEntry = combat.turnOrder.find(ct => ct.id === c.id);
+            return { ...c, statusEffects: [...(combatEntry?.statusEffects || [])] };
+          }
+          return c;
+        });
+
+        return {
+          ...state,
+          combatState: {
+            ...state.combatState,
+            turnOrder: syncedTurnOrder,
+            turnState: {
+              ...state.combatState.turnState,
+              actionUsed: true,
+            },
+          },
+        };
+      }
+
       if (actionType === 'spell') {
         // Process spell action
         const caster = attacker;
         const casterChar = caster.character || caster.enemy;
 
         if (!casterChar || !spell) {
-          console.error('[PROCESS_COMBAT_ACTION] Invalid spell action', { caster, spell });
+          logger.combat.error('[PROCESS_COMBAT_ACTION] Invalid spell action', { caster, spell });
           return state;
         }
 
@@ -621,7 +681,7 @@ export function combatReducer(
       // Set waitingForPlayerAction based on whether next combatant is an ally
       const waitingForPlayer = nextCombatant?.isAlly || false;
 
-      console.log('[ADVANCE_COMBAT_TURN]', {
+      logger.combat.info('[ADVANCE_COMBAT_TURN]', {
         nextIndex,
         nextCombatant: nextCombatant?.name,
         isAlly: nextCombatant?.isAlly,
@@ -629,22 +689,23 @@ export function combatReducer(
         newRound,
       });
 
-      // --- Rage tick (PHB'24): processed at the START of the raging combatant's turn ---
-      // tickRage() checks whether the extension criteria were met last turn and ends Rage if not.
-      // We build an updated turnOrder that reflects any Rage expiry before the new turn begins.
+      // --- Start-of-turn ticks: Rage + status effect durations ---
+      // tickRage() checks whether Rage extension criteria were met and ends Rage if not.
+      // tickStatusEffects() decrements duration on all other effects (e.g. Dodge) and removes
+      // any that have expired, so Dodge applied last turn is gone before this turn's action.
       const combat = state.combatState.combat;
       let updatedTurnOrder = state.combatState.turnOrder;
 
-      if (
-        combat &&
-        nextCombatant?.isAlly &&
-        nextCombatant.statusEffects?.some(e => e.name === 'Rage')
-      ) {
-        // Mutate a copy of the combatant's statusEffects via tickRage, then spread to a new ref
-        // so React detects the change. tickRage operates on the live combatant object reference.
+      if (combat && nextCombatant?.statusEffects?.length) {
         const nextCombatantInCombat = combat.turnOrder.find(c => c.id === nextCombatant.id);
         if (nextCombatantInCombat) {
-          combat.tickRage(nextCombatantInCombat);
+          // Tick Rage first (has its own extension logic)
+          if (nextCombatant.isAlly && nextCombatant.statusEffects.some(e => e.name === 'Rage')) {
+            combat.tickRage(nextCombatantInCombat);
+          }
+          // Tick all other duration-based effects (Dodge expires here after 1 full round)
+          combat.tickStatusEffects(nextCombatantInCombat);
+
           // Sync the updated statusEffects back into the immutable Redux turnOrder
           updatedTurnOrder = state.combatState.turnOrder.map(c => {
             if (c.id === nextCombatant.id) {
@@ -682,12 +743,10 @@ export function combatReducer(
     }
 
     case ACTIONS.END_COMBAT: {
-      const { victory, fled } = action.payload;
-
       return {
         ...state,
         combatState: null,
-        // No scene transition - already on overworld
+        currentScene: 'overworld',
       };
     }
 

@@ -1,7 +1,8 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { submitBugReport } from '../../utils/githubApi';
+import { useEventListener } from '../../hooks/useEventListener';
 import './BugReportModal.css';
 
 /**
@@ -16,18 +17,11 @@ function BugReportModal({ isOpen, onClose }) {
   const { messages, addMessage } = useGameLog();
 
   // Escape key handler
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleEscape = e => {
-      if (e.key === 'Escape') {
-        handleCancel();
-      }
-    };
-
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [isOpen]);
+  useEventListener('keydown', e => {
+    if (e.key === 'Escape' && isOpen) {
+      handleCancel();
+    }
+  });
 
   const handleSubmit = async e => {
     e.preventDefault();

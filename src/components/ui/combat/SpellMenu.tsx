@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useEventListener } from '../../../hooks/useEventListener';
 
 /**
  * SpellMenu - Modal overlay for selecting spell to cast
@@ -56,15 +57,11 @@ function SpellMenu({ character, onSelect, onClose }) {
   const groupedSpells = groupSpellsByLevel();
 
   // Handle ESC key to close
-  useEffect(() => {
-    const handleEsc = e => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  useEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  });
 
   // Handle click outside to close
   const handleOverlayClick = e => {

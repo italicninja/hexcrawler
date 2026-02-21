@@ -47,13 +47,17 @@ export class DiceRoller {
   rollWithAdvantage() {
     const roll1 = this.rollD20();
     const roll2 = this.rollD20();
-    return Math.max(roll1, roll2);
+    const kept = Math.max(roll1, roll2);
+    const dropped = Math.min(roll1, roll2);
+    return { roll: kept, kept, dropped };
   }
 
   rollWithDisadvantage() {
     const roll1 = this.rollD20();
     const roll2 = this.rollD20();
-    return Math.min(roll1, roll2);
+    const kept = Math.min(roll1, roll2);
+    const dropped = Math.max(roll1, roll2);
+    return { roll: kept, kept, dropped };
   }
 
   getAbilityModifier(abilityScore) {
@@ -79,11 +83,13 @@ export class DiceRoller {
     let roll;
     let rollText = '';
     if (rollType === 'advantage') {
-      roll = this.rollWithAdvantage();
-      rollText = ' (advantage)';
+      const result = this.rollWithAdvantage();
+      roll = result.roll;
+      rollText = ` (advantage: ${result.kept}, ${result.dropped})`;
     } else if (rollType === 'disadvantage') {
-      roll = this.rollWithDisadvantage();
-      rollText = ' (disadvantage)';
+      const result = this.rollWithDisadvantage();
+      roll = result.roll;
+      rollText = ` (disadvantage: ${result.kept}, ${result.dropped})`;
     } else {
       roll = this.rollD20();
     }
@@ -149,11 +155,13 @@ export class DiceRoller {
     let roll;
     let rollText = '';
     if (rollType === 'advantage') {
-      roll = this.rollWithAdvantage();
-      rollText = ' (advantage)';
+      const result = this.rollWithAdvantage();
+      roll = result.roll;
+      rollText = ` (advantage: ${result.kept}, ${result.dropped})`;
     } else if (rollType === 'disadvantage') {
-      roll = this.rollWithDisadvantage();
-      rollText = ' (disadvantage)';
+      const result = this.rollWithDisadvantage();
+      roll = result.roll;
+      rollText = ` (disadvantage: ${result.kept}, ${result.dropped})`;
     } else {
       roll = this.rollD20();
     }

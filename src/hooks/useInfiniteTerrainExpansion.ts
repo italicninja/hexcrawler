@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
 import { generateHex } from '../utils/poiGenerationHelper';
 import { CANVAS, TERRAIN } from '../constants/gameConstants';
+import logger from '../utils/logger';
 
 /**
  * useInfiniteTerrainExpansion Hook
@@ -85,7 +86,7 @@ export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
     }
     lastExpansionRef.current = { col, row, direction: expandDirection };
 
-    console.log(`Expanding map to the ${expandDirection}...`);
+    logger.mapgen.info(`Expanding map to the ${expandDirection}...`);
 
     // Keep same seed for consistent generation
     terrainGeneratorRef.current.setSeed(state.mapSeed);
@@ -205,7 +206,7 @@ function generateExpansionHexes(terrainGenerator, direction, boundaries, chunkSi
       break;
 
     default:
-      console.error(`Invalid expansion direction: ${direction}`);
+      logger.mapgen.error(`Invalid expansion direction: ${direction}`);
   }
 
   return newHexes;

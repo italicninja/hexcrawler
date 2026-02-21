@@ -842,8 +842,9 @@ export class Combat {
     if (hasAdvantage && !hasDisadvantage) rollType = 'advantage';
     else if (hasDisadvantage && !hasAdvantage) rollType = 'disadvantage';
 
-    // Effective AC — keep the +2 dodge bonus for enemy attackers who don't go through DiceRoller
-    const effectiveAC = targetDodging && !attacker.character ? targetAC + 2 : targetAC;
+    // Both hero and enemy attackers now use the rollType system for Dodge disadvantage.
+    // effectiveAC is always the raw AC — advantage/disadvantage is expressed via rollType.
+    const effectiveAC = targetAC;
 
     let hit = false;
     let critical = false;
@@ -869,11 +870,25 @@ export class Combat {
             ? Math.floor((attackerChar.abilities.strength - 10) / 2)
             : Math.floor((attackerChar.abilities.dexterity - 10) / 2);
 
-        const baseDamage = this.diceRoller.damageRoll(weaponDamage, damageType);
-        damage = baseDamage + abilityMod + damageBonus;
+        // Build the full dice string with modifier so the damage log shows e.g. "1d12+4"
+        const totalMod = abilityMod + damageBonus;
+        const fullDiceString =
+          totalMod !== 0 ? `${weaponDamage}${totalMod > 0 ? '+' : ''}${totalMod}` : weaponDamage;
 
         if (critical) {
-          damage += this.diceRoller.damageRoll(weaponDamage, damageType);
+          // Roll both dice without individual logs, then emit one combined line.
+          // e.g. "19 slashing damage (1d12+2=11 + 1d12=8 crit)"
+          const baseDmg = this.diceRoller.damageRoll(fullDiceString);
+          const critDmg = this.diceRoller.damageRoll(weaponDamage);
+          damage = baseDmg + critDmg;
+          if (this.diceRoller.logger) {
+            this.diceRoller.log(
+              `${damage} ${damageType} damage (${fullDiceString}=${baseDmg} + ${weaponDamage}=${critDmg} crit)`,
+              'info'
+            );
+          }
+        } else {
+          damage = this.diceRoller.damageRoll(fullDiceString, damageType);
         }
 
         // --- Rage damage bonus (PHB'24): applies to STR-based melee and unarmed attacks ---
@@ -911,7 +926,20 @@ export class Combat {
       }
     } else {
       // Enemy attacker — manual roll using enemy.attackBonus (no DiceRoller character path)
-      const roll = this.diceRoller.rollD20();
+      // Use rollType to apply Dodge disadvantage (and any future advantage sources) correctly.
+      let roll: number;
+      let rollText = '';
+      if (rollType === 'disadvantage') {
+        const result = this.diceRoller.rollWithDisadvantage();
+        roll = result.roll;
+        rollText = ` (disadvantage: ${result.kept}, ${result.dropped})`;
+      } else if (rollType === 'advantage') {
+        const result = this.diceRoller.rollWithAdvantage();
+        roll = result.roll;
+        rollText = ` (advantage: ${result.kept}, ${result.dropped})`;
+      } else {
+        roll = this.diceRoller.rollD20();
+      }
       const total = roll + attackBonus;
       hit = roll === 20 || (roll !== 1 && total >= effectiveAC);
       critical = roll === 20;
@@ -919,7 +947,7 @@ export class Combat {
       if (this.logger) {
         const hitStr = hit ? (critical ? 'CRITICAL HIT!' : 'Hit') : 'Miss';
         this.logger(
-          `${weaponName} ${roll}+${attackBonus}=${total} vs AC ${effectiveAC}: ${hitStr}`,
+          `${weaponName}${rollText} ${roll}+${attackBonus}=${total} vs AC ${effectiveAC}: ${hitStr}`,
           'encounter'
         );
       }
@@ -989,8 +1017,8 @@ export class Combat {
       };
     }
 
-    // Check uses remaining
-    if (ability.uses !== undefined && ability.usesRemaining <= 0) {
+    // Check uses remaining (maxUses === -1 means unlimited)
+    if (ability.maxUses !== -1 && ability.uses !== undefined && ability.uses <= 0) {
       return {
         success: false,
         message: `No uses remaining for ${abilityName}`,
@@ -1000,9 +1028,9 @@ export class Combat {
     // Execute ability
     const result = AbilityEffects.execute(abilityName, combatant, target, this);
 
-    // Decrement uses if ability was successful
-    if (result.success && ability.uses !== undefined) {
-      ability.usesRemaining = Math.max(0, (ability.usesRemaining || ability.uses) - 1);
+    // Decrement uses on the live ability object so the Redux sync below picks it up
+    if (result.success && ability.maxUses !== -1 && ability.uses !== undefined) {
+      ability.uses = Math.max(0, ability.uses - 1);
     }
 
     return result;
@@ -1190,6 +1218,12 @@ export class Combat {
       e => e.name === 'Rage' && e.effects?.strengthAdvantage
     );
     if (rage && ability === 'strength') {
+      hasAdvantage = true;
+    }
+
+    // Dodge: Advantage on DEX saving throws (PHB — Dodge also grants Dex save advantage)
+    const dodge = combatant.statusEffects?.find(e => e.name === 'Dodge');
+    if (dodge && ability === 'dexterity') {
       hasAdvantage = true;
     }
 

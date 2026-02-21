@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect } from 'react';
+import { useEventListener } from '../../../hooks/useEventListener';
 
 /**
  * TargetSelector - Overlay component for target selection
@@ -9,15 +9,11 @@ import { useEffect } from 'react';
  */
 function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) {
   // Handle ESC key to cancel
-  useEffect(() => {
-    const handleEsc = e => {
-      if (e.key === 'Escape') {
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [onCancel]);
+  useEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      onCancel();
+    }
+  });
 
   /**
    * Get instruction text based on action type

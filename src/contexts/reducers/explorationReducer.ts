@@ -19,6 +19,8 @@
  */
 
 import type { GameState, Action } from '../../types/state';
+import { Character } from '../../game/Character';
+import logger from '../../utils/logger';
 
 export function explorationReducer(
   state: GameState,
@@ -37,7 +39,7 @@ export function explorationReducer(
 
       return {
         ...state,
-        discoveredPOIs: new Set([...Array.from(state.discoveredPOIs), `${col},${row}`]),
+        discoveredPOIs: new Set([...state.discoveredPOIs, `${col},${row}`]),
       };
     }
 
@@ -89,19 +91,19 @@ export function explorationReducer(
 
       let newState = { ...state };
 
-      // Mark encounter as defeated
+      // Mark encounter as defeated — immutably
       if (state.interiorMap?.encounters) {
-        const encounter = state.interiorMap.encounters.find(e => e.id === encounterId);
-        if (encounter) {
-          encounter.defeated = true;
-        }
-        newState.interiorMap = state.interiorMap;
+        const updatedEncounters = state.interiorMap.encounters.map(e =>
+          e.id === encounterId ? { ...e, defeated: true } : e
+        );
+        newState.interiorMap = { ...state.interiorMap, encounters: updatedEncounters };
       }
 
-      // Award XP
+      // Award XP — immutably
       if (xp && state.playerCharacter) {
-        state.playerCharacter.gainXP(xp);
-        newState.playerCharacter = state.playerCharacter;
+        const character = Character.fromJSON(state.playerCharacter.toJSON());
+        character.gainXP(xp);
+        newState.playerCharacter = character;
       }
 
       // Add loot to pending collection
@@ -117,19 +119,21 @@ export function explorationReducer(
 
       if (!state.playerCharacter) return state;
 
+      const character = Character.fromJSON(state.playerCharacter.toJSON());
+
       // Add items to inventory
       if (items) {
-        state.playerCharacter.inventory.push(...items);
+        character.inventory.push(...items);
       }
 
       // Add gold
       if (gold) {
-        state.playerCharacter.gold += gold;
+        character.gold += gold;
       }
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
+        playerCharacter: character,
         pendingLoot: null,
       };
     }
@@ -139,14 +143,16 @@ export function explorationReducer(
 
       if (!state.playerCharacter) return state;
 
+      const character = Character.fromJSON(state.playerCharacter.toJSON());
+
       // Apply damage
       if (damage) {
-        state.playerCharacter.currentHP = Math.max(0, state.playerCharacter.currentHP - damage);
+        character.currentHP = Math.max(0, character.currentHP - damage);
       }
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
+        playerCharacter: character,
       };
     }
 
@@ -230,7 +236,7 @@ export function explorationReducer(
       const townInterior = state.interiorMaps[poiKey];
 
       if (!townInterior) {
-        console.error('ENTER_TOWN called but interior not found! This should not happen.');
+        logger.state.error('ENTER_TOWN called but interior not found! This should not happen.');
         return state;
       }
 

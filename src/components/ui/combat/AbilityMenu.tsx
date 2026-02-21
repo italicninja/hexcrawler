@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect } from 'react';
+import { useEventListener } from '../../../hooks/useEventListener';
 
 /**
  * AbilityMenu - Modal overlay for selecting class ability
@@ -39,15 +39,11 @@ function AbilityMenu({ character, combatant, onSelect, onClose }) {
     : baseAbilities;
 
   // Handle ESC key to close
-  useEffect(() => {
-    const handleEsc = e => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  useEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  });
 
   // Handle click outside to close
   const handleOverlayClick = e => {

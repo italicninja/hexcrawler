@@ -230,6 +230,14 @@ export const SHOP = {
 // ===================
 // QUEST GENERATION
 // ===================
+export const QUEST_COUNTS_BY_SIZE: Record<string, { min: number; max: number }> = {
+  camp: { min: 0, max: 1 },
+  village: { min: 1, max: 2 },
+  town: { min: 2, max: 3 },
+  city: { min: 2, max: 4 },
+  metropolis: { min: 3, max: 5 },
+};
+
 export const QUEST = {
   CAMP_QUEST_COUNT: 1,
   VILLAGE_QUEST_COUNT: 2,

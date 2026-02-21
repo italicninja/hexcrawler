@@ -5,7 +5,8 @@
  * Functions that return 0.0-1.0 scores for target selection
  */
 
-import { getHexDistance } from '../../contexts/GameStateContext';
+import { getHexDistance } from '../../utils/hexMath';
+import logger from '../../utils/logger';
 
 /**
  * Scorer context passed to all scorer functions
@@ -285,7 +286,7 @@ export function calculateScore(scorerConfigs, context) {
     const scorerFunc = SCORERS[config.type];
 
     if (!scorerFunc) {
-      console.warn(`[AI] Unknown scorer type: ${config.type}`);
+      logger.combat.warn(`[AI] Unknown scorer type: ${config.type}`);
       continue;
     }
 

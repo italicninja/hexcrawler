@@ -90,21 +90,26 @@ function CombatantCard({ combatant, isActive }) {
         <span className="font-semibold">{combatant.armorClass || combatant.ac || 10}</span>
       </div>
 
-      {/* Status Effects (placeholder for future implementation) */}
+      {/* Status Effects */}
       {combatant.statusEffects && combatant.statusEffects.length > 0 && (
         <div className="mt-2 flex gap-1 flex-wrap">
-          {combatant.statusEffects.map((status, idx) => (
-            <span
-              key={idx}
-              className="text-xs px-2 py-1 rounded"
-              style={{
-                backgroundColor: 'var(--accent-color)',
-                color: 'var(--bg-color)',
-              }}
-            >
-              {status}
-            </span>
-          ))}
+          {combatant.statusEffects.map((status, idx) => {
+            const isRage = status.name === 'Rage';
+            const isDodge = status.name === 'Dodge';
+            return (
+              <span
+                key={idx}
+                className="text-xs px-2 py-1 rounded font-semibold"
+                style={{
+                  backgroundColor: isRage ? '#c0392b' : isDodge ? '#2563eb' : 'var(--accent-color)',
+                  color: 'white',
+                  border: isRage ? '1px solid #e74c3c' : isDodge ? '1px solid #3b82f6' : 'none',
+                }}
+              >
+                {isRage ? 'Rage' : isDodge ? 'Dodge' : status.name}
+              </span>
+            );
+          })}
         </div>
       )}
     </div>

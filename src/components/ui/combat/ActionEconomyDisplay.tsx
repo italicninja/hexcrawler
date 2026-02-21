@@ -1,4 +1,5 @@
 // @ts-nocheck
+import PropTypes from 'prop-types';
 
 /**
  * ActionEconomyDisplay - Visual tracker for D&D 5e action economy

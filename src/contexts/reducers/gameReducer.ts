@@ -22,6 +22,7 @@ import { GAME_DEFAULTS, COMBAT } from '../../constants/gameConstants';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { WeatherSystem } from '../../WeatherSystem';
 import type { GameState, Action } from '../../types/state';
+import logger from '../../utils/logger';
 
 export function gameReducer(
   state: GameState,
@@ -129,7 +130,7 @@ export function gameReducer(
         try {
           weatherSystem = WeatherSystem.fromJSON(loadedState.weatherSystem, regions);
         } catch (error) {
-          console.error('Failed to restore weather system, will regenerate', error);
+          logger.state.error('Failed to restore weather system, will regenerate', error);
           weatherSystem = null;
         }
       }

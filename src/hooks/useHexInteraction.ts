@@ -3,6 +3,7 @@ import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import DiceRoller from '../game/DiceRoller';
 import { generateSettlementFlavor } from '../utils/flavorTextGenerator';
+import logger from '../utils/logger';
 
 // Lazy load generators to reduce initial bundle size
 // These are loaded dynamically when entering POIs
@@ -127,7 +128,7 @@ export function useHexInteraction(hex) {
             break;
         }
       } catch (error) {
-        console.error('Failed to load generator:', error);
+        logger.general.error('Failed to load generator:', error);
         addMessage('Failed to load area. Please try again.', 'error');
         return;
       }
@@ -281,7 +282,7 @@ export function useHexInteraction(hex) {
       try {
         TownGeneratorClass = await loadTownGenerator();
       } catch (error) {
-        console.error('Failed to load town generator:', error);
+        logger.general.error('Failed to load town generator:', error);
         addMessage('Failed to load town. Please try again.', 'error');
         return;
       }

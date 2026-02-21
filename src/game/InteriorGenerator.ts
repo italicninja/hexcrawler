@@ -5,6 +5,8 @@
  * Provides common functionality for caves, dungeons, ruins, towers
  */
 
+import { getHexDistance } from '../utils/hexMath';
+
 export class InteriorGenerator {
   constructor() {
     this.seed = null;
@@ -264,6 +266,9 @@ export class InteriorGenerator {
 
   /**
    * Calculate hex distance (cube coordinates)
+   * Delegates to the shared hexMath utility. Kept as an instance method
+   * so subclasses (CaveGenerator, RuinsGenerator, TownGenerator, etc.)
+   * can continue calling this.getHexDistance() without changes.
    * @param {number} col1
    * @param {number} row1
    * @param {number} col2
@@ -271,15 +276,7 @@ export class InteriorGenerator {
    * @returns {number} Distance
    */
   getHexDistance(col1, row1, col2, row2) {
-    const x1 = col1 - Math.floor(row1 / 2);
-    const z1 = row1;
-    const y1 = -x1 - z1;
-
-    const x2 = col2 - Math.floor(row2 / 2);
-    const z2 = row2;
-    const y2 = -x2 - z2;
-
-    return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2), Math.abs(z1 - z2));
+    return getHexDistance(col1, row1, col2, row2);
   }
 
   /**

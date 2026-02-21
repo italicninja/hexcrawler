@@ -11,6 +11,7 @@
  */
 
 import type { GameState, Action } from '../../types/state';
+import { Character } from '../../game/Character';
 
 export function questReducer(
   state: GameState,
@@ -51,27 +52,26 @@ export function questReducer(
       const quest = state.activeQuests?.find(q => q.id === questId);
       if (!quest) return state;
 
-      // Award rewards
-      let newState = { ...state };
+      let updatedCharacter = state.playerCharacter;
 
-      if (quest.rewards.gold && state.playerCharacter) {
-        state.playerCharacter.gold += quest.rewards.gold;
-        newState.playerCharacter = state.playerCharacter;
+      // Apply rewards immutably
+      if ((quest.rewards.gold || quest.rewards.xp) && state.playerCharacter) {
+        const character = Character.fromJSON(state.playerCharacter.toJSON());
+        if (quest.rewards.gold) {
+          character.gold += quest.rewards.gold;
+        }
+        if (quest.rewards.xp) {
+          character.gainXP(quest.rewards.xp);
+        }
+        updatedCharacter = character;
       }
 
-      if (quest.rewards.xp && state.playerCharacter) {
-        state.playerCharacter.gainXP(quest.rewards.xp);
-        newState.playerCharacter = state.playerCharacter;
-      }
-
-      // Move to completed
-      newState.activeQuests = state.activeQuests?.filter(q => q.id !== questId) || [];
-      newState.completedQuests = [
-        ...(state.completedQuests || []),
-        { ...quest, completedAt: Date.now() },
-      ];
-
-      return newState;
+      return {
+        ...state,
+        playerCharacter: updatedCharacter,
+        activeQuests: state.activeQuests?.filter(q => q.id !== questId) || [],
+        completedQuests: [...(state.completedQuests || []), { ...quest, completedAt: Date.now() }],
+      };
     }
 
     case ACTIONS.FAIL_QUEST: {

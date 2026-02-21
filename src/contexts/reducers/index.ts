@@ -23,6 +23,7 @@ import { shopReducer } from './shopReducer';
 import { explorationReducer } from './explorationReducer';
 
 import type { GameState, Action } from '../../types/state';
+import logger from '../../utils/logger';
 
 /**
  * Combined reducer that delegates to specialized reducers
@@ -63,24 +64,27 @@ export function combinedReducer(
 
     // Warn about high dispatch rate (but don't throw unless it's a true loop)
     if (dispatchHistory.length > 150) {
-      console.warn(
-        `High dispatch rate: ${dispatchHistory.length} in ${DISPATCH_WINDOW_MS}ms. Top actions:`,
-        Object.entries(actionCounts)
+      logger.state.warn('High dispatch rate detected', {
+        count: dispatchHistory.length,
+        windowMs: DISPATCH_WINDOW_MS,
+        topActions: Object.entries(actionCounts)
           .sort(([, a], [, b]) => b - a)
           .slice(0, 5)
           .map(([action, count]) => `${action}(${count})`)
-          .join(', ')
-      );
+          .join(', '),
+      });
     }
 
     // Only throw if a single action is repeating excessively (likely infinite loop)
     // Movement generates many different actions (SET_PLAYER_POSITION, ADVANCE_TIME, etc.) which is normal
     if (maxCount > 100) {
       const recentActions = dispatchHistory.slice(-10).map(d => d.action);
-      console.error(
-        `Infinite loop detected! Action "${mostFrequent}" dispatched ${maxCount} times in ${DISPATCH_WINDOW_MS}ms. Last 10:`,
-        recentActions
-      );
+      logger.state.error('Infinite dispatch loop detected', {
+        action: mostFrequent,
+        count: maxCount,
+        windowMs: DISPATCH_WINDOW_MS,
+        lastTen: recentActions,
+      });
       dispatchHistory.length = 0; // Clear to avoid spam
       throw new Error(`Infinite dispatch loop detected - action "${mostFrequent}" repeating`);
     }
@@ -106,6 +110,6 @@ export function combinedReducer(
   }
 
   // No reducer handled this action
-  console.warn(`Unhandled action type: ${action.type}`);
+  logger.state.warn('Unhandled action type', { type: action.type });
   return state;
 }

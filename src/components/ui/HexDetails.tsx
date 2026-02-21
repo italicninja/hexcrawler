@@ -6,6 +6,7 @@ import QuestGiverUI from './QuestGiverUI';
 import QuestGenerator from '../../game/QuestGenerator';
 import ShopUI from './ShopUI';
 import { ACTIONS } from '../../contexts/GameStateContext';
+import { QUEST_COUNTS_BY_SIZE } from '../../constants/gameConstants';
 
 /**
  * HexDetails component - displays current hex and selected hex in two panes
@@ -55,32 +56,9 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
         const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
 
         // Determine quest count based on settlement size
-        let minQuests, maxQuests;
-        switch (settlementSize) {
-          case 'camp':
-            minQuests = 0;
-            maxQuests = 1;
-            break;
-          case 'village':
-            minQuests = 1;
-            maxQuests = 2;
-            break;
-          case 'town':
-            minQuests = 2;
-            maxQuests = 3;
-            break;
-          case 'city':
-            minQuests = 2;
-            maxQuests = 4;
-            break;
-          case 'metropolis':
-            minQuests = 3;
-            maxQuests = 5;
-            break;
-          default:
-            minQuests = 2;
-            maxQuests = 3;
-        }
+        const questRange = QUEST_COUNTS_BY_SIZE[settlementSize] || { min: 0, max: 1 };
+        const minQuests = questRange.min;
+        const maxQuests = questRange.max;
 
         const questCount = minQuests + Math.floor(Math.random() * (maxQuests - minQuests + 1));
         quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);
@@ -108,32 +86,9 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
           const playerLevel = state.playerCharacter?.level || 1;
           const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
 
-          let minQuests, maxQuests;
-          switch (settlementSize) {
-            case 'camp':
-              minQuests = 0;
-              maxQuests = 1;
-              break;
-            case 'village':
-              minQuests = 1;
-              maxQuests = 2;
-              break;
-            case 'town':
-              minQuests = 2;
-              maxQuests = 3;
-              break;
-            case 'city':
-              minQuests = 2;
-              maxQuests = 4;
-              break;
-            case 'metropolis':
-              minQuests = 3;
-              maxQuests = 5;
-              break;
-            default:
-              minQuests = 2;
-              maxQuests = 3;
-          }
+          const questRange = QUEST_COUNTS_BY_SIZE[settlementSize] || { min: 0, max: 1 };
+          const minQuests = questRange.min;
+          const maxQuests = questRange.max;
 
           const questCount = minQuests + Math.floor(Math.random() * (maxQuests - minQuests + 1));
           quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);

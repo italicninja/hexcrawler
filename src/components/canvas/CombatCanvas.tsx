@@ -235,10 +235,17 @@ function CombatCanvas({
       }
       const radius = HEX_SIZE * 0.4;
 
+      const isRaging = combatant.statusEffects?.some(e => e.name === 'Rage');
+
       ctx.save();
 
-      // Pulsing glow effect for current turn
-      if (isCurrentTurn) {
+      // Shadow / glow — rage takes priority over turn indicator colour
+      if (isRaging) {
+        // Faster pulse (150 ms) in orange-red to stand out from the turn glow
+        const ragePulse = Math.sin(Date.now() / 150) * 6 + 10;
+        ctx.shadowBlur = ragePulse + (isCurrentTurn ? 8 : 0);
+        ctx.shadowColor = '#ff6b35';
+      } else if (isCurrentTurn) {
         const pulseOffset = Math.sin(Date.now() / 300) * 5 + 5;
         ctx.shadowBlur = pulseOffset + 10;
         ctx.shadowColor = combatant.isAlly ? '#FFD700' : '#FF0000';
@@ -261,9 +268,9 @@ function CombatCanvas({
       ctx.fillStyle = fillColor;
       ctx.fill();
 
-      // Border: gold for ally, red for enemy
-      ctx.strokeStyle = combatant.isAlly ? '#FFD700' : '#FF0000';
-      ctx.lineWidth = 3;
+      // Border: orange when raging, gold for ally, red for enemy
+      ctx.strokeStyle = isRaging ? '#ff6b35' : combatant.isAlly ? '#FFD700' : '#FF0000';
+      ctx.lineWidth = isRaging ? 4 : 3;
       ctx.stroke();
 
       ctx.restore();
@@ -297,7 +304,7 @@ function CombatCanvas({
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      console.log('[CombatCanvas] Canvas ref not ready');
+      logger.render.warn('[CombatCanvas] Canvas ref not ready');
       return;
     }
 
@@ -414,7 +421,7 @@ function CombatCanvas({
         drawCombatant(ctx, combatant, isCurrentTurn, overridePixel);
         drawnCount++;
       } else {
-        console.warn('[CombatCanvas] Combatant has no position:', combatant.name);
+        logger.combat.warn('[CombatCanvas] Combatant has no position:', combatant.name);
       }
     });
 
@@ -698,7 +705,7 @@ function CombatCanvas({
         return;
       }
 
-      console.log('[CombatCanvas] Click event', {
+      logger.combat.debug('[CombatCanvas] Click event', {
         isDragging,
         hasDragged,
         hasBattlefield: !!battlefield,
@@ -706,18 +713,18 @@ function CombatCanvas({
 
       // Don't register clicks if we actually dragged (moved camera)
       if (hasDragged) {
-        console.log('[CombatCanvas] Click ignored - was dragging camera');
+        logger.combat.debug('[CombatCanvas] Click ignored - was dragging camera');
         return;
       }
 
       // Null check battlefield
       if (!battlefield || !battlefield.hexes) {
-        console.log('[CombatCanvas] Click ignored - no battlefield');
+        logger.combat.debug('[CombatCanvas] Click ignored - no battlefield');
         return;
       }
 
       const canvasPos = screenToCanvas(e.clientX, e.clientY);
-      console.log('[CombatCanvas] Canvas position', canvasPos);
+      logger.combat.debug('[CombatCanvas] Canvas position', canvasPos);
 
       // Create positioned hexes for hit detection
       const positionedHexes = battlefield.hexes.map(hex => {
@@ -726,13 +733,13 @@ function CombatCanvas({
       });
 
       const clickedHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
-      console.log('[CombatCanvas] Clicked hex', clickedHex);
+      logger.combat.debug('[CombatCanvas] Clicked hex', clickedHex);
 
       if (clickedHex) {
-        console.log('[CombatCanvas] Calling onHexClick with', clickedHex);
+        logger.combat.debug('[CombatCanvas] Calling onHexClick with', clickedHex);
         onHexClick(clickedHex);
       } else {
-        console.log('[CombatCanvas] No hex found at click position');
+        logger.combat.debug('[CombatCanvas] No hex found at click position');
       }
     },
     [hasDragged, battlefield, screenToCanvas, onHexClick]

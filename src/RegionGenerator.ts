@@ -2,6 +2,7 @@
 // TODO: Add proper types
 import { PerlinNoise } from './noise';
 import logger from './utils/logger';
+import { getHexDistance } from './utils/hexMath';
 
 /**
  * Region types with their characteristics
@@ -181,7 +182,7 @@ export class RegionGenerator {
       // Check minimum distance from existing centers
       let tooClose = false;
       for (const center of centers) {
-        const dist = this.hexDistance(col, row, center.col, center.row);
+        const dist = getHexDistance(col, row, center.col, center.row);
         if (dist < minDistance) {
           tooClose = true;
           break;
@@ -217,7 +218,7 @@ export class RegionGenerator {
         let nearestRegion = 0;
 
         centers.forEach((center, idx) => {
-          const dist = this.hexDistance(col, row, center.col, center.row);
+          const dist = getHexDistance(col, row, center.col, center.row);
           if (dist < minDist) {
             minDist = dist;
             nearestRegion = idx;
@@ -313,7 +314,7 @@ export class RegionGenerator {
     hexToRegion.forEach((regionId, hexKey) => {
       if (regionId === regionIdx) {
         const [col, row] = hexKey.split(',').map(Number);
-        const dist = this.hexDistance(col, row, center.col, center.row);
+        const dist = getHexDistance(col, row, center.col, center.row);
         totalDistance += dist;
         hexCount++;
       }
@@ -382,23 +383,6 @@ export class RegionGenerator {
     }
 
     return neighbors;
-  }
-
-  /**
-   * Calculate hex distance using cube coordinates
-   */
-  hexDistance(col1, row1, col2, row2) {
-    // Convert offset to cube coordinates
-    const x1 = col1 - Math.floor(row1 / 2);
-    const z1 = row1;
-    const y1 = -x1 - z1;
-
-    const x2 = col2 - Math.floor(row2 / 2);
-    const z2 = row2;
-    const y2 = -x2 - z2;
-
-    // Cube distance
-    return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2), Math.abs(z1 - z2));
   }
 
   /**

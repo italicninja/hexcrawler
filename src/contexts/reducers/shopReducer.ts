@@ -9,6 +9,7 @@
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { Shop } from '../../game/Shop';
+import { Character } from '../../game/Character';
 import type { GameState, Action } from '../../types/state';
 
 export function shopReducer(
@@ -41,23 +42,21 @@ export function shopReducer(
         return state;
       }
 
-      // Deduct gold
-      state.playerCharacter.gold -= cost;
-
-      // Add item to inventory
-      state.playerCharacter.inventory.push(item);
-
-      // Remove item from shop
+      // Clone character immutably before mutating
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const shopIndex = state.currentShop.inventory.findIndex((i: any) => i.id === item.id);
-      if (shopIndex >= 0) {
-        state.currentShop.inventory.splice(shopIndex, 1);
-      }
+      const character = Character.fromJSON(state.playerCharacter.toJSON()) as any;
+      character.gold -= cost;
+      character.inventory.push(item);
+
+      // Clone shop inventory immutably — remove purchased item
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updatedShopInventory = state.currentShop.inventory.filter((i: any) => i.id !== item.id);
+      const updatedShop = { ...state.currentShop, inventory: updatedShopInventory };
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
-        currentShop: state.currentShop,
+        playerCharacter: character,
+        currentShop: updatedShop,
       };
     }
 
@@ -66,23 +65,26 @@ export function shopReducer(
 
       if (!state.playerCharacter || !state.currentShop) return state;
 
-      // Remove item from inventory
+      // Clone character immutably before mutating
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const invIndex = state.playerCharacter.inventory.findIndex((i: any) => i.id === item.id);
+      const character = Character.fromJSON(state.playerCharacter.toJSON()) as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const invIndex = character.inventory.findIndex((i: any) => i.id === item.id);
       if (invIndex >= 0) {
-        state.playerCharacter.inventory.splice(invIndex, 1);
+        character.inventory.splice(invIndex, 1);
       }
+      character.gold += sellPrice;
 
-      // Add gold
-      state.playerCharacter.gold += sellPrice;
-
-      // Add item to shop (optional - shops could refuse certain items)
-      state.currentShop.inventory.push(item);
+      // Clone shop inventory immutably — add sold item back to shop
+      const updatedShop = {
+        ...state.currentShop,
+        inventory: [...state.currentShop.inventory, item],
+      };
 
       return {
         ...state,
-        playerCharacter: state.playerCharacter,
-        currentShop: state.currentShop,
+        playerCharacter: character,
+        currentShop: updatedShop,
       };
     }
 

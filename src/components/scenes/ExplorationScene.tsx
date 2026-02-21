@@ -5,9 +5,11 @@
  */
 
 import { useState, useEffect } from 'react';
+import { getHexDistance } from '../../utils/hexMath';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import CharacterStats from '../ui/CharacterStats';
+import { Character } from '../../game/Character';
 import GameLog from '../ui/GameLog';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import InteriorHexDetails from '../ui/InteriorHexDetails';
@@ -107,7 +109,8 @@ function ExplorationScene() {
 
       // TODO: Implement full combat system
       const damageReceived = diceRoller.rollDice(1, 6);
-      state.playerCharacter.damage(damageReceived);
+      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      updatedCharacter.damage(damageReceived);
 
       const combatTime = getCombatDuration();
 
@@ -116,7 +119,7 @@ function ExplorationScene() {
           `[Combat Auto-Resolved]\n` +
           `You took ${damageReceived} damage!\n` +
           `You defeated the enemies!\n\n` +
-          `HP: ${state.playerCharacter.currentHP}/${state.playerCharacter.maxHP}\n` +
+          `HP: ${updatedCharacter.currentHP}/${updatedCharacter.maxHP}\n` +
           `Time elapsed: ${combatTime} minutes`,
         'encounter'
       );
@@ -124,7 +127,7 @@ function ExplorationScene() {
       // Update character
       dispatch({
         type: actions.UPDATE_CHARACTER,
-        payload: state.playerCharacter,
+        payload: updatedCharacter,
       });
 
       // Advance time
@@ -204,19 +207,19 @@ function ExplorationScene() {
         );
       } else {
         // Failed save - take damage
-        const character = state.playerCharacter;
         const damageDealt = hazard.damage;
-        character.damage(damageDealt);
+        const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+        updatedCharacter.damage(damageDealt);
 
         addMessage(
-          `${hazard.saveType.toUpperCase()} ${saveResult.roll}+${saveResult.modifier}=${saveResult.total} vs DC ${hazard.dc}: Failed!\n\n${hazard.description}\n\nTook ${damageDealt} ${hazard.damageType} damage\n\nHP: ${character.currentHP}/${character.maxHP}`,
+          `${hazard.saveType.toUpperCase()} ${saveResult.roll}+${saveResult.modifier}=${saveResult.total} vs DC ${hazard.dc}: Failed!\n\n${hazard.description}\n\nTook ${damageDealt} ${hazard.damageType} damage\n\nHP: ${updatedCharacter.currentHP}/${updatedCharacter.maxHP}`,
           'encounter'
         );
 
         // Update character HP in state
         dispatch({
           type: actions.UPDATE_CHARACTER,
-          payload: character,
+          payload: updatedCharacter,
         });
       }
 
@@ -229,19 +232,6 @@ function ExplorationScene() {
         },
       });
     }
-  };
-
-  // Calculate hex distance (cube coordinates)
-  const getHexDistance = (col1, row1, col2, row2) => {
-    const x1 = col1 - Math.floor(row1 / 2);
-    const z1 = row1;
-    const y1 = -x1 - z1;
-
-    const x2 = col2 - Math.floor(row2 / 2);
-    const z2 = row2;
-    const y2 = -x2 - z2;
-
-    return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2), Math.abs(z1 - z2));
   };
 
   // Handle exit exploration

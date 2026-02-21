@@ -10,7 +10,7 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.5rem',
+        gap: '0.25rem',
         padding: '1rem',
         backgroundColor: 'var(--panel-bg)',
         border: '1px solid var(--border-color)',
@@ -21,33 +21,45 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
       {items.map(item => (
         <button
           key={item.id}
-          onClick={() => onItemClick(item)}
-          className={`menu-sidebar-item ${selectedItem?.id === item.id ? 'selected' : ''} ${item.isDev ? 'dev-item' : ''}`}
+          onClick={() => !item.disabled && onItemClick(item)}
+          disabled={item.disabled}
+          title={item.disabledReason || undefined}
+          className={`menu-sidebar-item ${selectedItem?.id === item.id ? 'selected' : ''} ${item.isDev ? 'dev-item' : ''} ${item.disabled ? 'disabled' : ''}`}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '1rem',
-            padding: '1rem 1.25rem',
-            backgroundColor: item.isDev
-              ? 'rgba(255, 69, 0, 0.2)'
-              : selectedItem?.id === item.id
-                ? 'var(--bg-lighter)'
-                : 'var(--bg-color)',
-            border: item.isDev
-              ? '2px solid rgba(255, 69, 0, 0.6)'
-              : selectedItem?.id === item.id
-                ? '2px solid var(--accent-color)'
-                : '1px solid var(--border-color)',
+            gap: '0.625rem',
+            padding: '0.5rem 0.75rem',
+            backgroundColor: item.disabled
+              ? 'var(--bg-color)'
+              : item.isDev
+                ? 'rgba(255, 69, 0, 0.2)'
+                : selectedItem?.id === item.id
+                  ? 'var(--bg-lighter)'
+                  : 'var(--bg-color)',
+            border: item.disabled
+              ? '1px solid var(--border-color)'
+              : item.isDev
+                ? '2px solid rgba(255, 69, 0, 0.6)'
+                : selectedItem?.id === item.id
+                  ? '2px solid var(--accent-color)'
+                  : '1px solid var(--border-color)',
             borderRadius: '6px',
-            color: item.isDev ? '#ff4500' : 'var(--text-color)',
+            color: item.disabled
+              ? 'var(--text-muted)'
+              : item.isDev
+                ? '#ff4500'
+                : 'var(--text-color)',
             fontSize: '1rem',
             fontWeight: item.isDev ? '700' : '500',
-            cursor: 'pointer',
+            cursor: item.disabled ? 'not-allowed' : 'pointer',
+            opacity: item.disabled ? 0.5 : 1,
             transition: 'all 0.2s ease',
             textAlign: 'left',
             fontFamily: 'inherit',
           }}
           onMouseEnter={e => {
+            if (item.disabled) return;
             if (item.isDev) {
               e.currentTarget.style.backgroundColor = 'rgba(255, 69, 0, 0.4)';
             } else if (selectedItem?.id !== item.id) {
@@ -56,6 +68,7 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
             }
           }}
           onMouseLeave={e => {
+            if (item.disabled) return;
             if (item.isDev) {
               e.currentTarget.style.backgroundColor = 'rgba(255, 69, 0, 0.2)';
             } else if (selectedItem?.id !== item.id) {
@@ -67,17 +80,6 @@ function MenuSidebar({ items, onItemClick, selectedItem }) {
           <span style={{ fontSize: '1.5rem' }}>{item.icon}</span>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: '600', color: 'var(--text-color)' }}>{item.label}</div>
-            {item.description && (
-              <div
-                style={{
-                  fontSize: '0.85rem',
-                  color: 'var(--text-muted)',
-                  marginTop: '0.25rem',
-                }}
-              >
-                {item.description}
-              </div>
-            )}
           </div>
           {item.badge !== undefined && item.badge > 0 && (
             <div
