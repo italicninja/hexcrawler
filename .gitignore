@@ -13,6 +13,10 @@ docs/SRD_CC_v5.2.1.pdf
 *.old
 *~
 
+# Tooling & AI session files
+.opencode/
+.tmp/
+
 # QA Test Artifacts
 tests/screenshots/
 tests/reports/
