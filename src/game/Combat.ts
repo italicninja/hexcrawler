@@ -193,8 +193,9 @@ export class Combat {
     this.characters.forEach(char => {
       if (char && char.currentHP > 0) {
         const dexMod = Math.floor((char.abilities.dexterity - 10) / 2);
+        const itemBonus = char.initiativeBonus || 0;
         const roll = this.diceRoller.rollD20();
-        const total = roll + dexMod;
+        const total = roll + dexMod + itemBonus;
 
         initiatives.push({
           type: 'character',
@@ -228,7 +229,13 @@ export class Combat {
     this.log('=== INITIATIVE ===');
     initiatives.forEach(init => {
       const name = init.combatant.name;
-      this.log(`${name}: ${init.initiative} (rolled ${init.roll})`);
+      const dexMod = Math.floor((init.combatant.abilities.dexterity - 10) / 2);
+      const itemBonus = init.combatant.initiativeBonus || 0;
+      const modStr =
+        itemBonus !== 0
+          ? `${dexMod >= 0 ? '+' : ''}${dexMod} item+${itemBonus}`
+          : `${dexMod >= 0 ? '+' : ''}${dexMod}`;
+      this.log(`${name}: ${init.initiative} (rolled ${init.roll}${modStr})`);
     });
     this.log('');
 

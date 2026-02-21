@@ -1174,9 +1174,14 @@ function OverworldScene() {
       }
 
       const dexMod = Math.floor((char.abilities.dexterity - 10) / 2);
-      const roll = combatant.initiative - dexMod;
+      const itemBonus = char.initiativeBonus || 0;
+      const roll = combatant.initiative - dexMod - itemBonus;
 
-      const logMessage = `${combatant.name}: ${combatant.initiative} (rolled ${roll}+${dexMod})`;
+      let modStr = `${dexMod >= 0 ? '+' : ''}${dexMod}`;
+      if (itemBonus !== 0) {
+        modStr += ` item+${itemBonus}`;
+      }
+      const logMessage = `${combatant.name}: ${combatant.initiative} (rolled ${roll}${modStr})`;
 
       logger.combat.info('Adding initiative message', { logMessage });
       addMessage(logMessage, 'system');
@@ -1960,7 +1965,7 @@ function OverworldScene() {
         title="Equipment"
         isOpen={openPanel === 'equipment'}
         onClose={handleClosePanel}
-        width="800px"
+        width="1050px"
       >
         <Equipment character={selectedCharacter} />
       </MenuPanel>

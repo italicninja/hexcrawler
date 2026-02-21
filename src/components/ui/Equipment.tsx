@@ -1,167 +1,214 @@
 // @ts-nocheck
 /**
- * Equipment component - displays character equipment with equip/unequip functionality
+ * Equipment component - displays character equipment with equip/unequip functionality.
+ * Layout: 3-column split — equipped slots | inventory list | item detail panel.
  */
 
 import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 
-function ItemTooltip({ item, children }) {
-  const [showTooltip, setShowTooltip] = useState(false);
+// ─── Item Detail Panel ────────────────────────────────────────────────────────
 
-  if (!item) return children;
+function ItemDetailPanel({ item, source, onEquip, onUnequip }) {
+  if (!item) {
+    return (
+      <div className="item-detail-panel empty">
+        <div className="detail-panel-placeholder">
+          <div className="placeholder-icon">⚔</div>
+          <div className="placeholder-text">Click any item to inspect it</div>
+        </div>
+      </div>
+    );
+  }
+
+  const rarityLabel = item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1);
+  const effectsText = item.getEffectsText();
 
   return (
-    <div
-      className="tooltip-wrapper"
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
-    >
-      {children}
-      {showTooltip && (
-        <div className="item-tooltip">
-          <div className="tooltip-header" style={{ color: item.getRarityColor() }}>
-            {item.name}
+    <div className="item-detail-panel" style={{ borderTopColor: item.getRarityColor() }}>
+      <div className="detail-name" style={{ color: item.getRarityColor() }}>
+        {item.name}
+      </div>
+      <div className="detail-rarity-type">
+        {rarityLabel} {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+      </div>
+
+      <div className="detail-divider" />
+
+      <div className="detail-stats">
+        {item.slot && (
+          <div className="detail-stat-row">
+            <span className="detail-stat-label">Slot</span>
+            <span className="detail-stat-value">{item.slot}</span>
           </div>
-          <div className="tooltip-type">
-            {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)} {item.type}
-          </div>
-          {item.slot && <div className="tooltip-slot">Slot: {item.slot}</div>}
-          {item.damage && (
-            <div className="tooltip-damage">
-              Damage: {item.damage}
+        )}
+        {item.damage && (
+          <div className="detail-stat-row">
+            <span className="detail-stat-label">Damage</span>
+            <span className="detail-stat-value">
+              {item.damage}
               {item.damageType && ` ${item.damageType}`}
-              {item.twoHanded && ' (Two-Handed)'}
-            </div>
-          )}
-          {item.armorType && <div className="tooltip-armor">Armor Type: {item.armorType}</div>}
-          {item.getEffectsText() !== 'No special effects' && (
-            <div className="tooltip-effects">{item.getEffectsText()}</div>
-          )}
-          {item.charges !== null && item.maxCharges !== null && (
-            <div className="tooltip-charges">
-              Charges: {item.charges}/{item.maxCharges}
-            </div>
-          )}
-          {item.description && <div className="tooltip-description">{item.description}</div>}
-          <div className="tooltip-footer">
-            Weight: {item.weight} lbs | Value: {item.value} gp
+              {item.twoHanded && ' (2H)'}
+            </span>
           </div>
-        </div>
+        )}
+        {item.armorType && (
+          <div className="detail-stat-row">
+            <span className="detail-stat-label">Armor</span>
+            <span className="detail-stat-value">{item.armorType}</span>
+          </div>
+        )}
+        {item.effects?.ac && (
+          <div className="detail-stat-row">
+            <span className="detail-stat-label">AC Bonus</span>
+            <span className="detail-stat-value">+{item.effects.ac}</span>
+          </div>
+        )}
+        {effectsText !== 'No special effects' && (
+          <div className="detail-stat-row effects">
+            <span className="detail-stat-label">Effects</span>
+            <span className="detail-stat-value">{effectsText}</span>
+          </div>
+        )}
+        {item.charges !== null && item.maxCharges !== null && (
+          <div className="detail-stat-row">
+            <span className="detail-stat-label">Charges</span>
+            <span className="detail-stat-value">
+              {item.charges}/{item.maxCharges}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {item.description && (
+        <>
+          <div className="detail-divider" />
+          <div className="detail-description">{item.description}</div>
+        </>
       )}
+
+      <div className="detail-divider" />
+
+      <div className="detail-footer">
+        <span>{item.weight} lbs</span>
+        <span>{item.value} gp</span>
+      </div>
+
+      <div className="detail-actions">
+        {source?.type === 'slot' && (
+          <button className="detail-action-btn unequip" onClick={() => onUnequip(source.slotId)}>
+            Unequip
+          </button>
+        )}
+        {source?.type === 'inventory' && item.isEquippable() && (
+          <button className="detail-action-btn equip" onClick={() => onEquip(item)}>
+            Equip
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-function EquipmentSlot({ label, item, slotId, onUnequip }) {
+// ─── Equipment Slot (compact) ─────────────────────────────────────────────────
+
+function EquipmentSlot({ label, item, slotId, isSelected, onSelect }) {
+  const handleClick = () => {
+    if (item) onSelect(item, { type: 'slot', slotId });
+  };
+
   if (!item) {
     return (
       <div className="equipment-slot empty" data-slot={slotId}>
         <div className="slot-label">{label}</div>
-        <div className="slot-content">Empty</div>
+        <div className="slot-content-empty">Empty</div>
       </div>
     );
   }
 
   return (
-    <ItemTooltip item={item}>
-      <div
-        className="equipment-slot equipped"
-        data-slot={slotId}
-        style={{ borderColor: item.getRarityColor() }}
-      >
-        <div className="slot-label">{label}</div>
-        <div className="slot-content">
-          <div className="item-name" style={{ color: item.getRarityColor() }}>
-            {item.name}
-          </div>
-          <div className="item-details">
-            {item.effects?.ac && <span className="item-stat">AC +{item.effects.ac}</span>}
-            {item.damage && <span className="item-stat">{item.damage}</span>}
-            {item.getEffectsText() !== 'No special effects' &&
-              !item.effects?.ac &&
-              !item.damage && <span className="item-stat">{item.getEffectsText()}</span>}
-          </div>
-          <button className="unequip-btn" onClick={() => onUnequip(slotId)} title="Unequip item">
-            Unequip
-          </button>
+    <div
+      className={`equipment-slot equipped${isSelected ? ' selected' : ''}`}
+      data-slot={slotId}
+      style={{ borderLeftColor: item.getRarityColor() }}
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && handleClick()}
+    >
+      <div className="slot-label">{label}</div>
+      <div className="slot-content">
+        <div className="item-name" style={{ color: item.getRarityColor() }}>
+          {item.name}
+        </div>
+        <div className="slot-mini-stats">
+          {item.effects?.ac && <span className="mini-stat">AC +{item.effects.ac}</span>}
+          {item.damage && <span className="mini-stat">{item.damage}</span>}
         </div>
       </div>
-    </ItemTooltip>
+    </div>
   );
 }
 
-function InventoryItem({ item, onEquip }) {
-  const canEquip = item.isEquippable();
+// ─── Inventory Item (mini-display) ────────────────────────────────────────────
+
+function InventoryItem({ item, isSelected, onSelect }) {
   const itemType = item.type.charAt(0).toUpperCase() + item.type.slice(1);
 
+  const handleClick = () => onSelect(item, { type: 'inventory' });
+
   return (
-    <ItemTooltip item={item}>
-      <div
-        className="inventory-item"
-        style={{ borderLeftColor: item.getRarityColor(), borderLeftWidth: '3px' }}
-      >
-        <div className="inventory-item-content">
-          <div className="inventory-item-header">
-            <span className="item-name" style={{ color: item.getRarityColor() }}>
-              {item.name}
-            </span>
-            <span className="item-type-badge">{itemType}</span>
-          </div>
-          <div className="inventory-item-details">
-            {item.damage && <span className="item-detail">{item.damage}</span>}
-            {item.effects?.ac && <span className="item-detail">AC +{item.effects.ac}</span>}
-            {item.weight > 0 && <span className="item-detail">{item.weight} lbs</span>}
-          </div>
+    <div
+      className={`inventory-item${isSelected ? ' selected' : ''}`}
+      style={{ borderLeftColor: item.getRarityColor(), borderLeftWidth: '3px' }}
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && handleClick()}
+    >
+      <div className="inventory-item-content">
+        <div className="inventory-item-header">
+          <span className="item-name" style={{ color: item.getRarityColor() }}>
+            {item.name}
+          </span>
+          <span className="item-type-badge">{itemType}</span>
         </div>
-        {canEquip && (
-          <button
-            className="equip-btn"
-            onClick={() => onEquip(item)}
-            title={`Equip to ${item.slot}`}
-          >
-            Equip
-          </button>
-        )}
+        <div className="inventory-item-details">
+          {item.damage && <span className="item-detail">{item.damage}</span>}
+          {item.effects?.ac && <span className="item-detail">AC +{item.effects.ac}</span>}
+          {item.weight > 0 && <span className="item-detail">{item.weight} lbs</span>}
+          {item.value > 0 && <span className="item-detail">{item.value} gp</span>}
+        </div>
       </div>
-    </ItemTooltip>
+    </div>
   );
 }
 
-function Inventory({ inventory, onEquip }) {
+// ─── Inventory Panel ──────────────────────────────────────────────────────────
+
+function Inventory({ inventory, selectedItem, onSelect }) {
   const [filter, setFilter] = useState('all');
 
   if (!inventory || inventory.length === 0) {
     return (
-      <div className="inventory-section">
-        <h4>Inventory</h4>
+      <div className="inventory-col">
+        <div className="inventory-col-header">
+          <h4>Inventory</h4>
+        </div>
         <div className="inventory-empty">No items in inventory</div>
       </div>
     );
   }
 
-  // Group items by type
-  const itemsByType = {
-    weapon: [],
-    armor: [],
-    consumable: [],
-    quest: [],
-    misc: [],
-  };
-
+  const itemsByType = { weapon: [], armor: [], consumable: [], quest: [], misc: [] };
   inventory.forEach(item => {
     const type = item.type || 'misc';
-    if (itemsByType[type]) {
-      itemsByType[type].push(item);
-    } else {
-      itemsByType.misc.push(item);
-    }
+    if (itemsByType[type]) itemsByType[type].push(item);
+    else itemsByType.misc.push(item);
   });
 
-  // Filter items
   const filteredItems = filter === 'all' ? inventory : itemsByType[filter] || [];
 
-  // Count items by type
   const typeCounts = {
     all: inventory.length,
     weapon: itemsByType.weapon.length,
@@ -172,9 +219,9 @@ function Inventory({ inventory, onEquip }) {
   };
 
   return (
-    <div className="inventory-section">
-      <div className="inventory-header">
-        <h4>Inventory ({inventory.length} items)</h4>
+    <div className="inventory-col">
+      <div className="inventory-col-header">
+        <h4>Inventory ({inventory.length})</h4>
         <div className="inventory-filters">
           <button
             className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
@@ -220,58 +267,83 @@ function Inventory({ inventory, onEquip }) {
         {filteredItems.length === 0 ? (
           <div className="inventory-empty">No items in this category</div>
         ) : (
-          filteredItems.map(item => <InventoryItem key={item.id} item={item} onEquip={onEquip} />)
+          filteredItems.map(item => (
+            <InventoryItem
+              key={item.id}
+              item={item}
+              isSelected={selectedItem?.id === item.id}
+              onSelect={onSelect}
+            />
+          ))
         )}
       </div>
     </div>
   );
 }
 
+// ─── Equipment (root) ─────────────────────────────────────────────────────────
+
 function Equipment({ character }) {
   const { dispatch, actions } = useGameState();
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedSource, setSelectedSource] = useState(null);
 
   if (!character) {
     return <div className="equipment-placeholder">Select a party member to view equipment</div>;
   }
 
-  // Null check for equipment object
   if (!character.equipment) {
     return <div className="equipment-placeholder">Invalid character data (missing equipment)</div>;
   }
 
   const equipment = character.equipment;
 
-  const handleUnequip = slot => {
-    dispatch({
-      type: actions.UNEQUIP_ITEM,
-      payload: { slot },
-    });
+  const handleSelect = (item, source) => {
+    // Clicking the same item again deselects it
+    if (selectedItem?.id === item.id && selectedSource?.slotId === source?.slotId) {
+      setSelectedItem(null);
+      setSelectedSource(null);
+    } else {
+      setSelectedItem(item);
+      setSelectedSource(source);
+    }
+  };
+
+  const handleUnequip = slotId => {
+    dispatch({ type: actions.UNEQUIP_ITEM, payload: { slot: slotId } });
+    setSelectedItem(null);
+    setSelectedSource(null);
   };
 
   const handleEquip = item => {
-    // Determine target slot
     let targetSlot = item.slot;
 
-    // Special handling for rings - check which slot is available
     if (item.slot === 'ring1' || item.slot === 'ring2') {
-      if (!equipment.ring1) {
-        targetSlot = 'ring1';
-      } else if (!equipment.ring2) {
-        targetSlot = 'ring2';
-      } else {
-        // Both occupied, default to ring1 (will unequip existing)
-        targetSlot = 'ring1';
-      }
+      if (!equipment.ring1) targetSlot = 'ring1';
+      else if (!equipment.ring2) targetSlot = 'ring2';
+      else targetSlot = 'ring1';
     }
 
     dispatch({
       type: actions.EQUIP_ITEM,
-      payload: {
-        itemId: item.id,
-        slot: targetSlot,
-      },
+      payload: { itemId: item.id, slot: targetSlot },
     });
+    setSelectedItem(null);
+    setSelectedSource(null);
   };
+
+  const slots = [
+    { label: 'Head', id: 'head' },
+    { label: 'Neck', id: 'neck' },
+    { label: 'Chest', id: 'chest' },
+    { label: 'Hands', id: 'hands' },
+    { label: 'Legs', id: 'legs' },
+    { label: 'Feet', id: 'feet' },
+    { label: 'Ring 1', id: 'ring1' },
+    { label: 'Ring 2', id: 'ring2' },
+    { label: 'Main Hand', id: 'mainHand' },
+    { label: 'Off Hand', id: 'offHand' },
+  ];
 
   return (
     <div className="equipment-display">
@@ -279,75 +351,37 @@ function Equipment({ character }) {
         <h3>{character.name}'s Equipment</h3>
       </div>
 
-      <div className="equipment-grid">
-        <div className="equipment-column">
-          <EquipmentSlot
-            label="Head"
-            item={equipment.head}
-            slotId="head"
-            onUnequip={handleUnequip}
-          />
-          <EquipmentSlot
-            label="Neck"
-            item={equipment.neck}
-            slotId="neck"
-            onUnequip={handleUnequip}
-          />
-          <EquipmentSlot
-            label="Chest"
-            item={equipment.chest}
-            slotId="chest"
-            onUnequip={handleUnequip}
-          />
-          <EquipmentSlot
-            label="Hands"
-            item={equipment.hands}
-            slotId="hands"
-            onUnequip={handleUnequip}
-          />
-          <EquipmentSlot
-            label="Legs"
-            item={equipment.legs}
-            slotId="legs"
-            onUnequip={handleUnequip}
-          />
+      <div className="equipment-layout">
+        {/* Column 1: Equipped Slots */}
+        <div className="equipped-slots-col">
+          <h4 className="col-heading">Equipped</h4>
+          {slots.map(({ label, id }) => (
+            <EquipmentSlot
+              key={id}
+              label={label}
+              item={equipment[id]}
+              slotId={id}
+              isSelected={selectedSource?.type === 'slot' && selectedSource?.slotId === id}
+              onSelect={handleSelect}
+            />
+          ))}
         </div>
 
-        <div className="equipment-column">
-          <EquipmentSlot
-            label="Feet"
-            item={equipment.feet}
-            slotId="feet"
-            onUnequip={handleUnequip}
-          />
-          <EquipmentSlot
-            label="Ring 1"
-            item={equipment.ring1}
-            slotId="ring1"
-            onUnequip={handleUnequip}
-          />
-          <EquipmentSlot
-            label="Ring 2"
-            item={equipment.ring2}
-            slotId="ring2"
-            onUnequip={handleUnequip}
-          />
-          <EquipmentSlot
-            label="Main Hand"
-            item={equipment.mainHand}
-            slotId="mainHand"
-            onUnequip={handleUnequip}
-          />
-          <EquipmentSlot
-            label="Off Hand"
-            item={equipment.offHand}
-            slotId="offHand"
-            onUnequip={handleUnequip}
-          />
-        </div>
+        {/* Column 2: Inventory */}
+        <Inventory
+          inventory={character.inventory}
+          selectedItem={selectedSource?.type === 'inventory' ? selectedItem : null}
+          onSelect={handleSelect}
+        />
+
+        {/* Column 3: Item Detail Panel */}
+        <ItemDetailPanel
+          item={selectedItem}
+          source={selectedSource}
+          onEquip={handleEquip}
+          onUnequip={handleUnequip}
+        />
       </div>
-
-      <Inventory inventory={character.inventory} onEquip={handleEquip} />
     </div>
   );
 }

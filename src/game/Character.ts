@@ -28,6 +28,7 @@ export class Character {
     this.currentHP = GAME_DEFAULTS.BASE_HP;
     this.armorClass = GAME_DEFAULTS.BASE_AC;
     this.proficiencyBonus = GAME_DEFAULTS.PROFICIENCY_BONUS;
+    this.initiativeBonus = 0; // Bonus to initiative from items/feats
 
     // Movement and vision
     this.moveDistance = GAME_DEFAULTS.MOVE_DISTANCE;
@@ -260,6 +261,7 @@ export class Character {
 
     this.armorClass = this.baseStats.armorClass;
     this.maxHP = this.baseStats.maxHP;
+    this.initiativeBonus = 0;
     Object.keys(this.abilities).forEach(ability => {
       this.abilities[ability] = this.baseStats.abilities[ability];
     });
@@ -288,6 +290,10 @@ export class Character {
         if (item.effects.hp) {
           this.maxHP += item.effects.hp;
           this.currentHP = Math.min(this.currentHP, this.maxHP);
+        }
+
+        if (item.effects.initiative) {
+          this.initiativeBonus += item.effects.initiative;
         }
       }
     });
