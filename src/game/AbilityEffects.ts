@@ -28,6 +28,9 @@ export class AbilityEffects {
       case 'Rage':
         return this.rage(combatant, diceRoller);
 
+      case 'Reckless Attack':
+        return this.recklessAttack(combatant);
+
       case 'Extend Rage':
         return this.extendRage(combatant);
 
@@ -132,6 +135,43 @@ export class AbilityEffects {
         name: 'Rage',
         duration: 1,
       },
+    };
+  }
+
+  /**
+   * Barbarian - Reckless Attack (PHB'24 p52)
+   * Declared before the first attack roll on the barbarian's turn.
+   * Effect: Advantage on STR attack rolls until start of next turn.
+   * Cost:   Attackers also have Advantage against the barbarian during that time.
+   * This applies a status effect that Combat.processAttack reads for both sides.
+   */
+  static recklessAttack(combatant) {
+    if (!combatant.statusEffects) {
+      combatant.statusEffects = [];
+    }
+
+    // Idempotent — declaring again on the same turn is a no-op
+    const already = combatant.statusEffects.find(e => e.name === 'Reckless Attack');
+    if (already) {
+      return {
+        success: false,
+        message: `${combatant.name} is already attacking recklessly this turn.`,
+      };
+    }
+
+    combatant.statusEffects.push({
+      name: 'Reckless Attack',
+      duration: 1, // expires at start of next turn via tickStatusEffects
+      effects: {
+        advantageOnStrAttacks: true, // attacker gains advantage on STR melee rolls
+        vulnerableToAdvantage: true, // attackers against this combatant gain advantage
+      },
+    });
+
+    return {
+      success: true,
+      message: `${combatant.name} attacks recklessly! Advantage on STR attacks, but enemies also have Advantage against you.`,
+      effect: { type: 'buff', name: 'Reckless Attack', duration: 1 },
     };
   }
 

@@ -811,13 +811,73 @@ export class Character {
     this.hitDiceRemaining++;
     this.xpToNextLevel = Character.getXPForLevel(this.level + 1);
 
+    // Grant class features for the new level
+    const newFeatures = this._getClassFeaturesForLevel(this.class, this.level);
+    for (const feature of newFeatures) {
+      // Only add if not already present
+      if (!this.abilities_list.some(a => a.name === feature.name)) {
+        this.abilities_list.push(feature);
+      }
+    }
+
     return {
       oldLevel,
       newLevel: this.level,
       hpGain,
       proficiencyBonus: this.proficiencyBonus,
       newMaxHP: this.maxHP,
+      newFeatures,
     };
+  }
+
+  /**
+   * Returns class features gained at a specific level.
+   * Called by levelUp() to grant features automatically.
+   */
+  _getClassFeaturesForLevel(charClass, level) {
+    const cls = (charClass || '').toLowerCase();
+    const features = [];
+
+    if (cls === 'barbarian') {
+      if (level === 2) {
+        features.push({
+          name: 'Reckless Attack',
+          actionType: 'free', // costs no action — declared before first attack roll
+          uses: -1, // unlimited — can be declared every turn
+          maxUses: -1,
+          description:
+            'Before your first attack roll on your turn, you can declare Reckless Attack. ' +
+            'You have Advantage on attack rolls using Strength until the start of your next turn, ' +
+            'but attack rolls against you also have Advantage during that time.',
+        });
+      }
+      if (level === 7) {
+        features.push({
+          name: 'Feral Instinct',
+          actionType: 'passive',
+          uses: -1,
+          maxUses: -1,
+          description:
+            'Advantage on Initiative rolls. Cannot be surprised while not Incapacitated.',
+        });
+      }
+    }
+
+    if (cls === 'rogue') {
+      if (level === 2) {
+        // Cunning Action is already handled by getAvailableBonusActions(),
+        // but add it to abilities_list so it is visible in the UI.
+        features.push({
+          name: 'Cunning Action',
+          actionType: 'bonusAction',
+          uses: -1,
+          maxUses: -1,
+          description: 'Dash, Disengage, or Hide as a Bonus Action.',
+        });
+      }
+    }
+
+    return features;
   }
 
   useHitDice(count) {

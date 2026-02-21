@@ -520,24 +520,28 @@ export function combatReducer(
           // Determine action type (action, bonus action, reaction)
           const abilityActionType = ability.actionType || 'action';
 
-          // Sync abilities_list uses back from the Combat instance into Redux turnOrder
-          // so the UI reflects the decremented charge count immediately.
+          // Sync abilities_list uses AND statusEffects back from the Combat instance
+          // into Redux turnOrder so the UI reflects changes immediately.
           const syncedTurnOrder = state.combatState.turnOrder.map(c => {
             if (c.id === user.id && c.character) {
               const combatEntry = combat.turnOrder.find(ct => ct.id === c.id);
-              if (combatEntry?.character?.abilities_list) {
+              if (combatEntry) {
                 return {
                   ...c,
-                  character: {
-                    ...c.character,
-                    abilities_list: combatEntry.character.abilities_list.map(a => ({ ...a })),
-                  },
+                  statusEffects: [...(combatEntry.statusEffects || [])],
+                  character: combatEntry.character?.abilities_list
+                    ? {
+                        ...c.character,
+                        abilities_list: combatEntry.character.abilities_list.map(a => ({ ...a })),
+                      }
+                    : c.character,
                 };
               }
             }
             return c;
           });
 
+          // 'free' action type (e.g. Reckless Attack) consumes no action economy slot
           return {
             ...state,
             combatState: {

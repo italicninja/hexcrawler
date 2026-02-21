@@ -831,7 +831,29 @@ export class Combat {
       }
     }
 
-    // Defender: Dodge gives attackers disadvantage (existing mechanic, replacing the +2 AC hack)
+    // Attacker: Reckless Attack grants Advantage on STR melee attacks
+    const attackerReckless = attacker.statusEffects?.find(
+      e => e.name === 'Reckless Attack' && e.effects?.advantageOnStrAttacks
+    );
+    if (attackerReckless && attackType === 'melee') {
+      hasAdvantage = true;
+    }
+
+    // Defender: Reckless Attack — attackers gain Advantage against a reckless combatant
+    const targetReckless = target.statusEffects?.find(
+      e => e.name === 'Reckless Attack' && e.effects?.vulnerableToAdvantage
+    );
+    if (targetReckless) {
+      hasAdvantage = true;
+    }
+
+    // Defender: Rage — attackers gain Advantage against a raging combatant (PHB'24 p51)
+    const targetRaging = target.statusEffects?.find(e => e.name === 'Rage');
+    if (targetRaging) {
+      hasAdvantage = true;
+    }
+
+    // Defender: Dodge gives attackers disadvantage
     const targetDodging = target.statusEffects?.some(e => e.name === 'Dodge');
     if (targetDodging) {
       hasDisadvantage = true;

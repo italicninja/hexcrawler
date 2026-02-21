@@ -16,6 +16,7 @@ function ActionPanel({
   turnState,
   onActionSelect,
   onAbilityClick,
+  onFreeAbilityClick,
   onBonusActionClick,
   onSpellClick,
   onDodgeClick,
@@ -48,10 +49,15 @@ function ActionPanel({
   // Pull abilities from the Character instance, falling back to flat combatant prop
   const abilitiesList = character?.abilities_list || combatant.abilities_list || [];
 
-  // Abilities usable as an Action (non-bonus-action, with uses remaining)
+  // Free-action abilities (e.g. Reckless Attack) — declared before first attack, no action cost
+  const freeAbilities = abilitiesList.filter(ability => ability.actionType === 'free');
+
+  // Abilities usable as an Action (non-bonus, non-free, with uses remaining)
   const availableAbilities = abilitiesList.filter(
     ability =>
       ability.actionType !== 'bonusAction' &&
+      ability.actionType !== 'free' &&
+      ability.actionType !== 'passive' &&
       (!ability.maxUses || ability.maxUses === -1 || ability.uses > 0)
   );
 
@@ -175,6 +181,22 @@ function ActionPanel({
           color="var(--primary-color)"
           onClick={() => onActionSelect('move')}
         />
+
+        {/* Free-action declarations (e.g. Reckless Attack) — must be used before first attack */}
+        {freeAbilities.map(ability => {
+          const alreadyActive = combatant.statusEffects?.some(e => e.name === ability.name);
+          return (
+            <ActionButton
+              key={ability.name}
+              action={`free-${ability.name}`}
+              label={alreadyActive ? `${ability.name} (active)` : ability.name}
+              disabled={attacksMade > 0 || alreadyActive}
+              color="#e67e22"
+              onClick={() => onFreeAbilityClick && onFreeAbilityClick(ability)}
+            />
+          );
+        })}
+
         <ActionButton
           action="attack"
           label={

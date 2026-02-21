@@ -1783,6 +1783,19 @@ function OverworldScene() {
                       setCombatUIState(prev => ({ ...prev, selectedAction: action }))
                     }
                     onAbilityClick={() => setShowAbilityMenu(true)}
+                    onFreeAbilityClick={ability => {
+                      const currentCombatant = getCurrentCombatant();
+                      if (!currentCombatant) return;
+                      dispatch({
+                        type: actions.PROCESS_COMBAT_ACTION,
+                        payload: {
+                          actionType: 'ability',
+                          attacker: currentCombatant,
+                          target: currentCombatant,
+                          ability,
+                        },
+                      });
+                    }}
                     onBonusActionClick={ability => {
                       const currentCombatant = getCurrentCombatant();
                       const character = currentCombatant?.character;
