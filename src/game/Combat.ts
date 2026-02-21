@@ -1115,7 +1115,7 @@ export class Combat {
 
     return {
       success: true,
-      message: `${combatant.character.name} takes the Dodge action`,
+      message: `${combatant.character.name} takes the Dodge action. Attacks against them have disadvantage until their next turn.`,
     };
   }
 

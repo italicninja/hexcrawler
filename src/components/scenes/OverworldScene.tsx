@@ -1310,7 +1310,14 @@ function OverworldScene() {
               },
             });
           } else if (action.type === 'dodge') {
-            addMessage(`${enemy.name} takes the Dodge action`, 'encounter');
+            dispatch({
+              type: actions.PROCESS_COMBAT_ACTION,
+              payload: {
+                actionType: 'dodge',
+                attacker: combatant,
+                target: combatant,
+              },
+            });
           } else if (action.type === 'dash') {
             addMessage(`${enemy.name} takes the Dash action`, 'encounter');
           } else if (action.type === 'wait') {
@@ -1803,10 +1810,6 @@ function OverworldScene() {
                           target: currentCombatant,
                         },
                       });
-                      addMessage(
-                        `${currentCombatant.name} takes the Dodge action. Attacks against you have disadvantage until your next turn.`,
-                        'action'
-                      );
                     }}
                     onDashClick={() => addMessage('Dash not yet implemented', 'info')}
                     onDisengageClick={() => addMessage('Disengage not yet implemented', 'info')}

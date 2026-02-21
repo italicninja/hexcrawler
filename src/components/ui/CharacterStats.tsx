@@ -1,6 +1,8 @@
 // @ts-nocheck
 import { getExhaustionEffects } from '../../game/SurvivalManager';
 import { useGameState, ACTIONS } from '../../contexts/GameStateContext';
+import { useGameLog } from '../../contexts/GameLogContext';
+import { Character } from '../../game/Character';
 
 /**
  * CharacterStats component - displays character stats in D&D 5e format
@@ -24,8 +26,9 @@ function AbilityScore({ label, score, modifier }) {
   );
 }
 
-function CharacterStats({ character, characterId = 'player' }) {
+function CharacterStats({ character }) {
   const { dispatch } = useGameState();
+  const { addMessage } = useGameLog();
 
   if (!character) {
     return <div className="character-card">No character</div>;
@@ -42,10 +45,20 @@ function CharacterStats({ character, characterId = 'player' }) {
   const canLevelUp = character.shouldLevelUp && character.shouldLevelUp();
 
   const handleLevelUp = () => {
+    // Clone immutably, apply level-up, dispatch updated character
+    const updatedCharacter = Character.fromJSON(character.toJSON());
+    const result = updatedCharacter.levelUp();
+    if (!result) return;
+
     dispatch({
       type: ACTIONS.LEVEL_UP_CHARACTER,
-      payload: { characterId },
+      payload: { character: updatedCharacter },
     });
+
+    addMessage(
+      `Level up! ${character.name} is now level ${result.newLevel}. +${result.hpGain} max HP.`,
+      'success'
+    );
   };
 
   return (

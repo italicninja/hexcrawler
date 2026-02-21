@@ -69,6 +69,14 @@ function ActionPanel({
 
   const actionUsed = turnState?.actionUsed || false;
   const bonusActionUsed = turnState?.bonusActionUsed || false;
+  const attacksMade = turnState?.attacksMade || 0;
+
+  // Attack and the other action options (Dodge, Dash, Disengage, Hide, Ability, Spell)
+  // are mutually exclusive — they all consume the Action for the turn.
+  // Exception: traits like Cunning Action let Rogues Disengage/Hide as a Bonus Action,
+  // but those appear in the Bonus Actions section, not here.
+  const attackActionCommitted = attacksMade > 0; // started the Attack action
+  const otherActionTaken = actionUsed && !attackActionCommitted; // spent action on non-attack
 
   /**
    * Render an action button — full-width horizontal row, no icon
@@ -172,35 +180,35 @@ function ActionPanel({
           label={
             attacksUsedThisTurn > 0 ? `Attack (${attacksUsedThisTurn}/${maxAttacks})` : 'Attack'
           }
-          disabled={!canAttackAgain}
+          disabled={!canAttackAgain || otherActionTaken}
           color="#e74c3c"
           onClick={() => onActionSelect('attack')}
         />
         <ActionButton
           action="dodge"
           label="Dodge"
-          disabled={actionUsed}
+          disabled={actionUsed || attackActionCommitted}
           color="#3498db"
           onClick={onDodgeClick}
         />
         <ActionButton
           action="dash"
           label="Dash"
-          disabled={actionUsed}
+          disabled={actionUsed || attackActionCommitted}
           color="#2ecc71"
           onClick={onDashClick}
         />
         <ActionButton
           action="disengage"
           label="Disengage"
-          disabled={actionUsed}
+          disabled={actionUsed || attackActionCommitted}
           color="#f39c12"
           onClick={onDisengageClick}
         />
         <ActionButton
           action="hide"
           label="Hide"
-          disabled={actionUsed}
+          disabled={actionUsed || attackActionCommitted}
           color="#9b59b6"
           onClick={onHideClick}
         />
@@ -208,7 +216,7 @@ function ActionPanel({
           <ActionButton
             action="ability"
             label={`Abilities (${availableAbilities.length})`}
-            disabled={actionUsed}
+            disabled={actionUsed || attackActionCommitted}
             color="#9b59b6"
             onClick={onAbilityClick}
           />
@@ -217,7 +225,7 @@ function ActionPanel({
           <ActionButton
             action="spell"
             label="Cast Spell"
-            disabled={actionUsed}
+            disabled={actionUsed || attackActionCommitted}
             color="#f39c12"
             onClick={onSpellClick}
           />

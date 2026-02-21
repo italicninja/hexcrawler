@@ -263,7 +263,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     state.playerCharacter,
     state.gameTime,
     state.completedQuests.length,
-    state.combatState.active,
+    state.combatState?.active,
   ]);
 
   // Helper functions - memoized to prevent recreating on every render
