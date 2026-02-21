@@ -135,7 +135,8 @@ export class DiceRoller {
     }
 
     const ability = attackType === 'melee' ? 'strength' : 'dexterity';
-    const abilityScore = character[ability] || 10;
+    // Abilities live at character.abilities.strength etc — not at the top level
+    const abilityScore = character.abilities?.[ability] ?? 10;
     const modifier = this.getAbilityModifier(abilityScore);
     const proficiencyBonus = character.proficiencyBonus || 2;
 

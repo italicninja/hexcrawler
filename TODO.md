@@ -26,6 +26,49 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 ## CRITICAL
 
+### 24. Fix Hero Attack Roll Modifier (DiceRoller Bug)
+
+**Priority:** Critical | **Time:** 30 min | **Status:** FIXED in v0.7.1
+**Source:** [D&D Beyond Basic Rules 2024](https://www.dndbeyond.com/sources/dnd/br-2024)
+
+`DiceRoller.ts` line 138 read `character[ability]` (e.g. `character.strength`) which
+is always `undefined` since abilities live at `character.abilities.strength`.
+Result: all hero attack rolls used +0 STR/DEX modifier regardless of class stats.
+
+**Fix applied:** `character.abilities?.[ability] ?? 10` in `DiceRoller.ts:138`
+
+---
+
+### 25. Add Starting Equipment Loadouts by Class
+
+**Priority:** High | **Time:** 2 hours | **Status:** FIXED in v0.7.1
+**Source:** [D&D Beyond Basic Rules 2024](https://www.dndbeyond.com/sources/dnd/br-2024)
+
+Every character started with `mainHand: null` and empty inventory — no weapon caused
+`_resolveAttack` to fall back to bare `1d6` with no modifier.
+
+**Fix applied:** `Character.applyStartingLoadout(className)` called from constructor
+after `applyClassModifiers`. Assigns 2024 Basic Rules starting gear per class:
+
+| Class     | Main Hand               | Off Hand | Armor      | Notes                                 |
+| --------- | ----------------------- | -------- | ---------- | ------------------------------------- |
+| Barbarian | Handaxe 1d6 slashing    | Handaxe  | —          | Two axes, unarmored                   |
+| Fighter   | Longsword 1d8 slashing  | Shield   | Chain Mail | AC 18                                 |
+| Paladin   | Longsword 1d8 slashing  | Shield   | Chain Mail | AC 18                                 |
+| Ranger    | Shortsword 1d6 piercing | —        | Leather    | Longbow (range 30) in inventory       |
+| Rogue     | Shortsword 1d6 piercing | Dagger   | Leather    | Extra dagger in inventory             |
+| Cleric    | Mace 1d6 bludgeoning    | Shield   | Scale Mail | AC 18                                 |
+| Druid     | Quarterstaff 1d6 bludg  | —        | Leather    | Versatile (1d8 two-handed)            |
+| Bard      | Rapier 1d8 piercing     | —        | Leather    | Finesse                               |
+| Monk      | Shortsword 1d6 piercing | —        | —          | Unarmored AC 14 (DEX+WIS)             |
+| Sorcerer  | Dagger 1d4 piercing     | —        | —          | Light Crossbow in inventory           |
+| Warlock   | Light Crossbow 1d8      | —        | Leather    | Range 16 hexes (80 ft), dagger backup |
+| Wizard    | Dagger 1d4 piercing     | —        | —          |                                       |
+
+**Files:** `src/game/Character.ts` — `applyStartingLoadout()` method (~130 lines)
+
+---
+
 ### 1. Remove `// @ts-nocheck` Suppressions
 
 **Priority:** High | **Time:** 8-12 hours
@@ -661,6 +704,8 @@ The Barbarian serves as the reference implementation. All classes share the base
 
 ### Now (High Priority)
 
+- [x] 24. Fix hero attack roll modifier (DiceRoller bug) — **DONE v0.7.1**
+- [x] 25. Add starting equipment loadouts by class — **DONE v0.7.1**
 - [ ] 1. Remove `// @ts-nocheck` suppressions (file by file)
 - [ ] 2. Test save/load system thoroughly
 - [ ] 3. Split OverworldScene.tsx (1,960 lines)

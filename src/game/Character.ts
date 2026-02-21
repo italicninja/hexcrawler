@@ -92,6 +92,11 @@ export class Character {
 
     // Initialize spell slots for casters
     this.initializeSpellSlots();
+
+    // Assign starting equipment and gold based on class (2024 Basic Rules)
+    if (charClass) {
+      this.applyStartingLoadout(charClass);
+    }
   }
 
   /**
@@ -590,6 +595,191 @@ export class Character {
     this.armorClass = config.armorClass;
     this.proficiencies = [...config.proficiencies];
     this.abilities_list = config.abilities_list.map(ability => ({ ...ability }));
+  }
+
+  /**
+   * Assign starting equipment directly to slots based on class.
+   * Source: D&D Beyond Basic Rules 2024 (https://www.dndbeyond.com/sources/dnd/br-2024)
+   * Called from constructor after applyClassModifiers so class stats are already set.
+   *
+   * Weapons are assigned directly to equipment slots (not through inventory) since
+   * they are granted, not purchased. calculateEffectiveStats() is called once at the
+   * end so any item effects (e.g. AC from armor) are applied correctly.
+   */
+  applyStartingLoadout(charClass) {
+    const cls = (charClass || '').toLowerCase();
+
+    // Helper — create a minimal weapon object for the equipment slot.
+    // Uses the same shape that _resolveAttack and the UI expect.
+    const weapon = (name, damage, damageType, range = 1, extra = {}) => ({
+      id: `starting-${name.toLowerCase().replace(/\s+/g, '-')}`,
+      name,
+      type: 'weapon',
+      slot: 'mainHand',
+      damage,
+      damageType,
+      range,
+      effects: {},
+      weight: 2,
+      value: 0,
+      description: `Starting ${name}.`,
+      ...extra,
+    });
+
+    const armor = (name, armorType, acValue, slot = 'chest') => ({
+      id: `starting-${name.toLowerCase().replace(/\s+/g, '-')}`,
+      name,
+      type: 'armor',
+      slot,
+      armorType,
+      // Store the base AC directly — calculateEffectiveStats adds effects.ac to baseStats.armorClass.
+      // Instead we just set armorClass directly in the class config, so the armor item
+      // is for display/inventory purposes only (effects.ac = 0 avoids double-counting).
+      effects: {},
+      weight: 10,
+      value: 0,
+      description: `Starting ${name}.`,
+    });
+
+    const shield = () => ({
+      id: 'starting-shield',
+      name: 'Shield',
+      type: 'armor',
+      slot: 'offHand',
+      armorType: 'shield',
+      effects: {},
+      weight: 6,
+      value: 0,
+      description: 'A sturdy wooden shield.',
+    });
+
+    switch (cls) {
+      case 'barbarian':
+        this.equipment.mainHand = weapon('Handaxe', '1d6', 'slashing', 1, { throwable: true });
+        this.equipment.offHand = weapon('Handaxe', '1d6', 'slashing', 1, {
+          slot: 'offHand',
+          throwable: true,
+        });
+        this.gold = 10;
+        break;
+
+      case 'fighter':
+        this.equipment.mainHand = weapon('Longsword', '1d8', 'slashing');
+        this.equipment.offHand = shield();
+        this.equipment.chest = armor('Chain Mail', 'heavy', 16);
+        this.gold = 15;
+        break;
+
+      case 'paladin':
+        this.equipment.mainHand = weapon('Longsword', '1d8', 'slashing');
+        this.equipment.offHand = shield();
+        this.equipment.chest = armor('Chain Mail', 'heavy', 16);
+        this.gold = 15;
+        break;
+
+      case 'ranger':
+        this.equipment.mainHand = weapon('Shortsword', '1d6', 'piercing');
+        this.equipment.chest = armor('Leather Armor', 'light', 11);
+        // Longbow goes into inventory so the player can equip it when ranged preferred
+        this.inventory.push(
+          weapon('Longbow', '1d8', 'piercing', 30, {
+            slot: 'mainHand',
+            twoHanded: true,
+            description: 'A sturdy longbow. Range 150/600 ft.',
+          })
+        );
+        this.gold = 10;
+        break;
+
+      case 'rogue':
+        this.equipment.mainHand = weapon('Shortsword', '1d6', 'piercing');
+        this.equipment.offHand = weapon('Dagger', '1d4', 'piercing', 1, { slot: 'offHand' });
+        this.equipment.chest = armor('Leather Armor', 'light', 11);
+        // Extra daggers in inventory for throwing
+        this.inventory.push(
+          weapon('Dagger', '1d4', 'piercing', 1, {
+            id: 'starting-dagger-2',
+            description: 'A throwing dagger.',
+          })
+        );
+        this.gold = 15;
+        break;
+
+      case 'cleric':
+        this.equipment.mainHand = weapon('Mace', '1d6', 'bludgeoning');
+        this.equipment.offHand = shield();
+        this.equipment.chest = armor('Scale Mail', 'medium', 14);
+        this.gold = 10;
+        break;
+
+      case 'druid':
+        this.equipment.mainHand = weapon('Quarterstaff', '1d6', 'bludgeoning', 1, {
+          twoHanded: false,
+          versatile: '1d8',
+        });
+        this.equipment.chest = armor('Leather Armor', 'light', 11);
+        this.gold = 10;
+        break;
+
+      case 'bard':
+        this.equipment.mainHand = weapon('Rapier', '1d8', 'piercing', 1, { finesse: true });
+        this.equipment.chest = armor('Leather Armor', 'light', 11);
+        this.gold = 15;
+        break;
+
+      case 'monk':
+        this.equipment.mainHand = weapon('Shortsword', '1d6', 'piercing');
+        // Monks fight unarmored — no chest armor; AC already set to 14 (10+DEX+WIS) in class config
+        this.gold = 10;
+        break;
+
+      case 'sorcerer':
+        this.equipment.mainHand = weapon('Dagger', '1d4', 'piercing', 1);
+        // Light crossbow in inventory as ranged backup
+        this.inventory.push(
+          weapon('Light Crossbow', '1d8', 'piercing', 16, {
+            slot: 'mainHand',
+            twoHanded: true,
+            description: 'A light crossbow. Range 80/320 ft.',
+          })
+        );
+        this.gold = 10;
+        break;
+
+      case 'warlock':
+        this.equipment.mainHand = weapon('Light Crossbow', '1d8', 'piercing', 16, {
+          twoHanded: true,
+          description: 'A light crossbow. Range 80/320 ft.',
+        });
+        this.equipment.chest = armor('Leather Armor', 'light', 11);
+        // Dagger as melee backup
+        this.inventory.push(
+          weapon('Dagger', '1d4', 'piercing', 1, {
+            slot: 'mainHand',
+            description: 'A backup dagger.',
+          })
+        );
+        this.gold = 10;
+        break;
+
+      case 'wizard':
+        this.equipment.mainHand = weapon('Dagger', '1d4', 'piercing', 1);
+        this.gold = 10;
+        break;
+
+      default:
+        // Unknown class — give a basic dagger so mainHand is never null
+        this.equipment.mainHand = weapon('Dagger', '1d4', 'piercing', 1);
+        this.gold = 10;
+        break;
+    }
+
+    // Snapshot base stats now so calculateEffectiveStats can diff correctly
+    this.baseStats = {
+      armorClass: this.armorClass,
+      abilities: { ...this.abilities },
+      maxHP: this.maxHP,
+    };
   }
 
   getModifier(ability) {
