@@ -41,6 +41,19 @@ export function useCombatHandler() {
         );
     const terrainType = currentHex?.terrain?.name || 'plains';
 
+    // Build hex context for battlefield theming
+    const hexContext = currentHex
+      ? {
+          terrainKey: currentHex.terrain?.key || 'grassland',
+          terrainName: currentHex.terrain?.name || 'Grassland',
+          terrainColor: currentHex.terrain?.color || '#90EE90',
+          elevation: currentHex.elevation ?? 5,
+          weather: currentHex.weather?.condition || 'Clear',
+          poiType: poi?.type || undefined,
+          regionBiome: currentHex.regionBiome || undefined,
+        }
+      : undefined;
+
     // Dispatch START_COMBAT
     dispatch({
       type: actions.START_COMBAT,
@@ -50,6 +63,7 @@ export function useCombatHandler() {
         encounterName: poi.name,
         encounterType,
         terrainType,
+        hexContext,
       },
     });
   };

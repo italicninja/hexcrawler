@@ -6,6 +6,18 @@
  */
 
 // ===================
+// FEATURE FLAGS
+// ===================
+export const FEATURES = {
+  /**
+   * Survival mechanics: ration consumption on movement, foraging, starvation
+   * exhaustion from hunger, and the Survival menu / HUD indicators.
+   * Set to true to re-enable when the system is ready.
+   */
+  SURVIVAL_ENABLED: false,
+};
+
+// ===================
 // GAME DEFAULTS
 // ===================
 export const GAME_DEFAULTS = {

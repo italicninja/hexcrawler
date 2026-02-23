@@ -656,21 +656,21 @@ export class Character {
     switch (cls) {
       case 'barbarian':
         this.equipment.mainHand = W('Greataxe', '1d12', 'slashing', { weight: 7, twoHanded: true });
-        this.gold = 10;
+        this.gold = 75;
         break;
 
       case 'fighter':
         this.equipment.mainHand = W('Longsword', '1d8', 'slashing', { weight: 3 });
         this.equipment.offHand = shield();
         this.equipment.chest = A('Chain Mail', 'heavy');
-        this.gold = 15;
+        this.gold = 75;
         break;
 
       case 'paladin':
         this.equipment.mainHand = W('Longsword', '1d8', 'slashing', { weight: 3 });
         this.equipment.offHand = shield();
         this.equipment.chest = A('Chain Mail', 'heavy');
-        this.gold = 15;
+        this.gold = 75;
         break;
 
       case 'ranger':
@@ -684,7 +684,7 @@ export class Character {
             description: 'A sturdy longbow. Range 150/600 ft.',
           })
         );
-        this.gold = 10;
+        this.gold = 75;
         break;
 
       case 'rogue':
@@ -694,14 +694,14 @@ export class Character {
         this.inventory.push(
           W('Dagger', '1d4', 'piercing', { weight: 1, description: 'A throwing dagger.' })
         );
-        this.gold = 15;
+        this.gold = 75;
         break;
 
       case 'cleric':
         this.equipment.mainHand = W('Mace', '1d6', 'bludgeoning', { weight: 4 });
         this.equipment.offHand = shield();
         this.equipment.chest = A('Scale Mail', 'medium');
-        this.gold = 10;
+        this.gold = 75;
         break;
 
       case 'druid':
@@ -711,7 +711,7 @@ export class Character {
           description: 'A wooden quarterstaff. Versatile (1d8).',
         });
         this.equipment.chest = A('Leather Armor', 'light');
-        this.gold = 10;
+        this.gold = 75;
         break;
 
       case 'bard':
@@ -720,13 +720,13 @@ export class Character {
           description: 'A slender rapier. Finesse.',
         });
         this.equipment.chest = A('Leather Armor', 'light');
-        this.gold = 15;
+        this.gold = 75;
         break;
 
       case 'monk':
         this.equipment.mainHand = W('Shortsword', '1d6', 'piercing', { weight: 2 });
         // No armor — AC set to 14 (10 + DEX + WIS) in class config
-        this.gold = 10;
+        this.gold = 75;
         break;
 
       case 'sorcerer':
@@ -738,7 +738,7 @@ export class Character {
             description: 'A light crossbow. Range 80/320 ft.',
           })
         );
-        this.gold = 10;
+        this.gold = 75;
         break;
 
       case 'warlock':
@@ -751,18 +751,18 @@ export class Character {
         this.inventory.push(
           W('Dagger', '1d4', 'piercing', { weight: 1, description: 'A backup dagger.' })
         );
-        this.gold = 10;
+        this.gold = 75;
         break;
 
       case 'wizard':
         this.equipment.mainHand = W('Dagger', '1d4', 'piercing', { weight: 1 });
-        this.gold = 10;
+        this.gold = 75;
         break;
 
       default:
         // Unknown class — always ensure mainHand is set
         this.equipment.mainHand = W('Dagger', '1d4', 'piercing', { weight: 1 });
-        this.gold = 10;
+        this.gold = 75;
         break;
     }
 

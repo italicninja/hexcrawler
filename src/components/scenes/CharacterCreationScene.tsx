@@ -120,6 +120,7 @@ const CLASS_DATA = {
     description: 'A fierce warrior who channels primal rage in battle',
     primaryStat: 'strength',
     secondaryStat: 'constitution',
+    startingEquipment: ['Greataxe (1d12 slashing)', '75 gp'],
     abilityScores: {
       strength: 15,
       dexterity: 13,
@@ -135,6 +136,7 @@ const CLASS_DATA = {
     description: 'An inspiring musician who weaves magic through performance',
     primaryStat: 'charisma',
     secondaryStat: 'dexterity',
+    startingEquipment: ['Rapier (1d8 piercing, finesse)', 'Leather Armor', '75 gp'],
     abilityScores: {
       strength: 8,
       dexterity: 14,
@@ -150,6 +152,7 @@ const CLASS_DATA = {
     description: 'A divine servant who channels the power of their deity',
     primaryStat: 'wisdom',
     secondaryStat: 'constitution',
+    startingEquipment: ['Mace (1d6 bludgeoning)', 'Scale Mail', 'Shield', '75 gp'],
     abilityScores: {
       strength: 14,
       dexterity: 10,
@@ -165,6 +168,7 @@ const CLASS_DATA = {
     description: 'A nature priest who shapeshifts and commands natural forces',
     primaryStat: 'wisdom',
     secondaryStat: 'constitution',
+    startingEquipment: ['Quarterstaff (1d6 bludgeoning, versatile)', 'Leather Armor', '75 gp'],
     abilityScores: {
       strength: 10,
       dexterity: 12,
@@ -180,6 +184,7 @@ const CLASS_DATA = {
     description: 'A master of martial combat and weaponry',
     primaryStat: 'strength',
     secondaryStat: 'constitution',
+    startingEquipment: ['Longsword (1d8 slashing)', 'Shield', 'Chain Mail', '75 gp'],
     abilityScores: {
       strength: 15,
       dexterity: 14,
@@ -195,6 +200,7 @@ const CLASS_DATA = {
     description: 'A martial artist who harnesses ki energy',
     primaryStat: 'dexterity',
     secondaryStat: 'wisdom',
+    startingEquipment: ['Shortsword (1d6 piercing)', 'Unarmored Defense', '75 gp'],
     abilityScores: {
       strength: 10,
       dexterity: 15,
@@ -210,6 +216,7 @@ const CLASS_DATA = {
     description: 'A holy warrior bound by sacred oaths',
     primaryStat: 'strength',
     secondaryStat: 'charisma',
+    startingEquipment: ['Longsword (1d8 slashing)', 'Shield', 'Chain Mail', '75 gp'],
     abilityScores: {
       strength: 15,
       dexterity: 10,
@@ -225,6 +232,12 @@ const CLASS_DATA = {
     description: 'A wilderness scout who hunts their favored enemies',
     primaryStat: 'dexterity',
     secondaryStat: 'wisdom',
+    startingEquipment: [
+      'Shortsword (1d6 piercing)',
+      'Longbow (1d8 piercing, range 150/600)',
+      'Leather Armor',
+      '75 gp',
+    ],
     abilityScores: {
       strength: 12,
       dexterity: 15,
@@ -240,6 +253,12 @@ const CLASS_DATA = {
     description: 'A cunning scoundrel who strikes from the shadows',
     primaryStat: 'dexterity',
     secondaryStat: 'intelligence',
+    startingEquipment: [
+      'Shortsword (1d6 piercing)',
+      'Dagger x2 (1d4 piercing)',
+      'Leather Armor',
+      '75 gp',
+    ],
     abilityScores: {
       strength: 8,
       dexterity: 15,
@@ -255,6 +274,11 @@ const CLASS_DATA = {
     description: 'A spellcaster with innate magical power',
     primaryStat: 'charisma',
     secondaryStat: 'constitution',
+    startingEquipment: [
+      'Dagger (1d4 piercing)',
+      'Light Crossbow (1d8 piercing, range 80/320)',
+      '75 gp',
+    ],
     abilityScores: {
       strength: 8,
       dexterity: 12,
@@ -270,6 +294,12 @@ const CLASS_DATA = {
     description: 'A spellcaster bound by a pact with an otherworldly patron',
     primaryStat: 'charisma',
     secondaryStat: 'constitution',
+    startingEquipment: [
+      'Light Crossbow (1d8 piercing, range 80/320)',
+      'Dagger (1d4 piercing)',
+      'Leather Armor',
+      '75 gp',
+    ],
     abilityScores: {
       strength: 8,
       dexterity: 13,
@@ -285,6 +315,7 @@ const CLASS_DATA = {
     description: 'A scholarly mage who masters arcane magic',
     primaryStat: 'intelligence',
     secondaryStat: 'constitution',
+    startingEquipment: ['Dagger (1d4 piercing)', '75 gp'],
     abilityScores: {
       strength: 8,
       dexterity: 13,
@@ -433,6 +464,18 @@ function CharacterCreationScene() {
               <span className="class-hitdie">{currentClassData.hitDie}</span>
             </div>
             <p className="class-description">{currentClassData.description}</p>
+          </div>
+
+          {/* Starting Equipment */}
+          <div className="starting-equipment-compact">
+            <h4>Starting Equipment</h4>
+            <ul className="starting-equipment-list">
+              {currentClassData.startingEquipment.map((item, index) => (
+                <li key={index} className="starting-equipment-item">
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* Ability Scores Display - Condensed */}

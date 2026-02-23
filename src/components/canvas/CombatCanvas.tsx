@@ -12,6 +12,9 @@ import {
 import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
 import { PerlinNoise } from '../../noise';
 import logger from '../../utils/logger';
+import { drawPoiAmbient } from '../../utils/combatPoiRenderer';
+import { drawWeatherOverlay } from '../../utils/combatWeatherRenderer';
+import { drawLandmark } from '../../utils/combatLandmarkRenderer';
 
 const HEX_SIZE = 25;
 const FIXED_ZOOM = 1.0; // Zoom is disabled - always use 1.0
@@ -108,6 +111,132 @@ function CombatCanvas({
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    ctx.restore();
+  }, []);
+
+  /**
+   * Draw a wall obstacle (for dungeon/ruins/temple)
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
+   * @param {number} x - Center X position
+   * @param {number} y - Center Y position
+   * @param {number} size - Size scale factor
+   */
+  const drawWall = useCallback((ctx, x, y, size) => {
+    ctx.save();
+    ctx.fillStyle = '#555555';
+    ctx.fillRect(x - size * 0.45, y - size * 0.2, size * 0.9, size * 0.4);
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - size * 0.45, y - size * 0.2, size * 0.9, size * 0.4);
+    // Stone block lines
+    ctx.beginPath();
+    ctx.moveTo(x, y - size * 0.2);
+    ctx.lineTo(x, y + size * 0.2);
+    ctx.moveTo(x - size * 0.45, y);
+    ctx.lineTo(x + size * 0.45, y);
+    ctx.strokeStyle = '#444444';
+    ctx.stroke();
+    ctx.restore();
+  }, []);
+
+  /**
+   * Draw a reed/marsh plant (for swamp/river/water)
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
+   * @param {number} x - Center X position
+   * @param {number} y - Center Y position
+   * @param {number} size - Size scale factor
+   */
+  const drawReed = useCallback((ctx, x, y, size) => {
+    ctx.save();
+    ctx.strokeStyle = '#4a6030';
+    ctx.lineWidth = 1.5;
+    // Three reed stalks
+    for (let i = -1; i <= 1; i++) {
+      const rx = x + i * size * 0.18;
+      ctx.beginPath();
+      ctx.moveTo(rx, y + size * 0.3);
+      ctx.lineTo(rx, y - size * 0.3);
+      ctx.stroke();
+      // Seed head
+      ctx.fillStyle = '#7a5030';
+      ctx.beginPath();
+      ctx.ellipse(rx, y - size * 0.3, size * 0.05, size * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }, []);
+
+  /**
+   * Draw a snow/ice mound (for tundra)
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
+   * @param {number} x - Center X position
+   * @param {number} y - Center Y position
+   * @param {number} size - Size scale factor
+   */
+  const drawIceMound = useCallback((ctx, x, y, size) => {
+    ctx.save();
+    ctx.fillStyle = '#d0e8f0';
+    ctx.beginPath();
+    ctx.ellipse(x, y + size * 0.1, size * 0.4, size * 0.25, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.strokeStyle = '#a0c8e0';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Ice glint
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.15, y - size * 0.05);
+    ctx.lineTo(x, y - size * 0.2);
+    ctx.lineTo(x + size * 0.12, y - size * 0.08);
+    ctx.stroke();
+    ctx.restore();
+  }, []);
+
+  /**
+   * Draw a sand dune (for desert)
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
+   * @param {number} x - Center X position
+   * @param {number} y - Center Y position
+   * @param {number} size - Size scale factor
+   */
+  const drawDune = useCallback((ctx, x, y, size) => {
+    ctx.save();
+    ctx.fillStyle = '#c8902a';
+    ctx.beginPath();
+    ctx.ellipse(x, y + size * 0.1, size * 0.45, size * 0.2, 0, Math.PI, 0);
+    ctx.fill();
+    // Crest line
+    ctx.strokeStyle = 'rgba(255, 220, 120, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.4, y + size * 0.02);
+    ctx.quadraticCurveTo(x, y - size * 0.12, x + size * 0.4, y + size * 0.02);
+    ctx.stroke();
+    ctx.restore();
+  }, []);
+
+  /**
+   * Draw a boulder (for plains/hills/grassland)
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
+   * @param {number} x - Center X position
+   * @param {number} y - Center Y position
+   * @param {number} size - Size scale factor
+   */
+  const drawBoulder = useCallback((ctx, x, y, size) => {
+    ctx.save();
+    ctx.fillStyle = '#9a8a78';
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.32, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#6a5a48';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    ctx.arc(x - size * 0.1, y - size * 0.1, size * 0.12, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }, []);
 
@@ -356,16 +485,33 @@ function CombatCanvas({
         ctx.restore();
       }
 
-      // Draw obstacles
+      // Draw obstacles — terrain-specific
       if (hex.blocked) {
-        const obstacleType = hex.obstacleType || 'rock';
+        const obstacleType = hex.obstacleType || hex.terrain?.type || 'rock';
         if (obstacleType === 'tree') {
           drawTree(ctx, x, y, HEX_SIZE * 0.5);
-        } else if (obstacleType === 'rock') {
+        } else if (obstacleType === 'wall') {
+          drawWall(ctx, x, y, HEX_SIZE * 0.5);
+        } else if (obstacleType === 'reed') {
+          drawReed(ctx, x, y, HEX_SIZE * 0.5);
+        } else if (obstacleType === 'ice') {
+          drawIceMound(ctx, x, y, HEX_SIZE * 0.5);
+        } else if (obstacleType === 'dune') {
+          drawDune(ctx, x, y, HEX_SIZE * 0.5);
+        } else if (obstacleType === 'boulder') {
+          drawBoulder(ctx, x, y, HEX_SIZE * 0.5);
+        } else {
           drawRock(ctx, x, y, HEX_SIZE * 0.5);
         }
       }
     });
+
+    // Draw terrain landmark centerpiece in world space (inside camera transform)
+    const landmarkTerrainKey = battlefield.hexContext?.terrainKey;
+    if (landmarkTerrainKey) {
+      const centerPos = calculateHexPosition(9, 9, HEX_SIZE);
+      drawLandmark(ctx, centerPos.x, centerPos.y, HEX_SIZE * 2.5, landmarkTerrainKey);
+    }
 
     // Draw movement range overlay
     if (selectedAction === 'move' && combatants[currentTurnIndex]?.position) {
@@ -431,7 +577,19 @@ function CombatCanvas({
       drawHexOutline(ctx, pos.x, pos.y, HEX_SIZE, '#ffffff', 2);
     }
 
-    ctx.restore();
+    ctx.restore(); // end camera transform
+
+    // POI ambient overlay drawn in screen space
+    const poiType = battlefield?.hexContext?.poiType;
+    if (poiType && canvas) {
+      drawPoiAmbient(ctx, canvas.width, canvas.height, performance.now(), poiType);
+    }
+
+    // Weather overlay drawn in screen space (after camera restore, not affected by pan)
+    const weatherCond = battlefield?.hexContext?.weather;
+    if (weatherCond && canvas) {
+      drawWeatherOverlay(ctx, canvas.width, canvas.height, performance.now(), weatherCond);
+    }
   }, [
     battlefield,
     combatants,
@@ -443,6 +601,11 @@ function CombatCanvas({
     cameraZoom,
     drawTree,
     drawRock,
+    drawWall,
+    drawReed,
+    drawIceMound,
+    drawDune,
+    drawBoulder,
     drawCombatant,
   ]);
 
@@ -545,6 +708,36 @@ function CombatCanvas({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAnimation]);
+
+  /**
+   * Continuous animation loop for ambient effects (POI overlays, weather).
+   * Only runs when the battlefield has animated overlays; yields to movement animation.
+   */
+  useEffect(() => {
+    const weatherCondition = battlefield?.hexContext?.weather;
+    const hasPoi = !!battlefield?.hexContext?.poiType;
+    const needsAnimation =
+      hasPoi || (weatherCondition && weatherCondition.toLowerCase() !== 'clear');
+    if (!needsAnimation) return;
+
+    let rafId;
+    let running = true;
+
+    const animate = () => {
+      if (!running) return;
+      if (!movementAnimRef.current) {
+        draw();
+      }
+      rafId = requestAnimationFrame(animate);
+    };
+
+    rafId = requestAnimationFrame(animate);
+
+    return () => {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [battlefield?.hexContext?.weather, battlefield?.hexContext?.poiType, draw]);
 
   /**
    * Render once when non-animation dependencies change.

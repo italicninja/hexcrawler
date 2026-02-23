@@ -3,6 +3,7 @@ import { getExhaustionEffects } from '../../game/SurvivalManager';
 import { useGameState, ACTIONS } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { Character } from '../../game/Character';
+import { FEATURES } from '../../constants/gameConstants';
 
 /**
  * CharacterStats component - displays character stats in D&D 5e format
@@ -267,66 +268,68 @@ function CharacterStats({ character }) {
         </div>
       )}
 
-      {/* Survival Stats */}
-      <div
-        style={{
-          marginTop: '0.75rem',
-          borderTop: '1px solid var(--border-color)',
-          paddingTop: '0.75rem',
-        }}
-      >
+      {/* Survival Stats (hidden when survival mechanics are disabled) */}
+      {FEATURES.SURVIVAL_ENABLED && (
         <div
           style={{
-            fontWeight: 'bold',
-            marginBottom: '0.5rem',
-            fontSize: '0.9rem',
-            color: 'var(--text-color)',
+            marginTop: '0.75rem',
+            borderTop: '1px solid var(--border-color)',
+            paddingTop: '0.75rem',
           }}
         >
-          Survival
-        </div>
-        <div className="character-stats">
-          <div className="stat-item">
-            <div className="stat-label">Rations</div>
-            <div
-              className="stat-value"
-              style={{ color: character.rations <= 2 ? '#e74c3c' : 'var(--text-color)' }}
-            >
-              {character.rations} days
-            </div>
-          </div>
-        </div>
-        {character.daysWithoutFood > 0 && (
-          <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#e74c3c' }}>
-            ⚠ {character.daysWithoutFood} day(s) without food
-          </div>
-        )}
-        {character.exhaustionLevel > 0 && (
           <div
             style={{
-              marginTop: '0.5rem',
-              padding: '0.5rem',
-              backgroundColor: 'rgba(231, 76, 60, 0.1)',
-              borderRadius: '4px',
-              border: '1px solid #e74c3c',
+              fontWeight: 'bold',
+              marginBottom: '0.5rem',
+              fontSize: '0.9rem',
+              color: 'var(--text-color)',
             }}
           >
-            <div
-              style={{
-                fontWeight: 'bold',
-                color: '#e74c3c',
-                marginBottom: '0.25rem',
-                fontSize: '0.85rem',
-              }}
-            >
-              Exhaustion Level {character.exhaustionLevel}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-color)' }}>
-              {getExhaustionEffects(character.exhaustionLevel).description}
+            Survival
+          </div>
+          <div className="character-stats">
+            <div className="stat-item">
+              <div className="stat-label">Rations</div>
+              <div
+                className="stat-value"
+                style={{ color: character.rations <= 2 ? '#e74c3c' : 'var(--text-color)' }}
+              >
+                {character.rations} days
+              </div>
             </div>
           </div>
-        )}
-      </div>
+          {character.daysWithoutFood > 0 && (
+            <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#e74c3c' }}>
+              ⚠ {character.daysWithoutFood} day(s) without food
+            </div>
+          )}
+          {character.exhaustionLevel > 0 && (
+            <div
+              style={{
+                marginTop: '0.5rem',
+                padding: '0.5rem',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderRadius: '4px',
+                border: '1px solid #e74c3c',
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 'bold',
+                  color: '#e74c3c',
+                  marginBottom: '0.25rem',
+                  fontSize: '0.85rem',
+                }}
+              >
+                Exhaustion Level {character.exhaustionLevel}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-color)' }}>
+                {getExhaustionEffects(character.exhaustionLevel).description}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -55,7 +55,7 @@ export function combatReducer(
       }
 
       // New tactical combat system
-      const { allies, enemies, encounterName, encounterType, terrainType, gameLogger } =
+      const { allies, enemies, encounterName, encounterType, terrainType, hexContext, gameLogger } =
         action.payload;
 
       logger.combat.info('[START_COMBAT] Payload:', {
@@ -91,7 +91,8 @@ export function combatReducer(
       const battlefield = CombatTerrainGenerator.generate(
         encounterType,
         terrainType,
-        state.mapSeed
+        state.mapSeed,
+        hexContext
       );
 
       logger.combat.info('[START_COMBAT] Battlefield generated:', {

@@ -14,7 +14,7 @@
  */
 
 import { advanceTime } from '../../game/TimeManager';
-import { TIME } from '../../constants/gameConstants';
+import { TIME, FEATURES } from '../../constants/gameConstants';
 import { applyStarvation } from '../../game/SurvivalManager';
 import { Character } from '../../game/Character';
 import type { GameState, Action } from '../../types/state';
@@ -59,12 +59,10 @@ export function characterReducer(
     case ACTIONS.LONG_REST: {
       const { character } = action.payload;
 
-      // Apply starvation check after long rest
-      // Character may have gained exhaustion from lack of food
-      applyStarvation(character);
-
-      // Note: starvationResult modifies character in place
-      // Message is logged by the component that dispatched this action
+      // Apply starvation check after long rest (only when survival mechanics are enabled)
+      if (FEATURES.SURVIVAL_ENABLED) {
+        applyStarvation(character);
+      }
 
       // Advance time
       const newGameTime = advanceTime(state.gameTime, TIME.LONG_REST_MINUTES);

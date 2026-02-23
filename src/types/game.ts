@@ -181,6 +181,16 @@ export interface CombatHex extends HexCoordinates {
   blocking?: boolean;
 }
 
+export interface HexContext {
+  terrainKey: string; // overworld terrain key: 'grassland' | 'forest' | 'hills' | 'mountains' | 'desert' | 'swamp' | 'tundra' | 'water' | 'river'
+  terrainName: string; // human-readable name e.g. 'Forest'
+  terrainColor: string; // base hex color e.g. '#228B22'
+  elevation: number; // 0–10, Perlin-derived, influences obstacle density
+  weather: string; // weather condition string e.g. 'Clear', 'Rain', 'Snow', 'Fog'
+  poiType?: string; // optional POI type e.g. 'dungeon', 'village', 'ruins', 'temple', 'cave', 'camp'
+  regionBiome?: string; // optional region biome e.g. 'TROPICAL_JUNGLE', 'ARCTIC_TUNDRA'
+}
+
 export interface Combatant {
   id: string;
   name: string;
