@@ -26,6 +26,7 @@ import { Party } from '../../game/Party';
 import { findPath } from '../../game/Pathfinding';
 import { getHexDistance } from '../../utils/hexMath';
 import SurvivalManager from '../../game/SurvivalManager';
+import { FEATURES } from '../../constants/gameConstants';
 import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
 import PartyList from '../ui/PartyList';
@@ -151,14 +152,18 @@ function OverworldScene() {
         icon: '🏕️',
         description: 'Rest and recover',
       },
-      {
-        id: 'survival',
-        label: 'Survival',
-        icon: '🌲',
-        description: 'Forage and hunt',
-        disabled: !!state.combatState?.active,
-        disabledReason: 'Cannot forage during combat',
-      },
+      ...(FEATURES.SURVIVAL_ENABLED
+        ? [
+            {
+              id: 'survival',
+              label: 'Survival',
+              icon: '🌲',
+              description: 'Forage and hunt',
+              disabled: !!state.combatState?.active,
+              disabledReason: 'Cannot forage during combat',
+            },
+          ]
+        : []),
       {
         id: 'quests',
         label: 'Quests',
@@ -185,7 +190,7 @@ function OverworldScene() {
 
   const handleMenuItemClick = item => {
     // If survival is clicked, trigger foraging directly instead of opening panel
-    if (item.id === 'survival') {
+    if (item.id === 'survival' && FEATURES.SURVIVAL_ENABLED) {
       if (!state.inInterior) {
         handleForage();
       } else {
@@ -266,24 +271,26 @@ function OverworldScene() {
       return;
     }
 
-    // Consume rations for travel
-    const character = state.playerCharacter;
-    if (character) {
-      // Create immutable copy to avoid state mutation
-      const updatedCharacter = Character.fromJSON(character.toJSON());
+    // Consume rations for travel (only when survival mechanics are enabled)
+    if (FEATURES.SURVIVAL_ENABLED) {
+      const character = state.playerCharacter;
+      if (character) {
+        // Create immutable copy to avoid state mutation
+        const updatedCharacter = Character.fromJSON(character.toJSON());
 
-      if (updatedCharacter.rations > 0) {
-        updatedCharacter.rations--;
-        updatedCharacter.daysWithoutFood = 0;
-      } else {
-        updatedCharacter.daysWithoutFood++;
+        if (updatedCharacter.rations > 0) {
+          updatedCharacter.rations--;
+          updatedCharacter.daysWithoutFood = 0;
+        } else {
+          updatedCharacter.daysWithoutFood++;
+        }
+
+        // Update character state with immutable copy
+        dispatch({
+          type: actions.UPDATE_CHARACTER,
+          payload: updatedCharacter,
+        });
       }
-
-      // Update character state with immutable copy
-      dispatch({
-        type: actions.UPDATE_CHARACTER,
-        payload: updatedCharacter,
-      });
     }
 
     // Capture old time before advancing (for time-of-day transition detection)
@@ -447,6 +454,8 @@ function OverworldScene() {
 
   // Handle foraging
   const handleForage = () => {
+    if (!FEATURES.SURVIVAL_ENABLED) return;
+
     // Block foraging in interiors
     if (state.inInterior) {
       addMessage('Cannot forage indoors.', 'warning');
@@ -994,7 +1003,9 @@ function OverworldScene() {
     return { ready: true, message: 'Ready to forage' };
   };
 
-  const forageStatus = getForageStatus();
+  const forageStatus = FEATURES.SURVIVAL_ENABLED
+    ? getForageStatus()
+    : { ready: false, message: '' };
 
   // Check for victory/defeat in combat
   const combatEndHandledRef = useRef(false);
@@ -1082,6 +1093,10 @@ function OverworldScene() {
   }, [
     state.combatState?.currentTurnIndex,
     state.combatState?.round,
+    // Re-run immediately when ally HP changes so defeat is caught as soon as
+    // PROCESS_COMBAT_ACTION zeroes the last ally — not only after ADVANCE_COMBAT_TURN.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    state.combatState?.turnOrder?.filter(c => c.isAlly).reduce((sum, c) => sum + c.currentHP, 0),
     dispatch,
     actions,
     addMessage,
@@ -1631,18 +1646,20 @@ function OverworldScene() {
           >
             {formatTime(state.gameTime)}
           </div>
-          <div
-            style={{
-              fontSize: '0.95rem',
-              fontWeight: '500',
-              padding: '0.25rem 0.75rem',
-              backgroundColor: 'var(--control-bg)',
-              borderRadius: '4px',
-              color: state.playerCharacter?.rations <= 2 ? '#e74c3c' : 'var(--text-color)',
-            }}
-          >
-            Rations: {state.playerCharacter?.rations || 0}
-          </div>
+          {FEATURES.SURVIVAL_ENABLED && (
+            <div
+              style={{
+                fontSize: '0.95rem',
+                fontWeight: '500',
+                padding: '0.25rem 0.75rem',
+                backgroundColor: 'var(--control-bg)',
+                borderRadius: '4px',
+                color: state.playerCharacter?.rations <= 2 ? '#e74c3c' : 'var(--text-color)',
+              }}
+            >
+              Rations: {state.playerCharacter?.rations || 0}
+            </div>
+          )}
           <div
             style={{
               fontSize: '0.95rem',
@@ -1656,18 +1673,20 @@ function OverworldScene() {
             Gold: {state.playerCharacter?.gold || 0}
           </div>
           {/* Forage Status Indicator */}
-          <div
-            style={{
-              fontSize: '0.95rem',
-              fontWeight: '500',
-              color: forageStatus.ready ? '#2ecc71' : '#e74c3c',
-              cursor: 'default',
-              userSelect: 'none',
-            }}
-            title={forageStatus.message}
-          >
-            Forage
-          </div>
+          {FEATURES.SURVIVAL_ENABLED && (
+            <div
+              style={{
+                fontSize: '0.95rem',
+                fontWeight: '500',
+                color: forageStatus.ready ? '#2ecc71' : '#e74c3c',
+                cursor: 'default',
+                userSelect: 'none',
+              }}
+              title={forageStatus.message}
+            >
+              Forage
+            </div>
+          )}
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             Position: ({state.playerPosition.col}, {state.playerPosition.row})
           </div>
@@ -1934,14 +1953,16 @@ function OverworldScene() {
         <RestMenu />
       </MenuPanel>
 
-      <MenuPanel
-        title="Survival"
-        isOpen={openPanel === 'survival'}
-        onClose={handleClosePanel}
-        width="600px"
-      >
-        <SurvivalMenu />
-      </MenuPanel>
+      {FEATURES.SURVIVAL_ENABLED && (
+        <MenuPanel
+          title="Survival"
+          isOpen={openPanel === 'survival'}
+          onClose={handleClosePanel}
+          width="600px"
+        >
+          <SurvivalMenu />
+        </MenuPanel>
+      )}
 
       <MenuPanel
         title="Quests"
