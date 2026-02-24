@@ -272,7 +272,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
       isHexExplored: (col: number, row: number) => state.exploredHexes.has(`${col},${row}`),
 
       isHexVisible: (col: number, row: number) => {
-        if (!state.playerCharacter) return false;
+        if (!state.playerCharacter || !state.playerPosition) return false;
         const distance = getHexDistance(
           state.playerPosition.col,
           state.playerPosition.row,
@@ -283,7 +283,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
       },
 
       isHexReachable: (col: number, row: number) => {
-        if (!state.playerCharacter) return false;
+        if (!state.playerCharacter || !state.playerPosition) return false;
         const distance = getHexDistance(
           state.playerPosition.col,
           state.playerPosition.row,
