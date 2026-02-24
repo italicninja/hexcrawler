@@ -8,7 +8,7 @@ import { useGameState } from '../../contexts/GameStateContext';
 function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
   const { state, actions, dispatch } = useGameState();
 
-  if (!state.currentPOI || !interiorMap) {
+  if (!state.currentPOI || !interiorMap || !playerPosition) {
     return (
       <div
         style={{
@@ -24,10 +24,14 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
 
   const { poi } = state.currentPOI;
 
-  // Get current hex player is standing on
+  // Towns exit freely; dungeons/caves/ruins/towers/starting_cache require the Exit Hex
+  const isTown = ['town', 'village', 'city', 'metropolis', 'camp'].includes(poi.type);
+
+  // Check if the player is currently standing on an Exit Hex
   const currentHex = interiorMap.hexes.find(
     h => h.col === playerPosition.col && h.row === playerPosition.row
   );
+  const onExitHex = currentHex?.terrain?.key === 'exit' || currentHex?.content === 'exit';
 
   const handleExitInterior = () => {
     if (poi.type === 'town') {
@@ -168,6 +172,46 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
             </div>
           )}
 
+          {/* Loot/chest hint */}
+          {(displayHex.content === 'loot' || displayHex.content === 'chest') && (
+            <div
+              style={{
+                padding: '0.3rem 0.4rem',
+                backgroundColor: 'rgba(243,156,18,0.15)',
+                borderRadius: '3px',
+                border: '1px solid #f39c12',
+                fontSize: '0.75rem',
+              }}
+            >
+              <div style={{ color: '#f39c12', fontWeight: '700', marginBottom: '0.1rem' }}>
+                📦 {isCurrentHex ? 'Loot here!' : 'Loot'}
+              </div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                {isCurrentHex ? 'Double-click to collect' : 'Walk onto it to collect'}
+              </div>
+            </div>
+          )}
+
+          {/* Exit hint */}
+          {(displayHex.terrain?.key === 'exit' || displayHex.content === 'exit') && (
+            <div
+              style={{
+                padding: '0.3rem 0.4rem',
+                backgroundColor: 'rgba(46,204,113,0.15)',
+                borderRadius: '3px',
+                border: '1px solid #2ecc71',
+                fontSize: '0.75rem',
+              }}
+            >
+              <div style={{ color: '#2ecc71', fontWeight: '700', marginBottom: '0.1rem' }}>
+                🚪 {isCurrentHex ? 'Exit here!' : 'Exit'}
+              </div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                {isCurrentHex ? 'Click "← Exit" to leave' : 'Walk here to unlock exit'}
+              </div>
+            </div>
+          )}
+
           {/* Gate info */}
           {displayHex.terrain.key === 'gate' && (
             <div
@@ -288,21 +332,25 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
         {renderHexPane(selectedHex, false)}
       </div>
 
-      {/* Exit Button */}
+      {/* Exit Button — towns exit freely; non-towns require the Exit Hex */}
       <button
-        onClick={handleExitInterior}
+        onClick={isTown || onExitHex ? handleExitInterior : undefined}
+        title={isTown || onExitHex ? `Leave ${poi.name}` : 'Return to the green EXIT tile to leave'}
         style={{
           padding: '0.5rem',
           background: 'var(--primary-color)',
           border: '1px solid var(--accent-color)',
           borderRadius: '4px',
-          color: 'var(--text-color)',
+          color: isTown || onExitHex ? 'var(--text-color)' : 'var(--text-muted)',
           fontSize: '0.8rem',
           fontWeight: 'bold',
-          cursor: 'pointer',
+          cursor: isTown || onExitHex ? 'pointer' : 'not-allowed',
+          opacity: isTown || onExitHex ? 1 : 0.45,
         }}
       >
-        ← Exit {poi.type === 'town' ? 'Town' : 'Interior'}
+        {isTown || onExitHex
+          ? `← Exit ${poi.type === 'town' || isTown ? 'Town' : 'Interior'}`
+          : '🔒 Find the Exit Hex'}
       </button>
     </div>
   );

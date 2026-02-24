@@ -31,6 +31,13 @@ function ExplorationScene() {
   // Set player position to entrance when entering
   const [playerPosition, setPlayerPosition] = useState(interiorMap?.entrance || { col: 0, row: 0 });
 
+  // True once the player has stepped onto the Exit Hex — enables the exit button
+  const [exitReady, setExitReady] = useState(false);
+
+  // Towns can exit freely; non-settlements require reaching the Exit Hex first
+  const isTown = ['town', 'village', 'city', 'metropolis', 'camp'].includes(currentPOI?.poi?.type);
+  const canExitFreely = isTown;
+
   useEffect(() => {
     if (interiorMap?.entrance) {
       setPlayerPosition(interiorMap.entrance);
@@ -77,6 +84,13 @@ function ExplorationScene() {
     // Check for hazards on entered hex
     if (hex.content === 'hazard') {
       handleHazardTrigger(hex);
+    }
+
+    // Exit Hex — return to overworld
+    // Towns exit freely via button; dungeons/caves/ruins/towers/starting_cache
+    // require the player to reach this tile first.
+    if (hex.terrain?.key === 'exit' || hex.content === 'exit') {
+      handleExitViaExitHex();
     }
   };
 
@@ -234,9 +248,27 @@ function ExplorationScene() {
     }
   };
 
+  /**
+   * Handle stepping onto an Exit Hex inside a non-town POI.
+   *
+   * This is the only way to leave dungeons, caves, ruins, towers, and the
+   * starting cache. Towns use the "← Exit to Overworld" button freely.
+   * A confirmation prompt prevents accidental exits.
+   */
+  const handleExitViaExitHex = () => {
+    const poiName = currentPOI?.poi?.name || 'this location';
+    addMessage(
+      `You reach the exit of ${poiName}. Step outside? (Click "← Exit to Overworld" to leave.)`,
+      'info'
+    );
+    // Surface the exit button visually — set a flag so the button pulses
+    setExitReady(true);
+  };
+
   // Handle exit exploration
   const handleExitExploration = () => {
     dispatch({ type: actions.EXIT_EXPLORATION });
+    setExitReady(false);
   };
 
   if (!interiorMap) {
@@ -280,8 +312,20 @@ function ExplorationScene() {
               {formatTime(state.gameTime)}
             </div>
           </div>
-          <button className="exit-button" onClick={handleExitExploration}>
-            ← Exit to Overworld
+          <button
+            className={`exit-button${exitReady || canExitFreely ? ' exit-button--ready' : ' exit-button--locked'}`}
+            onClick={canExitFreely || exitReady ? handleExitExploration : undefined}
+            title={
+              canExitFreely || exitReady
+                ? 'Return to the overworld'
+                : 'Find the green EXIT tile to leave'
+            }
+            style={{
+              opacity: canExitFreely || exitReady ? 1 : 0.45,
+              cursor: canExitFreely || exitReady ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {canExitFreely || exitReady ? '← Exit to Overworld' : '🔒 Find the Exit Hex'}
           </button>
         </div>
         <InteriorHexCanvas
@@ -317,6 +361,11 @@ function ExplorationScene() {
             // Check for hazards on entered hex
             if (hex.content === 'hazard') {
               handleHazardTrigger(hex);
+            }
+
+            // Exit Hex — unlock the exit button
+            if (hex.terrain?.key === 'exit' || hex.content === 'exit') {
+              handleExitViaExitHex();
             }
           }}
         />

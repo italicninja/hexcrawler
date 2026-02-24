@@ -205,13 +205,13 @@ export function explorationReducer(
     }
 
     case ACTIONS.DISCOVER_LOOT: {
-      const { poiKey, lootKey } = action.payload;
+      const { poiKey, lootKey, collected } = action.payload;
       const interiorMap = state.interiorMaps[poiKey];
       if (!interiorMap) return state;
 
       const updatedLoot = interiorMap.loot.map(l => {
         if (`${l.col},${l.row}` === lootKey) {
-          return { ...l, discovered: true };
+          return { ...l, discovered: true, ...(collected ? { collected: true } : {}) };
         }
         return l;
       });

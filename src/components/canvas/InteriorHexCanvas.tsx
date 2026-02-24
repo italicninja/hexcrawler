@@ -28,6 +28,7 @@ function InteriorHexCanvas({
   const [offsetY, setOffsetY] = useState(0);
   const [targetOffsetX, setTargetOffsetX] = useState(0);
   const [targetOffsetY, setTargetOffsetY] = useState(0);
+  const [hoveredHex, setHoveredHex] = useState(null);
   const animationFrameRef = useRef(null);
   const playerAnimationRef = useRef(null);
   const playerVisualPosRef = useRef(null);
@@ -132,10 +133,11 @@ function InteriorHexCanvas({
           const hazard = interiorMap?.hazards?.find(h => h.col === hex.col && h.row === hex.row);
           shouldRender = hazard && shouldRenderHazard(hazard);
         } else if (content === 'loot' || content === 'chest') {
-          const loot = interiorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
-          shouldRender = loot && shouldRenderLoot(loot);
+          // Loot/chests are always visible — you can see the chest, you just
+          // can't collect it until you walk onto the hex.
+          shouldRender = true;
         } else {
-          // Always render non-hidden content (entrance, stairs, etc.)
+          // Always render non-hidden content (entrance, exit, stairs, etc.)
           shouldRender = true;
         }
 
@@ -174,6 +176,38 @@ function InteriorHexCanvas({
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
         ctx.strokeRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize);
+        // Door knob
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath();
+        ctx.arc(x + iconSize * 0.25, y, iconSize * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+
+      case 'exit':
+        // Bright green archway — pulsing outline to draw the eye
+        ctx.strokeStyle = '#2ecc71';
+        ctx.lineWidth = 3;
+        // Arch frame
+        ctx.beginPath();
+        ctx.moveTo(x - iconSize * 0.45, y + iconSize * 0.45);
+        ctx.lineTo(x - iconSize * 0.45, y - iconSize * 0.1);
+        ctx.arc(x, y - iconSize * 0.1, iconSize * 0.45, Math.PI, 0);
+        ctx.lineTo(x + iconSize * 0.45, y + iconSize * 0.45);
+        ctx.stroke();
+        // Arrow pointing through the arch (upward)
+        ctx.fillStyle = '#2ecc71';
+        ctx.beginPath();
+        ctx.moveTo(x, y - iconSize * 0.05);
+        ctx.lineTo(x + iconSize * 0.22, y + iconSize * 0.3);
+        ctx.lineTo(x - iconSize * 0.22, y + iconSize * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        // "EXIT" label
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = `bold ${Math.max(7, iconSize * 0.35)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('EXIT', x, y + iconSize * 0.55);
         break;
 
       case 'encounter':
@@ -194,19 +228,40 @@ function InteriorHexCanvas({
         break;
 
       case 'loot':
-      case 'chest':
-        // Gold/gray chest icon (gray if collected)
-        ctx.fillStyle = isCollected ? '#666666' : '#f39c12';
-        ctx.fillRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize * 0.7);
-        ctx.strokeStyle = '#000';
+      case 'chest': {
+        if (!isCollected) {
+          // Glow behind chest so it stands out on dark tiles
+          ctx.shadowColor = '#f39c12';
+          ctx.shadowBlur = 10;
+        }
+        // Chest body
+        ctx.fillStyle = isCollected ? '#555' : '#8B6914';
+        ctx.fillRect(x - iconSize * 0.55, y - iconSize * 0.2, iconSize * 1.1, iconSize * 0.65);
+        // Chest lid (lighter strip on top)
+        ctx.fillStyle = isCollected ? '#666' : '#f39c12';
+        ctx.fillRect(x - iconSize * 0.55, y - iconSize * 0.35, iconSize * 1.1, iconSize * 0.22);
+        // Outline
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = isCollected ? '#444' : '#000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize * 0.7);
-        // Lock
-        ctx.fillStyle = '#333';
+        ctx.strokeRect(x - iconSize * 0.55, y - iconSize * 0.35, iconSize * 1.1, iconSize * 0.87);
+        // Dividing line between lid and body
         ctx.beginPath();
-        ctx.arc(x, y, iconSize * 0.15, 0, Math.PI * 2);
+        ctx.moveTo(x - iconSize * 0.55, y - iconSize * 0.13);
+        ctx.lineTo(x + iconSize * 0.55, y - iconSize * 0.13);
+        ctx.strokeStyle = isCollected ? '#444' : '#000';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Lock clasp (center)
+        ctx.fillStyle = isCollected ? '#888' : '#f1c40f';
+        ctx.beginPath();
+        ctx.arc(x, y - iconSize * 0.13, iconSize * 0.13, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
         break;
+      }
 
       case 'hazard':
         // Orange/gray warning triangle (gray if triggered)
@@ -333,7 +388,7 @@ function InteriorHexCanvas({
     // Draw all hexes
     hexArray.forEach(hex => drawHex(ctx, hex));
 
-    // Draw selected hex outline
+    // Draw selected hex outline (blue)
     if (selectedHex) {
       const selectedHexData = hexArray.find(
         h => h.col === selectedHex.col && h.row === selectedHex.row
@@ -343,11 +398,36 @@ function InteriorHexCanvas({
       }
     }
 
+    // Draw hovered hex outline — color by content type
+    if (hoveredHex) {
+      const hoveredHexData = hexArray.find(
+        h => h.col === hoveredHex.col && h.row === hoveredHex.row
+      );
+      if (hoveredHexData) {
+        if (hoveredHex.content === 'loot' || hoveredHex.content === 'chest') {
+          drawHexOutline(ctx, hoveredHexData, '#f39c12', 3); // Gold for loot
+        } else if (hoveredHex.content === 'exit') {
+          drawHexOutline(ctx, hoveredHexData, '#2ecc71', 3); // Green for exit
+        } else if (hoveredHex.terrain?.walkable) {
+          drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.35)', 2);
+        }
+      }
+    }
+
     // Draw player marker
     drawPlayer(ctx, hexArray);
 
     ctx.restore();
-  }, [positionedHexes, offsetX, offsetY, selectedHex, drawHex, drawHexOutline, drawPlayer]);
+  }, [
+    positionedHexes,
+    offsetX,
+    offsetY,
+    selectedHex,
+    hoveredHex,
+    drawHex,
+    drawHexOutline,
+    drawPlayer,
+  ]);
 
   // Setup canvas and handle resize
   useEffect(() => {
@@ -513,7 +593,7 @@ function InteriorHexCanvas({
     [getHexAtPoint, onHexDoubleClick]
   );
 
-  // Handle mouse move for cursor
+  // Handle mouse move for cursor and hover highlight
   const handleMouseMove = useCallback(
     e => {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -521,7 +601,22 @@ function InteriorHexCanvas({
       const y = e.clientY - rect.top;
 
       const hex = getHexAtPoint(x, y);
-      canvasRef.current.style.cursor = hex ? 'pointer' : 'default';
+      setHoveredHex(hex || null);
+
+      // Change cursor based on content
+      if (hex) {
+        if (hex.content === 'loot' || hex.content === 'chest') {
+          canvasRef.current.style.cursor = 'grab';
+        } else if (hex.content === 'exit') {
+          canvasRef.current.style.cursor = 'crosshair';
+        } else if (hex.terrain?.walkable) {
+          canvasRef.current.style.cursor = 'pointer';
+        } else {
+          canvasRef.current.style.cursor = 'not-allowed';
+        }
+      } else {
+        canvasRef.current.style.cursor = 'default';
+      }
     },
     [getHexAtPoint]
   );
