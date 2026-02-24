@@ -77,8 +77,8 @@ export function generateHex(
   // Generate POI (if applicable)
   const poi = generatePOIForHex(terrainGenerator, terrainType, col, row, poiChance);
 
-  // Generate weather
-  const weather = terrainGenerator.generateWeather(terrainType);
+  // Generate weather from the regional weather system for biome coherence
+  const weather = terrainGenerator.getWeatherForHex(col, row);
 
   return {
     row,
