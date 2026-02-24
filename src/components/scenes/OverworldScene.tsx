@@ -57,12 +57,14 @@ function OverworldScene() {
   const { settings } = useSettings();
   const { addMessage } = useGameLog();
   // const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
-  const isBlockingMovement = false;
+  const isBlockingMovement = !!state.combatState?.active;
   const [openPanel, setOpenPanel] = useState(null);
   const [showSaveMenu, setShowSaveMenu] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState(state.playerCharacter);
   const [selectedHex, setSelectedHex] = useState(null);
   const [selectedInteriorHex, setSelectedInteriorHex] = useState(null);
+  // True once the player has stepped onto an Exit Hex inside a non-town POI
+  const [interiorExitReady, setInteriorExitReady] = useState(false);
   const [viewportSize, setViewportSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -761,21 +763,61 @@ function OverworldScene() {
           handleBuildingInteraction(currentHex);
         } else if (
           currentHex &&
-          (currentHex.content === 'entrance' || currentHex.terrain.key === 'gate')
+          (currentHex.content === 'exit' ||
+            currentHex.terrain?.key === 'exit' ||
+            currentHex.terrain?.key === 'gate')
         ) {
-          // Player is on entrance/gate - exit the interior
-          // Check if current POI is a settlement (town, camp, village, etc.)
+          // Player is on the exit tile — leave the interior
           const settlementTypes = ['camp', 'village', 'town', 'city', 'metropolis'];
           const isSettlement = settlementTypes.includes(state.currentPOI?.poi?.type);
-
           if (isSettlement) {
             dispatch({ type: actions.EXIT_TOWN });
           } else {
+            setInteriorExitReady(true);
             dispatch({ type: actions.EXIT_EXPLORATION });
           }
+        } else if (
+          currentHex &&
+          currentHex.content === 'entrance' &&
+          ['camp', 'village', 'town', 'city', 'metropolis'].includes(state.currentPOI?.poi?.type)
+        ) {
+          // Entrance tile only exits for towns (legacy behaviour)
+          dispatch({ type: actions.EXIT_TOWN });
+        } else if (
+          currentHex &&
+          (currentHex.content === 'loot' || currentHex.content === 'chest')
+        ) {
+          // Space bar on a loot tile — same as double-clicking it
+          const poiKey = state.currentPOI
+            ? `${state.currentPOI.col},${state.currentPOI.row}`
+            : null;
+          const currentInteriorMap = poiKey ? state.interiorMaps[poiKey] : null;
+          const lootItem = currentInteriorMap?.loot?.find(
+            l => l.col === currentHex.col && l.row === currentHex.row
+          );
+          if (lootItem && !lootItem.collected) {
+            dispatch({
+              type: actions.COLLECT_LOOT,
+              payload: { items: lootItem.items || [], gold: lootItem.gold || 0 },
+            });
+            dispatch({
+              type: actions.DISCOVER_LOOT,
+              payload: { poiKey, lootKey: `${currentHex.col},${currentHex.row}`, collected: true },
+            });
+            const parts = [];
+            if (lootItem.gold > 0) parts.push(`${lootItem.gold} gold`);
+            if (lootItem.items?.length > 0) parts.push(lootItem.items.join(', '));
+            addMessage(
+              lootItem.label
+                ? `📦 ${lootItem.label}: ${lootItem.description || parts.join(' and ')}`
+                : `📦 You find ${parts.join(' and ')}.`,
+              'info'
+            );
+          } else if (lootItem?.collected) {
+            addMessage('You already collected this.', 'info');
+          }
         } else if (state.inInterior) {
-          // Player is inside but not on exit - provide helpful message
-          addMessage('You must stand on the exit to leave this location', 'warning');
+          addMessage('Walk to the green EXIT tile to leave this location.', 'info');
         }
       } else {
         const hex = getCurrentHex();
@@ -920,6 +962,57 @@ function OverworldScene() {
         dispatch({ type: actions.EXIT_TOWN });
       }
     }
+
+    // Check for Exit Hex (non-town POIs) — unlock the exit button
+    if (hex.terrain?.key === 'exit' || hex.content === 'exit') {
+      setInteriorExitReady(true);
+      addMessage(
+        `You reach the exit of ${state.currentPOI?.poi?.name || 'this location'}. The way out is open — click "← Exit" to leave.`,
+        'info'
+      );
+      return; // Don't process loot/other content on exit tile
+    }
+
+    // Check for loot / chest — collect it
+    if (hex.content === 'loot' || hex.content === 'chest') {
+      const poiKey = state.currentPOI ? `${state.currentPOI.col},${state.currentPOI.row}` : null;
+      const currentInteriorMap = poiKey ? state.interiorMaps[poiKey] : null;
+      const lootItem = currentInteriorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
+
+      if (lootItem && !lootItem.collected) {
+        // Collect the loot
+        dispatch({
+          type: actions.COLLECT_LOOT,
+          payload: {
+            items: lootItem.items || [],
+            gold: lootItem.gold || 0,
+          },
+        });
+
+        // Mark as collected in the interior map (grays out the chest icon)
+        dispatch({
+          type: actions.DISCOVER_LOOT,
+          payload: {
+            poiKey,
+            lootKey: `${hex.col},${hex.row}`,
+            collected: true,
+          },
+        });
+
+        // Feedback message
+        const parts = [];
+        if (lootItem.gold > 0) parts.push(`${lootItem.gold} gold`);
+        if (lootItem.items?.length > 0) parts.push(lootItem.items.join(', '));
+        addMessage(
+          lootItem.label
+            ? `📦 ${lootItem.label}: ${lootItem.description || parts.join(' and ')}`
+            : `📦 You find ${parts.join(' and ')}.`,
+          'info'
+        );
+      } else if (lootItem?.collected) {
+        addMessage('You already collected this.', 'info');
+      }
+    }
   };
 
   // Handle building interactions in towns
@@ -944,10 +1037,11 @@ function OverworldScene() {
     }
   };
 
-  // Get interior map if in interior
+  // Get interior map if in interior — use optional chaining so undefined currentPOI
+  // never crashes during a React batch render where inInterior flips before currentPOI is set
   const interiorMap =
-    state.inInterior && state.currentPOI
-      ? state.interiorMaps[`${state.currentPOI.col},${state.currentPOI.row}`]
+    state.inInterior && state.currentPOI?.col !== undefined
+      ? (state.interiorMaps[`${state.currentPOI.col},${state.currentPOI.row}`] ?? null)
       : null;
 
   // Check foraging status for indicator
@@ -1602,6 +1696,27 @@ function OverworldScene() {
     return state.combatState.turnOrder[state.combatState.currentTurnIndex];
   };
 
+  // Guard: if we're transitioning into an interior but the position/map isn't
+  // ready yet (can happen on the first render after ENTER_EXPLORATION fires),
+  // show a brief loading state rather than crashing on null.col access.
+  if (state.inInterior && (!state.interiorPlayerPosition || !state.currentPOI)) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          backgroundColor: 'var(--color-bg)',
+          color: 'var(--color-text)',
+          fontSize: '1.2rem',
+        }}
+      >
+        Loading interior...
+      </div>
+    );
+  }
+
   return (
     <div
       className="game-container"
@@ -1688,7 +1803,7 @@ function OverworldScene() {
             </div>
           )}
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Position: ({state.playerPosition.col}, {state.playerPosition.row})
+            Position: ({state.playerPosition?.col ?? '?'}, {state.playerPosition?.row ?? '?'})
           </div>
         </div>
       </div>
