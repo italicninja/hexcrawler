@@ -324,19 +324,25 @@ export class DungeonGenerator extends InteriorGenerator {
   }
 
   /**
-   * Place entrance in first room
+   * Place entrance and exit hex in the first room.
+   *
+   * - Entrance (brown): center of first room — where the player spawns.
+   * - Exit (green):     one tile to the left of entrance — step on to leave.
+   *
+   * Towns use a button to exit freely; dungeons/caves/ruins/towers require
+   * the player to return to this Exit Hex before they can leave.
+   *
    * @param {Array} grid
    * @param {object} firstRoom - First room object
    * @returns {object} {col, row} of entrance
    */
   placeEntrance(grid, firstRoom) {
-    // Place entrance in center of first room
+    // Entrance — center of first room
     const entrance = {
       col: Math.floor(firstRoom.x + firstRoom.width / 2),
       row: Math.floor(firstRoom.y + firstRoom.height / 2),
     };
 
-    // Mark as entrance
     if (
       entrance.row >= 0 &&
       entrance.row < grid.length &&
@@ -345,6 +351,16 @@ export class DungeonGenerator extends InteriorGenerator {
     ) {
       grid[entrance.row][entrance.col].terrain = this.terrainTypes.entrance;
       grid[entrance.row][entrance.col].content = 'entrance';
+    }
+
+    // Exit Hex — placed at the left edge of the first room, away from entrance
+    // (entrance is at center, exit is at the far left, so the player must move to leave)
+    const exitCol = firstRoom.x + 1;
+    const exitRow = entrance.row;
+
+    if (exitRow >= 0 && exitRow < grid.length && exitCol >= 0 && exitCol < grid[0].length) {
+      grid[exitRow][exitCol].terrain = this.terrainTypes.exit;
+      grid[exitRow][exitCol].content = 'exit';
     }
 
     return entrance;

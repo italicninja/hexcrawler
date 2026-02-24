@@ -28,6 +28,217 @@ export const GAME_DEFAULTS = {
   VIEW_RADIUS: 2,
   MOVE_DISTANCE: 6,
   PROFICIENCY_BONUS: 2,
+  /** The POI type placed on the spawn hex — player begins the game inside this */
+  START_POI_TYPE: 'starting_cache' as const,
+};
+
+// ===================
+// STARTING CACHE
+// ===================
+/**
+ * The Waylaid Traveler's Cache — a tiny CR 0 POI where the player wakes up.
+ * It contains starter loot, no real combat, and a clearly marked Exit Hex.
+ */
+export const STARTING_CACHE = {
+  CR: 0,
+  /** Interior grid dimensions — wide enough for 3 rooms of at least 4 tiles each */
+  WIDTH: 22,
+  HEIGHT: 9,
+  /** Names drawn randomly on generation */
+  NAMES: [
+    "Waylaid Traveler's Cache",
+    'The Collapsed Watchtower Cellar',
+    "Smuggler's Hollow",
+    "The Old Hermit's Burrow",
+    'Mossy Stone Grotto',
+    "Bandit's Forgotten Stash",
+    'Crumbled Roadside Shrine',
+    "Pilgrim's Rest Cave",
+  ],
+  DESCRIPTIONS: [
+    'A small shelter where you find yourself after losing consciousness on the road. Dusty, but safe — for now.',
+    'A collapsed watchtower cellar. Whoever used this place left in a hurry.',
+    "A smuggler's hollow carved into the hillside. Someone clearly lived here once.",
+    "A hermit's burrow. The old occupant is long gone, but their provisions remain.",
+    'A mossy grotto barely large enough to stand in. A trickle of water runs along one wall.',
+  ],
+  /** Starter loot tables */
+  STARTER_GOLD_MIN: 8,
+  STARTER_GOLD_MAX: 30,
+  /** Misc gear — each entry is an Item config object */
+  STARTER_ITEMS: [
+    {
+      name: 'Bedroll',
+      type: 'misc',
+      rarity: 'common',
+      description: 'A rolled-up sleeping mat.',
+      weight: 7,
+      value: 1,
+    },
+    {
+      name: 'Tinderbox',
+      type: 'misc',
+      rarity: 'common',
+      description: 'Flint, steel, and tinder for starting fires.',
+      weight: 1,
+      value: 5,
+    },
+    {
+      name: 'Torches (3)',
+      type: 'misc',
+      rarity: 'common',
+      description: 'Three torches. Each burns for about an hour.',
+      weight: 3,
+      value: 1,
+    },
+    {
+      name: 'Waterskin',
+      type: 'misc',
+      rarity: 'common',
+      description: 'A leather waterskin, full.',
+      weight: 5,
+      value: 2,
+    },
+    {
+      name: 'Trail Rations (3 days)',
+      type: 'consumable',
+      rarity: 'common',
+      description: 'Dried meat, hardtack, and nuts. Enough for three days.',
+      weight: 6,
+      value: 5,
+      consumable: true,
+    },
+    {
+      name: 'Rope (50 ft)',
+      type: 'misc',
+      rarity: 'common',
+      description: 'Fifty feet of hempen rope.',
+      weight: 10,
+      value: 1,
+    },
+    {
+      name: 'Hooded Lantern',
+      type: 'misc',
+      rarity: 'common',
+      description: 'A lantern that can be shuttered to hide its light.',
+      weight: 2,
+      value: 5,
+    },
+    {
+      name: "Healer's Kit",
+      type: 'consumable',
+      rarity: 'common',
+      description: 'Bandages, salves, and splints. Stabilise a dying creature.',
+      weight: 3,
+      value: 5,
+      consumable: false,
+    },
+  ],
+  /** Starter weapons — each entry is an Item config object */
+  STARTER_WEAPONS: [
+    {
+      name: 'Handaxe',
+      type: 'weapon',
+      rarity: 'common',
+      description: 'A light axe, good for throwing or chopping.',
+      slot: 'mainHand',
+      damage: '1d6',
+      damageType: 'slashing',
+      weight: 2,
+      value: 5,
+    },
+    {
+      name: 'Shortsword',
+      type: 'weapon',
+      rarity: 'common',
+      description: 'A short, nimble blade.',
+      slot: 'mainHand',
+      damage: '1d6',
+      damageType: 'piercing',
+      weight: 2,
+      value: 10,
+    },
+    {
+      name: 'Dagger',
+      type: 'weapon',
+      rarity: 'common',
+      description: 'A simple dagger. Better than nothing.',
+      slot: 'mainHand',
+      damage: '1d4',
+      damageType: 'piercing',
+      weight: 1,
+      value: 2,
+    },
+    {
+      name: 'Club',
+      type: 'weapon',
+      rarity: 'common',
+      description: 'A stout wooden club.',
+      slot: 'mainHand',
+      damage: '1d4',
+      damageType: 'bludgeoning',
+      weight: 2,
+      value: 1,
+    },
+    {
+      name: 'Quarterstaff',
+      type: 'weapon',
+      rarity: 'common',
+      description: 'A sturdy wooden staff.',
+      slot: 'mainHand',
+      damage: '1d6',
+      damageType: 'bludgeoning',
+      weight: 4,
+      value: 2,
+      twoHanded: true,
+    },
+    {
+      name: 'Spear',
+      type: 'weapon',
+      rarity: 'common',
+      description: 'A wooden shaft tipped with iron.',
+      slot: 'mainHand',
+      damage: '1d6',
+      damageType: 'piercing',
+      weight: 3,
+      value: 1,
+    },
+    {
+      name: 'Mace',
+      type: 'weapon',
+      rarity: 'common',
+      description: 'A heavy iron mace.',
+      slot: 'mainHand',
+      damage: '1d6',
+      damageType: 'bludgeoning',
+      weight: 4,
+      value: 5,
+    },
+    {
+      name: 'Hand Crossbow',
+      type: 'weapon',
+      rarity: 'common',
+      description: 'A compact crossbow, one-handed.',
+      slot: 'mainHand',
+      damage: '1d6',
+      damageType: 'piercing',
+      weight: 3,
+      value: 75,
+    },
+  ],
+  /** Number of starter items to give (random between min/max) */
+  ITEM_COUNT_MIN: 2,
+  ITEM_COUNT_MAX: 4,
+  /** Always get exactly 1 starter weapon */
+  WEAPON_COUNT: 1,
+  /** Optional flavor notes found inside — conveys lore */
+  NOTES: [
+    "A scrawled note reads: \"If you're reading this, you survived the ambush. Head east — there's a town called Riverdale two days' walk. Stay off the main road.\"",
+    'A torn journal page: "Day 12. Food running low. I\'ve left what I could spare for whoever finds this place. Gods willing they\'ll need it less than I did."',
+    'A faded map pinned to the wall — hand-drawn, showing the local terrain. Several locations are circled but have no labels.',
+    'Scratched into the stone wall: "Beware the TOWER to the NORTH. Do NOT enter alone."',
+    'A merchant\'s ledger, entries trailing off mid-sentence. The last line reads: "...they came from the forest without warning—"',
+  ],
 };
 
 // ===================

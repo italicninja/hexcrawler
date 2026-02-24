@@ -12,6 +12,8 @@ const loadRuinsGenerator = () => import('../game/RuinsGenerator').then(m => m.Ru
 const loadTowerGenerator = () => import('../game/TowerGenerator').then(m => m.TowerGenerator);
 const loadDungeonGenerator = () => import('../game/DungeonGenerator').then(m => m.DungeonGenerator);
 const loadTownGenerator = () => import('../game/TownGenerator').then(m => m.TownGenerator);
+const loadStartingCacheGenerator = () =>
+  import('../game/StartingCacheGenerator').then(m => m.StartingCacheGenerator);
 
 /**
  * useHexInteraction Hook
@@ -100,6 +102,13 @@ export function useHexInteraction(hex) {
     if (!hex || !hex.poi) return;
 
     const poi = hex.poi;
+
+    // Starting cache is a one-time location — can't re-enter after leaving
+    if (poi.isStartingLocation) {
+      addMessage('The shelter is empty now. There is nothing left for you here.', 'info');
+      return;
+    }
+
     const poiKey = `${hex.col},${hex.row}`;
 
     // Check if interior already exists
@@ -122,6 +131,9 @@ export function useHexInteraction(hex) {
             break;
           case 'dungeon':
             GeneratorClass = await loadDungeonGenerator();
+            break;
+          case 'starting_cache':
+            GeneratorClass = await loadStartingCacheGenerator();
             break;
           default:
             GeneratorClass = await loadCaveGenerator(); // Fallback to cave
@@ -379,6 +391,7 @@ export function useHexInteraction(hex) {
       case 'ruins':
       case 'tower':
       case 'dungeon':
+      case 'starting_cache':
         handleExplore();
         break;
       default:
