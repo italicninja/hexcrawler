@@ -8,6 +8,7 @@ import { RegionGenerator } from './RegionGenerator';
 import { WeatherSystem } from './WeatherSystem';
 import logger from './utils/logger';
 import { getHexDistance } from './utils/hexMath';
+import { GAME_DEFAULTS } from './constants/gameConstants';
 
 export class TerrainGenerator {
   constructor() {
@@ -32,82 +33,9 @@ export class TerrainGenerator {
       { name: 'Shrine', weight: 3 },
       { name: 'Camp', weight: 3 },
     ];
-
-    this.weatherTypes = {
-      river: [
-        { condition: 'Clear skies', effect: 'Calm waters' },
-        { condition: 'Light rain', effect: 'Faster current' },
-        { condition: 'Heavy rain', effect: 'Dangerous current, flooding risk' },
-        { condition: 'Fog', effect: 'Poor visibility on water' },
-        { condition: 'Storm', effect: 'Very dangerous crossing' },
-      ],
-      grassland: [
-        { condition: 'Clear skies', effect: 'Normal visibility' },
-        { condition: 'Light clouds', effect: 'Normal visibility' },
-        { condition: 'Overcast', effect: 'Slightly reduced visibility' },
-        { condition: 'Light rain', effect: 'Reduced visibility, muddy ground' },
-        { condition: 'Heavy rain', effect: 'Poor visibility, difficult terrain' },
-        { condition: 'Thunderstorm', effect: 'Very poor visibility, dangerous' },
-        { condition: 'Fog', effect: 'Heavily reduced visibility' },
-        { condition: 'Wind', effect: 'Ranged attacks disadvantage' },
-      ],
-      forest: [
-        { condition: 'Clear skies', effect: 'Normal visibility' },
-        { condition: 'Misty', effect: 'Reduced visibility' },
-        { condition: 'Light rain', effect: 'Slippery terrain' },
-        { condition: 'Heavy rain', effect: 'Difficult terrain, poor visibility' },
-        { condition: 'Dense fog', effect: 'Heavily reduced visibility' },
-        { condition: 'Drizzle', effect: 'Slightly reduced visibility' },
-      ],
-      hills: [
-        { condition: 'Clear skies', effect: 'Excellent visibility' },
-        { condition: 'Windy', effect: 'Ranged attacks disadvantage' },
-        { condition: 'Light rain', effect: 'Slippery slopes' },
-        { condition: 'Heavy rain', effect: 'Dangerous slopes, poor visibility' },
-        { condition: 'Fog patches', effect: 'Variable visibility' },
-        { condition: 'Storm', effect: 'Very dangerous, seek shelter' },
-      ],
-      mountains: [
-        { condition: 'Clear skies', effect: 'Excellent visibility, cold' },
-        { condition: 'Strong winds', effect: 'Difficult climbing, ranged penalty' },
-        { condition: 'Snow flurries', effect: 'Reduced visibility, cold' },
-        { condition: 'Blizzard', effect: 'Very poor visibility, extreme cold' },
-        { condition: 'Hail', effect: 'Dangerous, take cover' },
-        { condition: 'Avalanche risk', effect: 'Loud noises dangerous' },
-      ],
-      desert: [
-        { condition: 'Clear skies', effect: 'Extreme heat, water consumption x2' },
-        { condition: 'Scorching heat', effect: 'Exhaustion risk, water x3' },
-        { condition: 'Dust storm', effect: 'Poor visibility, difficult breathing' },
-        { condition: 'Hot wind', effect: 'Increased heat, reduced visibility' },
-        { condition: 'Mirage', effect: 'Navigation difficulty' },
-        { condition: 'Cold night', effect: 'Extreme temperature drop' },
-      ],
-      swamp: [
-        { condition: 'Humid', effect: 'Exhaustion risk' },
-        { condition: 'Dense fog', effect: 'Heavily reduced visibility' },
-        { condition: 'Light rain', effect: 'Even wetter terrain' },
-        { condition: 'Heavy rain', effect: 'Flooding, difficult terrain' },
-        { condition: 'Mist', effect: 'Reduced visibility' },
-        { condition: 'Pestilent air', effect: 'Disease risk increased' },
-      ],
-      water: [
-        { condition: 'Calm seas', effect: 'Normal sailing' },
-        { condition: 'Light waves', effect: 'Normal sailing' },
-        { condition: 'Choppy waters', effect: 'Slower sailing' },
-        { condition: 'Storm', effect: 'Dangerous sailing, seek port' },
-        { condition: 'Heavy fog', effect: 'Navigation difficulty' },
-        { condition: 'Hurricane', effect: 'Extreme danger, capsize risk' },
-      ],
-      tundra: [
-        { condition: 'Clear and cold', effect: 'Extreme cold, frostbite risk' },
-        { condition: 'Light snow', effect: 'Reduced visibility, cold' },
-        { condition: 'Heavy snow', effect: 'Poor visibility, difficult terrain' },
-        { condition: 'Blizzard', effect: 'Whiteout conditions, extreme cold' },
-        { condition: 'Ice wind', effect: 'Severe cold, ranged penalty' },
-        { condition: 'Aurora', effect: 'Beautiful, normal conditions' },
-      ],
-    };
+    // Legacy per-terrain weatherTypes table removed — all terrain types (including
+    // rivers) now inherit their weather from the regional WeatherSystem via
+    // applyRegionalWeather(), keeping weather consistent and biome-aware.
 
     this.seed = Date.now();
     this.noise = new PerlinNoise(this.seed);
@@ -129,14 +57,26 @@ export class TerrainGenerator {
   }
 
   initializeRegions(width, height) {
-    logger.mapgen.info('Initializing region-based generation', { width, height, seed: this.seed });
+    const { col: startCol, row: startRow } = GAME_DEFAULTS.START_POSITION;
+    logger.mapgen.info('Initializing region-based generation', {
+      width,
+      height,
+      seed: this.seed,
+      startPos: `${startCol},${startRow}`,
+    });
+
+    // Store start position for use during terrain selection (grassland lock)
+    this.startCol = startCol;
+    this.startRow = startRow;
+
     this.regionGenerator = new RegionGenerator(this.seed, width, height);
-    const { regions, hexToRegion } = this.regionGenerator.generate();
+    // Pass start position so region 0 is pinned there and forced to Temperate Forest
+    const { regions, hexToRegion } = this.regionGenerator.generate(null, startCol, startRow);
     this.regions = regions;
     this.hexToRegion = hexToRegion;
 
-    // Initialize weather system
-    this.weatherSystem = new WeatherSystem(this.regions, this.seed + 1000);
+    // Initialize weather system with actual map dimensions so edge spawning is correct
+    this.weatherSystem = new WeatherSystem(this.regions, this.seed + 1000, width, height);
     this.weatherSystem.initializeWeather();
 
     logger.mapgen.info('Regions initialized', {
@@ -239,6 +179,14 @@ export class TerrainGenerator {
   }
 
   generateRegionBasedTerrain(col, row, width, height, variety) {
+    // Hard-radius grassland lock: any hex within 3 of the player start is
+    // always open grassland, guaranteeing a safe, passable starting area.
+    const startCol = this.startCol ?? GAME_DEFAULTS.START_POSITION.col;
+    const startRow = this.startRow ?? GAME_DEFAULTS.START_POSITION.row;
+    if (getHexDistance(col, row, startCol, startRow) <= 3) {
+      return this.terrainTypes.grassland;
+    }
+
     const regionId = this.hexToRegion.get(`${col},${row}`);
     if (regionId === undefined) {
       // Fallback to old algorithm if no region
@@ -375,15 +323,21 @@ export class TerrainGenerator {
     return effects.length > 0 ? effects.join(', ') : 'Normal conditions';
   }
 
-  generateWeather(terrain) {
-    const terrainKey = Object.keys(this.terrainTypes).find(
-      key => this.terrainTypes[key] === terrain
-    );
-
-    const weatherOptions = this.weatherTypes[terrainKey] || this.weatherTypes.grassland;
-    const index = Math.floor(this.random() * weatherOptions.length);
-
-    return weatherOptions[index];
+  /**
+   * Get weather for a single hex in the {condition, effect} format used by the map.
+   * Used by the infinite terrain expansion path (poiGenerationHelper.generateHex)
+   * so newly revealed hexes get biome-coherent weather instead of per-terrain lookups.
+   * Falls back to clear skies if the weather system is not yet initialised.
+   */
+  getWeatherForHex(col, row) {
+    if (!this.weatherSystem || !this.hexToRegion) {
+      return { condition: 'Clear Skies', effect: 'Normal conditions' };
+    }
+    const weather = this.weatherSystem.getWeatherForHex(col, row, this.hexToRegion);
+    return {
+      condition: weather.name,
+      effect: this.formatWeatherEffect(weather),
+    };
   }
 
   generateRivers(grid, width, height, terrainVariety) {
@@ -391,12 +345,12 @@ export class TerrainGenerator {
     const numRivers = Math.floor((width * height) / 100) + 2;
     this.riverGenerator.generateRivers(grid, width, height, numRivers, () => this.random());
 
-    // Update river terrain references
+    // Normalise river terrain objects — weather is applied later by applyRegionalWeather()
+    // so all rivers get biome-coherent weather rather than per-terrain string lookups.
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         if (grid[row][col].terrain.name === 'River') {
           grid[row][col].terrain = this.terrainTypes.river;
-          grid[row][col].weather = this.generateWeather(this.terrainTypes.river);
         }
       }
     }

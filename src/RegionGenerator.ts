@@ -2,7 +2,7 @@
 // TODO: Add proper types
 import { PerlinNoise } from './noise';
 import logger from './utils/logger';
-import { getHexDistance } from './utils/hexMath';
+import { getHexDistance, getHexNeighbors } from './utils/hexMath';
 
 /**
  * Region types with their characteristics
@@ -123,9 +123,11 @@ export class RegionGenerator {
   /**
    * Generate all regions for the map
    * @param {number} numRegions - Number of regions to create
+   * @param {number} startCol - Player start column (pinned as first region center)
+   * @param {number} startRow - Player start row (pinned as first region center)
    * @returns {Object} { regions: Array, hexToRegion: Map }
    */
-  generate(numRegions = null) {
+  generate(numRegions = null, startCol = 10, startRow = 7) {
     // Auto-calculate number of regions based on map size
     if (!numRegions) {
       const totalHexes = this.width * this.height;
@@ -138,10 +140,11 @@ export class RegionGenerator {
       numRegions,
       mapSize: `${this.width}x${this.height}`,
       seed: this.seed,
+      startPos: `${startCol},${startRow}`,
     });
 
-    // 1. Scatter region centers
-    const centers = this.scatterCenters(numRegions);
+    // 1. Scatter region centers, pinning the start position as center[0]
+    const centers = this.scatterCenters(numRegions, startCol, startRow);
     logger.mapgen.debug('Region centers scattered', { count: centers.length });
 
     // 2. Voronoi partitioning - assign each hex to nearest region
@@ -154,7 +157,12 @@ export class RegionGenerator {
       types: regions.map(r => r.biome.key),
     });
 
-    // 4. Calculate boundaries
+    // 4. Force the start region (index 0) to Temperate Forest so the player
+    //    always begins in a plains-capable biome regardless of noise values.
+    regions[0].biome = REGION_TYPES.TEMPERATE_FOREST;
+    logger.mapgen.debug('Start region forced to Temperate Forest');
+
+    // 5. Calculate boundaries
     this.calculateBoundaries(regions, hexToRegion);
     logger.mapgen.debug('Region boundaries calculated');
 
@@ -164,10 +172,13 @@ export class RegionGenerator {
   }
 
   /**
-   * Scatter region centers across the map using seeded random
+   * Scatter region centers across the map using seeded random.
+   * The start position is always placed first so it owns region index 0,
+   * which is then forced to Temperate Forest in generate().
    */
-  scatterCenters(numRegions) {
-    const centers = [];
+  scatterCenters(numRegions, startCol = 10, startRow = 7) {
+    // Pin the player start as the very first center (region 0).
+    const centers = [{ col: startCol, row: startRow }];
     const minDistance = Math.sqrt((this.width * this.height) / numRegions) * 0.6;
 
     let attempts = 0;
@@ -179,7 +190,7 @@ export class RegionGenerator {
       const col = Math.floor(this.random() * this.width);
       const row = Math.floor(this.random() * this.height);
 
-      // Check minimum distance from existing centers
+      // Check minimum distance from existing centers (including the pinned start)
       let tooClose = false;
       for (const center of centers) {
         const dist = getHexDistance(col, row, center.col, center.row);
@@ -237,15 +248,23 @@ export class RegionGenerator {
    */
   characterizeRegions(centers, hexToRegion) {
     return centers.map((center, idx) => {
-      // Use noise to determine region properties (scale for larger features)
-      const elevationNoise = this.noise.noise2D(center.col / 15, center.row / 15);
-      const moistureNoise = this.noise.noise2D(center.col / 15 + 100, center.row / 15 + 100);
-      const tempNoise = this.noise.noise2D(center.col / 15 + 200, center.row / 15 + 200);
+      // Use noise to determine region properties.
+      // Scale /50 ensures adjacent region centers sample from the same broad
+      // noise feature, producing natural climate gradients instead of random jumps.
+      const elevationNoise = this.noise.noise2D(center.col / 50, center.row / 50);
+      const moistureNoise = this.noise.noise2D(center.col / 50 + 100, center.row / 50 + 100);
+      const tempNoise = this.noise.noise2D(center.col / 50 + 200, center.row / 50 + 200);
 
       // Normalize to 0-10 range
       const elevation = ((elevationNoise + 1) / 2) * 10;
       const moisture = ((moistureNoise + 1) / 2) * 10;
-      const temperature = tempNoise * 25; // -25 to 25°C range
+
+      // Latitude temperature gradient: row 0 (north) is coldest, bottom is warmest.
+      // Blend 60% noise + 40% latitude so polar/tropical regions cluster naturally
+      // while still having local variation (a southern desert isn't perfectly uniform).
+      const latitudeBias = (center.row / this.height - 0.5) * 2; // -1 (north) to +1 (south)
+      const blendedTempNoise = tempNoise * 0.6 + latitudeBias * 0.4;
+      const temperature = blendedTempNoise * 25; // ~-25 to 25°C range
 
       // Determine region type based on climate
       const regionType = this.determineRegionType(elevation, moisture, temperature);
@@ -268,7 +287,19 @@ export class RegionGenerator {
   }
 
   /**
-   * Determine region type based on elevation, moisture, and temperature
+   * Determine region type based on elevation, moisture, and temperature.
+   *
+   * Classification order (highest specificity first):
+   *   1. Cold (t < 0.3)  → Alpine if very high elevation, else Arctic
+   *   2. Hot  (t > 0.7)  → Desert if dry, else Jungle
+   *   3. Temperate dry   → Desert
+   *   4. Temperate wet   → Wetlands
+   *   5. Low elevation + moderate moisture → Coastal
+   *   6. Very high elevation (any temperate moisture) → Alpine Highlands
+   *   7. Default → Temperate Forest
+   *
+   * Alpine now requires e > 0.7 in the temperate fallback (was 0.5),
+   * reducing overclaiming from ~50% of temperate regions to ~15%.
    */
   determineRegionType(elevation, moisture, temp) {
     // Normalize to 0-1
@@ -276,7 +307,7 @@ export class RegionGenerator {
     const m = moisture / 10;
     const t = (temp + 25) / 50; // -25 to 25 → 0 to 1
 
-    // Cold regions (arctic/alpine)
+    // Cold regions
     if (t < 0.3) {
       return e > 0.6 ? REGION_TYPES.ALPINE_HIGHLANDS : REGION_TYPES.ARCTIC_TUNDRA;
     }
@@ -286,22 +317,28 @@ export class RegionGenerator {
       return m < 0.4 ? REGION_TYPES.ARID_DESERT : REGION_TYPES.TROPICAL_JUNGLE;
     }
 
-    // Temperate regions
+    // Temperate: dry → desert regardless of elevation
     if (m < 0.3) {
       return REGION_TYPES.ARID_DESERT;
     }
 
+    // Temperate: very wet → wetlands
     if (m > 0.7) {
       return REGION_TYPES.WETLANDS;
     }
 
-    // Coastal check (near water sources, moderate moisture/temp)
-    if (m > 0.5 && m < 0.7 && e < 0.4) {
+    // Coastal: low-lying land with moderate moisture (not fully inland)
+    if (e < 0.35 && m > 0.4 && m < 0.7) {
       return REGION_TYPES.COASTAL;
     }
 
-    // Default to temperate forest or highlands
-    return e > 0.5 ? REGION_TYPES.ALPINE_HIGHLANDS : REGION_TYPES.TEMPERATE_FOREST;
+    // Genuinely high elevation in temperate zone → alpine
+    if (e > 0.7) {
+      return REGION_TYPES.ALPINE_HIGHLANDS;
+    }
+
+    // Default: temperate forest (grassland, forest, hills mix)
+    return REGION_TYPES.TEMPERATE_FOREST;
   }
 
   /**
@@ -349,40 +386,14 @@ export class RegionGenerator {
   }
 
   /**
-   * Get neighboring hex coordinates
+   * Get neighboring hex coordinates.
+   * Delegates to the shared hexMath utility to avoid offset-logic duplication.
+   * Filters out neighbors that fall outside the map bounds.
    */
   getNeighbors(col, row) {
-    const neighbors = [];
-    const isOddRow = Math.abs(row % 2) === 1;
-
-    const offsets = isOddRow
-      ? [
-          [-1, 0],
-          [-1, 1], // top-left, top-right
-          [0, -1],
-          [0, 1], // left, right
-          [1, 0],
-          [1, 1], // bottom-left, bottom-right
-        ]
-      : [
-          [-1, -1],
-          [-1, 0], // top-left, top-right
-          [0, -1],
-          [0, 1], // left, right
-          [1, -1],
-          [1, 0], // bottom-left, bottom-right
-        ];
-
-    for (const [dRow, dCol] of offsets) {
-      const newRow = row + dRow;
-      const newCol = col + dCol;
-
-      if (newRow >= 0 && newRow < this.height && newCol >= 0 && newCol < this.width) {
-        neighbors.push({ col: newCol, row: newRow });
-      }
-    }
-
-    return neighbors;
+    return getHexNeighbors(col, row).filter(
+      n => n.col >= 0 && n.col < this.width && n.row >= 0 && n.row < this.height
+    );
   }
 
   /**
