@@ -142,7 +142,7 @@ function InteriorHexCanvas({
 
         if (shouldRender) {
           const isCollected = isContentCollected(hex);
-          drawContentMarker(ctx, x, y, content, isCollected);
+          drawContentMarker(ctx, x, y, content, isCollected, hex.col, hex.row);
         }
       }
     },
@@ -157,7 +157,7 @@ function InteriorHexCanvas({
   );
 
   // Draw content marker icons
-  const drawContentMarker = (ctx, x, y, content, isCollected = false) => {
+  const drawContentMarker = (ctx, x, y, content, isCollected = false, col = 0, row = 0) => {
     ctx.save();
 
     // Gray out collected/defeated content
@@ -211,7 +211,7 @@ function InteriorHexCanvas({
 
       case 'encounter': {
         // Look up the encounter object for extra info (CR, isBoss, defeated)
-        const enc = interiorMap?.encounters?.find(e => e.col === hex.col && e.row === hex.row);
+        const enc = interiorMap?.encounters?.find(e => e.col === col && e.row === row);
         const isBoss = enc?.isBoss === true;
         const defeated = enc?.defeated === true || isCollected;
         const crLabel = enc?.cr != null ? `${enc.cr}` : '?';
