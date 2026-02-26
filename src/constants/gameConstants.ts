@@ -231,9 +231,12 @@ export const STARTING_CACHE = {
   ITEM_COUNT_MAX: 4,
   /** Always get exactly 1 starter weapon */
   WEAPON_COUNT: 1,
-  /** Optional flavor notes found inside — conveys lore */
+  /**
+   * Optional flavor notes found inside — conveys lore.
+   * One is picked at random and placed alongside the always-present
+   * dynamic survival note (generated at runtime with real world data).
+   */
   NOTES: [
-    "A scrawled note reads: \"If you're reading this, you survived the ambush. Head east — there's a town called Riverdale two days' walk. Stay off the main road.\"",
     'A torn journal page: "Day 12. Food running low. I\'ve left what I could spare for whoever finds this place. Gods willing they\'ll need it less than I did."',
     'A faded map pinned to the wall — hand-drawn, showing the local terrain. Several locations are circled but have no labels.',
     'Scratched into the stone wall: "Beware the TOWER to the NORTH. Do NOT enter alone."',

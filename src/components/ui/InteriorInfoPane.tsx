@@ -172,6 +172,67 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
             </div>
           )}
 
+          {/* Encounter info */}
+          {displayHex.content === 'encounter' &&
+            (() => {
+              const enc = interiorMap?.encounters?.find(
+                e => e.col === displayHex.col && e.row === displayHex.row
+              );
+              if (!enc) return null;
+              return (
+                <div
+                  style={{
+                    padding: '0.3rem 0.4rem',
+                    backgroundColor: enc.defeated ? 'rgba(80,80,80,0.2)' : 'rgba(231,76,60,0.15)',
+                    borderRadius: '3px',
+                    border: `1px solid ${enc.defeated ? '#555' : enc.isBoss ? '#d4a0ff' : '#e74c3c'}`,
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      color: enc.defeated ? '#888' : enc.isBoss ? '#d4a0ff' : '#e74c3c',
+                      fontWeight: '700',
+                      marginBottom: '0.2rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span>{enc.defeated ? 'Defeated' : enc.isBoss ? 'Boss' : 'Enemy'}</span>
+                    {enc.cr != null && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '0.1rem 0.35rem',
+                          borderRadius: '3px',
+                          background: enc.defeated ? '#444' : enc.isBoss ? '#6a0dad' : '#c0392b',
+                          color: '#fff',
+                        }}
+                      >
+                        CR {enc.cr}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                    {enc.creatures || 'Unknown enemy'}
+                  </div>
+                  {!enc.defeated && isCurrentHex && (
+                    <div
+                      style={{
+                        marginTop: '0.3rem',
+                        fontSize: '0.7rem',
+                        color: 'var(--text-muted)',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      Walk adjacent to engage
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
           {/* Loot/chest hint */}
           {(displayHex.content === 'loot' || displayHex.content === 'chest') && (
             <div
@@ -332,10 +393,10 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
         {renderHexPane(selectedHex, false)}
       </div>
 
-      {/* Exit Button — towns exit freely; non-towns require the Exit Hex */}
+      {/* Exit Button — towns exit freely; non-towns require standing on the entrance/exit tile */}
       <button
         onClick={isTown || onExitHex ? handleExitInterior : undefined}
-        title={isTown || onExitHex ? `Leave ${poi.name}` : 'Return to the green EXIT tile to leave'}
+        title={isTown || onExitHex ? `Leave ${poi.name}` : 'Return to the entrance to leave'}
         style={{
           padding: '0.5rem',
           background: 'var(--primary-color)',
@@ -349,8 +410,8 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
         }}
       >
         {isTown || onExitHex
-          ? `← Exit ${poi.type === 'town' || isTown ? 'Town' : 'Interior'}`
-          : '🔒 Find the Exit Hex'}
+          ? `← Exit ${isTown ? 'Town' : 'Interior'}`
+          : 'Return to entrance to exit'}
       </button>
     </div>
   );

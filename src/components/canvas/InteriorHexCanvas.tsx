@@ -125,10 +125,9 @@ function InteriorHexCanvas({
         let shouldRender = false;
 
         if (content === 'encounter') {
-          const encounter = interiorMap?.encounters?.find(
-            e => e.col === hex.col && e.row === hex.row
-          );
-          shouldRender = encounter && shouldRenderEncounter(encounter);
+          // Encounters are always visible — enemies stand in plain sight.
+          // Defeated encounters render at low opacity (handled in drawContentMarker).
+          shouldRender = true;
         } else if (content === 'hazard') {
           const hazard = interiorMap?.hazards?.find(h => h.col === hex.col && h.row === hex.row);
           shouldRender = hazard && shouldRenderHazard(hazard);
@@ -210,22 +209,101 @@ function InteriorHexCanvas({
         ctx.fillText('EXIT', x, y + iconSize * 0.55);
         break;
 
-      case 'encounter':
-        // Red/gray skull icon (gray if defeated)
-        ctx.fillStyle = isCollected ? '#666666' : '#e74c3c';
+      case 'encounter': {
+        // Look up the encounter object for extra info (CR, isBoss, defeated)
+        const enc = interiorMap?.encounters?.find(e => e.col === hex.col && e.row === hex.row);
+        const isBoss = enc?.isBoss === true;
+        const defeated = enc?.defeated === true || isCollected;
+        const crLabel = enc?.cr != null ? `${enc.cr}` : '?';
+
+        // Token base color: dark crimson for normal, deep purple for boss, gray for defeated
+        const tokenColor = defeated ? '#555' : isBoss ? '#6a0dad' : '#c0392b';
+        const borderColor = defeated ? '#333' : isBoss ? '#d4a0ff' : '#ff6b6b';
+
+        // ── Body (hexagon-ish circle) ───────────────────────────────────────
         ctx.beginPath();
-        ctx.arc(x, y, iconSize * 0.6, 0, Math.PI * 2);
+        ctx.arc(x, y + iconSize * 0.1, iconSize * 0.55, 0, Math.PI * 2);
+        ctx.fillStyle = tokenColor;
         ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = defeated ? 1.5 : 2.5;
         ctx.stroke();
-        // Eye sockets
-        ctx.fillStyle = '#000';
+
+        // ── Head ───────────────────────────────────────────────────────────
         ctx.beginPath();
-        ctx.arc(x - iconSize * 0.2, y - iconSize * 0.1, iconSize * 0.1, 0, Math.PI * 2);
-        ctx.arc(x + iconSize * 0.2, y - iconSize * 0.1, iconSize * 0.1, 0, Math.PI * 2);
+        ctx.arc(x, y - iconSize * 0.28, iconSize * 0.26, 0, Math.PI * 2);
+        ctx.fillStyle = tokenColor;
         ctx.fill();
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = defeated ? 1 : 2;
+        ctx.stroke();
+
+        // ── Skull face (X eyes when defeated, dot eyes when alive) ─────────
+        if (defeated) {
+          // X eyes
+          ctx.strokeStyle = '#aaa';
+          ctx.lineWidth = 1.2;
+          for (const ox of [-0.12, 0.12]) {
+            const ex = x + iconSize * ox;
+            const ey = y - iconSize * 0.31;
+            const r = iconSize * 0.06;
+            ctx.beginPath();
+            ctx.moveTo(ex - r, ey - r);
+            ctx.lineTo(ex + r, ey + r);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(ex + r, ey - r);
+            ctx.lineTo(ex - r, ey + r);
+            ctx.stroke();
+          }
+        } else {
+          // Glowing dot eyes
+          ctx.fillStyle = isBoss ? '#d4a0ff' : '#ff9999';
+          for (const ox of [-0.12, 0.12]) {
+            ctx.beginPath();
+            ctx.arc(x + iconSize * ox, y - iconSize * 0.3, iconSize * 0.055, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // ── Boss crown ─────────────────────────────────────────────────────
+        if (isBoss && !defeated) {
+          ctx.fillStyle = '#f1c40f';
+          ctx.strokeStyle = '#b8860b';
+          ctx.lineWidth = 1;
+          const cy2 = y - iconSize * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x - iconSize * 0.22, cy2);
+          ctx.lineTo(x - iconSize * 0.22, cy2 - iconSize * 0.18);
+          ctx.lineTo(x - iconSize * 0.1, cy2 - iconSize * 0.1);
+          ctx.lineTo(x, cy2 - iconSize * 0.22);
+          ctx.lineTo(x + iconSize * 0.1, cy2 - iconSize * 0.1);
+          ctx.lineTo(x + iconSize * 0.22, cy2 - iconSize * 0.18);
+          ctx.lineTo(x + iconSize * 0.22, cy2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // ── CR badge ───────────────────────────────────────────────────────
+        if (!defeated) {
+          const badgeX = x + iconSize * 0.38;
+          const badgeY = y + iconSize * 0.48;
+          ctx.fillStyle = isBoss ? '#6a0dad' : '#c0392b';
+          ctx.strokeStyle = isBoss ? '#d4a0ff' : '#ff6b6b';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(badgeX, badgeY, iconSize * 0.22, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#fff';
+          ctx.font = `bold ${Math.max(7, iconSize * 0.22)}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(crLabel, badgeX, badgeY);
+        }
         break;
+      }
 
       case 'loot':
       case 'chest': {
@@ -408,6 +486,15 @@ function InteriorHexCanvas({
           drawHexOutline(ctx, hoveredHexData, '#f39c12', 3); // Gold for loot
         } else if (hoveredHex.content === 'exit') {
           drawHexOutline(ctx, hoveredHexData, '#2ecc71', 3); // Green for exit
+        } else if (hoveredHex.content === 'encounter') {
+          const enc = interiorMap?.encounters?.find(
+            e => e.col === hoveredHex.col && e.row === hoveredHex.row
+          );
+          if (!enc?.defeated) {
+            drawHexOutline(ctx, hoveredHexData, '#e74c3c', 3); // Red for active enemy
+          } else {
+            drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.2)', 2);
+          }
         } else if (hoveredHex.terrain?.walkable) {
           drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.35)', 2);
         }

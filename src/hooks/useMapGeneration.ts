@@ -19,16 +19,19 @@ import { STARTING_CACHE } from '../constants/gameConstants';
 export function useMapGeneration(terrainGeneratorRef, viewportSize) {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
-  const mapGeneratedRef = useRef(false);
+  // Track the seed that was last fully generated so that:
+  //   - A second call with the *same* seed (e.g. StrictMode double-invoke) is skipped
+  //   - A genuinely *new* seed (new game after returning to title) triggers regeneration
+  const mapGeneratedSeedRef = useRef<string>('');
 
   useEffect(() => {
     // Guard clauses - don't generate if conditions aren't met
     if (!state.mapSeed || !terrainGeneratorRef.current) return;
     if (state.mapData) return; // Map already exists, don't regenerate
-    if (mapGeneratedRef.current) return; // Already generated in this session
+    if (mapGeneratedSeedRef.current === state.mapSeed) return; // Already generated for this seed
 
     logger.mapgen.info('Generating map with seed:', state.mapSeed);
-    mapGeneratedRef.current = true;
+    mapGeneratedSeedRef.current = state.mapSeed;
 
     // Set seed for reproducible generation
     terrainGeneratorRef.current.setSeed(state.mapSeed);
@@ -133,7 +136,12 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
       cacheGenerator.setSeed(`poi-${poiKey}-${state.mapSeed}`);
 
       const interiorMap = cacheGenerator.generate(STARTING_CACHE.WIDTH, STARTING_CACHE.HEIGHT, 0);
-      interiorMap.loot = cacheGenerator.placeLoot(interiorMap);
+      interiorMap.loot = cacheGenerator.placeLoot(
+        interiorMap,
+        generatedHexes,
+        state.playerPosition.col,
+        state.playerPosition.row
+      );
       interiorMap.hazards = cacheGenerator.placeHazards(interiorMap);
       interiorMap.encounters = cacheGenerator.placeEncounters(interiorMap, startingHex.poi);
 
@@ -167,5 +175,6 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.mapSeed]);
   // NOTE: state.mapData excluded from deps - we check it in the guard clause but don't need to re-run when it changes
-  // mapGeneratedRef prevents duplicate generation even if effect re-runs
+  // mapGeneratedSeedRef prevents duplicate generation for the same seed even if the effect re-runs,
+  // while still allowing regeneration when a genuinely new seed arrives (second new game).
 }

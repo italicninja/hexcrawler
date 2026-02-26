@@ -5,6 +5,7 @@ import { useGameLog } from '../../contexts/GameLogContext';
 import { Character } from '../../game/Character';
 import { Party } from '../../game/Party';
 import { generateCharacterWelcome } from '../../utils/flavorTextGenerator';
+import { ClassIcon } from '../ui/ClassIcon';
 
 // D&D 5e Standard Array: [15, 14, 13, 12, 10, 8]
 const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
@@ -449,6 +450,9 @@ function CharacterCreationScene() {
                     disabled={isDisabled}
                     title={isDisabled ? `${data.name} - Coming soon` : data.name}
                   >
+                    <div className="class-button-icon">
+                      <ClassIcon className={key} size={28} color="currentColor" />
+                    </div>
                     <div className="class-button-name">{data.name}</div>
                     <div className="class-button-hitdie">{isDisabled ? 'soon' : data.hitDie}</div>
                   </button>

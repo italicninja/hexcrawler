@@ -19,7 +19,96 @@ import { Item } from './Item';
  */
 
 import { InteriorGenerator } from './InteriorGenerator';
-import { STARTING_CACHE } from '../constants/gameConstants';
+import { STARTING_CACHE, GAME_DEFAULTS } from '../constants/gameConstants';
+import { getHexDistance } from '../utils/hexMath';
+
+// Settlement POI types that count as "a place to head to"
+const SETTLEMENT_TYPES = new Set(['camp', 'village', 'town', 'city', 'metropolis']);
+
+/**
+ * Given a delta (target - origin) in offset-grid col/row space, return the
+ * nearest cardinal/intercardinal compass direction as a lowercase string.
+ */
+function getCompassDirection(dCol, dRow) {
+  // In an offset hex grid, increasing row goes DOWN on screen (south),
+  // increasing col goes RIGHT (east).  We treat dRow as the N/S axis and
+  // dCol as the E/W axis, then snap to the 8 compass points.
+  const angle = Math.atan2(dRow, dCol) * (180 / Math.PI); // –180 … +180
+  // Rotate so that 0° = East, positive = clockwise
+  const dirs = [
+    'east',
+    'southeast',
+    'south',
+    'southwest',
+    'west',
+    'northwest',
+    'north',
+    'northeast',
+  ];
+  const index = Math.round((((angle % 360) + 360) % 360) / 45) % 8;
+  return dirs[index];
+}
+
+/**
+ * Build a natural-language travel-time string from a hex distance.
+ * 1 hex = 1 game-day of travel (per TIME.TRAVEL_TIME_PER_HEX_MINUTES × 48 = 1 440 min).
+ */
+function formatTravelTime(hexDistance) {
+  const days = Math.round(hexDistance);
+  if (days <= 0) return "less than a day's walk";
+  if (days === 1) return "a day's walk";
+  return `${days} days' walk`;
+}
+
+/**
+ * Find the nearest settlement hex to the starting position.
+ * Returns { name, col, row, distance, direction } or null if none found.
+ */
+function findNearestSettlement(worldHexes, startCol, startRow) {
+  let nearest = null;
+  let nearestDist = Infinity;
+
+  for (const hex of worldHexes) {
+    if (!hex.poi || !SETTLEMENT_TYPES.has(hex.poi.type)) continue;
+    // Skip the starting cache itself
+    if (hex.col === startCol && hex.row === startRow) continue;
+
+    const dist = getHexDistance(startCol, startRow, hex.col, hex.row);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = hex;
+    }
+  }
+
+  if (!nearest) return null;
+
+  return {
+    name: nearest.poi.name,
+    col: nearest.col,
+    row: nearest.row,
+    distance: nearestDist,
+    direction: getCompassDirection(nearest.col - startCol, nearest.row - startRow),
+  };
+}
+
+/**
+ * Build the dynamic survival note text using real world data.
+ * Falls back to a vague version if no settlement is found.
+ */
+function buildSurvivalNote(worldHexes, startCol, startRow) {
+  const settlement = findNearestSettlement(worldHexes, startCol, startRow);
+
+  if (!settlement) {
+    return 'A scrawled note reads: "If you\'re reading this, you survived the ambush. Keep moving — find the nearest settlement. Stay off the main road."';
+  }
+
+  const travelTime = formatTravelTime(settlement.distance);
+  return (
+    `A scrawled note reads: "If you're reading this, you survived the ambush. ` +
+    `Head ${settlement.direction} — there's ${settlement.name} ${travelTime}. ` +
+    `Stay off the main road."`
+  );
+}
 
 export class StartingCacheGenerator extends InteriorGenerator {
   constructor() {
@@ -173,105 +262,213 @@ export class StartingCacheGenerator extends InteriorGenerator {
   // ── Loot placement ───────────────────────────────────────────────────────
 
   /**
-   * Place starter loot in Room 2 (stash room) and a flavor note in Room 3.
-   * Called by useHexInteraction after generate(), same as other generators.
+   * Place 1–2 guaranteed treasures in the stash room (Room 1) plus a flavor note
+   * in the spawn room (Room 2).
    *
-   * @param {object} interiorMap - Generated interior map
+   * Treasure layout:
+   *   Chest 1 — Weapon cache:  starter weapon + 1–2 misc items  (always present)
+   *   Chest 2 — Coin pouch:    gold + 1–2 remaining misc items  (always present, different tile)
+   *   Note    — Flavor lore:   tattered note in the spawn room
+   *
+   * Having two physical pickups gives the player a reason to explore both the
+   * stash room and the spawn room before leaving.
+   *
+   * @param {object} interiorMap  - Generated interior map
+   * @param {Array}  worldHexes   - Full overworld hex array (used to find nearest settlement)
+   * @param {number} startCol     - Player starting col on overworld (default from GAME_DEFAULTS)
+   * @param {number} startRow     - Player starting row on overworld (default from GAME_DEFAULTS)
    * @returns {Array} Array of loot objects
    */
-  placeLoot(interiorMap) {
+  placeLoot(
+    interiorMap,
+    worldHexes = [],
+    startCol = GAME_DEFAULTS.START_POSITION.col,
+    startRow = GAME_DEFAULTS.START_POSITION.row
+  ) {
     const loot = [];
     const { rooms } = interiorMap;
 
     if (!rooms || rooms.length < 3) return loot;
 
-    // ── Room 2: Gear cache ────────────────────────────────────────────────
+    // ── Room 1 (index 1): Stash room — two separate treasure pickups ──────
     const stashRoom = rooms[1];
     const stashTiles = this.getWalkableTilesInRoom(interiorMap, stashRoom);
 
     if (stashTiles.length > 0) {
-      // Pick random item configs from starter tables
-      const itemCount =
-        STARTING_CACHE.ITEM_COUNT_MIN +
-        Math.floor(
-          this.random() * (STARTING_CACHE.ITEM_COUNT_MAX - STARTING_CACHE.ITEM_COUNT_MIN + 1)
-        );
-
-      const chosenItemConfigs = this.pickUnique(STARTING_CACHE.STARTER_ITEMS, itemCount);
+      // Choose a random starter weapon
       const chosenWeaponConfig =
         STARTING_CACHE.STARTER_WEAPONS[
           Math.floor(this.random() * STARTING_CACHE.STARTER_WEAPONS.length)
         ];
 
-      // Build proper Item instances so the Equipment panel doesn't crash
-      const itemInstances = [...chosenItemConfigs, chosenWeaponConfig].map(cfg => new Item(cfg));
+      // Split misc items into two groups so each chest is distinct
+      const totalMiscCount =
+        STARTING_CACHE.ITEM_COUNT_MIN +
+        Math.floor(
+          this.random() * (STARTING_CACHE.ITEM_COUNT_MAX - STARTING_CACHE.ITEM_COUNT_MIN + 1)
+        );
+      const allMiscConfigs = this.pickUnique(STARTING_CACHE.STARTER_ITEMS, totalMiscCount);
+      const splitAt = Math.max(1, Math.ceil(allMiscConfigs.length / 2));
+      const miscForWeaponChest = allMiscConfigs.slice(0, splitAt);
+      const miscForCoinPouch = allMiscConfigs.slice(splitAt);
 
-      // Gold (scattered coins)
-      const gold =
+      // Gold split between the two chests (total stays the same)
+      const totalGold =
         STARTING_CACHE.STARTER_GOLD_MIN +
         Math.floor(
           this.random() * (STARTING_CACHE.STARTER_GOLD_MAX - STARTING_CACHE.STARTER_GOLD_MIN + 1)
         );
+      const goldInPouch = Math.floor(totalGold * (0.5 + this.random() * 0.4)); // 50–90% in pouch
+      const goldInCache = totalGold - goldInPouch;
 
-      const tile = this.randomChoice(stashTiles);
-      if (!tile) return loot;
-      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
-      if (hexIndex !== -1) {
-        interiorMap.hexes[hexIndex].content = 'loot';
+      // ── Chest 1: Weapon cache ───────────────────────────────────────────
+      const weaponItems = [chosenWeaponConfig, ...miscForWeaponChest].map(cfg => new Item(cfg));
+      // Pick a tile near the far edge of the stash room (not the corridor end)
+      // so the chest isn't immediately adjacent to the entrance corridor.
+      const tile1 = this.randomChoice(stashTiles);
+      if (tile1) {
+        const idx1 = interiorMap.hexes.findIndex(h => h.col === tile1.col && h.row === tile1.row);
+        if (idx1 !== -1) {
+          interiorMap.hexes[idx1].content = 'chest';
+        }
+
+        // Remove used tile so Chest 2 lands on a different hex
+        stashTiles.splice(stashTiles.indexOf(tile1), 1);
+
+        const itemNames1 = weaponItems.map(i => i.name).join(', ');
+        loot.push({
+          col: tile1.col,
+          row: tile1.row,
+          type: 'chest',
+          gold: goldInCache,
+          items: weaponItems,
+          consumables: [],
+          rarity: 'common',
+          collected: false,
+          discovered: true, // always visible — no reason to hide starting gear
+          label: "Traveler's Weapon Cache",
+          description: `A worn pack containing ${itemNames1}.`,
+        });
       }
 
-      const itemNames = itemInstances.map(i => i.name).join(', ');
-      loot.push({
-        col: tile.col,
-        row: tile.row,
-        type: 'loot',
-        gold,
-        items: itemInstances,
-        consumables: [],
-        rarity: 'common',
-        collected: false,
-        discovered: false,
-        label: "Traveler's Cache",
-        description: `A dusty pile of supplies — ${itemNames}.`,
-      });
+      // ── Chest 2: Coin pouch + supplies ─────────────────────────────────
+      if (stashTiles.length > 0) {
+        const coinItems = miscForCoinPouch.map(cfg => new Item(cfg));
+        const tile2 = this.randomChoice(stashTiles);
+        if (tile2) {
+          const idx2 = interiorMap.hexes.findIndex(h => h.col === tile2.col && h.row === tile2.row);
+          if (idx2 !== -1) {
+            interiorMap.hexes[idx2].content = 'chest';
+          }
+
+          const desc2 =
+            coinItems.length > 0
+              ? `A coin pouch with ${goldInPouch} gold and ${coinItems.map(i => i.name).join(', ')}.`
+              : `A coin pouch with ${goldInPouch} gold.`;
+
+          loot.push({
+            col: tile2.col,
+            row: tile2.row,
+            type: 'chest',
+            gold: goldInPouch,
+            items: coinItems,
+            consumables: [],
+            rarity: 'common',
+            collected: false,
+            discovered: true, // always visible — starting cache contents are in plain sight
+            label: 'Coin Pouch & Supplies',
+            description: desc2,
+          });
+        }
+      }
     }
 
-    // ── Room 3: Flavor note ───────────────────────────────────────────────
+    // ── Room 2 (index 2): Spawn room — flavor notes ───────────────────────
+    //
+    // Two notes are placed here:
+    //   1. A dynamic survival note — always generated with real world data
+    //      (nearest settlement name, true direction, and actual travel distance).
+    //   2. A random flavor note from STARTING_CACHE.NOTES (atmosphere / lore).
+    //
+    // The dynamic note is always present so its world-specific claims are
+    // guaranteed to be accurate for every map seed.
     const flavorRoom = rooms[2];
-    // Spawn room is also room[2] — pick a tile that isn't the spawn point
     const flavorTiles = this.getWalkableTilesInRoom(interiorMap, flavorRoom);
 
     if (flavorTiles.length > 0) {
-      const note = STARTING_CACHE.NOTES[Math.floor(this.random() * STARTING_CACHE.NOTES.length)];
-      const tile = this.randomChoice(flavorTiles);
-      if (!tile) return loot;
-      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
-      if (hexIndex !== -1) {
-        interiorMap.hexes[hexIndex].content = 'loot';
+      // ── Note 1: Dynamic survival note (always accurate) ─────────────────
+      const survivalNote = buildSurvivalNote(worldHexes, startCol, startRow);
+      const tile1 = this.randomChoice(flavorTiles);
+
+      if (tile1) {
+        const hexIndex1 = interiorMap.hexes.findIndex(
+          h => h.col === tile1.col && h.row === tile1.row
+        );
+        if (hexIndex1 !== -1) interiorMap.hexes[hexIndex1].content = 'loot';
+
+        loot.push({
+          col: tile1.col,
+          row: tile1.row,
+          type: 'loot',
+          gold: 0,
+          items: [
+            new Item({
+              name: 'Tattered Note',
+              type: 'quest',
+              rarity: 'common',
+              description: survivalNote,
+              weight: 0,
+              value: 0,
+            }),
+          ],
+          consumables: [],
+          rarity: 'common',
+          collected: false,
+          discovered: true, // note is visible on the ground from spawn
+          label: 'Tattered Note',
+          description: survivalNote,
+        });
+
+        // Remove used tile so Note 2 lands on a different hex (if space allows)
+        flavorTiles.splice(flavorTiles.indexOf(tile1), 1);
       }
 
-      loot.push({
-        col: tile.col,
-        row: tile.row,
-        type: 'loot',
-        gold: 0,
-        items: [
-          new Item({
-            name: 'Tattered Note',
-            type: 'quest',
+      // ── Note 2: Random flavor note (atmosphere / lore) ──────────────────
+      if (flavorTiles.length > 0 && STARTING_CACHE.NOTES.length > 0) {
+        const flavorNote =
+          STARTING_CACHE.NOTES[Math.floor(this.random() * STARTING_CACHE.NOTES.length)];
+        const tile2 = this.randomChoice(flavorTiles);
+
+        if (tile2) {
+          const hexIndex2 = interiorMap.hexes.findIndex(
+            h => h.col === tile2.col && h.row === tile2.row
+          );
+          if (hexIndex2 !== -1) interiorMap.hexes[hexIndex2].content = 'loot';
+
+          loot.push({
+            col: tile2.col,
+            row: tile2.row,
+            type: 'loot',
+            gold: 0,
+            items: [
+              new Item({
+                name: 'Tattered Note',
+                type: 'quest',
+                rarity: 'common',
+                description: flavorNote,
+                weight: 0,
+                value: 0,
+              }),
+            ],
+            consumables: [],
             rarity: 'common',
-            description: note,
-            weight: 0,
-            value: 0,
-          }),
-        ],
-        consumables: [],
-        rarity: 'common',
-        collected: false,
-        discovered: false,
-        label: 'Tattered Note',
-        description: note,
-      });
+            collected: false,
+            discovered: true,
+            label: 'Tattered Note',
+            description: flavorNote,
+          });
+        }
+      }
     }
 
     return loot;

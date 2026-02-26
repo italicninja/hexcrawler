@@ -59,185 +59,192 @@ export class RuinsGenerator extends InteriorGenerator {
   }
 
   /**
-   * Generate ruins layout with room-based generation
-   * Creates 3-7 rooms connected by corridors with crumbling walls
+   * Generate ruins layout with room-based generation.
+   * Creates 4-8 rooms connected by corridors with crumbling walls.
+   * Guarantees full connectivity via flood-fill after carving.
    * @param {number} width
    * @param {number} height
-   * @param {number} cr - Challenge rating affects room count
+   * @param {number} cr - Challenge rating affects room count and density
    * @returns {Array} 2D grid
    */
   generateRuinsLayout(width, height, cr) {
     // Initialize grid with walls
     let grid = this.initializeGrid(width, height, this.terrainTypes.wall);
 
-    // Determine room count based on CR (3-7 rooms)
-    const roomCount = Math.min(7, Math.max(3, 3 + Math.floor(cr / 2)));
+    // More rooms at higher CR (4-8 rooms)
+    const roomCount = Math.min(8, Math.max(4, 4 + Math.floor(cr / 2)));
 
-    logger.mapgen.info('Generating ruins', { width, height, cr, roomCount, seedSet: !!this.rng });
+    logger.mapgen.info('Generating ruins', { width, height, cr, roomCount });
 
-    // Generate rooms
+    // ── Room placement ───────────────────────────────────────────────────────
     const rooms = [];
+    // More attempts so we actually fill the space
+    const maxAttempts = 300;
     let attempts = 0;
-    const maxAttempts = 100;
 
     while (rooms.length < roomCount && attempts < maxAttempts) {
       attempts++;
 
-      // Random room size (3x3 to 5x5 hexes)
-      const roomWidth = this.randomInt(3, 5);
-      const roomHeight = this.randomInt(3, 5);
+      // Rooms range from 3×3 up to 6×6 — larger so there's real space to explore
+      const roomWidth = this.randomInt(3, Math.min(6, Math.floor(width / 3)));
+      const roomHeight = this.randomInt(3, Math.min(6, Math.floor(height / 3)));
 
-      // Random position (ensure room fits within bounds)
       const maxCol = width - roomWidth - 1;
       const maxRow = height - roomHeight - 1;
 
-      // Check if room can even fit
-      if (maxCol < 1 || maxRow < 1) {
-        logger.mapgen.warn('Map too small for room', { width, height, roomWidth, roomHeight });
-        break;
-      }
+      if (maxCol < 1 || maxRow < 1) break;
 
       const roomCol = this.randomInt(1, maxCol);
       const roomRow = this.randomInt(1, maxRow);
 
-      // Check if room overlaps with existing rooms (with 1-hex buffer)
+      // Tighter buffer = rooms are allowed to share wall tiles (gives ruin feel)
       const buffer = 1;
-      const overlaps = rooms.some(room => {
-        return !(
-          roomCol + roomWidth + buffer <= room.col ||
-          roomCol >= room.col + room.width + buffer ||
-          roomRow + roomHeight + buffer <= room.row ||
-          roomRow >= room.row + room.height + buffer
-        );
-      });
+      const overlaps = rooms.some(
+        room =>
+          !(
+            roomCol + roomWidth + buffer <= room.col ||
+            roomCol >= room.col + room.width + buffer ||
+            roomRow + roomHeight + buffer <= room.row ||
+            roomRow >= room.row + room.height + buffer
+          )
+      );
 
       if (!overlaps) {
-        logger.mapgen.debug('Placed room', {
-          roomNum: rooms.length + 1,
-          col: roomCol,
-          row: roomRow,
-          width: roomWidth,
-          height: roomHeight,
-        });
-        rooms.push({
-          col: roomCol,
-          row: roomRow,
-          width: roomWidth,
-          height: roomHeight,
-        });
-      } else {
-        logger.mapgen.debug('Room placement failed (overlap)', {
-          col: roomCol,
-          row: roomRow,
-          width: roomWidth,
-          height: roomHeight,
-        });
+        rooms.push({ col: roomCol, row: roomRow, width: roomWidth, height: roomHeight });
       }
     }
 
     logger.mapgen.info('Generated rooms', { roomCount: rooms.length, attempts });
 
-    // Failsafe: if no rooms were created, add a fallback room in the center
+    // Failsafe — guarantee at least 2 rooms for a meaningful layout
     if (rooms.length === 0) {
-      logger.mapgen.warn('No rooms created! Adding fallback room in center');
-      const fallbackWidth = Math.min(5, Math.floor(width / 2));
-      const fallbackHeight = Math.min(5, Math.floor(height / 2));
+      const fw = Math.min(5, Math.floor(width / 2));
+      const fh = Math.min(5, Math.floor(height / 2));
       rooms.push({
-        col: Math.floor((width - fallbackWidth) / 2),
-        row: Math.floor((height - fallbackHeight) / 2),
-        width: fallbackWidth,
-        height: fallbackHeight,
+        col: Math.floor((width - fw) / 2),
+        row: Math.floor((height - fh) / 2),
+        width: fw,
+        height: fh,
+      });
+    }
+    if (rooms.length === 1) {
+      // Add a second room offset from the first
+      const r = rooms[0];
+      const col2 = Math.min(width - 4, r.col + r.width + 2);
+      const row2 = Math.min(height - 4, r.row + r.height + 2);
+      rooms.push({
+        col: col2,
+        row: row2,
+        width: Math.min(4, width - col2 - 1),
+        height: Math.min(4, height - row2 - 1),
       });
     }
 
-    logger.mapgen.debug('Carving rooms', { rooms });
-
-    // Carve out rooms
+    // ── Carve rooms ──────────────────────────────────────────────────────────
     for (const room of rooms) {
       for (let row = room.row; row < room.row + room.height; row++) {
         for (let col = room.col; col < room.col + room.width; col++) {
-          if (row >= 0 && row < height && col >= 0 && col < width) {
+          if (row > 0 && row < height - 1 && col > 0 && col < width - 1) {
             grid[row][col].terrain = this.terrainTypes.floor;
           }
         }
       }
     }
 
-    logger.mapgen.debug('Rooms carved, checking floor tiles');
-    let floorCount = 0;
-    for (let row = 0; row < height; row++) {
-      for (let col = 0; col < width; col++) {
-        if (grid[row][col].terrain.key === 'floor') {
-          floorCount++;
-        }
-      }
-    }
-    logger.mapgen.debug('Floor tiles after carving', { floorCount });
-
-    // Connect rooms with corridors
+    // ── Connect every room in sequence (chain guarantees connectivity) ───────
     for (let i = 0; i < rooms.length - 1; i++) {
-      const roomA = rooms[i];
-      const roomB = rooms[i + 1];
-
-      // Find center of each room
-      const centerA = {
-        col: Math.floor(roomA.col + roomA.width / 2),
-        row: Math.floor(roomA.row + roomA.height / 2),
-      };
-      const centerB = {
-        col: Math.floor(roomB.col + roomB.width / 2),
-        row: Math.floor(roomB.row + roomB.height / 2),
-      };
-
-      // Carve corridor (L-shaped)
-      this.carveRuinsCorridor(grid, centerA, centerB);
+      const a = rooms[i];
+      const b = rooms[i + 1];
+      this.carveRuinsCorridor(
+        grid,
+        { col: Math.floor(a.col + a.width / 2), row: Math.floor(a.row + a.height / 2) },
+        { col: Math.floor(b.col + b.width / 2), row: Math.floor(b.row + b.height / 2) }
+      );
     }
 
-    // Add some additional random connections for complexity
-    if (rooms.length >= 4) {
-      const extraConnections = Math.floor(rooms.length / 3);
+    // ── Extra loops for complexity (skip degenerate 1-room case) ────────────
+    if (rooms.length >= 3) {
+      const extraConnections = Math.floor(rooms.length / 2);
       for (let i = 0; i < extraConnections; i++) {
-        const roomA = this.randomChoice(rooms);
-        const roomB = this.randomChoice(rooms);
-
-        if (roomA !== roomB) {
-          const centerA = {
-            col: Math.floor(roomA.col + roomA.width / 2),
-            row: Math.floor(roomA.row + roomA.height / 2),
-          };
-          const centerB = {
-            col: Math.floor(roomB.col + roomB.width / 2),
-            row: Math.floor(roomB.row + roomB.height / 2),
-          };
-
-          this.carveRuinsCorridor(grid, centerA, centerB);
+        const a = this.randomChoice(rooms);
+        const b = this.randomChoice(rooms);
+        if (a !== b) {
+          this.carveRuinsCorridor(
+            grid,
+            { col: Math.floor(a.col + a.width / 2), row: Math.floor(a.row + a.height / 2) },
+            { col: Math.floor(b.col + b.width / 2), row: Math.floor(b.row + b.height / 2) }
+          );
         }
       }
     }
 
-    // Add rubble to simulate crumbling walls (10-20% of floor tiles)
-    this.addRubble(grid, 0.1, 0.2);
-
-    // Add occasional chasms (collapsed floors)
-    this.addChasms(grid, 0.02, 0.05);
-
-    // Final verification
-    let finalFloorCount = 0;
-    let finalWallCount = 0;
+    // ── Flood-fill connectivity guarantee ────────────────────────────────────
+    // Find the largest connected region and carve straight paths to orphans
+    const allFloor = [];
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
-        if (grid[row][col].terrain.key === 'floor') {
-          finalFloorCount++;
-        } else if (grid[row][col].terrain.key === 'wall') {
-          finalWallCount++;
+        if (grid[row][col].terrain.walkable) allFloor.push({ col, row });
+      }
+    }
+    if (allFloor.length > 0) {
+      const seed = allFloor[0];
+      const connected = this.floodFill(grid, seed.col, seed.row, h => h.terrain.walkable);
+      const orphans = allFloor.filter(t => !connected.has(`${t.col},${t.row}`));
+      for (const orphan of orphans) {
+        // Carve direct line from orphan to seed
+        let cur = { ...orphan };
+        while (cur.col !== seed.col || cur.row !== seed.row) {
+          if (cur.row > 0 && cur.row < height - 1 && cur.col > 0 && cur.col < width - 1) {
+            grid[cur.row][cur.col].terrain = this.terrainTypes.floor;
+          }
+          const dx = seed.col - cur.col;
+          const dy = seed.row - cur.row;
+          if (Math.abs(dx) >= Math.abs(dy)) cur.col += dx > 0 ? 1 : -1;
+          else cur.row += dy > 0 ? 1 : -1;
         }
       }
     }
-    logger.mapgen.info('Final terrain counts', {
-      floor: finalFloorCount,
-      wall: finalWallCount,
-      total: width * height,
-    });
+
+    // ── Rubble and chasms — scale with CR, light at low CR ──────────────────
+    const rubbleMin = Math.min(0.05 + cr * 0.01, 0.12);
+    const rubbleMax = Math.min(0.12 + cr * 0.01, 0.2);
+    const chasmMin = Math.min(0.01 + cr * 0.003, 0.03);
+    const chasmMax = Math.min(0.02 + cr * 0.005, 0.05);
+    this.addRubble(grid, rubbleMin, rubbleMax);
+    this.addChasms(grid, chasmMin, chasmMax);
+
+    // ── Re-run connectivity after chasms (chasms are non-walkable) ───────────
+    // Chasms can cut off regions that were connected before, so we heal any new
+    // orphans by carving floor paths — same technique as the first pass above.
+    const allFloor2 = [];
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        if (grid[row][col].terrain.walkable) allFloor2.push({ col, row });
+      }
+    }
+    if (allFloor2.length > 0) {
+      const seed2 = allFloor2[0];
+      const connected2 = this.floodFill(grid, seed2.col, seed2.row, h => h.terrain.walkable);
+      const orphans2 = allFloor2.filter(t => !connected2.has(`${t.col},${t.row}`));
+      for (const orphan of orphans2) {
+        let cur = { ...orphan };
+        while (cur.col !== seed2.col || cur.row !== seed2.row) {
+          if (cur.row > 0 && cur.row < height - 1 && cur.col > 0 && cur.col < width - 1) {
+            // Only carve through walls/chasms — don't downgrade rubble
+            if (!grid[cur.row][cur.col].terrain.walkable) {
+              grid[cur.row][cur.col].terrain = this.terrainTypes.floor;
+            }
+          }
+          const dx = seed2.col - cur.col;
+          const dy = seed2.row - cur.row;
+          if (Math.abs(dx) >= Math.abs(dy)) cur.col += dx > 0 ? 1 : -1;
+          else cur.row += dy > 0 ? 1 : -1;
+        }
+      }
+    }
+
+    // Store rooms for entrance placement
+    this._rooms = rooms;
 
     return grid;
   }
@@ -336,7 +343,14 @@ export class RuinsGenerator extends InteriorGenerator {
   }
 
   /**
-   * Place entrance hex at edge of a random room
+   * Place entrance hex at the edge tile of the first (smallest col) room.
+   * Falls back to any walkable edge tile, then any walkable tile, then the
+   * centre of the grid as an absolute last resort.
+   *
+   * Crucially, after the entrance tile is chosen we ALWAYS carve a straight
+   * corridor from it to the nearest existing floor tile so the player is
+   * never left standing in an isolated cell surrounded by walls.
+   *
    * @param {Array} grid
    * @returns {object} {col, row} of entrance
    */
@@ -344,42 +358,112 @@ export class RuinsGenerator extends InteriorGenerator {
     const height = grid.length;
     const width = grid[0].length;
 
-    // Find floor tiles near edges
-    const candidates = [];
+    let entrance = null;
 
-    for (let col = 1; col < width - 1; col++) {
-      if (grid[1][col].terrain.walkable) {
-        candidates.push({ col, row: 1 });
+    // ── 1. Prefer the top-row of the top-left room ───────────────────────────
+    if (this._rooms && this._rooms.length > 0) {
+      const sorted = [...this._rooms].sort((a, b) => a.row - b.row || a.col - b.col);
+      const firstRoom = sorted[0];
+
+      for (let col = firstRoom.col; col < firstRoom.col + firstRoom.width; col++) {
+        const row = firstRoom.row;
+        if (
+          row > 0 &&
+          row < height - 1 &&
+          col > 0 &&
+          col < width - 1 &&
+          grid[row][col].terrain.walkable
+        ) {
+          entrance = { col, row };
+          break;
+        }
       }
-      if (grid[height - 2][col].terrain.walkable) {
-        candidates.push({ col, row: height - 2 });
+
+      // ── 2. Fallback: centre of first room ──────────────────────────────────
+      if (!entrance) {
+        const fc = Math.floor(firstRoom.col + firstRoom.width / 2);
+        const fr = Math.floor(firstRoom.row + firstRoom.height / 2);
+        if (grid[fr] && grid[fr][fc] && grid[fr][fc].terrain.walkable) {
+          entrance = { col: fc, row: fr };
+        }
       }
     }
 
-    for (let row = 1; row < height - 1; row++) {
-      if (grid[row][1].terrain.walkable) {
-        candidates.push({ col: 1, row });
+    // ── 3. Generic edge-scan fallback ────────────────────────────────────────
+    if (!entrance) {
+      const candidates = [];
+      for (let col = 1; col < width - 1; col++) {
+        if (grid[1][col].terrain.walkable) candidates.push({ col, row: 1 });
+        if (grid[height - 2][col].terrain.walkable) candidates.push({ col, row: height - 2 });
       }
-      if (grid[row][width - 2].terrain.walkable) {
-        candidates.push({ col: width - 2, row });
+      for (let row = 1; row < height - 1; row++) {
+        if (grid[row][1].terrain.walkable) candidates.push({ col: 1, row });
+        if (grid[row][width - 2].terrain.walkable) candidates.push({ col: width - 2, row });
       }
+      if (candidates.length > 0) entrance = this.randomChoice(candidates);
     }
 
-    // Pick random candidate or fallback
-    let entrance;
-    if (candidates.length > 0) {
-      entrance = this.randomChoice(candidates);
-    } else {
-      const walkableTiles = this.getWalkableTiles(grid);
-      entrance =
-        walkableTiles.length > 0
-          ? this.randomChoice(walkableTiles)
-          : { col: Math.floor(width / 2), row: Math.floor(height / 2) };
+    // ── 4. Any walkable tile at all ──────────────────────────────────────────
+    if (!entrance) {
+      const walkable = this.getWalkableTiles(grid);
+      if (walkable.length > 0) entrance = this.randomChoice(walkable);
     }
 
-    // Mark as entrance
+    // ── 5. Absolute last resort — grid centre (will be carved in below) ──────
+    if (!entrance) {
+      entrance = { col: Math.floor(width / 2), row: Math.floor(height / 2) };
+    }
+
+    // ── Stamp the entrance tile ───────────────────────────────────────────────
     grid[entrance.row][entrance.col].terrain = this.terrainTypes.entrance;
-    grid[entrance.row][entrance.col].content = 'entrance';
+    grid[entrance.row][entrance.col].content = 'exit';
+
+    // ── Connectivity guarantee ────────────────────────────────────────────────
+    // Carve a straight path from the entrance to the nearest existing floor/rubble
+    // tile so the player is never isolated in an island of walls, even if chasms
+    // consumed the whole first room before this method was called.
+    const allFloor = [];
+    for (let r = 0; r < height; r++) {
+      for (let c = 0; c < width; c++) {
+        const t = grid[r][c].terrain;
+        if (t.walkable && !(r === entrance.row && c === entrance.col)) {
+          allFloor.push({ col: c, row: r });
+        }
+      }
+    }
+
+    if (allFloor.length > 0) {
+      // Find the nearest floor tile to the entrance (Manhattan distance)
+      allFloor.sort(
+        (a, b) =>
+          Math.abs(a.col - entrance.col) +
+          Math.abs(a.row - entrance.row) -
+          (Math.abs(b.col - entrance.col) + Math.abs(b.row - entrance.row))
+      );
+      const target = allFloor[0];
+
+      // Walk a straight (axis-aligned) path and carve through any walls/chasms
+      let cur = { col: entrance.col, row: entrance.row };
+      while (cur.col !== target.col || cur.row !== target.row) {
+        const dx = target.col - cur.col;
+        const dy = target.row - cur.row;
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          cur = { col: cur.col + (dx > 0 ? 1 : -1), row: cur.row };
+        } else {
+          cur = { col: cur.col, row: cur.row + (dy > 0 ? 1 : -1) };
+        }
+        // Only carve non-walkable tiles (don't downgrade rubble or existing floor)
+        if (
+          cur.row > 0 &&
+          cur.row < height - 1 &&
+          cur.col > 0 &&
+          cur.col < width - 1 &&
+          !grid[cur.row][cur.col].terrain.walkable
+        ) {
+          grid[cur.row][cur.col].terrain = this.terrainTypes.floor;
+        }
+      }
+    }
 
     return entrance;
   }

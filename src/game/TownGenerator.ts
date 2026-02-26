@@ -222,9 +222,11 @@ export class TownGenerator extends InteriorGenerator {
     );
     if (questBoard) buildings.push(questBoard);
 
-    // Place entrance at bottom center
+    // Place entrance at bottom center — row height-2 so it lands on grass,
+    // not on the perimeter fence (row height-1) which is non-walkable.
     const entranceCol = centerCol;
-    const entranceRow = height - 1;
+    const entranceRow = height - 2;
+    grid[entranceRow][entranceCol].terrain = this.terrainTypes.gate;
     grid[entranceRow][entranceCol].content = 'entrance';
 
     // Convert grid to hex array

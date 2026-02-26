@@ -162,9 +162,9 @@ export function useHexInteraction(hex) {
         width = Math.min(25, 12 + Math.floor(cr * 2));
         height = Math.min(20, 10 + Math.floor(cr * 1.5));
       } else {
-        // Caves and ruins are medium sized
-        width = Math.min(20, 10 + Math.floor(cr * 1.5));
-        height = Math.min(15, 8 + Math.floor(cr));
+        // Caves and ruins — enough space for 4+ rooms with corridors
+        width = Math.min(28, 14 + Math.floor(cr * 1.5));
+        height = Math.min(20, 10 + Math.floor(cr));
       }
 
       // Generate interior map
@@ -189,6 +189,76 @@ export function useHexInteraction(hex) {
     dispatch({
       type: actions.ENTER_EXPLORATION,
       payload: { col: hex.col, row: hex.row, poi: poi },
+    });
+  };
+
+  /**
+   * Handle pray action at shrine
+   */
+  const handleStairTransition = async (poiKey, poi, direction, targetFloor, spawnPos) => {
+    const floorKey = `${poiKey}:floor${targetFloor}`;
+
+    // Generate the target floor if not yet cached
+    if (!state.interiorMaps[floorKey]) {
+      addMessage(`Descending to floor ${targetFloor + 1}...`, 'action');
+
+      try {
+        if (poi.type === 'dungeon') {
+          // ── Dungeon boss floor ────────────────────────────────────────────
+          const DungeonGeneratorClass = await loadDungeonGenerator();
+          const generator = new DungeonGeneratorClass();
+          generator.setSeed(`${poiKey}:floor${targetFloor}-${state.mapSeed}`);
+
+          // The base map tells us the dimensions to reuse
+          const baseMap = state.interiorMaps[poiKey];
+          const width = baseMap?.width ?? 20;
+          const height = baseMap?.height ?? 16;
+          const cr = poi.cr ?? 1;
+
+          const bossFloorMap = generator.generateBossFloor(width, height, cr);
+
+          dispatch({
+            type: actions.SET_INTERIOR_MAP,
+            payload: { key: floorKey, map: bossFloorMap },
+          });
+        } else if (poi.type === 'tower') {
+          // ── Tower upper/lower floor ───────────────────────────────────────
+          const TowerGeneratorClass = await loadTowerGenerator();
+          const generator = new TowerGeneratorClass();
+          generator.setSeed(`${poiKey}:floor${targetFloor}-${state.mapSeed}`);
+
+          const baseMap = state.interiorMaps[poiKey];
+          const width = baseMap?.width ?? 20;
+          const height = baseMap?.height ?? 12;
+          const cr = poi.cr ?? 1;
+          const floorCount = baseMap?.floorCount ?? 3;
+
+          const floorMap = generator.generateFloor(width, height, cr, targetFloor, floorCount);
+
+          dispatch({
+            type: actions.SET_INTERIOR_MAP,
+            payload: { key: floorKey, map: floorMap },
+          });
+        }
+      } catch (error) {
+        logger.general.error('Failed to generate floor:', error);
+        addMessage('Failed to load next floor. Please try again.', 'error');
+        return;
+      }
+    } else {
+      const label = direction === 'up' ? 'Ascending' : 'Descending';
+      addMessage(`${label} to floor ${targetFloor + 1}...`, 'action');
+    }
+
+    // Switch active interior map to the target floor
+    dispatch({
+      type: actions.SWITCH_INTERIOR_FLOOR,
+      payload: {
+        poiKey,
+        floorKey,
+        targetFloor,
+        spawnPos,
+      },
     });
   };
 

@@ -32,6 +32,8 @@ export const ACTIONS = {
   SET_INTERIOR_PLAYER_POSITION: 'SET_INTERIOR_PLAYER_POSITION',
   ENTER_EXPLORATION: 'ENTER_EXPLORATION',
   EXIT_EXPLORATION: 'EXIT_EXPLORATION',
+  CHANGE_FLOOR: 'CHANGE_FLOOR',
+  SET_INTERIOR_FLOOR: 'SET_INTERIOR_FLOOR',
   DEFEAT_ENCOUNTER: 'DEFEAT_ENCOUNTER',
   COLLECT_LOOT: 'COLLECT_LOOT',
   TRIGGER_HAZARD: 'TRIGGER_HAZARD',
@@ -133,6 +135,8 @@ const initialState: GameState = {
   hasActiveEvent: false,
   // Interior/exploration state
   interiorMaps: {},
+  interiorFloors: {},
+  currentFloor: 0,
   interiorMap: null,
   currentPOI: null,
   interiorPlayerPosition: null,

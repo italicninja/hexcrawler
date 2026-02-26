@@ -250,55 +250,266 @@ function CombatCanvas({
    */
   const drawClassIcon = useCallback((ctx, x, y, className, size) => {
     ctx.save();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
 
     const classLower = (className || 'fighter').toLowerCase();
 
-    if (
-      classLower.includes('fighter') ||
-      classLower.includes('barbarian') ||
-      classLower.includes('paladin')
-    ) {
-      // Sword icon
+    if (classLower === 'barbarian') {
+      // Greataxe: vertical haft + broad crescent blade
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.35);
+      ctx.lineTo(x, y + size * 0.35);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.35);
+      ctx.bezierCurveTo(
+        x - size * 0.3,
+        y - size * 0.2,
+        x - size * 0.3,
+        y + size * 0.1,
+        x,
+        y + size * 0.1
+      );
+      ctx.bezierCurveTo(
+        x + size * 0.3,
+        y + size * 0.1,
+        x + size * 0.3,
+        y - size * 0.2,
+        x,
+        y - size * 0.35
+      );
+      ctx.fill();
+      ctx.stroke();
+    } else if (classLower === 'bard') {
+      // Musical note: filled note head + stem + flag
+      ctx.beginPath();
+      ctx.ellipse(x - size * 0.1, y + size * 0.2, size * 0.12, size * 0.09, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.02, y + size * 0.2);
+      ctx.lineTo(x + size * 0.02, y - size * 0.2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.02, y - size * 0.2);
+      ctx.quadraticCurveTo(x + size * 0.22, y - size * 0.1, x + size * 0.18, y + size * 0.0);
+      ctx.stroke();
+    } else if (classLower === 'cleric') {
+      // Radiant cross with glow dots at tips
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.35);
+      ctx.lineTo(x, y + size * 0.35);
+      ctx.moveTo(x - size * 0.35, y - size * 0.08);
+      ctx.lineTo(x + size * 0.35, y - size * 0.08);
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.lineWidth = 1.8;
+      // glow dot at top
+      ctx.beginPath();
+      ctx.arc(x, y - size * 0.35, size * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (classLower === 'druid') {
+      // Leaf: teardrop shape with center vein
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.35);
+      ctx.bezierCurveTo(
+        x + size * 0.3,
+        y - size * 0.15,
+        x + size * 0.3,
+        y + size * 0.2,
+        x,
+        y + size * 0.35
+      );
+      ctx.bezierCurveTo(
+        x - size * 0.3,
+        y + size * 0.2,
+        x - size * 0.3,
+        y - size * 0.15,
+        x,
+        y - size * 0.35
+      );
+      ctx.fill();
+      ctx.stroke();
+      // center vein
+      ctx.save();
+      ctx.globalAlpha = 0.4;
       ctx.beginPath();
       ctx.moveTo(x, y - size * 0.3);
       ctx.lineTo(x, y + size * 0.3);
       ctx.stroke();
+      ctx.restore();
+    } else if (classLower === 'fighter') {
+      // Sword + shield: sword diagonal, small shield behind
+      // shield
+      ctx.save();
+      ctx.globalAlpha = 0.45;
       ctx.beginPath();
-      ctx.moveTo(x - size * 0.15, y - size * 0.2);
-      ctx.lineTo(x + size * 0.15, y - size * 0.2);
+      ctx.moveTo(x - size * 0.22, y - size * 0.3);
+      ctx.lineTo(x + size * 0.05, y - size * 0.3);
+      ctx.lineTo(x + size * 0.05, y + size * 0.1);
+      ctx.quadraticCurveTo(x - size * 0.08, y + size * 0.35, x - size * 0.22, y + size * 0.1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
       ctx.stroke();
-    } else if (
-      classLower.includes('wizard') ||
-      classLower.includes('sorcerer') ||
-      classLower.includes('warlock')
-    ) {
-      // Staff icon
+      // sword blade
       ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.3);
-      ctx.lineTo(x, y + size * 0.3);
+      ctx.moveTo(x + size * 0.25, y - size * 0.3);
+      ctx.lineTo(x - size * 0.1, y + size * 0.3);
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      // crossguard
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.08, y - size * 0.05);
+      ctx.lineTo(x + size * 0.3, y + size * 0.1);
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    } else if (classLower === 'monk') {
+      // Yin-yang circle
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.3, 0, Math.PI * 2);
+      ctx.stroke();
+      // top half filled
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.3, Math.PI, 0);
+      ctx.fill();
+      // small circles
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(x, y - size * 0.15, size * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(x, y - size * 0.15, size * 0.09, 0, Math.PI * 2);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(x, y - size * 0.3, size * 0.1, 0, Math.PI * 2);
+      ctx.arc(x, y + size * 0.15, size * 0.09, 0, Math.PI * 2);
+      ctx.fill();
       ctx.stroke();
-    } else if (classLower.includes('ranger') || classLower.includes('rogue')) {
-      // Bow icon
+    } else if (classLower === 'paladin') {
+      // Kite shield with cross
       ctx.beginPath();
-      ctx.arc(x - size * 0.1, y, size * 0.25, -Math.PI / 2, Math.PI / 2);
+      ctx.moveTo(x - size * 0.25, y - size * 0.32);
+      ctx.lineTo(x + size * 0.25, y - size * 0.32);
+      ctx.lineTo(x + size * 0.25, y + size * 0.1);
+      ctx.quadraticCurveTo(x, y + size * 0.38, x - size * 0.25, y + size * 0.1);
+      ctx.closePath();
+      ctx.fill();
       ctx.stroke();
+      // cross cutout
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillRect(x - size * 0.04, y - size * 0.28, size * 0.08, size * 0.36);
+      ctx.fillRect(x - size * 0.2, y - size * 0.12, size * 0.4, size * 0.08);
+      ctx.restore();
+    } else if (classLower === 'ranger') {
+      // Bow + nocked arrow
       ctx.beginPath();
-      ctx.moveTo(x + size * 0.15, y - size * 0.2);
-      ctx.lineTo(x - size * 0.1, y);
-      ctx.lineTo(x + size * 0.15, y + size * 0.2);
+      ctx.arc(x - size * 0.08, y, size * 0.28, -Math.PI * 0.55, Math.PI * 0.55);
       ctx.stroke();
+      // bowstring
+      ctx.beginPath();
+      ctx.moveTo(x - size * 0.08, y - size * 0.28);
+      ctx.lineTo(x - size * 0.08, y + size * 0.28);
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      ctx.lineWidth = 1.8;
+      // arrow
+      ctx.beginPath();
+      ctx.moveTo(x - size * 0.08, y);
+      ctx.lineTo(x + size * 0.32, y);
+      ctx.stroke();
+      // arrowhead
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.32, y);
+      ctx.lineTo(x + size * 0.2, y - size * 0.08);
+      ctx.lineTo(x + size * 0.2, y + size * 0.08);
+      ctx.closePath();
+      ctx.fill();
+    } else if (classLower === 'rogue') {
+      // Angled dagger
+      ctx.beginPath();
+      ctx.moveTo(x - size * 0.25, y + size * 0.28);
+      ctx.lineTo(x + size * 0.22, y - size * 0.28);
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      // crossguard perpendicular
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.05, y - size * 0.05);
+      ctx.lineTo(x + size * 0.28, y + size * 0.12);
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      // pommel
+      ctx.beginPath();
+      ctx.arc(x - size * 0.25, y + size * 0.28, size * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (classLower === 'sorcerer') {
+      // 6-pointed arcane star / snowflake burst
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * size * 0.32, y + Math.sin(angle) * size * 0.32);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (classLower === 'warlock') {
+      // Eldritch eye: almond + slit pupil + arcane marks
+      ctx.beginPath();
+      ctx.moveTo(x - size * 0.3, y);
+      ctx.quadraticCurveTo(x, y - size * 0.22, x + size * 0.3, y);
+      ctx.quadraticCurveTo(x, y + size * 0.22, x - size * 0.3, y);
+      ctx.fill();
+      ctx.stroke();
+      // pupil slit (destination-out style via lighter fill)
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.ellipse(x, y, size * 0.06, size * 0.16, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      ctx.restore();
+      // top arcane mark
+      ctx.beginPath();
+      ctx.moveTo(x - size * 0.08, y - size * 0.28);
+      ctx.lineTo(x, y - size * 0.38);
+      ctx.lineTo(x + size * 0.08, y - size * 0.28);
+      ctx.stroke();
+    } else if (classLower === 'wizard') {
+      // Staff + 8-point star at top
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.1);
+      ctx.lineTo(x, y + size * 0.35);
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      ctx.lineWidth = 1.8;
+      // 4-axis star
+      const starY = y - size * 0.22;
+      for (let i = 0; i < 4; i++) {
+        const angle = (i * Math.PI) / 4;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(angle) * size * 0.25, starY + Math.sin(angle) * size * 0.25);
+        ctx.lineTo(x - Math.cos(angle) * size * 0.25, starY - Math.sin(angle) * size * 0.25);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(x, starY, size * 0.1, 0, Math.PI * 2);
+      ctx.fill();
     } else {
-      // Default: simple cross
+      // Fallback: diamond
       ctx.beginPath();
-      ctx.moveTo(x - size * 0.2, y);
+      ctx.moveTo(x, y - size * 0.28);
       ctx.lineTo(x + size * 0.2, y);
-      ctx.moveTo(x, y - size * 0.2);
-      ctx.lineTo(x, y + size * 0.2);
+      ctx.lineTo(x, y + size * 0.28);
+      ctx.lineTo(x - size * 0.2, y);
+      ctx.closePath();
+      ctx.fill();
       ctx.stroke();
     }
 
