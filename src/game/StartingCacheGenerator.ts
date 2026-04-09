@@ -7,13 +7,13 @@ import { Item } from './Item';
  * player wakes up at the very beginning of the game.
  *
  * Layout (3 rooms + corridors):
- *   Room 1 — Wake-up room:  entrance tile + EXIT tile (green) → return to overworld
+ *   Room 1 — Wake-up room:  entrance tile + ladder (exit) → return to overworld
  *   Room 2 — Stash room:    starter gear loot + optional weapon chest
  *   Room 3 — Flavor room:   a note / campfire remnants / curiosity item
  *
  * Design goals:
  *   - Zero lethal threats (no combat encounters, no damaging hazards)
- *   - Clear signposting: EXIT hex is bright green and labelled
+ *   - Clear signposting: EXIT hex shows a climbable ladder
  *   - Starter items give the player immediate agency
  *   - Tiny map so the tutorial beat is short
  */

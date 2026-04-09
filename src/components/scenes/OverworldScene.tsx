@@ -51,6 +51,21 @@ import { AIEngine } from '../../game/ai/AIEngine';
 import AIInspector from '../debug/AIInspector';
 import DevTools from '../debug/DevTools';
 
+const CLASS_ICONS: Record<string, string> = {
+  fighter: '⚔️',
+  wizard: '✨',
+  cleric: '✝️',
+  rogue: '🗡️',
+  ranger: '🏹',
+  barbarian: '🪓',
+  paladin: '🛡️',
+  druid: '🌿',
+  bard: '🎵',
+  sorcerer: '🔥',
+  warlock: '👁️',
+  monk: '👊',
+};
+
 function OverworldScene() {
   const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } =
     useGameState();
@@ -1956,6 +1971,7 @@ function OverworldScene() {
             <InteriorHexCanvas
               interiorMap={interiorMap}
               playerPosition={state.interiorPlayerPosition}
+              playerIcon={CLASS_ICONS[state.party?.player?.class] ?? '🧍'}
               selectedHex={selectedInteriorHex}
               onHexClick={handleInteriorHexClick}
               onHexDoubleClick={handleInteriorHexDoubleClick}

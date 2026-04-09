@@ -18,6 +18,7 @@ import { PerlinNoise } from '../../noise';
 function InteriorHexCanvas({
   interiorMap,
   playerPosition,
+  playerIcon = '🧍',
   selectedHex,
   onHexClick,
   onHexDoubleClick,
@@ -182,32 +183,50 @@ function InteriorHexCanvas({
         ctx.fill();
         break;
 
-      case 'exit':
-        // Bright green archway — pulsing outline to draw the eye
-        ctx.strokeStyle = '#2ecc71';
-        ctx.lineWidth = 3;
-        // Arch frame
-        ctx.beginPath();
-        ctx.moveTo(x - iconSize * 0.45, y + iconSize * 0.45);
-        ctx.lineTo(x - iconSize * 0.45, y - iconSize * 0.1);
-        ctx.arc(x, y - iconSize * 0.1, iconSize * 0.45, Math.PI, 0);
-        ctx.lineTo(x + iconSize * 0.45, y + iconSize * 0.45);
-        ctx.stroke();
-        // Arrow pointing through the arch (upward)
-        ctx.fillStyle = '#2ecc71';
-        ctx.beginPath();
-        ctx.moveTo(x, y - iconSize * 0.05);
-        ctx.lineTo(x + iconSize * 0.22, y + iconSize * 0.3);
-        ctx.lineTo(x - iconSize * 0.22, y + iconSize * 0.3);
-        ctx.closePath();
-        ctx.fill();
-        // "EXIT" label
-        ctx.fillStyle = '#2ecc71';
-        ctx.font = `bold ${Math.max(7, iconSize * 0.35)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText('EXIT', x, y + iconSize * 0.55);
+      case 'exit': {
+        // Wooden ladder leading up to the surface
+        const railColor = '#8B5E3C';
+        const railHighlight = '#C49A6C';
+        const rungColor = '#6B4423';
+        const rungHighlight = '#A0713A';
+        const railW = iconSize * 0.12;
+        const halfSpan = iconSize * 0.28;
+        const ladderTop = y - iconSize * 0.52;
+        const ladderBottom = y + iconSize * 0.48;
+
+        // Left rail
+        ctx.fillStyle = railColor;
+        ctx.fillRect(x - halfSpan - railW / 2, ladderTop, railW, ladderBottom - ladderTop);
+        // Left rail highlight
+        ctx.fillStyle = railHighlight;
+        ctx.fillRect(x - halfSpan - railW / 2, ladderTop, railW * 0.3, ladderBottom - ladderTop);
+
+        // Right rail
+        ctx.fillStyle = railColor;
+        ctx.fillRect(x + halfSpan - railW / 2, ladderTop, railW, ladderBottom - ladderTop);
+        // Right rail highlight
+        ctx.fillStyle = railHighlight;
+        ctx.fillRect(x + halfSpan - railW / 2, ladderTop, railW * 0.3, ladderBottom - ladderTop);
+
+        // Rungs (4 horizontal bars evenly spaced)
+        const rungCount = 4;
+        const rungH = iconSize * 0.09;
+        for (let i = 0; i < rungCount; i++) {
+          const rungY = ladderTop + ((ladderBottom - ladderTop) / (rungCount + 1)) * (i + 1);
+          ctx.fillStyle = rungColor;
+          ctx.fillRect(x - halfSpan - railW / 2, rungY - rungH / 2, halfSpan * 2 + railW, rungH);
+          // Rung highlight (top edge)
+          ctx.fillStyle = rungHighlight;
+          ctx.fillRect(
+            x - halfSpan - railW / 2,
+            rungY - rungH / 2,
+            halfSpan * 2 + railW,
+            rungH * 0.3
+          );
+        }
+
         break;
+      }
 
       case 'encounter': {
         // Look up the encounter object for extra info (CR, isBoss, defeated)
@@ -442,7 +461,7 @@ function InteriorHexCanvas({
         y = playerHex.y;
       }
 
-      drawPlayerMarker(ctx, x, y, hexSize, 'P');
+      drawPlayerMarker(ctx, x, y, hexSize, playerIcon);
     },
     [hexSize, playerPosition]
   );
@@ -485,7 +504,7 @@ function InteriorHexCanvas({
         if (hoveredHex.content === 'loot' || hoveredHex.content === 'chest') {
           drawHexOutline(ctx, hoveredHexData, '#f39c12', 3); // Gold for loot
         } else if (hoveredHex.content === 'exit') {
-          drawHexOutline(ctx, hoveredHexData, '#2ecc71', 3); // Green for exit
+          drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.35)', 2);
         } else if (hoveredHex.content === 'encounter') {
           const enc = interiorMap?.encounters?.find(
             e => e.col === hoveredHex.col && e.row === hoveredHex.row

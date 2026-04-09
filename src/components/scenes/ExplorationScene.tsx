@@ -17,6 +17,21 @@ import { DiceRoller } from '../../game/DiceRoller';
 import { formatTime, getCombatDuration, TIME_COSTS } from '../../game/TimeManager';
 import './ExplorationScene.css';
 
+const CLASS_ICONS: Record<string, string> = {
+  fighter: '⚔️',
+  wizard: '✨',
+  cleric: '✝️',
+  rogue: '🗡️',
+  ranger: '🏹',
+  barbarian: '🪓',
+  paladin: '🛡️',
+  druid: '🌿',
+  bard: '🎵',
+  sorcerer: '🔥',
+  warlock: '👁️',
+  monk: '👊',
+};
+
 function ExplorationScene() {
   const { state, actions, dispatch } = useGameState();
   const { addMessage } = useGameLog();
@@ -318,7 +333,7 @@ function ExplorationScene() {
             title={
               canExitFreely || exitReady
                 ? 'Return to the overworld'
-                : 'Find the green EXIT tile to leave'
+                : 'Find the ladder to climb out'
             }
             style={{
               opacity: canExitFreely || exitReady ? 1 : 0.45,
@@ -331,6 +346,7 @@ function ExplorationScene() {
         <InteriorHexCanvas
           interiorMap={interiorMap}
           playerPosition={playerPosition}
+          playerIcon={CLASS_ICONS[state.party?.player?.class] ?? '🧍'}
           selectedHex={selectedHex}
           onHexClick={handleHexClick}
           onHexDoubleClick={handleHexDoubleClick}

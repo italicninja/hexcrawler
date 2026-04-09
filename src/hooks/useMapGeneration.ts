@@ -164,7 +164,7 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
       // Flavor messages
       addMessage('Your eyes open slowly. Dust motes drift in the dim light.', 'info');
       addMessage(
-        `You find yourself inside ${startingHex.poi.name}.\n\n${startingHex.poi.description}\n\nSearch the rooms for supplies before you leave. Step onto the glowing green EXIT tile when you are ready to venture out.`,
+        `You find yourself inside ${startingHex.poi.name}.\n\n${startingHex.poi.description}\n\nSearch the rooms for supplies before you leave. When you are ready to face what lies above, climb the ladder.`,
         'info'
       );
     } else {
