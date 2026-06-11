@@ -15,6 +15,7 @@
 import { Character } from '../../game/Character';
 import { advanceTime } from '../../game/TimeManager';
 import { TIME } from '../../constants/gameConstants';
+import logger from '../../utils/logger';
 import type { GameState, Action } from '../../types/state';
 
 export function inventoryReducer(
