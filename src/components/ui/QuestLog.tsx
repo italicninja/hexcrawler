@@ -1,18 +1,21 @@
-// @ts-nocheck
 /**
- * QuestLog.jsx
+ * QuestLog.tsx
  * Quest tracking UI component - displays active and completed quests
  */
 
 import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
+import type { Quest, QuestObjective } from '../../game/Quest';
 
 export default function QuestLog() {
   const { state, dispatch, actions } = useGameState();
   const [filter, setFilter] = useState('active'); // 'active', 'completed', 'all'
-  const [selectedQuestId, setSelectedQuestId] = useState(null);
+  const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
 
-  const { activeQuests, completedQuests } = state;
+  // State declares quests via the lightweight game/game.ts Quest interface, but
+  // at runtime these are Quest class instances (with methods like isComplete()).
+  const activeQuests = state.activeQuests as unknown as Quest[];
+  const completedQuests = state.completedQuests as unknown as Quest[];
 
   // Filter quests based on selected filter
   const getFilteredQuests = () => {
@@ -37,7 +40,7 @@ export default function QuestLog() {
   }
 
   // Handle quest completion check
-  const handleCompleteQuest = questId => {
+  const handleCompleteQuest = (questId: string) => {
     const quest = activeQuests.find(q => q.id === questId);
     if (quest && quest.isComplete()) {
       dispatch({
@@ -48,7 +51,7 @@ export default function QuestLog() {
   };
 
   // Render quest objective with progress
-  const renderObjective = objective => {
+  const renderObjective = (objective: QuestObjective) => {
     const percentage = Math.min((objective.current / objective.required) * 100, 100);
     const isComplete = objective.current >= objective.required;
 
@@ -71,7 +74,7 @@ export default function QuestLog() {
   };
 
   // Render quest details
-  const renderQuestDetails = quest => {
+  const renderQuestDetails = (quest: Quest | undefined) => {
     if (!quest) {
       return (
         <div className="quest-details-empty">
