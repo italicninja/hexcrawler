@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * DevTools - Development-only toolbox for rapid game testing
  *
@@ -6,8 +5,7 @@
  * Groups tools into collapsible sections for easy navigation.
  */
 
-import { useState } from 'react';
-import PropTypes from 'prop-types';
+import { useState, type CSSProperties, type RefObject } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { Enemy } from '../../game/Enemy';
@@ -16,14 +14,30 @@ import { AIEngine } from '../../game/ai/AIEngine';
 import { WEATHER_TYPES } from '../../WeatherSystem';
 import { POI_TYPES } from '../../poiSystem';
 import { SaveManager } from '../../utils/SaveManager';
-import { getXPForCR } from '../../game/Combat';
 import logger from '../../utils/logger';
+import type { TerrainGenerator } from '../../terrainGenerator';
+
+/** A selectable option in a DevSelectRow dropdown. */
+interface DevOption {
+  label: string;
+  key?: string | number;
+  type?: string;
+  [key: string]: unknown;
+}
+
+/** A pre-configured combat encounter for the Force Combat menu. */
+interface EnemyPreset {
+  label: string;
+  encounterName: string;
+  encounterType: string;
+  enemies: Array<{ name: string; cr: number; type: string }>;
+}
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const ENEMY_PRESETS = [
+const ENEMY_PRESETS: EnemyPreset[] = [
   {
     label: '3 Goblins (CR 1/4)',
     encounterName: 'Goblin Skirmish (DEV)',
@@ -63,7 +77,7 @@ const ENEMY_PRESETS = [
   },
 ];
 
-const WEATHER_OPTIONS = [
+const WEATHER_OPTIONS: DevOption[] = [
   { label: 'Clear Skies', key: 'CLEAR' },
   { label: 'Light Rain', key: 'LIGHT_RAIN' },
   { label: 'Rain', key: 'RAIN' },
@@ -78,7 +92,7 @@ const WEATHER_OPTIONS = [
   { label: 'Strong Winds', key: 'WIND' },
 ];
 
-const POI_OPTIONS = [
+const POI_OPTIONS: DevOption[] = [
   { label: 'Dungeon', type: POI_TYPES.DUNGEON },
   { label: 'Ruins', type: POI_TYPES.RUINS },
   { label: 'Shrine', type: POI_TYPES.SHRINE },
@@ -94,7 +108,7 @@ const POI_OPTIONS = [
 // Styles
 // ---------------------------------------------------------------------------
 
-const DROPDOWN_STYLE = {
+const DROPDOWN_STYLE: CSSProperties = {
   position: 'absolute',
   top: '100%',
   left: 0,
@@ -109,7 +123,7 @@ const DROPDOWN_STYLE = {
   zIndex: 1000,
 };
 
-const SECTION_HEADER_STYLE = {
+const SECTION_HEADER_STYLE: CSSProperties = {
   padding: '0.4rem 0.75rem',
   fontSize: '0.7rem',
   fontWeight: '700',
@@ -121,7 +135,7 @@ const SECTION_HEADER_STYLE = {
   userSelect: 'none',
 };
 
-const ITEM_BASE_STYLE = {
+const ITEM_BASE_STYLE: CSSProperties = {
   width: '100%',
   padding: '0.5rem 0.75rem',
   fontSize: '0.85rem',
@@ -141,13 +155,21 @@ const ITEM_BASE_STYLE = {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function DevSection({ title }) {
+function DevSection({ title }: { title: string }) {
   return <div style={SECTION_HEADER_STYLE}>{title}</div>;
 }
 
-DevSection.propTypes = { title: PropTypes.string.isRequired };
-
-function DevButton({ icon, label, onClick, danger }) {
+function DevButton({
+  icon,
+  label,
+  onClick,
+  danger,
+}: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
@@ -164,14 +186,17 @@ function DevButton({ icon, label, onClick, danger }) {
   );
 }
 
-DevButton.propTypes = {
-  icon: PropTypes.string.isRequired,
-  label: PropTypes.string.isRequired,
-  onClick: PropTypes.func.isRequired,
-  danger: PropTypes.bool,
-};
-
-function DevSelectRow({ icon, label, options, onSelect }) {
+function DevSelectRow<T extends DevOption>({
+  icon,
+  label,
+  options,
+  onSelect,
+}: {
+  icon: string;
+  label: string;
+  options: T[];
+  onSelect: (opt: T) => void;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -224,14 +249,7 @@ function DevSelectRow({ icon, label, options, onSelect }) {
   );
 }
 
-DevSelectRow.propTypes = {
-  icon: PropTypes.string.isRequired,
-  label: PropTypes.string.isRequired,
-  options: PropTypes.arrayOf(PropTypes.object).isRequired,
-  onSelect: PropTypes.func.isRequired,
-};
-
-function TeleportRow({ onTeleport }) {
+function TeleportRow({ onTeleport }: { onTeleport: (col: number, row: number) => void }) {
   const [col, setCol] = useState('');
   const [row, setRow] = useState('');
 
@@ -306,13 +324,15 @@ function TeleportRow({ onTeleport }) {
   );
 }
 
-TeleportRow.propTypes = { onTeleport: PropTypes.func.isRequired };
-
 // ---------------------------------------------------------------------------
 // Main DevTools component
 // ---------------------------------------------------------------------------
 
-function DevTools({ terrainGeneratorRef }) {
+interface DevToolsProps {
+  terrainGeneratorRef?: RefObject<TerrainGenerator | null>;
+}
+
+function DevTools({ terrainGeneratorRef }: DevToolsProps) {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
   const [open, setOpen] = useState(false);
@@ -322,8 +342,8 @@ function DevTools({ terrainGeneratorRef }) {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   const closeAfter =
-    fn =>
-    (...args) => {
+    (fn: (...args: unknown[]) => void) =>
+    (...args: unknown[]) => {
       fn(...args);
       setOpen(false);
     };
@@ -340,7 +360,7 @@ function DevTools({ terrainGeneratorRef }) {
 
   // ── Combat ────────────────────────────────────────────────────────────────
 
-  const handleForceCombat = async preset => {
+  const handleForceCombat = async (preset: EnemyPreset) => {
     if (!state.party) {
       addMessage('[DEV] No party found!', 'error');
       return;
@@ -378,7 +398,7 @@ function DevTools({ terrainGeneratorRef }) {
 
     logger.combat.info('DEV Force Combat', {
       preset: preset.label,
-      allies: allies.map(a => a.name),
+      allies: allies.map((a: { name: string }) => a.name),
       enemies: enemies.map(e => e.name),
     });
   };
@@ -395,7 +415,7 @@ function DevTools({ terrainGeneratorRef }) {
     logger.general.info('DEV Restore HP', { hp: updated.maxHP });
   };
 
-  const handleAddXP = amount => {
+  const handleAddXP = (amount: number) => {
     dispatch({ type: actions.AWARD_XP, payload: { xp: amount } });
     addMessage(`[DEV] +${amount} XP awarded`, 'success');
     logger.general.info('DEV Add XP', { amount });
@@ -414,7 +434,7 @@ function DevTools({ terrainGeneratorRef }) {
     logger.general.info('DEV Force Level Up', { level: updated.level });
   };
 
-  const handleAddGold = amount => {
+  const handleAddGold = (amount: number) => {
     const player = getPlayer();
     if (!player) return;
     const updated = Character.fromJSON(player.toJSON());
@@ -426,7 +446,7 @@ function DevTools({ terrainGeneratorRef }) {
 
   // ── Time ──────────────────────────────────────────────────────────────────
 
-  const handleAdvanceTime = minutes => {
+  const handleAdvanceTime = (minutes: number) => {
     dispatch({ type: actions.ADVANCE_TIME, payload: minutes });
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -451,12 +471,12 @@ function DevTools({ terrainGeneratorRef }) {
     logger.general.info('DEV Reveal All', { hexCount: state.mapData.length });
   };
 
-  const handleForceWeather = opt => {
+  const handleForceWeather = (opt: DevOption) => {
     if (!state.mapData) {
       addMessage('[DEV] No map data yet', 'error');
       return;
     }
-    const weatherType = WEATHER_TYPES[opt.key];
+    const weatherType = opt.key != null ? WEATHER_TYPES[opt.key] : undefined;
     if (!weatherType) return;
 
     // Patch weather on every hex in mapData
@@ -479,14 +499,14 @@ function DevTools({ terrainGeneratorRef }) {
     logger.general.info('DEV Force Weather', { weather: weatherType.name });
   };
 
-  const handleTeleport = (col, row) => {
+  const handleTeleport = (col: number, row: number) => {
     dispatch({ type: actions.SET_PLAYER_POSITION, payload: { col, row } });
     dispatch({ type: actions.REVEAL_AROUND_PLAYER, payload: { col, row } });
     addMessage(`[DEV] Teleported to (${col}, ${row})`, 'system');
     logger.general.info('DEV Teleport', { col, row });
   };
 
-  const handleSpawnPOI = opt => {
+  const handleSpawnPOI = (opt: DevOption) => {
     if (!state.mapData || !terrainGeneratorRef?.current) {
       addMessage('[DEV] Map or terrain generator not ready', 'error');
       return;
@@ -498,15 +518,18 @@ function DevTools({ terrainGeneratorRef }) {
       return;
     }
 
-    const terrain = currentHex.terrain || { name: 'grassland', difficulty: 1 };
-    const poi = terrainGeneratorRef.current.poiSystem.generatePOI(
-      opt.type,
+    const gen = terrainGeneratorRef.current;
+    const terrain = (currentHex.terrain || { name: 'grassland', difficulty: 1 }) as unknown as Parameters<
+      typeof gen.poiSystem.generatePOI
+    >[3];
+    const poi = gen.poiSystem.generatePOI(
+      opt.type ?? '',
       col,
       row,
       terrain,
       10,
       7,
-      () => terrainGeneratorRef.current.random()
+      () => gen.random()
     );
 
     if (!poi) {
@@ -669,9 +692,5 @@ function DevTools({ terrainGeneratorRef }) {
     </div>
   );
 }
-
-DevTools.propTypes = {
-  terrainGeneratorRef: PropTypes.shape({ current: PropTypes.object }),
-};
 
 export default DevTools;
