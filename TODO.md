@@ -30,7 +30,7 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 ### 1. Remove `// @ts-nocheck` Suppressions
 
-**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (83 files remaining, down from 100)
+**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (64 files remaining, down from 100)
 
 **Problem:** `tsconfig.json` has `strict: true` enabled, but the majority of source files begin with `// @ts-nocheck`, which completely bypasses TypeScript checking. The TypeScript migration is structurally complete but type safety is not enforced.
 
@@ -49,7 +49,7 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 Bugs surfaced and fixed along the way: `Character.gainXP()` → `awardXP()` (3 reducers, would `TypeError` on every XP award); missing `logger` import in `inventoryReducer`; dead `CONSUME_WATER`/`FIND_WATER` reducer cases referencing the removed `water` field; and quest difficulty `level` silently dropped because `QuestConfig` had no `level` field.
 
-**Remaining (~83):** the React components (`components/**`), hooks, the larger scenes (`OverworldScene` etc.), remaining generators (`Dungeon`/`Cave`/`Tower`/`Ruins`/`Town`/`Interior`), AI (`game/ai/**`), `Combat.ts`, and top-level map/terrain modules. Recommended to keep going game/utils → reducers → hooks → components.
+**Remaining (~64):** most React components (`components/**`), hooks, the larger scenes (`OverworldScene` etc.), the interior-generator subclasses (`Dungeon`/`Cave`/`Tower`/`Ruins`/`Town`), AI (`game/ai/**`), `Combat.ts` (+ its gated `combatReducer`), `AbilityEffects`/`SpellList`/`GameTableData`, and canvas components. The `game/`, `utils/`, and top-level map/terrain modules are now fully typed.
 
 ---
 
