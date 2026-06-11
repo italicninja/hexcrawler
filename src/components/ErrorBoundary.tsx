@@ -1,14 +1,23 @@
-// @ts-nocheck
-import { Component } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import logger from '../utils/logger';
 
-class ErrorBoundary extends Component {
-  constructor(props) {
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
   }
-  static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error, errorInfo) {
+  static getDerivedStateFromError(): Partial<ErrorBoundaryState> { return { hasError: true }; }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     logger.general.error('Error Boundary caught an error:', { error, errorInfo });
     this.setState({ error, errorInfo });
   }

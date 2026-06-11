@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   Dialog,
   DialogContent,
@@ -9,6 +8,15 @@ import {
 } from './ui/dialog';
 import { Button } from './ui/button';
 
+interface ConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title?: string;
+  description?: string;
+  onConfirm: () => void;
+  onCancel?: () => void;
+}
+
 /**
  * ConfirmDialog - Replacement for window.confirm()
  *
@@ -16,7 +24,14 @@ import { Button } from './ui/button';
  * const { confirm } = useConfirmDialog();
  * const result = await confirm("Are you sure?", "This action cannot be undone");
  */
-export function ConfirmDialog({ open, onOpenChange, title, description, onConfirm, onCancel }) {
+export function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
     onOpenChange(false);

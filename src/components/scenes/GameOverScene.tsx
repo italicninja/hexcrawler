@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useGameState } from '../../contexts/GameStateContext';
 import { SaveManager } from '../../utils/SaveManager';
 
