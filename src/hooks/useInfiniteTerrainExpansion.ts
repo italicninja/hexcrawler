@@ -1,9 +1,21 @@
-// @ts-nocheck -- TODO: Remove after GameStateContext → .tsx and utils → .ts (Phase 5 & 6)
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
 import { generateHex } from '../utils/poiGenerationHelper';
 import { CANVAS, TERRAIN } from '../constants/gameConstants';
 import logger from '../utils/logger';
+import type { TerrainGenerator } from '../terrainGenerator';
+
+interface ViewportSize {
+  width: number;
+  height: number;
+}
+
+interface MapBounds {
+  minCol: number;
+  maxCol: number;
+  minRow: number;
+  maxRow: number;
+}
 
 /**
  * useInfiniteTerrainExpansion Hook
@@ -11,22 +23,27 @@ import logger from '../utils/logger';
  * Monitors player position and automatically expands the map in any direction
  * when the player gets close to the edge of the explored area.
  * Uses viewport-aware expansion to ensure smooth scrolling experience.
- *
- * @param {Object} terrainGeneratorRef - React ref containing TerrainGenerator instance
- * @param {Object} viewportSize - Object with { width, height } of viewport
  */
-export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
+export function useInfiniteTerrainExpansion(
+  terrainGeneratorRef: RefObject<TerrainGenerator | null>,
+  viewportSize: ViewportSize
+) {
   const { state, dispatch, actions } = useGameState();
-  const lastExpansionRef = useRef({ col: null, row: null, direction: null });
+  const lastExpansionRef = useRef<{
+    col: number | null;
+    row: number | null;
+    direction: string | null;
+  }>({ col: null, row: null, direction: null });
 
   useEffect(() => {
     // Guard clause - don't expand if map isn't ready
     if (!state.mapData || !state.mapData.length || !terrainGeneratorRef.current) return;
+    const gen = terrainGeneratorRef.current;
 
     const { col, row } = state.playerPosition;
 
     // Find current map boundaries - Use HexGrid for O(1) lookup if available
-    let minCol, maxCol, minRow, maxRow;
+    let minCol: number, maxCol: number, minRow: number, maxRow: number;
     if (state.hexGrid) {
       const bounds = state.hexGrid.getBounds();
       minCol = bounds.minCol;
@@ -89,11 +106,11 @@ export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
     logger.mapgen.info(`Expanding map to the ${expandDirection}...`);
 
     // Keep same seed for consistent generation
-    terrainGeneratorRef.current.setSeed(state.mapSeed);
+    gen.setSeed(state.mapSeed);
 
     // Generate new hexes based on direction
     const newHexes = generateExpansionHexes(
-      terrainGeneratorRef.current,
+      gen,
       expandDirection,
       { minCol, maxCol, minRow, maxRow },
       chunkSize
@@ -125,12 +142,15 @@ export function useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize) {
  * @param {Object} terrainGenerator - TerrainGenerator instance
  * @param {string} direction - Direction to expand ('north', 'south', 'east', 'west')
  * @param {Object} boundaries - Current map boundaries { minCol, maxCol, minRow, maxRow }
- * @param {number} chunkSize - Number of rows/columns to add
- * @returns {Array} Array of new hex objects
  */
-function generateExpansionHexes(terrainGenerator, direction, boundaries, chunkSize) {
+function generateExpansionHexes(
+  terrainGenerator: TerrainGenerator,
+  direction: string,
+  boundaries: MapBounds,
+  chunkSize: number
+): ReturnType<typeof generateHex>[] {
   const { minCol, maxCol, minRow, maxRow } = boundaries;
-  const newHexes = [];
+  const newHexes: ReturnType<typeof generateHex>[] = [];
 
   switch (direction) {
     case 'east':
