@@ -1,11 +1,53 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * AbilityEffects - D&D 5e Class Ability System
  * Executes class abilities with D&D 5e rules
  */
 
 import { DiceRoller } from './DiceRoller';
+
+/** A status effect entry on a combatant. Shape is intentionally permissive. */
+interface StatusEffect {
+  name: string;
+  duration?: number;
+  maxDuration?: number;
+  roundsActive?: number;
+  extendedThisTurn?: boolean;
+  effects?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+/**
+ * A combatant — the turn-order entry, which wraps a Character or Enemy and
+ * carries combat-time state. Methods (heal/takeDamage/getModifier/...) and
+ * extra fields resolve through the index signature while the migration of
+ * Combat.ts is pending.
+ */
+interface Combatant {
+  name: string;
+  level: number;
+  currentHP: number;
+  maxHP: number;
+  armorClass: number;
+  proficiencyBonus: number;
+  type?: string;
+  statusEffects?: StatusEffect[];
+  layOnHandsPool?: number;
+  spellSlots?: Record<number, number>;
+  [key: string]: any;
+}
+
+interface CombatLike {
+  diceRoller?: DiceRoller;
+  enemies?: Combatant[];
+  [key: string]: any;
+}
+
+interface AbilityResult {
+  success: boolean;
+  message: string;
+  effect?: Record<string, unknown>;
+}
 
 /**
  * Ability execution system
@@ -20,7 +62,12 @@ export class AbilityEffects {
    * @param {Object} combat - Combat instance
    * @returns {Object} {success, message, effect?}
    */
-  static execute(abilityName, combatant, target, combat) {
+  static execute(
+    abilityName: string,
+    combatant: Combatant,
+    target: Combatant,
+    combat: CombatLike
+  ): AbilityResult {
     const diceRoller = combat.diceRoller || new DiceRoller();
 
     // Dispatch to specific ability handler
@@ -87,7 +134,7 @@ export class AbilityEffects {
    * Maximum 10 minutes (10 rounds in combat).
    * Uses: recover 1 on Short Rest, all on Long Rest.
    */
-  static rage(combatant, diceRoller) {
+  static rage(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
     // combatant here is the turnOrder entry: { id, character, enemy, statusEffects, hp, ... }
     const character = combatant.character;
 
@@ -145,7 +192,7 @@ export class AbilityEffects {
    * Cost:   Attackers also have Advantage against the barbarian during that time.
    * This applies a status effect that Combat.processAttack reads for both sides.
    */
-  static recklessAttack(combatant) {
+  static recklessAttack(combatant: Combatant): AbilityResult {
     if (!combatant.statusEffects) {
       combatant.statusEffects = [];
     }
@@ -180,7 +227,7 @@ export class AbilityEffects {
    * Bonus action used on the rager's turn to extend Rage for another round
    * when no attack or forced save was made.
    */
-  static extendRage(combatant) {
+  static extendRage(combatant: Combatant): AbilityResult {
     if (!combatant.statusEffects) {
       return { success: false, message: `${combatant.name} is not currently raging.` };
     }
@@ -190,7 +237,7 @@ export class AbilityEffects {
       return { success: false, message: `${combatant.name} is not currently raging.` };
     }
 
-    if (rageEffect.roundsActive >= rageEffect.maxDuration) {
+    if ((rageEffect.roundsActive ?? 0) >= (rageEffect.maxDuration ?? Infinity)) {
       return {
         success: false,
         message: `${combatant.name}'s Rage has reached the 10-round limit.`,
@@ -213,7 +260,7 @@ export class AbilityEffects {
    * Fighter - Second Wind
    * Heal: 1d10 + fighter level
    */
-  static secondWind(combatant, diceRoller) {
+  static secondWind(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
     const healRoll = diceRoller.rollDice(10, 1);
     const totalHeal = healRoll + combatant.level;
 
@@ -236,7 +283,12 @@ export class AbilityEffects {
    * Auto-trigger when has advantage OR ally adjacent to target
    * Damage: +1d6 per 2 rogue levels (min 1d6)
    */
-  static sneakAttack(combatant, target, combat, diceRoller) {
+  static sneakAttack(
+    combatant: Combatant,
+    target: Combatant,
+    combat: CombatLike,
+    diceRoller: DiceRoller
+  ): AbilityResult {
     // Calculate sneak attack dice
     const sneakDice = Math.max(1, Math.floor(combatant.level / 2));
     const sneakDamage = diceRoller.rollDice(6, sneakDice);
@@ -261,7 +313,11 @@ export class AbilityEffects {
    * Paladin - Lay on Hands
    * Heal target ally: Uses from pool (5 × paladin level)
    */
-  static layOnHands(combatant, target, diceRoller) {
+  static layOnHands(
+    combatant: Combatant,
+    target: Combatant,
+    diceRoller: DiceRoller
+  ): AbilityResult {
     // Initialize lay on hands pool if needed
     if (combatant.layOnHandsPool === undefined) {
       combatant.layOnHandsPool = 5 * combatant.level;
@@ -300,9 +356,8 @@ export class AbilityEffects {
    * Patient Defense: Dodge as bonus action
    * Step of the Wind: Disengage or Dash as bonus action
    */
-  static kiPoints(combatant, target, diceRoller) {
+  static kiPoints(combatant: Combatant, target: Combatant, diceRoller: DiceRoller): AbilityResult {
     // For now, implement Flurry of Blows (most common use)
-    const unarmedDamage = 1 + Math.floor((combatant.level - 1) / 4); // Martial Arts die progression
     const damage = diceRoller.rollDice(4, 1) + combatant.getModifier('dexterity');
 
     if (target && target.takeDamage) {
@@ -324,7 +379,11 @@ export class AbilityEffects {
    * Bard - Bardic Inspiration
    * Give ally inspiration die (1d6)
    */
-  static bardicInspiration(combatant, target, diceRoller) {
+  static bardicInspiration(
+    combatant: Combatant,
+    target: Combatant,
+    diceRoller: DiceRoller
+  ): AbilityResult {
     // Initialize statusEffects on target
     if (!target.statusEffects) {
       target.statusEffects = [];
@@ -355,13 +414,16 @@ export class AbilityEffects {
    * Target all undead within 30 ft
    * WIS save vs DC 13
    */
-  static channelDivinity(combatant, combat, diceRoller) {
+  static channelDivinity(
+    combatant: Combatant,
+    combat: CombatLike,
+    diceRoller: DiceRoller
+  ): AbilityResult {
     const saveDC = 8 + combatant.proficiencyBonus + combatant.getModifier('wisdom');
-    const turnedEnemies = [];
+    const turnedEnemies: string[] = [];
 
-    // Find all undead enemies within range (30 ft = 6 hexes)
-    const maxRange = 6;
-
+    // Find all undead enemies within range (30 ft = 6 hexes).
+    // TODO: gate on actual position data; for now all undead are affected.
     if (combat.enemies) {
       combat.enemies.forEach(enemy => {
         if (enemy.type === 'undead' && !enemy.checkIsDead()) {
@@ -412,9 +474,8 @@ export class AbilityEffects {
    * Transform into beast (CR ≤ level/3)
    * Separate HP pool
    */
-  static wildShape(combatant, diceRoller) {
-    // Determine beast CR based on level
-    const maxCR = Math.floor(combatant.level / 3);
+  static wildShape(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
+    // TODO: choose beast by CR (CR ≤ level/3); currently hardcoded to a Brown Bear.
 
     // Store original form
     combatant.wildShapeOriginalForm = {
@@ -448,7 +509,7 @@ export class AbilityEffects {
    * Sorcerer - Sorcery Points
    * Metamagic: Quicken Spell (cast as bonus action)
    */
-  static sorceryPoints(combatant, diceRoller) {
+  static sorceryPoints(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
     // Initialize statusEffects
     if (!combatant.statusEffects) {
       combatant.statusEffects = [];
@@ -477,7 +538,7 @@ export class AbilityEffects {
    * Warlock - Eldritch Invocations
    * Agonizing Blast: +CHA to Eldritch Blast damage
    */
-  static eldritchInvocations(combatant, diceRoller) {
+  static eldritchInvocations(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
     // Passive ability - add CHA modifier to Eldritch Blast
     const chaBonus = combatant.getModifier('charisma');
 
@@ -496,7 +557,7 @@ export class AbilityEffects {
    * Wizard - Arcane Recovery
    * Recover spell slots = wizard level / 2 (rounded up)
    */
-  static arcaneRecovery(combatant, diceRoller) {
+  static arcaneRecovery(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
     const slotsRecovered = Math.ceil(combatant.level / 2);
 
     // Initialize spell slots if needed
