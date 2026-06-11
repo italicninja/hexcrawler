@@ -1,12 +1,18 @@
-// @ts-nocheck
 import { useState } from 'react';
 import { useGameState, ACTIONS } from '../../contexts/GameStateContext';
+import type { Item } from '../../game/Item';
 import './ShopUI.css';
 
 /**
  * ShopUI - Modal component for buying and selling items at shops
  */
-function ShopUI({ poiKey, shopType, onClose }) {
+interface ShopUIProps {
+  poiKey: string;
+  shopType?: string;
+  onClose: () => void;
+}
+
+function ShopUI({ poiKey, shopType, onClose }: ShopUIProps) {
   const { state, dispatch } = useGameState();
   const [filter, setFilter] = useState('all');
 
@@ -28,7 +34,7 @@ function ShopUI({ poiKey, shopType, onClose }) {
   const playerInventory = state.playerCharacter?.inventory || [];
 
   // Filter functions
-  const filterItem = item => {
+  const filterItem = (item: Item) => {
     if (filter === 'all') return true;
     if (filter === 'weapons') return item.type === 'weapon';
     if (filter === 'armor') return item.type === 'armor';
@@ -41,7 +47,7 @@ function ShopUI({ poiKey, shopType, onClose }) {
   const filteredPlayerInventory = playerInventory.filter(filterItem);
 
   // Buy item handler
-  const handleBuyItem = itemId => {
+  const handleBuyItem = (itemId: string) => {
     dispatch({
       type: ACTIONS.BUY_ITEM,
       payload: { poiKey, itemId },
@@ -49,7 +55,7 @@ function ShopUI({ poiKey, shopType, onClose }) {
   };
 
   // Sell item handler
-  const handleSellItem = itemId => {
+  const handleSellItem = (itemId: string) => {
     dispatch({
       type: ACTIONS.SELL_ITEM,
       payload: { poiKey, itemId },
@@ -57,11 +63,10 @@ function ShopUI({ poiKey, shopType, onClose }) {
   };
 
   // Check if item is equipped
-  const isItemEquipped = itemId => {
+  const isItemEquipped = (itemId: string) => {
     if (!state.playerCharacter) return false;
-    return Object.values(state.playerCharacter.equipment).some(
-      equipped => equipped && equipped.id === itemId
-    );
+    const equipment = state.playerCharacter.equipment as Record<string, { id?: string } | null>;
+    return Object.values(equipment).some(equipped => equipped && equipped.id === itemId);
   };
 
   return (
@@ -124,7 +129,7 @@ function ShopUI({ poiKey, shopType, onClose }) {
               {filteredShopInventory.length === 0 ? (
                 <div className="no-items">No items available</div>
               ) : (
-                filteredShopInventory.map(item => {
+                filteredShopInventory.map((item: Item) => {
                   const buyPrice = shop.getBuyPrice(item);
                   const canAfford = playerGold >= buyPrice;
 
@@ -174,7 +179,7 @@ function ShopUI({ poiKey, shopType, onClose }) {
               {filteredPlayerInventory.length === 0 ? (
                 <div className="no-items">No items to sell</div>
               ) : (
-                filteredPlayerInventory.map(item => {
+                filteredPlayerInventory.map((item: Item) => {
                   const sellPrice = shop.getSellPrice(item);
                   const equipped = isItemEquipped(item.id);
 
