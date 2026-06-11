@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper types
 /**
  * River generation for hexcrawl maps
  * Rivers flow from high elevation to low elevation (mountains to water)
@@ -7,15 +5,44 @@
 
 import { getHexNeighbors } from './utils/hexMath';
 
+interface Terrain {
+  name: string;
+  color?: string;
+  difficulty?: number;
+  [key: string]: unknown;
+}
+
+interface GridHex {
+  terrain: Terrain;
+  elevation?: number;
+  [key: string]: unknown;
+}
+
+type Grid = GridHex[][];
+type ElevationMap = number[][];
+
+interface Pos {
+  row: number;
+  col: number;
+}
+
 export class RiverGenerator {
-  constructor(noise) {
+  noise: unknown;
+
+  constructor(noise: unknown) {
     this.noise = noise;
   }
 
   /**
    * Generate rivers on the map
    */
-  generateRivers(grid, width, height, numRivers = 3, random = Math.random) {
+  generateRivers(
+    grid: Grid,
+    width: number,
+    height: number,
+    numRivers = 3,
+    random: () => number = Math.random
+  ): void {
     // Calculate elevation map first
     const elevationMap = this.calculateElevationMap(grid, width, height);
 
@@ -31,9 +58,9 @@ export class RiverGenerator {
   /**
    * Calculate elevation values for each hex based on terrain
    */
-  calculateElevationMap(grid, width, height) {
-    const elevationMap = [];
-    const elevationValues = {
+  calculateElevationMap(grid: Grid, width: number, height: number): ElevationMap {
+    const elevationMap: ElevationMap = [];
+    const elevationValues: Record<string, number> = {
       water: 0,
       river: 0.5,
       swamp: 1,
@@ -60,8 +87,15 @@ export class RiverGenerator {
   /**
    * Find good river source locations
    */
-  findRiverSources(grid, elevationMap, width, height, numRivers, random = Math.random) {
-    const sources = [];
+  findRiverSources(
+    grid: Grid,
+    elevationMap: ElevationMap,
+    width: number,
+    height: number,
+    numRivers: number,
+    random: () => number = Math.random
+  ): Pos[] {
+    const sources: Pos[] = [];
     const attempts = numRivers * 10;
 
     for (let i = 0; i < attempts && sources.length < numRivers; i++) {
@@ -83,8 +117,14 @@ export class RiverGenerator {
   /**
    * Trace a river from source to water/edge
    */
-  traceRiver(grid, elevationMap, width, height, source) {
-    const visited = new Set();
+  traceRiver(
+    grid: Grid,
+    elevationMap: ElevationMap,
+    width: number,
+    height: number,
+    source: Pos
+  ): void {
+    const visited = new Set<string>();
     let current = source;
     let maxSteps = width * height; // Prevent infinite loops
     let steps = 0;
@@ -124,11 +164,16 @@ export class RiverGenerator {
   /**
    * Find the neighbor with lowest elevation
    */
-  findDownhillNeighbor(elevationMap, width, height, pos) {
+  findDownhillNeighbor(
+    elevationMap: ElevationMap,
+    width: number,
+    height: number,
+    pos: Pos
+  ): Pos | null {
     const neighbors = this.getNeighbors(pos.row, pos.col, width, height);
 
     let lowestElevation = elevationMap[pos.row][pos.col];
-    let bestNeighbor = null;
+    let bestNeighbor: Pos | null = null;
 
     for (const neighbor of neighbors) {
       const elevation = elevationMap[neighbor.row][neighbor.col];
@@ -146,7 +191,7 @@ export class RiverGenerator {
    * Delegates to the shared hexMath utility; filters to map bounds.
    * Note: argument order is (row, col, width, height) to match existing call sites.
    */
-  getNeighbors(row, col, width, height) {
+  getNeighbors(row: number, col: number, width: number, height: number): Pos[] {
     return getHexNeighbors(col, row).filter(
       n => n.col >= 0 && n.col < width && n.row >= 0 && n.row < height
     );
@@ -155,14 +200,15 @@ export class RiverGenerator {
   /**
    * Get terrain key from terrain object
    */
-  getTerrainKey(terrain) {
+  getTerrainKey(terrain: Terrain): string {
     return terrain.name.toLowerCase();
   }
 
   /**
    * Get terrain object by key
    */
-  getTerrainByKey(key, templateTerrain) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getTerrainByKey(key: string, templateTerrain: Terrain): Terrain {
     // This is a hack - we'll need to pass terrain types properly
     // For now, return a river terrain object
     return { name: 'River', color: '#5B9BD5', difficulty: 2 };
