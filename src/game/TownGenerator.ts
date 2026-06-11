@@ -1,13 +1,60 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * TownGenerator - Generates walkable town interiors with buildings, roads, and NPCs
  * Towns are structured layouts with a central square and organized districts
  */
 
 import { InteriorGenerator } from './InteriorGenerator';
+import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
+
+/** Settlement metadata passed into generate(). */
+interface TownData {
+  name?: string;
+  settlementSize?: string;
+  [key: string]: unknown;
+}
+
+/** Metadata describing a building type that can be placed in a settlement. */
+interface BuildingType {
+  key: string;
+  name: string;
+  icon: string;
+  size: { width: number; height: number };
+  entranceOffset: { col: number; row: number };
+}
+
+/** A placed building instance in a generated settlement. */
+interface Building {
+  type: string;
+  name: string;
+  icon: string;
+  col: number;
+  row: number;
+  width: number;
+  height: number;
+  entrance: HexCoord;
+}
+
+interface CenterSquare {
+  col: number;
+  row: number;
+  radius: number;
+}
+
+/** A generated settlement interior map. Extra fields ride the index signature. */
+interface TownMap {
+  hexes: InteriorHex[];
+  buildings: Building[];
+  entrance: HexCoord;
+  centerSquare: CenterSquare;
+  encounters: Record<string, unknown>[];
+  loot: Record<string, unknown>[];
+  hazards: Record<string, unknown>[];
+  [key: string]: unknown;
+}
 
 export class TownGenerator extends InteriorGenerator {
+  buildingTypes: Record<string, BuildingType>;
+
   constructor() {
     super();
 
@@ -148,7 +195,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - Settlement metadata (name, settlementSize, etc.)
    * @returns {object} Interior map data
    */
-  generate(width, height, townData = {}) {
+  generate(width: number, height: number, townData: TownData = {}): TownMap {
     const settlementSize = townData.settlementSize || 'town';
 
     switch (settlementSize) {
@@ -174,13 +221,13 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - Camp metadata
    * @returns {object} Interior map data
    */
-  generateCampLayout(width, height, townData) {
+  generateCampLayout(width: number, height: number, townData: TownData): TownMap {
     // Initialize grid with grass (no walls)
     const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
 
     const centerCol = Math.floor(width / 2);
     const centerRow = Math.floor(height / 2);
-    const buildings = [];
+    const buildings: Building[] = [];
 
     // Place campfire in center
     const campfire = this.placeBuilding(grid, this.buildingTypes.campfire, centerCol, centerRow);
@@ -256,7 +303,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - Village metadata
    * @returns {object} Interior map data
    */
-  generateVillageLayout(width, height, townData) {
+  generateVillageLayout(width: number, height: number, townData: TownData): TownMap {
     // Initialize grid with grass
     const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
 
@@ -265,7 +312,7 @@ export class TownGenerator extends InteriorGenerator {
 
     const centerCol = Math.floor(width / 2);
     const centerRow = Math.floor(height / 2);
-    const buildings = [];
+    const buildings: Building[] = [];
 
     // Small 3×3 town square in center
     const squareRadius = 1;
@@ -351,7 +398,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - Town metadata
    * @returns {object} Interior map data
    */
-  generateTownLayout(width, height, townData) {
+  generateTownLayout(width: number, height: number, townData: TownData): TownMap {
     // Initialize grid with grass
     const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
 
@@ -392,7 +439,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - City metadata
    * @returns {object} Interior map data
    */
-  generateCityLayout(width, height, townData) {
+  generateCityLayout(width: number, height: number, townData: TownData): TownMap {
     const isMetropolis = townData.settlementSize === 'metropolis';
 
     // Initialize grid with grass
@@ -445,10 +492,10 @@ export class TownGenerator extends InteriorGenerator {
       }
     }
 
-    const buildings = [];
+    const buildings: Building[] = [];
 
     // Place all town buildings + market + barracks
-    const essentialPositions = [
+    const essentialPositions: Array<{ type: BuildingType; position: HexCoord }> = [
       { type: this.buildingTypes.inn, position: { col: centerCol - 8, row: centerRow - 6 } },
       { type: this.buildingTypes.shop, position: { col: centerCol + 5, row: centerRow - 6 } },
       { type: this.buildingTypes.questBoard, position: { col: centerCol - 1, row: centerRow - 7 } },
@@ -528,7 +575,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - Metropolis metadata
    * @returns {object} Interior map data
    */
-  generateMetropolisLayout(width, height, townData) {
+  generateMetropolisLayout(width: number, height: number, townData: TownData): TownMap {
     return this.generateCityLayout(width, height, townData);
   }
 
@@ -536,7 +583,7 @@ export class TownGenerator extends InteriorGenerator {
    * Generate town walls/fence around perimeter
    * @param {Array} grid - 2D grid
    */
-  generateTownWalls(grid) {
+  generateTownWalls(grid: InteriorGrid): void {
     const height = grid.length;
     const width = grid[0].length;
 
@@ -555,7 +602,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {Array} grid - 2D grid
    * @returns {object} Center square coordinates {col, row, radius}
    */
-  generateTownSquare(grid) {
+  generateTownSquare(grid: InteriorGrid): CenterSquare {
     const height = grid.length;
     const width = grid[0].length;
 
@@ -581,7 +628,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {Array} grid - 2D grid
    * @param {object} centerSquare - Center square data
    */
-  generateMainRoads(grid, centerSquare) {
+  generateMainRoads(grid: InteriorGrid, centerSquare: CenterSquare): void {
     const height = grid.length;
     const width = grid[0].length;
     const { col: centerCol, row: centerRow } = centerSquare;
@@ -607,15 +654,15 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - Town metadata
    * @returns {Array} Array of placed buildings with metadata
    */
-  placeBuildings(grid, townData) {
-    const buildings = [];
+  placeBuildings(grid: InteriorGrid, townData: TownData): Building[] {
+    const buildings: Building[] = [];
     const height = grid.length;
     const width = grid[0].length;
     const centerCol = Math.floor(width / 2);
     const centerRow = Math.floor(height / 2);
 
     // Essential buildings (always present)
-    const essentialBuildings = [
+    const essentialBuildings: Array<{ type: BuildingType; position: HexCoord }> = [
       { type: this.buildingTypes.inn, position: { col: centerCol - 6, row: centerRow - 4 } },
       { type: this.buildingTypes.shop, position: { col: centerCol + 4, row: centerRow - 4 } },
       { type: this.buildingTypes.questBoard, position: { col: centerCol - 1, row: centerRow - 5 } },
@@ -666,7 +713,12 @@ export class TownGenerator extends InteriorGenerator {
    * @param {number} startRow - Top-left row
    * @returns {object|null} Building data or null if placement failed
    */
-  placeBuilding(grid, buildingType, startCol, startRow) {
+  placeBuilding(
+    grid: InteriorGrid,
+    buildingType: BuildingType,
+    startCol: number,
+    startRow: number
+  ): Building | null {
     const { width: bWidth, height: bHeight } = buildingType.size;
     const height = grid.length;
     const width = grid[0].length;
@@ -722,7 +774,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {Array} grid - 2D grid
    * @param {Array} buildings - Placed buildings
    */
-  generateSecondaryRoads(grid, buildings) {
+  generateSecondaryRoads(grid: InteriorGrid, buildings: Building[]): void {
     // Connect each building entrance to nearest main road
     for (const building of buildings) {
       const { entrance } = building;
@@ -736,7 +788,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {number} startCol
    * @param {number} startRow
    */
-  connectToNearestRoad(grid, startCol, startRow) {
+  connectToNearestRoad(grid: InteriorGrid, startCol: number, startRow: number): void {
     const height = grid.length;
     const width = grid[0].length;
 
@@ -744,7 +796,7 @@ export class TownGenerator extends InteriorGenerator {
     const centerCol = Math.floor(width / 2);
     const centerRow = Math.floor(height / 2);
 
-    let current = { col: startCol, row: startRow };
+    const current = { col: startCol, row: startRow };
 
     // Move toward center roads
     while (
@@ -784,7 +836,7 @@ export class TownGenerator extends InteriorGenerator {
    * Place town gate (entrance/exit)
    * @param {Array} grid - 2D grid
    */
-  placeGate(grid) {
+  placeGate(grid: InteriorGrid): void {
     const height = grid.length;
     const width = grid[0].length;
 
@@ -801,7 +853,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {Array} grid - 2D grid
    * @returns {object} {col, row}
    */
-  findEntrance(grid) {
+  findEntrance(grid: InteriorGrid): HexCoord {
     for (let row = 0; row < grid.length; row++) {
       for (let col = 0; col < grid[row].length; col++) {
         if (grid[row][col].content === 'entrance') {
@@ -817,21 +869,21 @@ export class TownGenerator extends InteriorGenerator {
   /**
    * No encounters in towns (override parent method)
    */
-  placeEncounters(interiorMap, poi) {
+  placeEncounters(_interiorMap: TownMap, _poi?: unknown): Record<string, unknown>[] {
     return [];
   }
 
   /**
    * No loot in towns (override parent method)
    */
-  placeLoot(interiorMap) {
+  placeLoot(_interiorMap: TownMap): Record<string, unknown>[] {
     return [];
   }
 
   /**
    * No hazards in towns (override parent method)
    */
-  placeHazards(interiorMap) {
+  placeHazards(_interiorMap: TownMap): Record<string, unknown>[] {
     return [];
   }
 }

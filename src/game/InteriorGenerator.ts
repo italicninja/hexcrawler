@@ -10,6 +10,8 @@ export interface TerrainType {
   name: string;
   color: string;
   walkable: boolean;
+  /** Interactive tiles (e.g. town building entrances) the player can act on. */
+  isInteractive?: boolean;
 }
 
 export interface HexCoord {
@@ -24,6 +26,8 @@ export interface InteriorHex {
   content: string | null;
   /** Target floor index for stair tiles in multi-floor interiors (tower/dungeon). */
   connectedFloor?: number;
+  /** Building-type key for town tiles occupied by a building / its entrance. */
+  buildingType?: string;
 }
 
 export type InteriorGrid = InteriorHex[][];
@@ -298,10 +302,13 @@ export class InteriorGenerator {
   }
 
   /**
-   * Generate interior map (must be implemented by subclasses)
+   * Generate interior map (must be implemented by subclasses).
+   * The third argument is a CR number for dungeon-type generators, or a
+   * settlement-metadata object for the town generator — hence the loose type
+   * on this abstract hook point.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  generate(width: number, height: number, cr: number): unknown {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  generate(width: number, height: number, crOrData: any): unknown {
     throw new Error('generate() must be implemented by subclass');
   }
 }
