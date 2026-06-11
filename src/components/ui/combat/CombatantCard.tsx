@@ -1,18 +1,41 @@
-// @ts-nocheck
-
 /**
  * CombatantCard - Display individual combatant status in turn order
  * Used in TurnOrderPanel to show HP, AC, initiative, and status
  */
-function CombatantCard({ combatant, isActive }) {
+interface StatusEffectLike {
+  name: string;
+  [key: string]: unknown;
+}
+
+interface CardCombatant {
+  name?: string;
+  class?: string;
+  initiative?: number;
+  maxHP?: number;
+  currentHP?: number;
+  armorClass?: number;
+  ac?: number;
+  isAlly?: boolean;
+  statusEffects?: StatusEffectLike[];
+  [key: string]: unknown;
+}
+
+interface CombatantCardProps {
+  combatant: CardCombatant | null;
+  isActive?: boolean;
+}
+
+function CombatantCard({ combatant, isActive }: CombatantCardProps) {
   if (!combatant) {
     return null;
   }
 
-  const hpPercent = combatant.maxHP > 0 ? (combatant.currentHP / combatant.maxHP) * 100 : 0;
+  const maxHP = combatant.maxHP ?? 0;
+  const currentHP = combatant.currentHP ?? 0;
+  const hpPercent = maxHP > 0 ? (currentHP / maxHP) * 100 : 0;
 
   // Determine HP color: green > 50%, yellow 25-50%, red < 25%
-  const getHPColor = percent => {
+  const getHPColor = (percent: number) => {
     if (percent > 50) return 'bg-green-500';
     if (percent > 25) return 'bg-yellow-500';
     return 'bg-red-500';
@@ -68,7 +91,7 @@ function CombatantCard({ combatant, isActive }) {
         <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-light)' }}>
           <span>HP</span>
           <span>
-            {combatant.currentHP}/{combatant.maxHP}
+            {currentHP}/{maxHP}
           </span>
         </div>
         <div

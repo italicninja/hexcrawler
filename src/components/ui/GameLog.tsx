@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useGameLog } from '../../contexts/GameLogContext';
 
 /**
@@ -21,7 +20,7 @@ const ROLL_NUMBER_COLOR = '#f4d03f'; // warm yellow — distinct from log-text b
  * "+" or "-" alone (plain modifiers in dice strings).  Leading total before
  * " slashing/piercing/bludgeoning/fire… damage" is always highlighted.
  */
-function renderLogText(text) {
+function renderLogText(text: string): ReactNode[] {
   // Split into alternating [non-number, number, non-number, number …] segments.
   // The regex captures integers; we then decide per-token whether to highlight.
   const parts = text.split(/(\d+)/);
@@ -64,7 +63,7 @@ function renderLogText(text) {
 
 function GameLog() {
   const { messages } = useGameLog();
-  const scrollContainerRef = useRef(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
