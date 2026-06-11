@@ -1,19 +1,33 @@
-// @ts-nocheck
-// TODO: Add proper types
 /**
  * Terrain generation algorithms
  * Uses noise functions to generate realistic terrain distributions
  */
 
+interface NoiseGenerator {
+  noise2D(x: number, y: number): number;
+  octaveNoise2D(
+    x: number,
+    y: number,
+    octaves: number,
+    persistence: number,
+    lacunarity: number
+  ): number;
+}
+
+type TerrainDef = Record<string, unknown>;
+type TerrainTypeMap = Record<string, TerrainDef>;
+
 export class TerrainAlgorithms {
-  constructor(noiseGenerator) {
+  noise: NoiseGenerator;
+
+  constructor(noiseGenerator: NoiseGenerator) {
     this.noise = noiseGenerator;
   }
 
   /**
    * Simple terrain mapping - maps noise value directly to terrain
    */
-  simpleMapping(x, y, scale, terrainTypes) {
+  simpleMapping(x: number, y: number, scale: number, terrainTypes: TerrainTypeMap): TerrainDef {
     const noiseValue = this.noise.noise2D(x / scale, y / scale);
     const terrainKeys = Object.keys(terrainTypes);
     const index = Math.floor(((noiseValue + 1) / 2) * terrainKeys.length);
@@ -24,7 +38,7 @@ export class TerrainAlgorithms {
   /**
    * Multi-octave terrain - uses multiple noise frequencies for more detail
    */
-  multiOctaveTerrain(x, y, scale, terrainTypes) {
+  multiOctaveTerrain(x: number, y: number, scale: number, terrainTypes: TerrainTypeMap): TerrainDef {
     const noiseValue = this.noise.octaveNoise2D(
       x / scale,
       y / scale,
@@ -40,7 +54,7 @@ export class TerrainAlgorithms {
    * Realistic biome-based terrain generation
    * Uses elevation and moisture to determine terrain type
    */
-  biomeBasedTerrain(x, y, scale, terrainTypes) {
+  biomeBasedTerrain(x: number, y: number, scale: number, terrainTypes: TerrainTypeMap): TerrainDef {
     // Use different noise layers for elevation and moisture
     const elevation = this.noise.octaveNoise2D(x / scale, y / scale, 4, 0.5, 2.0);
     const moisture = this.noise.octaveNoise2D(x / scale + 1000, y / scale + 1000, 3, 0.6, 2.0);
@@ -52,7 +66,14 @@ export class TerrainAlgorithms {
   /**
    * Island generation - creates island-like landmasses
    */
-  islandTerrain(x, y, width, height, scale, terrainTypes) {
+  islandTerrain(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    scale: number,
+    terrainTypes: TerrainTypeMap
+  ): TerrainDef {
     // Get base noise
     const noiseValue = this.noise.octaveNoise2D(x / scale, y / scale, 4, 0.5, 2.0);
 
@@ -73,7 +94,7 @@ export class TerrainAlgorithms {
   /**
    * Map noise value to terrain type using thresholds
    */
-  mapNoiseToTerrain(noiseValue, terrainTypes) {
+  mapNoiseToTerrain(noiseValue: number, terrainTypes: TerrainTypeMap): TerrainDef {
     // Normalize to 0-1 range
     const normalized = (noiseValue + 1) / 2;
 
@@ -91,7 +112,7 @@ export class TerrainAlgorithms {
   /**
    * Map biome based on elevation and moisture
    */
-  mapBiome(elevation, moisture, terrainTypes) {
+  mapBiome(elevation: number, moisture: number, terrainTypes: TerrainTypeMap): TerrainDef {
     // Normalize to 0-1
     const e = (elevation + 1) / 2;
     const m = (moisture + 1) / 2;
@@ -127,8 +148,8 @@ export class TerrainAlgorithms {
   /**
    * Get algorithm by name
    */
-  static getAlgorithm(name) {
-    const algorithms = {
+  static getAlgorithm(name: string): string {
+    const algorithms: Record<string, string> = {
       simple: 'simpleMapping',
       octave: 'multiOctaveTerrain',
       biome: 'biomeBasedTerrain',
