@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEventListener } from '../../../hooks/useEventListener';
 
 /**
@@ -7,9 +6,30 @@ import { useEventListener } from '../../../hooks/useEventListener';
  * For Phase 1, targeting is handled by canvas clicks
  * This component provides visual feedback and instructions
  */
-function TargetSelector({ validTargets, onTargetSelect, onCancel, actionType }) {
+interface Target {
+  id?: string | number;
+  name?: string;
+  currentHP?: number;
+  maxHP?: number;
+  armorClass?: number;
+  ac?: number;
+}
+
+interface TargetSelectorProps {
+  validTargets?: Target[] | null;
+  onTargetSelect: (target: Target) => void;
+  onCancel: () => void;
+  actionType?: string;
+}
+
+function TargetSelector({
+  validTargets,
+  onTargetSelect,
+  onCancel,
+  actionType,
+}: TargetSelectorProps) {
   // Handle ESC key to cancel
-  useEventListener('keydown', e => {
+  useEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onCancel();
     }

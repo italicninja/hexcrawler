@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import logger from '../../utils/logger';
 import { SaveManager } from '../../utils/SaveManager';
@@ -13,7 +12,12 @@ import './SaveSlotManager.css';
  * SaveSlotManager - Main UI for managing save slots
  * Shows all available slots and handles load/save/delete operations
  */
-function SaveSlotManager({ mode, onClose }) {
+interface SaveSlotManagerProps {
+  mode: string;
+  onClose?: () => void;
+}
+
+function SaveSlotManager({ mode, onClose }: SaveSlotManagerProps) {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
   const { confirm, dialogProps } = useConfirm();
@@ -23,7 +27,7 @@ function SaveSlotManager({ mode, onClose }) {
     setSlots(SaveManager.getAllSlots());
   };
 
-  const handleLoad = async slotKey => {
+  const handleLoad = async (slotKey: string) => {
     try {
       const gameData = SaveManager.loadFromSlot(slotKey);
 
@@ -40,12 +44,13 @@ function SaveSlotManager({ mode, onClose }) {
 
       if (onClose) onClose();
     } catch (error) {
-      logger.storage.error('Error loading game:', { error, slotKey, message: error.message });
-      addMessage('Failed to load game: ' + error.message, 'error');
+      const message = error instanceof Error ? error.message : String(error);
+      logger.storage.error('Error loading game:', { error, slotKey, message });
+      addMessage('Failed to load game: ' + message, 'error');
     }
   };
 
-  const handleSave = async slotKey => {
+  const handleSave = async (slotKey: string) => {
     try {
       // Confirm overwrite if slot has data
       const slotMetadata = SaveManager.getSlotMetadata(slotKey);
@@ -66,12 +71,13 @@ function SaveSlotManager({ mode, onClose }) {
         addMessage('Failed to save game', 'error');
       }
     } catch (error) {
-      logger.storage.error('Error saving game:', { error, slotKey, message: error.message });
-      addMessage('Failed to save game: ' + error.message, 'error');
+      const message = error instanceof Error ? error.message : String(error);
+      logger.storage.error('Error saving game:', { error, slotKey, message });
+      addMessage('Failed to save game: ' + message, 'error');
     }
   };
 
-  const handleQuickSave = async slotKey => {
+  const handleQuickSave = async (slotKey: string) => {
     try {
       // Quick save never asks for confirmation - just overwrites
       const success = SaveManager.saveToSlot(slotKey, state);
@@ -83,12 +89,13 @@ function SaveSlotManager({ mode, onClose }) {
         addMessage('Failed to quick save', 'error');
       }
     } catch (error) {
-      logger.storage.error('Error quick saving:', { error, slotKey, message: error.message });
-      addMessage('Failed to quick save: ' + error.message, 'error');
+      const message = error instanceof Error ? error.message : String(error);
+      logger.storage.error('Error quick saving:', { error, slotKey, message });
+      addMessage('Failed to quick save: ' + message, 'error');
     }
   };
 
-  const handleDelete = async slotKey => {
+  const handleDelete = async (slotKey: string) => {
     const slotMetadata = SaveManager.getSlotMetadata(slotKey);
     if (!slotMetadata) return;
 
