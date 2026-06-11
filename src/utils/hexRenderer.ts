@@ -38,7 +38,7 @@ export function drawHexShape(
   x: number,
   y: number,
   hexSize: number,
-  fillStyle: string | null = null,
+  fillStyle: string | CanvasGradient | CanvasPattern | null = null,
   strokeStyle: string | null = '#333',
   lineWidth: number = 1
 ): void {

@@ -1,5 +1,12 @@
-// @ts-nocheck
-import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  type MouseEvent,
+  type MutableRefObject,
+} from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
@@ -12,6 +19,33 @@ import {
   findHexAtPoint,
 } from '../../utils/hexRenderer';
 import { PerlinNoise } from '../../noise';
+import type { POI } from '../../types/game';
+
+interface CanvasHex {
+  col: number;
+  row: number;
+  terrain: { key: string; color: string; [key: string]: unknown };
+  poi?: POI | null;
+  [key: string]: unknown;
+}
+
+interface PositionedHex extends CanvasHex {
+  x: number;
+  y: number;
+}
+
+interface VisualPos {
+  x: number;
+  y: number;
+}
+
+interface HexGridCanvasProps {
+  hexes?: CanvasHex[] | null;
+  width?: number;
+  height?: number;
+  onHexClick?: (hex: PositionedHex) => void;
+  onHexDoubleClick?: (hex: PositionedHex) => void;
+}
 
 // Emoji icons for each character class, used on the canvas player marker
 const CLASS_ICONS: Record<string, string> = {
@@ -33,8 +67,8 @@ const CLASS_ICONS: Record<string, string> = {
  * HexGridCanvas component - renders hex grid on canvas
  */
 
-function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
-  const canvasRef = useRef(null);
+function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { state, isHexExplored, shouldShowPOI, isPoiDiscovered } = useGameState();
   const { settings } = useSettings();
 
@@ -42,36 +76,36 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [zoom] = useState(1.0);
-  const [selectedHex, setSelectedHex] = useState(null);
+  const [selectedHex, setSelectedHex] = useState<PositionedHex | null>(null);
 
   const poiRenderer = useRef(new POIRenderer());
-  const textureGenerator = useRef(null);
+  const textureGenerator = useRef<HexTextureGenerator | null>(null);
 
   // Initialize texture generator once
   useEffect(() => {
     if (!textureGenerator.current) {
-      const noise = new PerlinNoise(state.mapSeed || Date.now());
+      const noise = new PerlinNoise(Number(state.mapSeed) || Date.now());
       textureGenerator.current = new HexTextureGenerator(noise);
     }
   }, [state.mapSeed]);
 
   // Calculate hex position (using utility function)
   const getHexX = useCallback(
-    (col, row) => {
+    (col: number, row: number) => {
       return calculateHexPosition(col, row, hexSize).x;
     },
     [hexSize]
   );
 
   const getHexY = useCallback(
-    row => {
+    (row: number) => {
       return calculateHexPosition(0, row, hexSize).y;
     },
     [hexSize]
   );
 
   // Convert hex array to positioned hex objects (memoized for performance)
-  const positionedHexes = useMemo(() => {
+  const positionedHexes = useMemo<PositionedHex[]>(() => {
     if (!hexes) return [];
     return hexes.map(hex => {
       const { x, y } = calculateHexPosition(hex.col, hex.row, hexSize);
@@ -81,7 +115,7 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
 
   // Draw a single hex
   const drawHex = useCallback(
-    (ctx, hex) => {
+    (ctx: CanvasRenderingContext2D, hex: PositionedHex) => {
       const { x, y } = hex;
 
       // Check if hex has been explored (fog of war)
@@ -166,7 +200,7 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
 
   // Draw hex outline (for selection) - wrapper around utility function
   const drawHexOutline = useCallback(
-    (ctx, hex, color, width) => {
+    (ctx: CanvasRenderingContext2D, hex: PositionedHex, color: string, width: number) => {
       renderHexOutline(ctx, hex.x, hex.y, hexSize, color, width);
     },
     [hexSize]
@@ -174,10 +208,14 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
 
   // Draw player marker (now receives playerVisualPosRef from animation hook)
   const drawPlayerMarker = useCallback(
-    (ctx, hexes, playerVisualPosRef) => {
+    (
+      ctx: CanvasRenderingContext2D,
+      hexes: PositionedHex[],
+      playerVisualPosRef: MutableRefObject<VisualPos | null>
+    ) => {
       const playerClass = state.party?.player?.class;
-      const playerIcon = CLASS_ICONS[playerClass] ?? '🧍';
-      let playerX, playerY;
+      const playerIcon = (playerClass ? CLASS_ICONS[playerClass] : undefined) ?? '🧍';
+      let playerX: number, playerY: number;
 
       // ALWAYS use the visual position ref
       if (playerVisualPosRef.current) {
@@ -213,11 +251,12 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
 
   // Main draw function (will be called by animation hook)
   const draw = useCallback(
-    playerVisualPosRef => {
+    (playerVisualPosRef: MutableRefObject<VisualPos | null>) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
       const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -264,7 +303,7 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
     setOffsetX,
     setOffsetY,
     playerPosition: state.playerPosition,
-    hexes,
+    hexes: hexes ?? [],
   });
 
   // Setup canvas and handle resize
@@ -332,19 +371,21 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
 
   // Get hex at point (using utility function)
   const getHexAtPoint = useCallback(
-    (x, y) => {
+    (x: number, y: number): PositionedHex | null => {
       const worldX = (x - offsetX) / zoom;
       const worldY = (y - offsetY) / zoom;
 
-      return findHexAtPoint(worldX, worldY, positionedHexes, hexSize);
+      return findHexAtPoint(worldX, worldY, positionedHexes, hexSize) as PositionedHex | null;
     },
     [hexSize, offsetX, offsetY, zoom, positionedHexes]
   );
 
   // Handle click
   const handleClick = useCallback(
-    e => {
-      const rect = canvasRef.current.getBoundingClientRect();
+    (e: MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
@@ -361,10 +402,12 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
 
   // Handle double click
   const handleDoubleClick = useCallback(
-    e => {
+    (e: MouseEvent<HTMLCanvasElement>) => {
       if (!settings.doubleClickMove) return;
 
-      const rect = canvasRef.current.getBoundingClientRect();
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
@@ -378,13 +421,15 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
 
   // Handle mouse move for cursor
   const handleMouseMove = useCallback(
-    e => {
-      const rect = canvasRef.current.getBoundingClientRect();
+    (e: MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
       const hex = getHexAtPoint(x, y);
-      canvasRef.current.style.cursor = hex ? 'pointer' : 'default';
+      canvas.style.cursor = hex ? 'pointer' : 'default';
     },
     [getHexAtPoint]
   );
