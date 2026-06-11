@@ -30,7 +30,7 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 ### 1. Remove `// @ts-nocheck` Suppressions
 
-**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (64 files remaining, down from 100)
+**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (32 files remaining, down from 100)
 
 **Problem:** `tsconfig.json` has `strict: true` enabled, but the majority of source files begin with `// @ts-nocheck`, which completely bypasses TypeScript checking. The TypeScript migration is structurally complete but type safety is not enforced.
 
@@ -49,7 +49,7 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 Bugs surfaced and fixed along the way: `Character.gainXP()` → `awardXP()` (3 reducers, would `TypeError` on every XP award); missing `logger` import in `inventoryReducer`; dead `CONSUME_WATER`/`FIND_WATER` reducer cases referencing the removed `water` field; and quest difficulty `level` silently dropped because `QuestConfig` had no `level` field.
 
-**Remaining (~64):** most React components (`components/**`), hooks, the larger scenes (`OverworldScene` etc.), the interior-generator subclasses (`Dungeon`/`Cave`/`Tower`/`Ruins`/`Town`), AI (`game/ai/**`), `Combat.ts` (+ its gated `combatReducer`), `AbilityEffects`/`SpellList`/`GameTableData`, and canvas components. The `game/`, `utils/`, and top-level map/terrain modules are now fully typed.
+**Remaining (~32):** the canvas components (`HexGridCanvas`/`CombatCanvas`/`InteriorHexCanvas`), the larger scenes (`OverworldScene`, `TownScene`, `ExplorationScene`, `CharacterCreationScene`), several mid components (`Equipment`, `SurvivalMenu`, `RestMenu`, `QuestLog`, `ShopUI` done, interior panels, `ClassIcon`), remaining hooks (`useHexInteraction`, `useInfiniteTerrainExpansion`), the data-heavy `Combat.ts` (+ its gated `combatReducer`), `AbilityEffects`, `SpellList`, `GameTableData`, `CombatTerrainGenerator`, the `Dungeon`/`Cave`/`Tower`/`Ruins`/`Town` generators, and `DevTools.jsx`. The entire `game/ai/`, most `game/`, all `utils/`, and the top-level map/terrain modules are now typed.
 
 ---
 
