@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper types
 /**
  * POI Generation Helper Utility
  *
@@ -7,10 +5,55 @@
  * This eliminates code duplication in map generation and terrain expansion.
  */
 
+interface TerrainType {
+  name: string;
+  [key: string]: unknown;
+}
+
+interface POISystemLike {
+  getPOITypesForTerrain(terrain: TerrainType): string[] | null | undefined;
+  generatePOI(
+    poiType: string,
+    col: number,
+    row: number,
+    terrain: TerrainType,
+    playerLevel: number,
+    partySize: number,
+    random: () => number
+  ): unknown;
+}
+
+interface TerrainGeneratorLike {
+  random(): number;
+  poiSystem: POISystemLike;
+  generateTerrain(
+    col: number,
+    row: number,
+    mapWidth: number,
+    mapHeight: number,
+    variety: number
+  ): TerrainType;
+  getWeatherForHex(col: number, row: number): unknown;
+}
+
+interface GeneratedHex {
+  row: number;
+  col: number;
+  terrain: TerrainType;
+  poi: unknown;
+  weather: unknown;
+}
+
 /**
  * Generates a POI for a hex based on terrain type
  */
-export function generatePOIForHex(terrainGenerator, terrainType, col, row, chance = 0.2) {
+export function generatePOIForHex(
+  terrainGenerator: TerrainGeneratorLike | null,
+  terrainType: TerrainType | null,
+  col: number,
+  row: number,
+  chance = 0.2
+): unknown {
   if (!terrainGenerator || !terrainType) {
     return null;
   }
@@ -53,14 +96,14 @@ export function generatePOIForHex(terrainGenerator, terrainType, col, row, chanc
  * Generates a complete hex object with terrain, POI, and weather
  */
 export function generateHex(
-  terrainGenerator,
-  col,
-  row,
-  mapWidth,
-  mapHeight,
+  terrainGenerator: TerrainGeneratorLike,
+  col: number,
+  row: number,
+  mapWidth: number,
+  mapHeight: number,
   terrainVariety = 0.5,
   poiChance = 0.2
-) {
+): GeneratedHex {
   if (!terrainGenerator) {
     throw new Error('poiGenerationHelper.generateHex: terrainGenerator is required');
   }
