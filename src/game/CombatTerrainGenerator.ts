@@ -1,16 +1,17 @@
-// @ts-nocheck
 /**
  * CombatTerrainGenerator - Generates hex-based tactical combat battlefields
  * Creates 20x20 hex maps with terrain-appropriate obstacles and features
  * Now accepts HexContext from the overworld hex to reflect the current location.
  */
 
+import type { HexContext } from '../types/game';
+
 // ============================================================================
 // Terrain configuration lookup
 // Maps overworld terrain keys (and POI overrides) to battlefield appearance
 // ============================================================================
 
-const TERRAIN_CONFIGS = {
+const TERRAIN_CONFIGS: Record<string, TerrainConfig> = {
   // --- Overworld terrain keys ---
   grassland: {
     baseColor: '#7faa65',
@@ -193,16 +194,21 @@ interface TerrainConfig {
   difficultTerrainCount: { min: number; max: number };
 }
 
-// Local re-declaration kept in sync with types/game.ts HexContext.
-// Replace with `import type { HexContext } from '../types/game'` when @ts-nocheck is removed.
-interface HexContext {
-  terrainKey: string;
-  terrainName?: string;
-  terrainColor?: string;
-  elevation: number;
-  weather?: string;
-  poiType?: string;
-  regionBiome?: string;
+/** A single tile in a generated combat battlefield. */
+interface BattlefieldHex {
+  col: number;
+  row: number;
+  terrain: { type: string; key: string; color: string; name: string };
+  blocked: boolean;
+  difficultTerrain: boolean;
+  obstacleType: string;
+}
+
+interface Battlefield {
+  hexes: BattlefieldHex[];
+  width: number;
+  height: number;
+  hexContext: HexContext | null;
 }
 
 /**
@@ -244,6 +250,9 @@ function resolveTerrainConfig(
 }
 
 export class CombatTerrainGenerator {
+  seed: string | null;
+  rng: (() => number) | null;
+
   constructor() {
     this.seed = null;
     this.rng = null;
@@ -253,7 +262,7 @@ export class CombatTerrainGenerator {
    * Set seed for reproducible generation
    * @param {string} seed - Seed string
    */
-  setSeed(seed) {
+  setSeed(seed: string): void {
     this.seed = seed;
     this.rng = this.createSeededRNG(seed);
   }
@@ -263,7 +272,7 @@ export class CombatTerrainGenerator {
    * @param {string} seed - Seed string
    * @returns {Function} RNG function
    */
-  createSeededRNG(seed) {
+  createSeededRNG(seed: string): () => number {
     let seedValue = 0;
     for (let i = 0; i < seed.length; i++) {
       seedValue = (seedValue << 5) - seedValue + seed.charCodeAt(i);
@@ -287,14 +296,14 @@ export class CombatTerrainGenerator {
   /**
    * Get random integer between min and max (inclusive)
    */
-  randomInt(min, max) {
+  randomInt(min: number, max: number): number {
     return Math.floor(this.random() * (max - min + 1)) + min;
   }
 
   /**
    * Pick random element from array
    */
-  randomChoice(array) {
+  randomChoice<T>(array: T[]): T {
     return array[Math.floor(this.random() * array.length)];
   }
 
@@ -306,7 +315,12 @@ export class CombatTerrainGenerator {
    * @param {Object} [hexContext] - Optional HexContext from overworld hex for richer theming
    * @returns {Object} {hexes, width: 20, height: 20, hexContext}
    */
-  static generate(encounterType, terrainType, seed, hexContext) {
+  static generate(
+    encounterType: string,
+    terrainType: string,
+    seed: string,
+    hexContext?: HexContext
+  ): Battlefield {
     const generator = new CombatTerrainGenerator();
     generator.setSeed(seed);
 
@@ -323,7 +337,7 @@ export class CombatTerrainGenerator {
         : hexContext?.terrainKey || terrainType;
 
     // Initialize all hexes with base terrain
-    const hexes = [];
+    const hexes: BattlefieldHex[] = [];
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         hexes.push({
@@ -361,14 +375,19 @@ export class CombatTerrainGenerator {
    * @param {string} terrainType - Terrain type
    * @returns {Object} Terrain configuration
    */
-  getTerrainConfig(terrainType) {
+  getTerrainConfig(terrainType: string): TerrainConfig {
     return TERRAIN_CONFIGS[terrainType] || TERRAIN_CONFIGS.plains;
   }
 
   /**
    * Add obstacles to battlefield
    */
-  addObstacles(hexes, width, height, terrainConfig) {
+  addObstacles(
+    hexes: BattlefieldHex[],
+    width: number,
+    height: number,
+    terrainConfig: TerrainConfig
+  ): void {
     const obstacleCount = this.randomInt(
       terrainConfig.obstacleCount.min,
       terrainConfig.obstacleCount.max
@@ -400,7 +419,12 @@ export class CombatTerrainGenerator {
   /**
    * Add difficult terrain patches to battlefield
    */
-  addDifficultTerrain(hexes, width, height, terrainConfig) {
+  addDifficultTerrain(
+    hexes: BattlefieldHex[],
+    width: number,
+    height: number,
+    terrainConfig: TerrainConfig
+  ): void {
     const patchCount = this.randomInt(
       terrainConfig.difficultTerrainCount.min,
       terrainConfig.difficultTerrainCount.max
