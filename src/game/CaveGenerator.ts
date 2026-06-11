@@ -1,16 +1,35 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * CaveGenerator - Generates organic cave systems using cellular automata
  * Extends InteriorGenerator base class
  */
 
 import { InteriorGenerator } from './InteriorGenerator';
+import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { LootGenerator } from './LootGenerator';
 import { HazardGenerator } from './HazardGenerator';
 import { TreasureGenerator } from './TreasureGenerator';
 
+/** Loose POI metadata passed into content placement. */
+interface PoiData {
+  creatures?: string;
+  [key: string]: unknown;
+}
+
+/** A generated cave interior map. Extra fields ride the index signature. */
+interface InteriorMapData {
+  hexes: InteriorHex[];
+  entrance: HexCoord;
+  cr: number;
+  encounters: Record<string, unknown>[];
+  loot: Record<string, unknown>[];
+  hazards: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
 export class CaveGenerator extends InteriorGenerator {
+  lootGenerator: LootGenerator;
+  hazardGenerator: HazardGenerator;
+
   constructor() {
     super();
     this.lootGenerator = new LootGenerator();
@@ -24,7 +43,7 @@ export class CaveGenerator extends InteriorGenerator {
    * @param {number} cr - Challenge rating
    * @returns {object} Interior map data
    */
-  generate(width, height, cr) {
+  generate(width: number, height: number, cr: number): InteriorMapData {
     // Generate cave layout using cellular automata
     const grid = this.generateCaveLayout(width, height);
 
@@ -59,7 +78,7 @@ export class CaveGenerator extends InteriorGenerator {
    * @param {number} height
    * @returns {Array} 2D grid
    */
-  generateCaveLayout(width, height) {
+  generateCaveLayout(width: number, height: number): InteriorGrid {
     let grid = this.initializeGrid(width, height, this.terrainTypes.floor);
 
     // Seed with 40% walls (fewer than original 45% → larger open regions)
@@ -80,7 +99,7 @@ export class CaveGenerator extends InteriorGenerator {
     }
 
     // Guarantee full connectivity — same approach as RuinsGenerator
-    const allFloor = [];
+    const allFloor: HexCoord[] = [];
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         if (grid[row][col].terrain.walkable) allFloor.push({ col, row });
@@ -113,7 +132,7 @@ export class CaveGenerator extends InteriorGenerator {
    * @param {Array} grid - Current grid
    * @returns {Array} New grid after applying rules
    */
-  applyCellularAutomata(grid) {
+  applyCellularAutomata(grid: InteriorGrid): InteriorGrid {
     const height = grid.length;
     const width = grid[0].length;
     const newGrid = this.initializeGrid(width, height, this.terrainTypes.floor);
@@ -146,12 +165,12 @@ export class CaveGenerator extends InteriorGenerator {
    * Uses flood fill to find isolated regions and connects them
    * @param {Array} grid - Grid to modify
    */
-  ensureConnectivity(grid) {
+  ensureConnectivity(grid: InteriorGrid): void {
     const height = grid.length;
     const width = grid[0].length;
 
     // Find all floor tiles
-    const floorTiles = [];
+    const floorTiles: HexCoord[] = [];
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         if (grid[row][col].terrain.walkable) {
@@ -194,8 +213,8 @@ export class CaveGenerator extends InteriorGenerator {
    * @param {object} start - {col, row}
    * @param {object} end - {col, row}
    */
-  carvePath(grid, start, end) {
-    let current = { ...start };
+  carvePath(grid: InteriorGrid, start: HexCoord, end: HexCoord): void {
+    const current = { ...start };
 
     while (current.col !== end.col || current.row !== end.row) {
       // Make current tile floor
@@ -234,12 +253,12 @@ export class CaveGenerator extends InteriorGenerator {
    * @param {Array} grid
    * @returns {object} {col, row} of entrance
    */
-  placeEntrance(grid) {
+  placeEntrance(grid: InteriorGrid): HexCoord {
     const height = grid.length;
     const width = grid[0].length;
 
     // Prefer tiles near the edge (row 1 or height-2, col 1 or width-2)
-    const edgeCandidates = [];
+    const edgeCandidates: HexCoord[] = [];
     for (let col = 1; col < width - 1; col++) {
       if (grid[1][col].terrain.walkable) edgeCandidates.push({ col, row: 1 });
       if (grid[height - 2][col].terrain.walkable) edgeCandidates.push({ col, row: height - 2 });
@@ -273,7 +292,7 @@ export class CaveGenerator extends InteriorGenerator {
       { dc: -1, dr: 0 },
       { dc: 1, dr: 0 },
     ];
-    let exitPos = null;
+    let exitPos: HexCoord | null = null;
     for (const { dc, dr } of cardinalOffsets) {
       const nc = entrance.col + dc;
       const nr = entrance.row + dr;
@@ -308,7 +327,7 @@ export class CaveGenerator extends InteriorGenerator {
    * @param {object} poiData - Original POI data (for creatures info)
    * @returns {Array} Array of encounter objects
    */
-  placeEncounters(interiorMap, poiData) {
+  placeEncounters(interiorMap: InteriorMapData, poiData: PoiData = {}) {
     const floorTiles = interiorMap.hexes.filter(
       hex => hex.terrain.walkable && hex.content === null
     );
@@ -320,7 +339,7 @@ export class CaveGenerator extends InteriorGenerator {
     if (cr >= 3 && cr <= 5) encounterCount = 2;
     else if (cr > 5) encounterCount = 3;
 
-    const encounters = [];
+    const encounters: Record<string, unknown>[] = [];
 
     for (let i = 0; i < encounterCount && floorTiles.length > 0; i++) {
       // Pick random floor tile away from entrance
@@ -362,7 +381,7 @@ export class CaveGenerator extends InteriorGenerator {
    * @param {number} partySize - Party size for treasure hoard generation
    * @returns {Array} Array of loot objects
    */
-  placeLoot(interiorMap, partySize = 4) {
+  placeLoot(interiorMap: InteriorMapData, partySize = 4) {
     const floorTiles = interiorMap.hexes.filter(
       hex => hex.terrain.walkable && hex.content === null
     );
@@ -373,7 +392,7 @@ export class CaveGenerator extends InteriorGenerator {
     const lootCount = Math.max(2, Math.floor(2 + cr * 0.5));
 
     const treasureGenerator = new TreasureGenerator();
-    const loot = [];
+    const loot: Record<string, unknown>[] = [];
 
     for (let i = 0; i < lootCount && floorTiles.length > 0; i++) {
       const tile = this.randomChoice(floorTiles);
@@ -409,8 +428,8 @@ export class CaveGenerator extends InteriorGenerator {
         row: tile.row,
         type: contentType,
         gold: lootData.gold,
-        items: lootData.items || [],
-        consumables: lootData.consumables || [],
+        items: 'items' in lootData ? lootData.items : [],
+        consumables: 'consumables' in lootData ? lootData.consumables : [],
         rarity: lootData.rarity,
         collected: false,
         discovered: false,
@@ -425,7 +444,7 @@ export class CaveGenerator extends InteriorGenerator {
    * @param {object} interiorMap - Interior map data
    * @returns {Array} Array of hazard objects
    */
-  placeHazards(interiorMap) {
+  placeHazards(interiorMap: InteriorMapData) {
     const floorTiles = interiorMap.hexes.filter(
       hex => hex.terrain.walkable && hex.content === null
     );
@@ -436,7 +455,7 @@ export class CaveGenerator extends InteriorGenerator {
     const hazardPercentage = 0.1 + this.random() * 0.1;
     const hazardCount = Math.floor(floorTiles.length * hazardPercentage);
 
-    const hazards = [];
+    const hazards: Record<string, unknown>[] = [];
 
     for (let i = 0; i < hazardCount && floorTiles.length > 0; i++) {
       const tile = this.randomChoice(floorTiles);
