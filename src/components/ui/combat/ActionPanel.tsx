@@ -1,5 +1,3 @@
-// @ts-nocheck
-import PropTypes from 'prop-types';
 import ActionEconomyDisplay from './ActionEconomyDisplay';
 
 /**
@@ -8,6 +6,63 @@ import ActionEconomyDisplay from './ActionEconomyDisplay';
  * Actions: Move, Attack, Dodge, Dash, Disengage, Hide, Abilities, Cast Spell, End Turn
  * Bonus Actions: Rage (barbarian), class bonus actions
  */
+interface PanelAbility {
+  name: string;
+  actionType?: string;
+  uses?: number;
+  maxUses?: number;
+  effects?: Record<string, unknown>;
+}
+
+interface PanelStatusEffect {
+  name: string;
+  effects?: { rageDamageBonus?: number; [key: string]: unknown };
+}
+
+interface PanelCharacter {
+  class?: string;
+  level?: number;
+  moveDistance?: number;
+  abilities_list?: PanelAbility[];
+  spells?: unknown[];
+  getAvailableBonusActions?: () => PanelAbility[];
+  [key: string]: unknown;
+}
+
+interface PanelCombatant {
+  name?: string;
+  character?: PanelCharacter;
+  characterClass?: string;
+  level?: number;
+  abilities_list?: PanelAbility[];
+  spells?: unknown[];
+  statusEffects?: PanelStatusEffect[];
+}
+
+interface PanelTurnState {
+  actionUsed?: boolean;
+  bonusActionUsed?: boolean;
+  attacksMade?: number;
+}
+
+interface ActionPanelProps {
+  combatant: PanelCombatant | null;
+  selectedAction?: string;
+  movementRemaining?: number;
+  attacksUsedThisTurn: number;
+  turnState?: PanelTurnState;
+  onActionSelect: (action: string) => void;
+  onAbilityClick?: () => void;
+  onFreeAbilityClick?: (ability: PanelAbility) => void;
+  onBonusActionClick: (ability: PanelAbility) => void;
+  onSpellClick?: () => void;
+  onDodgeClick?: () => void;
+  onDashClick?: () => void;
+  onDisengageClick?: () => void;
+  onHideClick?: () => void;
+  onEndTurn?: () => void;
+}
+
 function ActionPanel({
   combatant,
   selectedAction,
@@ -24,7 +79,7 @@ function ActionPanel({
   onDisengageClick,
   onHideClick,
   onEndTurn,
-}) {
+}: ActionPanelProps) {
   if (!combatant) {
     return (
       <div className="p-4 text-center" style={{ color: 'var(--text-muted)' }}>
@@ -54,20 +109,20 @@ function ActionPanel({
 
   // Abilities usable as an Action (non-bonus, non-free, with uses remaining)
   const availableAbilities = abilitiesList.filter(
-    ability =>
+    (ability: PanelAbility) =>
       ability.actionType !== 'bonusAction' &&
       ability.actionType !== 'free' &&
       ability.actionType !== 'passive' &&
-      (!ability.maxUses || ability.maxUses === -1 || ability.uses > 0)
+      (!ability.maxUses || ability.maxUses === -1 || (ability.uses ?? 0) > 0)
   );
 
   // Bonus actions available this turn (Rage, Cunning Action, etc.)
-  const availableBonusActions = character?.getAvailableBonusActions
+  const availableBonusActions: PanelAbility[] = character?.getAvailableBonusActions
     ? character.getAvailableBonusActions()
     : abilitiesList.filter(
-        ability =>
+        (ability: PanelAbility) =>
           ability.actionType === 'bonusAction' &&
-          (!ability.maxUses || ability.maxUses === -1 || ability.uses > 0)
+          (!ability.maxUses || ability.maxUses === -1 || (ability.uses ?? 0) > 0)
       );
 
   // Check for spell slots (simplified - just check if they have spells)
@@ -87,7 +142,19 @@ function ActionPanel({
   /**
    * Render an action button — full-width horizontal row, no icon
    */
-  const ActionButton = ({ action, label, disabled, color, onClick }) => {
+  const ActionButton = ({
+    action,
+    label,
+    disabled,
+    color,
+    onClick,
+  }: {
+    action: string;
+    label: string;
+    disabled?: boolean;
+    color?: string;
+    onClick?: () => void;
+  }) => {
     const isSelected = selectedAction === action;
     const baseColor = color || 'var(--primary-color)';
 
@@ -119,14 +186,6 @@ function ActionPanel({
         {isSelected && <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>selected</span>}
       </button>
     );
-  };
-
-  ActionButton.propTypes = {
-    action: PropTypes.string.isRequired,
-    label: PropTypes.string.isRequired,
-    disabled: PropTypes.bool,
-    color: PropTypes.string,
-    onClick: PropTypes.func.isRequired,
   };
 
   return (
@@ -177,7 +236,7 @@ function ActionPanel({
         <ActionButton
           action="move"
           label={`Move${movementRemaining !== undefined ? ` (${movementRemaining} ft)` : ''}`}
-          disabled={movementRemaining <= 0}
+          disabled={(movementRemaining ?? 0) <= 0}
           color="var(--primary-color)"
           onClick={() => onActionSelect('move')}
         />
@@ -273,8 +332,9 @@ function ActionPanel({
           <div
             style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}
           >
-            {Array.from(new Map(availableBonusActions.map(a => [a.name, a])).values()).map(
-              ability => {
+            {Array.from(
+              new Map(availableBonusActions.map((a): [string, PanelAbility] => [a.name, a])).values()
+            ).map(ability => {
                 const hasCharges = ability.maxUses !== undefined && ability.maxUses !== -1;
                 const chargeLabel = hasCharges ? ` (${ability.uses}/${ability.maxUses})` : '';
                 return (
