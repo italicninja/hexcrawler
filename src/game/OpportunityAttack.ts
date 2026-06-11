@@ -1,21 +1,42 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
+// Implements the Opportunity Attack system for D&D 5e combat
 import { getHexDistance } from '../utils/hexMath';
 import logger from '../utils/logger';
 
-/**
- * Implements the Opportunity Attack system for D&D 5e combat
- */
+interface HexPos {
+  col: number;
+  row: number;
+}
+
+interface Combatant {
+  name?: string;
+  currentHP: number;
+  reactionUsed?: boolean;
+  isAlly?: boolean;
+  isEnemy?: boolean;
+  conditions?: Array<{ type: string }>;
+  position: HexPos;
+  [key: string]: unknown;
+}
+
+interface OpportunityAttackPrompt {
+  type: 'opportunityAttack';
+  attacker: Combatant;
+  target: Combatant;
+  onConfirm: () => void;
+  onDecline: () => void;
+}
+
 export class OpportunityAttackSystem {
   /**
-   * Checks which combatants can make opportunity attacks against a moving combatant
-   * @param {Object} movingCombatant - The combatant that is moving
-   * @param {Object} fromHex - The hex the combatant is moving from {col, row}
-   * @param {Object} toHex - The hex the combatant is moving to {col, row}
-   * @param {Array} allCombatants - All combatants in the combat
-   * @returns {Array} Array of combatants that can make opportunity attacks
+   * Checks which combatants can make opportunity attacks against a moving combatant.
+   * Returns the combatants that can make opportunity attacks.
    */
-  static checkOpportunityAttacks(movingCombatant, fromHex, toHex, allCombatants) {
+  static checkOpportunityAttacks(
+    movingCombatant: Combatant,
+    fromHex: HexPos,
+    toHex: HexPos,
+    allCombatants: Combatant[]
+  ): Combatant[] {
     // Skip if combatant has Disengaged
     const conditions = movingCombatant.conditions || [];
     if (conditions.some(c => c.type === 'Disengaged')) {
@@ -74,14 +95,15 @@ export class OpportunityAttackSystem {
   }
 
   /**
-   * Creates a prompt for an opportunity attack or auto-confirms for AI
-   * @param {Object} attacker - The combatant making the opportunity attack
-   * @param {Object} target - The combatant being attacked
-   * @param {Function} onConfirm - Callback when attack is confirmed
-   * @param {Function} onDecline - Callback when attack is declined
-   * @returns {Object|null} Prompt object for UI, or null if auto-confirmed
+   * Creates a prompt for an opportunity attack or auto-confirms for AI.
+   * Returns a prompt object for the UI, or null if auto-confirmed.
    */
-  static promptOpportunityAttack(attacker, target, onConfirm, onDecline) {
+  static promptOpportunityAttack(
+    attacker: Combatant,
+    target: Combatant,
+    onConfirm: () => void,
+    onDecline: () => void
+  ): OpportunityAttackPrompt | null {
     // AI auto-confirms
     if (attacker.isEnemy) {
       logger.combat.info('AI auto-confirms opportunity attack', {

@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * Pathfinding - A* pathfinding algorithm for hex grid
  * Handles movement calculation on hex-based battlefield
@@ -7,19 +5,38 @@
 
 import { getHexDistance } from '../utils/hexMath';
 
+interface HexCoord {
+  col: number;
+  row: number;
+}
+
+interface BattlefieldHex extends HexCoord {
+  blocked?: boolean;
+  difficultTerrain?: boolean;
+}
+
+interface Battlefield {
+  hexes: BattlefieldHex[];
+  width: number;
+  height: number;
+}
+
+interface PathCombatant {
+  position?: HexCoord;
+}
+
+interface ReachableHex extends HexCoord {
+  cost: number;
+}
+
 /**
  * Get hex neighbors using flat-top hex offset coordinates
- * @param {number} col - Column coordinate
- * @param {number} row - Row coordinate
- * @param {number} width - Battlefield width
- * @param {number} height - Battlefield height
- * @returns {Array} Array of {col, row} neighbors
  */
-function getHexNeighbors(col, row, width, height) {
-  const neighbors = [];
+function getHexNeighbors(col: number, row: number, width: number, height: number): HexCoord[] {
+  const neighbors: HexCoord[] = [];
 
   // Hex grid neighbor offsets (flat-top orientation)
-  const offsets =
+  const offsets: number[][] =
     Math.abs(row % 2) === 0
       ? [
           [-1, -1],
@@ -51,21 +68,25 @@ function getHexNeighbors(col, row, width, height) {
 }
 
 /**
- * Find shortest path from start to goal using A* algorithm
- * @param {Object} start - Starting hex {col, row}
- * @param {Object} goal - Goal hex {col, row}
- * @param {Object} battlefield - Battlefield object with {hexes, width, height}
- * @param {number} maxDistance - Maximum movement distance
- * @returns {Array|null} Array of hex positions [{col, row}, ...] or null if no path
+ * Find shortest path from start to goal using A* algorithm.
+ * Returns an array of hex positions, or null if no path exists.
+ * (maxDistance is accepted for API symmetry; the full path is returned and
+ * the caller truncates it to their actual movement range.)
  */
-export function findPath(start, goal, battlefield, maxDistance) {
+export function findPath(
+  start: HexCoord,
+  goal: HexCoord,
+  battlefield: Battlefield,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  maxDistance?: number
+): HexCoord[] | null {
   const { hexes, width, height } = battlefield;
 
   // Note: We don't check if goal is within maxDistance - pathfinding should work
   // even for distant goals. The caller will truncate the path to their movement range.
 
   // Create hex lookup map
-  const hexMap = new Map();
+  const hexMap = new Map<string, BattlefieldHex>();
   hexes.forEach(hex => {
     hexMap.set(`${hex.col},${hex.row}`, hex);
   });
@@ -77,11 +98,11 @@ export function findPath(start, goal, battlefield, maxDistance) {
   }
 
   // A* algorithm
-  const openSet = new Map();
-  const closedSet = new Set();
-  const cameFrom = new Map();
-  const gScore = new Map();
-  const fScore = new Map();
+  const openSet = new Map<string, HexCoord>();
+  const closedSet = new Set<string>();
+  const cameFrom = new Map<string, string>();
+  const gScore = new Map<string, number>();
+  const fScore = new Map<string, number>();
 
   const startKey = `${start.col},${start.row}`;
   const goalKey = `${goal.col},${goal.row}`;
@@ -92,27 +113,30 @@ export function findPath(start, goal, battlefield, maxDistance) {
 
   while (openSet.size > 0) {
     // Find node with lowest fScore
-    let current = null;
-    let currentKey = null;
+    let current: HexCoord | null = null;
+    let currentKey: string | null = null;
     let lowestF = Infinity;
 
     for (const [key, node] of openSet) {
       const f = fScore.get(key);
-      if (f < lowestF) {
+      if (f !== undefined && f < lowestF) {
         lowestF = f;
         current = node;
         currentKey = key;
       }
     }
 
+    // No reachable node left (should not happen while openSet is non-empty)
+    if (current === null || currentKey === null) break;
+
     // Check if we reached the goal
     if (currentKey === goalKey) {
       // Reconstruct path
-      const path = [current];
+      const path: HexCoord[] = [current];
       let pathKey = currentKey;
 
       while (cameFrom.has(pathKey)) {
-        pathKey = cameFrom.get(pathKey);
+        pathKey = cameFrom.get(pathKey)!;
         const [col, row] = pathKey.split(',').map(Number);
         path.unshift({ col, row });
       }
@@ -144,13 +168,13 @@ export function findPath(start, goal, battlefield, maxDistance) {
 
       // Calculate tentative gScore
       const moveCost = neighborHex.difficultTerrain ? 2 : 1;
-      const tentativeG = gScore.get(currentKey) + moveCost;
+      const tentativeG = (gScore.get(currentKey) ?? Infinity) + moveCost;
 
       // Note: We don't limit by maxDistance here - find the full path
       // The caller will truncate it to their actual movement range
 
       // Check if this is a better path
-      if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)) {
+      if (!gScore.has(neighborKey) || tentativeG < (gScore.get(neighborKey) ?? Infinity)) {
         cameFrom.set(neighborKey, currentKey);
         gScore.set(neighborKey, tentativeG);
         fScore.set(
@@ -170,24 +194,25 @@ export function findPath(start, goal, battlefield, maxDistance) {
 }
 
 /**
- * Calculate all hexes reachable within movement range
- * @param {Object} start - Starting hex {col, row}
- * @param {number} maxDistance - Maximum movement distance
- * @param {Object} battlefield - Battlefield object with {hexes, width, height}
- * @param {Array} combatants - Array of combatant objects with position {col, row}
- * @returns {Array} Array of reachable hex positions [{col, row, cost}, ...]
+ * Calculate all hexes reachable within movement range.
+ * Returns reachable hex positions with their movement cost.
  */
-export function calculateReachableHexes(start, maxDistance, battlefield, combatants = []) {
+export function calculateReachableHexes(
+  start: HexCoord,
+  maxDistance: number,
+  battlefield: Battlefield,
+  combatants: PathCombatant[] = []
+): ReachableHex[] {
   const { hexes, width, height } = battlefield;
 
   // Create hex lookup map
-  const hexMap = new Map();
+  const hexMap = new Map<string, BattlefieldHex>();
   hexes.forEach(hex => {
     hexMap.set(`${hex.col},${hex.row}`, hex);
   });
 
   // Create occupied positions set (excluding start position)
-  const occupied = new Set();
+  const occupied = new Set<string>();
   combatants.forEach(c => {
     if (c.position && (c.position.col !== start.col || c.position.row !== start.row)) {
       occupied.add(`${c.position.col},${c.position.row}`);
@@ -195,9 +220,9 @@ export function calculateReachableHexes(start, maxDistance, battlefield, combata
   });
 
   // Dijkstra's algorithm for reachable hexes
-  const visited = new Map();
-  const queue = [{ ...start, cost: 0 }];
-  const reachable = [];
+  const visited = new Map<string, number>();
+  const queue: ReachableHex[] = [{ ...start, cost: 0 }];
+  const reachable: ReachableHex[] = [];
 
   visited.set(`${start.col},${start.row}`, 0);
 
@@ -205,7 +230,7 @@ export function calculateReachableHexes(start, maxDistance, battlefield, combata
     // Get hex with lowest cost
     queue.sort((a, b) => a.cost - b.cost);
     const current = queue.shift();
-    const currentKey = `${current.col},${current.row}`;
+    if (!current) break;
 
     // Add to reachable list (excluding start)
     if (current.col !== start.col || current.row !== start.row) {
@@ -234,7 +259,7 @@ export function calculateReachableHexes(start, maxDistance, battlefield, combata
       }
 
       // Check if this is a better path to this hex
-      if (!visited.has(neighborKey) || newCost < visited.get(neighborKey)) {
+      if (!visited.has(neighborKey) || newCost < (visited.get(neighborKey) ?? Infinity)) {
         visited.set(neighborKey, newCost);
         queue.push({ ...neighbor, cost: newCost });
       }

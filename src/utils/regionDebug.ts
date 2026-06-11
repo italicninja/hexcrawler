@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper types
 /**
  * Region Debug Utilities
  *
@@ -8,10 +6,29 @@
 
 import logger from './logger';
 
+interface Region {
+  id: number;
+  biome: { key: string };
+  centerHex: { col: number; row: number };
+  radius: number;
+  elevation: number;
+  moisture: number;
+  temperature: number;
+  weatherPattern?: { key: string };
+  boundaries: string[];
+}
+
+interface RegionBoundary {
+  col: number;
+  row: number;
+  regionId: number;
+  biome: string;
+}
+
 /**
  * Log region statistics to console
  */
-export function logRegionStats(regions, hexToRegion) {
+export function logRegionStats(regions: Region[], hexToRegion: Map<string, number>): void {
   if (!regions || regions.length === 0) {
     logger.mapgen.warn('No regions to display stats for');
     return;
@@ -21,13 +38,13 @@ export function logRegionStats(regions, hexToRegion) {
     logger.mapgen.info('Total regions:', regions.length);
 
     // Count hexes per region
-    const hexCounts = new Map();
+    const hexCounts = new Map<number, number>();
     hexToRegion.forEach(regionId => {
       hexCounts.set(regionId, (hexCounts.get(regionId) || 0) + 1);
     });
 
     // Biome distribution
-    const biomeDistribution = {};
+    const biomeDistribution: Record<string, number> = {};
     regions.forEach((region, idx) => {
       const biomeKey = region.biome.key;
       biomeDistribution[biomeKey] = (biomeDistribution[biomeKey] || 0) + 1;
@@ -50,8 +67,8 @@ export function logRegionStats(regions, hexToRegion) {
 /**
  * Get region boundary hexes for drawing
  */
-export function getRegionBoundaries(regions) {
-  const boundaries = [];
+export function getRegionBoundaries(regions: Region[]): RegionBoundary[] {
+  const boundaries: RegionBoundary[] = [];
 
   regions.forEach(region => {
     region.boundaries.forEach(hexKey => {
@@ -66,8 +83,8 @@ export function getRegionBoundaries(regions) {
 /**
  * Get region color for visualization (lighter versions of biome colors)
  */
-export function getRegionColor(biomeKey) {
-  const colors = {
+export function getRegionColor(biomeKey: string): string {
+  const colors: Record<string, string> = {
     temperate_forest: '#90EE90AA',
     tropical_jungle: '#228B2280',
     arid_desert: '#EDC9AF80',
@@ -83,7 +100,13 @@ export function getRegionColor(biomeKey) {
 /**
  * Draw region boundaries on canvas (debug mode)
  */
-export function drawRegionBoundaries(ctx, regions, hexSize, offsetX, offsetY) {
+export function drawRegionBoundaries(
+  ctx: CanvasRenderingContext2D,
+  regions: Region[],
+  hexSize: number,
+  offsetX: number,
+  offsetY: number
+): void {
   regions.forEach(region => {
     ctx.strokeStyle = '#FF000080';
     ctx.lineWidth = 2;
@@ -103,10 +126,13 @@ export function drawRegionBoundaries(ctx, regions, hexSize, offsetX, offsetY) {
 /**
  * Get weather info for display
  */
-export function getWeatherDisplay(weatherSystem, regions) {
+export function getWeatherDisplay(
+  weatherSystem: unknown,
+  regions: Region[] | null
+): string | Record<string, number> {
   if (!weatherSystem || !regions) return 'No weather data';
 
-  const weatherSummary = {};
+  const weatherSummary: Record<string, number> = {};
   regions.forEach(region => {
     const weather = region.weatherPattern?.key || 'unknown';
     weatherSummary[weather] = (weatherSummary[weather] || 0) + 1;
