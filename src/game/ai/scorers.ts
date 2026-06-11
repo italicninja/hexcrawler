@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * scorers.js - Utility AI Scorer Registry
  * Functions that return 0.0-1.0 scores for target selection
@@ -8,24 +6,59 @@
 import { getHexDistance } from '../../utils/hexMath';
 import logger from '../../utils/logger';
 
-/**
- * Scorer context passed to all scorer functions
- * @typedef {Object} ScorerContext
- * @property {Object} combatant - Current combatant object
- * @property {Object} target - Target being scored
- * @property {Object} battlefield - Battlefield grid
- * @property {Array} turnOrder - All combatants in combat
- * @property {Object} params - Scorer parameters from JSON (weight, curve, etc.)
- */
+interface HexPos {
+  col: number;
+  row: number;
+}
+
+interface ScoreEntity {
+  level?: number;
+  cr?: number;
+  armorClass?: number;
+  ac?: number;
+  attacks?: Array<{ range?: number }>;
+  range?: number;
+  spells?: unknown[];
+  spellSlots?: unknown[];
+}
+
+interface ScoreCombatant {
+  id?: string | number;
+  currentHP?: number;
+  maxHP?: number;
+  isEnemy?: boolean;
+  isAlly?: boolean;
+  position?: HexPos;
+  character?: ScoreEntity;
+  enemy?: ScoreEntity;
+}
+
+interface ScorerParams {
+  curve?: string;
+  threshold?: number;
+  type?: string;
+  weight?: number;
+  maxDistance?: number;
+  maxLevel?: number;
+  maxAC?: number;
+  range?: number;
+  maxAllies?: number;
+  maxEnemies?: number;
+  [key: string]: unknown;
+}
+
+export interface ScorerContext {
+  combatant: ScoreCombatant;
+  target?: ScoreCombatant;
+  battlefield?: unknown;
+  turnOrder: ScoreCombatant[];
+  params: ScorerParams;
+}
 
 /**
- * Apply curve transformation to raw score
- * @param {number} value - Raw score (0.0-1.0)
- * @param {string} curve - Curve type ('linear', 'inverse', 'quadratic', 'step')
- * @param {number} threshold - Threshold for step curve
- * @returns {number} Transformed score (0.0-1.0)
+ * Apply curve transformation to raw score (0.0-1.0).
  */
-function applyCurve(value, curve = 'linear', threshold = 0.5) {
+function applyCurve(value: number, curve = 'linear', threshold = 0.5): number {
   switch (curve) {
     case 'linear':
       return value;
@@ -49,7 +82,7 @@ function applyCurve(value, curve = 'linear', threshold = 0.5) {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0-1.0
  */
-export function targetHP(context) {
+export function targetHP(context: ScorerContext): number {
   const { target, params } = context;
 
   if (!target || target.currentHP === undefined || target.maxHP === undefined) {
@@ -67,10 +100,10 @@ export function targetHP(context) {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0-1.0
  */
-export function distance(context) {
+export function distance(context: ScorerContext): number {
   const { combatant, target, params } = context;
 
-  if (!combatant.position || !target.position) {
+  if (!combatant.position || !target?.position) {
     return 0.0;
   }
 
@@ -94,7 +127,7 @@ export function distance(context) {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0-1.0
  */
-export function targetThreat(context) {
+export function targetThreat(context: ScorerContext): number {
   const { target, params } = context;
 
   if (!target) return 0.0;
@@ -116,7 +149,7 @@ export function targetThreat(context) {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0-1.0
  */
-export function targetAC(context) {
+export function targetAC(context: ScorerContext): number {
   const { target, params } = context;
 
   if (!target) return 0.0;
@@ -137,7 +170,7 @@ export function targetAC(context) {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0 or 1.0
  */
-export function targetIsMelee(context) {
+export function targetIsMelee(context: ScorerContext): number {
   const { target } = context;
 
   if (!target) return 0.0;
@@ -146,7 +179,8 @@ export function targetIsMelee(context) {
   if (!character) return 0.0;
 
   // Check if target has ranged attacks
-  const hasRanged = character.attacks?.some(a => a.range && a.range > 1) || character.range > 1;
+  const hasRanged =
+    character.attacks?.some(a => a.range && a.range > 1) || (character.range ?? 0) > 1;
 
   return hasRanged ? 0.0 : 1.0;
 }
@@ -156,7 +190,7 @@ export function targetIsMelee(context) {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0 or 1.0
  */
-export function targetIsSpellcaster(context) {
+export function targetIsSpellcaster(context: ScorerContext): number {
   const { target } = context;
 
   if (!target) return 0.0;
@@ -165,7 +199,7 @@ export function targetIsSpellcaster(context) {
   if (!character) return 0.0;
 
   // Check if character has spells or spell slots
-  const hasSpells = character.spells?.length > 0 || character.spellSlots?.length > 0;
+  const hasSpells = (character.spells?.length ?? 0) > 0 || (character.spellSlots?.length ?? 0) > 0;
 
   return hasSpells ? 1.0 : 0.0;
 }
@@ -175,7 +209,7 @@ export function targetIsSpellcaster(context) {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0-1.0
  */
-export function random(context) {
+export function random(context: ScorerContext): number {
   return Math.random();
 }
 
@@ -184,10 +218,11 @@ export function random(context) {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0-1.0
  */
-export function allyCount(context) {
+export function allyCount(context: ScorerContext): number {
   const { combatant, turnOrder, params } = context;
 
   if (!combatant.position) return 0.0;
+  const pos = combatant.position;
 
   const range = params.range || 3; // Default 3 hexes
   const maxAllies = params.maxAllies || 5;
@@ -201,13 +236,13 @@ export function allyCount(context) {
     if (!isSameFaction) return false;
 
     const dist = getHexDistance(
-      combatant.position.col,
-      combatant.position.row,
+      pos.col,
+      pos.row,
       c.position.col,
       c.position.row
     );
 
-    return dist <= range && c.currentHP > 0;
+    return dist <= range && (c.currentHP ?? 0) > 0;
   });
 
   const normalizedCount = Math.min(nearbyAllies.length / maxAllies, 1.0);
@@ -221,10 +256,11 @@ export function allyCount(context) {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0-1.0
  */
-export function enemyCount(context) {
+export function enemyCount(context: ScorerContext): number {
   const { combatant, turnOrder, params } = context;
 
   if (!combatant.position) return 0.0;
+  const pos = combatant.position;
 
   const range = params.range || 3; // Default 3 hexes
   const maxEnemies = params.maxEnemies || 5;
@@ -238,13 +274,13 @@ export function enemyCount(context) {
     if (!isOpposite) return false;
 
     const dist = getHexDistance(
-      combatant.position.col,
-      combatant.position.row,
+      pos.col,
+      pos.row,
       c.position.col,
       c.position.row
     );
 
-    return dist <= range && c.currentHP > 0;
+    return dist <= range && (c.currentHP ?? 0) > 0;
   });
 
   const normalizedCount = Math.min(nearbyEnemies.length / maxEnemies, 1.0);
@@ -256,7 +292,7 @@ export function enemyCount(context) {
 /**
  * Scorer registry - maps scorer names to functions
  */
-export const SCORERS = {
+export const SCORERS: Record<string, (context: ScorerContext) => number> = {
   targetHP,
   distance,
   targetThreat,
@@ -274,7 +310,10 @@ export const SCORERS = {
  * @param {ScorerContext} context - Scorer context
  * @returns {number} Total weighted score
  */
-export function calculateScore(scorerConfigs, context) {
+export function calculateScore(
+  scorerConfigs: ScorerParams[],
+  context: Omit<ScorerContext, 'params'>
+): number {
   if (!scorerConfigs || scorerConfigs.length === 0) {
     return Math.random(); // Fallback to random if no scorers
   }
@@ -283,7 +322,7 @@ export function calculateScore(scorerConfigs, context) {
   let totalWeight = 0;
 
   for (const config of scorerConfigs) {
-    const scorerFunc = SCORERS[config.type];
+    const scorerFunc = SCORERS[config.type ?? ''];
 
     if (!scorerFunc) {
       logger.combat.warn(`[AI] Unknown scorer type: ${config.type}`);
