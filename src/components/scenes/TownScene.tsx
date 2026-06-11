@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * TownScene - Walkable town interior with buildings and NPCs
  * Similar to ExplorationScene but for towns
@@ -15,6 +14,25 @@ import GameLog from '../ui/GameLog';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import { formatTime } from '../../game/TimeManager';
 import './TownScene.css';
+
+interface Coord {
+  col: number;
+  row: number;
+}
+
+interface SceneHex {
+  col: number;
+  row: number;
+  terrain: { name?: string; key?: string; walkable?: boolean; isInteractive?: boolean };
+  content?: string | null;
+  buildingType?: string;
+}
+
+interface TownMapLocal {
+  hexes: SceneHex[];
+  entrance?: Coord;
+  [key: string]: unknown;
+}
 
 const CLASS_ICONS: Record<string, string> = {
   fighter: '⚔️',
@@ -34,16 +52,18 @@ const CLASS_ICONS: Record<string, string> = {
 function TownScene() {
   const { state, actions, dispatch } = useGameState();
   const { addMessage } = useGameLog();
-  const [selectedHex, setSelectedHex] = useState(null);
+  const [selectedHex, setSelectedHex] = useState<SceneHex | null>(null);
 
   const { currentPOI, interiorMaps } = state;
 
   // Get the current settlement interior map
   const poiKey = currentPOI ? `${currentPOI.col},${currentPOI.row}` : null;
-  const interiorMap = poiKey ? interiorMaps[poiKey] : null;
+  const interiorMap = (poiKey ? interiorMaps[poiKey] : null) as TownMapLocal | null;
 
   // Set player position to entrance when entering
-  const [playerPosition, setPlayerPosition] = useState(interiorMap?.entrance || { col: 0, row: 0 });
+  const [playerPosition, setPlayerPosition] = useState<Coord>(
+    interiorMap?.entrance || { col: 0, row: 0 }
+  );
 
   useEffect(() => {
     if (interiorMap?.entrance) {
@@ -52,12 +72,12 @@ function TownScene() {
   }, [interiorMap]);
 
   // Handle hex selection
-  const handleHexClick = hex => {
+  const handleHexClick = (hex: SceneHex) => {
     setSelectedHex(hex);
   };
 
   // Handle hex movement
-  const handleHexDoubleClick = hex => {
+  const handleHexDoubleClick = (hex: SceneHex) => {
     if (!hex.terrain.walkable) {
       logger.movement.debug('Cannot move to unwalkable hex', { hex });
       return;
@@ -87,7 +107,7 @@ function TownScene() {
   };
 
   // Handle building interactions
-  const handleBuildingInteraction = hex => {
+  const handleBuildingInteraction = (hex: SceneHex) => {
     const buildingType = hex.buildingType;
 
     switch (buildingType) {
@@ -149,13 +169,13 @@ function TownScene() {
   };
 
   // Helper to get hex at position
-  const getHexAt = (col, row) => {
+  const getHexAt = (col: number, row: number): SceneHex | null => {
     if (!interiorMap) return null;
-    return interiorMap.hexes.find(h => h.col === col && h.row === row);
+    return interiorMap.hexes.find(h => h.col === col && h.row === row) ?? null;
   };
 
   // Helper to get hex in direction
-  const getHexInDirection = direction => {
+  const getHexInDirection = (direction: string): SceneHex | null => {
     const { col, row } = playerPosition;
     let targetCol = col;
     let targetRow = row;
@@ -339,9 +359,9 @@ function TownScene() {
           </button>
         </div>
         <InteriorHexCanvas
-          interiorMap={interiorMap}
+          interiorMap={interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']}
           playerPosition={playerPosition}
-          playerIcon={CLASS_ICONS[state.party?.player?.class] ?? '🧍'}
+          playerIcon={CLASS_ICONS[state.party?.player?.class ?? ''] ?? '🧍'}
           selectedHex={selectedHex}
           onHexClick={handleHexClick}
           onHexDoubleClick={handleHexDoubleClick}

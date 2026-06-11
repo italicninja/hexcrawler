@@ -130,6 +130,7 @@ export interface POI {
   eventType: EventType;
   visibleWithoutDiscovery: boolean;
   terrainType?: string;
+  description?: string;
 }
 
 // ============================================================================
