@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * InteriorGenerator - Base class for interior map generation
  * Provides common functionality for caves, dungeons, ruins, towers
@@ -7,7 +5,32 @@
 
 import { getHexDistance } from '../utils/hexMath';
 
+export interface TerrainType {
+  key: string;
+  name: string;
+  color: string;
+  walkable: boolean;
+}
+
+export interface HexCoord {
+  col: number;
+  row: number;
+}
+
+export interface InteriorHex {
+  col: number;
+  row: number;
+  terrain: TerrainType;
+  content: string | null;
+}
+
+export type InteriorGrid = InteriorHex[][];
+
 export class InteriorGenerator {
+  seed: string | null;
+  rng: (() => number) | null;
+  terrainTypes: Record<string, TerrainType>;
+
   constructor() {
     this.seed = null;
     this.rng = null;
@@ -63,17 +86,15 @@ export class InteriorGenerator {
    * Set seed for reproducible generation
    * @param {string} seed - Seed string
    */
-  setSeed(seed) {
+  setSeed(seed: string): void {
     this.seed = seed;
     this.rng = this.createSeededRNG(seed);
   }
 
   /**
    * Create a seeded random number generator
-   * @param {string} seed - Seed string
-   * @returns {Function} RNG function
    */
-  createSeededRNG(seed) {
+  createSeededRNG(seed: string): () => number {
     let seedValue = 0;
     for (let i = 0; i < seed.length; i++) {
       seedValue = (seedValue << 5) - seedValue + seed.charCodeAt(i);
@@ -89,7 +110,7 @@ export class InteriorGenerator {
   /**
    * Get random number (0-1)
    */
-  random() {
+  random(): number {
     if (!this.rng) {
       throw new Error('Seed not set. Call setSeed() first.');
     }
@@ -98,32 +119,23 @@ export class InteriorGenerator {
 
   /**
    * Get random integer between min and max (inclusive)
-   * @param {number} min
-   * @param {number} max
-   * @returns {number}
    */
-  randomInt(min, max) {
+  randomInt(min: number, max: number): number {
     return Math.floor(this.random() * (max - min + 1)) + min;
   }
 
   /**
    * Pick random element from array
-   * @param {Array} array
-   * @returns {*}
    */
-  randomChoice(array) {
+  randomChoice<T>(array: T[]): T {
     return array[Math.floor(this.random() * array.length)];
   }
 
   /**
-   * Initialize empty grid
-   * @param {number} width
-   * @param {number} height
-   * @param {object} defaultTerrain - Default terrain type
-   * @returns {Array} 2D grid
+   * Initialize empty grid of the given dimensions.
    */
-  initializeGrid(width, height, defaultTerrain) {
-    const grid = [];
+  initializeGrid(width: number, height: number, defaultTerrain: TerrainType): InteriorGrid {
+    const grid: InteriorGrid = [];
     for (let row = 0; row < height; row++) {
       grid[row] = [];
       for (let col = 0; col < width; col++) {
@@ -140,11 +152,9 @@ export class InteriorGenerator {
 
   /**
    * Convert 2D grid to flat hex array
-   * @param {Array} grid - 2D grid
-   * @returns {Array} Flat array of hexes
    */
-  gridToHexes(grid) {
-    const hexes = [];
+  gridToHexes(grid: InteriorGrid): InteriorHex[] {
+    const hexes: InteriorHex[] = [];
     for (let row = 0; row < grid.length; row++) {
       for (let col = 0; col < grid[row].length; col++) {
         hexes.push(grid[row][col]);
@@ -158,11 +168,10 @@ export class InteriorGenerator {
    * @param {number} col
    * @param {number} row
    * @param {number} width
-   * @param {number} height
-   * @returns {Array} Array of {col, row} neighbors
+   * @returns Array of {col, row} neighbors
    */
-  getNeighbors(col, row, width, height) {
-    const neighbors = [];
+  getNeighbors(col: number, row: number, width: number, height: number): HexCoord[] {
+    const neighbors: HexCoord[] = [];
 
     // Hex grid neighbor offsets (offset coordinates)
     // Use Math.abs for modulo to handle negative rows correctly
@@ -202,10 +211,9 @@ export class InteriorGenerator {
    * @param {Array} grid - 2D grid
    * @param {number} col
    * @param {number} row
-   * @param {string} terrainKey - Terrain type to count
-   * @returns {number} Count of neighbors with this terrain
+   * @returns Count of neighbors with this terrain
    */
-  countNeighborTerrain(grid, col, row, terrainKey) {
+  countNeighborTerrain(grid: InteriorGrid, col: number, row: number, terrainKey: string): number {
     const neighbors = this.getNeighbors(col, row, grid[0].length, grid.length);
     let count = 0;
 
@@ -223,17 +231,23 @@ export class InteriorGenerator {
    * @param {Array} grid - 2D grid
    * @param {number} startCol
    * @param {number} startRow
-   * @param {Function} isWalkable - Function to check if hex is walkable
-   * @returns {Set} Set of "col,row" keys for connected region
+   * @returns Set of "col,row" keys for connected region
    */
-  floodFill(grid, startCol, startRow, isWalkable) {
-    const visited = new Set();
-    const queue = [{ col: startCol, row: startRow }];
+  floodFill(
+    grid: InteriorGrid,
+    startCol: number,
+    startRow: number,
+    isWalkable: (hex: InteriorHex) => boolean
+  ): Set<string> {
+    const visited = new Set<string>();
+    const queue: HexCoord[] = [{ col: startCol, row: startRow }];
     const width = grid[0].length;
     const height = grid.length;
 
     while (queue.length > 0) {
-      const { col, row } = queue.shift();
+      const next = queue.shift();
+      if (!next) break;
+      const { col, row } = next;
       const key = `${col},${row}`;
 
       if (visited.has(key)) continue;
@@ -255,11 +269,9 @@ export class InteriorGenerator {
 
   /**
    * Find all walkable tiles
-   * @param {Array} grid - 2D grid
-   * @returns {Array} Array of {col, row} walkable tiles
    */
-  getWalkableTiles(grid) {
-    const walkable = [];
+  getWalkableTiles(grid: InteriorGrid): HexCoord[] {
+    const walkable: HexCoord[] = [];
     for (let row = 0; row < grid.length; row++) {
       for (let col = 0; col < grid[row].length; col++) {
         if (grid[row][col].terrain.walkable) {
@@ -277,22 +289,17 @@ export class InteriorGenerator {
    * can continue calling this.getHexDistance() without changes.
    * @param {number} col1
    * @param {number} row1
-   * @param {number} col2
-   * @param {number} row2
-   * @returns {number} Distance
+   * @returns Distance
    */
-  getHexDistance(col1, row1, col2, row2) {
+  getHexDistance(col1: number, row1: number, col2: number, row2: number): number {
     return getHexDistance(col1, row1, col2, row2);
   }
 
   /**
    * Generate interior map (must be implemented by subclasses)
-   * @param {number} width
-   * @param {number} height
-   * @param {number} cr - Challenge rating
-   * @returns {object} Interior map data
    */
-  generate(width, height, cr) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  generate(width: number, height: number, cr: number): unknown {
     throw new Error('generate() must be implemented by subclass');
   }
 }
