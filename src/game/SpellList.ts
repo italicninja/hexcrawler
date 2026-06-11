@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * SpellList - Complete D&D 5e Spell Lists (Levels 0-3)
  * Organized by class with spell instances
@@ -116,8 +114,8 @@ const clericLevel1 = [
       'A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier.',
     effect: (caster, target, diceRoller) => {
       const spell = new Spell({ name: 'Cure Wounds' });
-      const spellcastingAbility = spell._getSpellcastingAbility(caster.class);
-      const abilityMod = spell._getAbilityModifier(caster.abilities[spellcastingAbility]);
+      const spellcastingAbility = spell._getSpellcastingAbility(caster.class ?? '');
+      const abilityMod = spell._getAbilityModifier(caster.abilities?.[spellcastingAbility] ?? 10);
       const healing = diceRoller.rollDice(8, 1) + abilityMod;
 
       return {
@@ -214,8 +212,8 @@ const clericLevel1 = [
       'A creature of your choice that you can see regains hit points equal to 1d4 + your spellcasting ability modifier.',
     effect: (caster, target, diceRoller) => {
       const spell = new Spell({ name: 'Healing Word' });
-      const spellcastingAbility = spell._getSpellcastingAbility(caster.class);
-      const abilityMod = spell._getAbilityModifier(caster.abilities[spellcastingAbility]);
+      const spellcastingAbility = spell._getSpellcastingAbility(caster.class ?? '');
+      const abilityMod = spell._getAbilityModifier(caster.abilities?.[spellcastingAbility] ?? 10);
       const healing = diceRoller.rollDice(4, 1) + abilityMod;
 
       return {
@@ -276,8 +274,8 @@ const clericLevel2 = [
     effect: (caster, target, diceRoller) => {
       const spell = new Spell({ name: 'Spiritual Weapon' });
       const attackBonus = spell.getSpellAttackBonus(caster);
-      const spellcastingAbility = spell._getSpellcastingAbility(caster.class);
-      const abilityMod = spell._getAbilityModifier(caster.abilities[spellcastingAbility]);
+      const spellcastingAbility = spell._getSpellcastingAbility(caster.class ?? '');
+      const abilityMod = spell._getAbilityModifier(caster.abilities?.[spellcastingAbility] ?? 10);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
       const targetAC = target.armorClass || 10;
@@ -362,8 +360,8 @@ const clericLevel2 = [
       'Up to six creatures regain hit points equal to 2d8 + your spellcasting ability modifier.',
     effect: (caster, target, diceRoller) => {
       const spell = new Spell({ name: 'Prayer of Healing' });
-      const spellcastingAbility = spell._getSpellcastingAbility(caster.class);
-      const abilityMod = spell._getAbilityModifier(caster.abilities[spellcastingAbility]);
+      const spellcastingAbility = spell._getSpellcastingAbility(caster.class ?? '');
+      const abilityMod = spell._getAbilityModifier(caster.abilities?.[spellcastingAbility] ?? 10);
       const healing = diceRoller.rollDice(8, 2) + abilityMod;
 
       return {
@@ -663,7 +661,7 @@ const wizardLevel1 = [
     description:
       "You touch a willing creature who is not wearing armor. The target's base AC becomes 13 + Dexterity modifier.",
     effect: (caster, target, diceRoller) => {
-      const dexMod = Math.floor((target.abilities.dexterity - 10) / 2);
+      const dexMod = Math.floor(((target.abilities?.dexterity ?? 10) - 10) / 2);
       const newAC = 13 + dexMod;
       return {
         message: `${target.name}'s AC becomes ${newAC} for 8 hours`,

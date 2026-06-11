@@ -1,5 +1,6 @@
 // Spell — D&D 5e spell definition with an effect callback
 import logger from '../utils/logger';
+import type { DiceRoller } from './DiceRoller';
 
 interface SpellComponents {
   verbal: boolean;
@@ -7,19 +8,20 @@ interface SpellComponents {
   material: boolean;
 }
 
-/** Loose shape for a spellcaster (Character / Enemy). */
+/** Loose shape for a spellcaster (Character / Enemy) — also used for targets. */
 interface SpellCaster {
   name?: string;
   class?: string;
   proficiencyBonus?: number;
+  armorClass?: number;
   abilities?: Record<string, number | undefined>;
   [key: string]: unknown;
 }
 
 type SpellEffect = (
   caster: SpellCaster,
-  target: unknown,
-  diceRoller: unknown
+  target: SpellCaster,
+  diceRoller: DiceRoller
 ) => Record<string, unknown>;
 
 interface CastResult {
@@ -30,8 +32,8 @@ interface CastResult {
 
 export interface SpellConfig {
   name: string;
-  level: number;
-  school: string;
+  level?: number;
+  school?: string;
   castingTime?: string;
   range?: string;
   components?: SpellComponents;
@@ -61,8 +63,8 @@ export class Spell {
 
   constructor(config: SpellConfig) {
     this.name = config.name;
-    this.level = config.level;
-    this.school = config.school;
+    this.level = config.level ?? 0;
+    this.school = config.school ?? 'Unknown';
     this.castingTime = config.castingTime || '1 action';
     this.range = config.range || 'Self';
     this.components = config.components || { verbal: true, somatic: true, material: false };
@@ -81,7 +83,7 @@ export class Spell {
     }
 
     try {
-      const result = this.effect(caster, target, diceRoller);
+      const result = this.effect(caster, target as SpellCaster, diceRoller as DiceRoller);
       return { success: true, ...result };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
