@@ -30,7 +30,7 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 ### 1. Remove `// @ts-nocheck` Suppressions
 
-**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (4 files remaining, down from 100 — CombatCanvas, OverworldScene, Combat.ts (+combatReducer) left)
+**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (3 files remaining, down from 100 — OverworldScene, Combat.ts (+combatReducer) left)
 
 **Problem:** `tsconfig.json` has `strict: true` enabled, but the majority of source files begin with `// @ts-nocheck`, which completely bypasses TypeScript checking. The TypeScript migration is structurally complete but type safety is not enforced.
 
