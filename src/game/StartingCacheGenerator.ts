@@ -281,7 +281,7 @@ export class StartingCacheGenerator extends InteriorGenerator {
    */
   placeLoot(
     interiorMap,
-    worldHexes = [],
+    worldHexes: any[] = [],
     startCol = GAME_DEFAULTS.START_POSITION.col,
     startRow = GAME_DEFAULTS.START_POSITION.row
   ) {

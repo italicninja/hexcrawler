@@ -5,23 +5,12 @@
  */
 
 import logger from './logger';
-
-interface Region {
-  id: number;
-  biome: { key: string };
-  centerHex: { col: number; row: number };
-  radius: number;
-  elevation: number;
-  moisture: number;
-  temperature: number;
-  weatherPattern?: { key: string };
-  boundaries: string[];
-}
+import type { Region } from '../RegionGenerator';
 
 interface RegionBoundary {
   col: number;
   row: number;
-  regionId: number;
+  regionId: string;
   biome: string;
 }
 
@@ -56,7 +45,7 @@ export function logRegionStats(regions: Region[], hexToRegion: Map<string, numbe
         elevation: region.elevation.toFixed(1),
         moisture: region.moisture.toFixed(1),
         temp: `${region.temperature.toFixed(1)}°C`,
-        weather: region.weatherPattern?.key || 'none',
+        weather: (region.weatherPattern as { key?: string } | null)?.key || 'none',
       });
     });
 
@@ -134,7 +123,7 @@ export function getWeatherDisplay(
 
   const weatherSummary: Record<string, number> = {};
   regions.forEach(region => {
-    const weather = region.weatherPattern?.key || 'unknown';
+    const weather = (region.weatherPattern as { key?: string } | null)?.key || 'unknown';
     weatherSummary[weather] = (weatherSummary[weather] || 0) + 1;
   });
 

@@ -1,22 +1,41 @@
-// @ts-nocheck -- TODO: Remove after GameStateContext → .tsx and utils → .ts (Phase 5 & 6)
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import { logRegionStats } from '../utils/regionDebug';
 import logger from '../utils/logger';
 import { StartingCacheGenerator } from '../game/StartingCacheGenerator';
 import { STARTING_CACHE } from '../constants/gameConstants';
+import type { TerrainGenerator } from '../terrainGenerator';
+
+interface ViewportSize {
+  width: number;
+  height: number;
+}
+
+interface PoiLike {
+  name?: string;
+  description?: string;
+}
+
+interface GeneratedHex {
+  row: number;
+  col: number;
+  terrain: unknown;
+  poi: PoiLike | null;
+  weather: unknown;
+  regionId?: number;
+}
 
 /**
  * useMapGeneration Hook
  *
  * Handles initial map generation when a new game is started.
  * Generates the map once based on seed and viewport size, then stores it in game state.
- *
- * @param {Object} terrainGeneratorRef - React ref containing TerrainGenerator instance
- * @param {Object} viewportSize - Object with { width, height } of viewport
  */
-export function useMapGeneration(terrainGeneratorRef, viewportSize) {
+export function useMapGeneration(
+  terrainGeneratorRef: RefObject<TerrainGenerator | null>,
+  viewportSize: ViewportSize
+) {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
   // Track the seed that was last fully generated so that:
@@ -30,11 +49,13 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
     if (state.mapData) return; // Map already exists, don't regenerate
     if (mapGeneratedSeedRef.current === state.mapSeed) return; // Already generated for this seed
 
+    const gen = terrainGeneratorRef.current;
+
     logger.mapgen.info('Generating map with seed:', state.mapSeed);
     mapGeneratedSeedRef.current = state.mapSeed;
 
     // Set seed for reproducible generation
-    terrainGeneratorRef.current.setSeed(state.mapSeed);
+    gen.setSeed(state.mapSeed);
 
     // Calculate initial map size based on viewport to ensure full coverage
     const hexSize = 30;
@@ -43,7 +64,7 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
 
     // Generate terrain data - always start from (0, 0) for deterministic terrain
     // New region-based generation returns { grid, regions, hexToRegion, weatherSystem }
-    const generationResult = terrainGeneratorRef.current.generate(
+    const generationResult = gen.generate(
       Math.max(initialCols, 60), // Minimum 60 cols (increased from 40)
       Math.max(initialRows, 60), // Minimum 60 rows (increased from 50)
       0.5, // terrainVariety
@@ -56,10 +77,10 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
     const weatherSystem = generationResult.weatherSystem;
 
     // Log region statistics for debugging
-    logRegionStats(regions, hexToRegion);
+    if (hexToRegion) logRegionStats(regions, hexToRegion);
 
     // Convert terrain data to hex objects with col/row coordinates
-    const generatedHexes = [];
+    const generatedHexes: GeneratedHex[] = [];
     const mapRows = terrainData.length;
     const mapCols = terrainData[0] ? terrainData[0].length : 0;
 
@@ -69,7 +90,7 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
           row,
           col,
           terrain: terrainData[row][col].terrain,
-          poi: terrainData[row][col].poi,
+          poi: terrainData[row][col].poi as PoiLike | null,
           weather: terrainData[row][col].weather,
           regionId: terrainData[row][col].regionId,
         });
@@ -85,21 +106,19 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
 
     if (startingHex) {
       // Save current seed state
-      const savedSeed = terrainGeneratorRef.current.seed;
+      const savedSeed = gen.seed;
 
       // Use a deterministic seed offset for the starting POI
-      const startingCacheSeed = parseInt(state.mapSeed) + 999999;
-      terrainGeneratorRef.current.seed = startingCacheSeed;
+      const startingCacheSeed = parseInt(state.mapSeed, 10) + 999999;
+      gen.seed = startingCacheSeed;
 
       // Generate the starting cache POI using the POI system
-      const startingCache = terrainGeneratorRef.current.poiSystem.generateStartingCache(
-        terrainGeneratorRef.current.random.bind(terrainGeneratorRef.current)
-      );
+      const startingCache = gen.poiSystem.generateStartingCache(gen.random.bind(gen));
 
       startingHex.poi = startingCache;
 
       // Restore seed state
-      terrainGeneratorRef.current.seed = savedSeed;
+      gen.seed = savedSeed;
     }
 
     // Store map in game state (includes regions and weather system)
@@ -135,7 +154,13 @@ export function useMapGeneration(terrainGeneratorRef, viewportSize) {
       const cacheGenerator = new StartingCacheGenerator();
       cacheGenerator.setSeed(`poi-${poiKey}-${state.mapSeed}`);
 
-      const interiorMap = cacheGenerator.generate(STARTING_CACHE.WIDTH, STARTING_CACHE.HEIGHT, 0);
+      // generate() returns an object whose loot/hazards/encounters start as []
+      // (inferred never[] under the generator's @ts-nocheck); widen for the fills below.
+      const interiorMap = cacheGenerator.generate(
+        STARTING_CACHE.WIDTH,
+        STARTING_CACHE.HEIGHT,
+        0
+      ) as Record<string, unknown>;
       interiorMap.loot = cacheGenerator.placeLoot(
         interiorMap,
         generatedHexes,
