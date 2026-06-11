@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo } from 'react';
 import { useEventListener } from '../../hooks/useEventListener';
 import './ChangelogModal.css';
@@ -8,9 +7,21 @@ import './ChangelogModal.css';
  * Displays auto-generated changelog from git commit history
  * Parses git log, strips prefixes, and groups by date
  */
-function ChangelogModal({ isOpen, onClose }) {
+interface ChangelogModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+interface Commit {
+  hash: string;
+  subject: string;
+  dateKey: string;
+  date: Date;
+}
+
+function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
   // Escape key handler
-  useEventListener('keydown', e => {
+  useEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Escape' && isOpen) {
       onClose();
     }
@@ -57,7 +68,7 @@ function ChangelogModal({ isOpen, onClose }) {
     });
 
     // Group by date
-    const grouped = commits.reduce((acc, commit) => {
+    const grouped = commits.reduce<Record<string, Commit[]>>((acc, commit) => {
       if (!acc[commit.dateKey]) {
         acc[commit.dateKey] = [];
       }

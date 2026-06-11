@@ -1,10 +1,32 @@
-// @ts-nocheck
 import './SaveSlot.css';
 
 /**
  * Individual save slot display component
  * Shows save metadata and provides load/save/delete actions
  */
+interface SaveMetadata {
+  characterName: string;
+  level: number;
+  class: string;
+  location: string;
+  day: number;
+  playtime: number;
+  timestamp: number;
+}
+
+interface SaveSlotProps {
+  slotKey: string;
+  metadata?: SaveMetadata | null;
+  slotNumber?: number;
+  slotLetter?: string;
+  isAutosave?: boolean;
+  isQuicksave?: boolean;
+  mode: string;
+  onLoad: (slotKey: string) => void;
+  onSave: (slotKey: string) => void;
+  onDelete: (slotKey: string) => void;
+}
+
 function SaveSlot({
   slotKey,
   metadata,
@@ -16,11 +38,11 @@ function SaveSlot({
   onLoad,
   onSave,
   onDelete,
-}) {
-  const formatTimestamp = timestamp => {
+}: SaveSlotProps) {
+  const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
-    const diffMs = now - date;
+    const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
@@ -40,7 +62,7 @@ function SaveSlot({
     }
   };
 
-  const formatPlaytime = milliseconds => {
+  const formatPlaytime = (milliseconds: number) => {
     const hours = Math.floor(milliseconds / 3600000);
     const minutes = Math.floor((milliseconds % 3600000) / 60000);
 
