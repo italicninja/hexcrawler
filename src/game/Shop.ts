@@ -1,9 +1,24 @@
-// @ts-nocheck
-// TODO: Add proper types - Shop class with large item tables
-import { Item } from './Item';
+// Shop — vendor with rarity-weighted item tables
+import { Item, type ItemConfig } from './Item';
+
+interface ShopConfig {
+  name?: string;
+  type?: string;
+  level?: number;
+  buyPriceMultiplier?: number;
+  sellPriceMultiplier?: number;
+  inventory?: Item[];
+}
 
 export class Shop {
-  constructor(config = {}) {
+  name: string;
+  type: string;
+  level: number;
+  buyPriceMultiplier: number;
+  sellPriceMultiplier: number;
+  inventory: Item[];
+
+  constructor(config: ShopConfig = {}) {
     this.name = config.name || 'General Store';
     this.type = config.type || 'general'; // weapon, armor, general, magic
     this.level = config.level || 1;
@@ -16,11 +31,11 @@ export class Shop {
     }
   }
 
-  generateInventory() {
+  generateInventory(): void {
     this.inventory = [];
     const itemCount = this.randomInt(8, 12);
 
-    let rarityWeights;
+    let rarityWeights: Record<string, number>;
     if (this.level <= 2) {
       rarityWeights = { common: 0.7, uncommon: 0.25, rare: 0.05 };
     } else if (this.level <= 5) {
@@ -46,7 +61,7 @@ export class Shop {
     }
   }
 
-  selectRarity(weights) {
+  selectRarity(weights: Record<string, number>): string {
     const roll = Math.random();
     let cumulative = 0;
 
@@ -60,8 +75,8 @@ export class Shop {
     return 'common';
   }
 
-  generateItemByType(shopType, rarity) {
-    const itemTables = {
+  generateItemByType(shopType: string, rarity: string): Item | null {
+    const itemTables: Record<string, ItemConfig[]> = {
       weapon: this.getWeaponsByRarity(rarity),
       armor: this.getArmorByRarity(rarity),
       general: this.getGeneralItemsByRarity(rarity),
@@ -75,8 +90,8 @@ export class Shop {
     return new Item({ ...itemData, rarity });
   }
 
-  getWeaponsByRarity(rarity) {
-    const tables = {
+  getWeaponsByRarity(rarity: string): ItemConfig[] {
+    const tables: Record<string, ItemConfig[]> = {
       common: [
         {
           name: 'Iron Sword',
@@ -271,8 +286,8 @@ export class Shop {
     return tables[rarity] || [];
   }
 
-  getArmorByRarity(rarity) {
-    const tables = {
+  getArmorByRarity(rarity: string): ItemConfig[] {
+    const tables: Record<string, ItemConfig[]> = {
       common: [
         {
           name: 'Leather Armor',
@@ -451,8 +466,8 @@ export class Shop {
     return tables[rarity] || [];
   }
 
-  getGeneralItemsByRarity(rarity) {
-    const tables = {
+  getGeneralItemsByRarity(rarity: string): ItemConfig[] {
+    const tables: Record<string, ItemConfig[]> = {
       common: [
         {
           name: 'Potion of Minor Healing',
@@ -630,8 +645,8 @@ export class Shop {
     return tables[rarity] || tables.common;
   }
 
-  getMagicItemsByRarity(rarity) {
-    const tables = {
+  getMagicItemsByRarity(rarity: string): ItemConfig[] {
+    const tables: Record<string, ItemConfig[]> = {
       common: [
         {
           name: 'Cantrip Scroll',
@@ -780,15 +795,15 @@ export class Shop {
     return tables[rarity] || tables.uncommon;
   }
 
-  getBuyPrice(item) {
+  getBuyPrice(item: Item): number {
     return Math.ceil(item.value * this.buyPriceMultiplier);
   }
 
-  getSellPrice(item) {
+  getSellPrice(item: Item): number {
     return Math.floor(item.value * this.sellPriceMultiplier);
   }
 
-  buyItem(itemId) {
+  buyItem(itemId: string): Item | null {
     const index = this.inventory.findIndex(item => item.id === itemId);
     if (index === -1) return null;
     const item = this.inventory[index];
@@ -796,11 +811,11 @@ export class Shop {
     return item;
   }
 
-  sellItem(item) {
+  sellItem(item: Item): void {
     this.inventory.push(item);
   }
 
-  randomInt(min, max) {
+  randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
@@ -815,14 +830,16 @@ export class Shop {
     };
   }
 
-  static fromJSON(data) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static fromJSON(data: any): Shop {
     return new Shop({
       name: data.name,
       type: data.type,
       level: data.level,
       buyPriceMultiplier: data.buyPriceMultiplier,
       sellPriceMultiplier: data.sellPriceMultiplier,
-      inventory: (data.inventory || []).map(itemData => Item.fromJSON(itemData)),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      inventory: (data.inventory || []).map((itemData: any) => Item.fromJSON(itemData)),
     });
   }
 }
