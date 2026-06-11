@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -7,8 +6,22 @@ import { Party } from '../../game/Party';
 import { generateCharacterWelcome } from '../../utils/flavorTextGenerator';
 import { ClassIcon } from '../ui/ClassIcon';
 
-// D&D 5e Standard Array: [15, 14, 13, 12, 10, 8]
-const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
+interface ClassData {
+  name: string;
+  hitDie: string;
+  description: string;
+  primaryStat: string;
+  secondaryStat: string;
+  startingEquipment: string[];
+  abilityScores: {
+    strength: number;
+    dexterity: number;
+    constitution: number;
+    intelligence: number;
+    wisdom: number;
+    charisma: number;
+  };
+}
 
 // Random hero name lists for Quick Start
 const HERO_NAMES = [
@@ -16,7 +29,7 @@ const HERO_NAMES = [
   'Aldric',
   'Theron',
   'Gareth',
-  'Bران',
+  'Bran',
   'Ragnar',
   'Thorin',
   'Gorin',
@@ -83,7 +96,7 @@ const HERO_NAMES = [
 ];
 
 // Helper function to get random element from array
-const getRandomElement = array => {
+const getRandomElement = <T,>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)];
 };
 
@@ -114,7 +127,7 @@ const getRandomClass = () => {
 };
 
 // Class definitions with primary/secondary stats and hit dice
-const CLASS_DATA = {
+const CLASS_DATA: Record<string, ClassData> = {
   barbarian: {
     name: 'Barbarian',
     hitDie: 'd12',
@@ -329,7 +342,7 @@ const CLASS_DATA = {
 };
 
 function CharacterCreationScene() {
-  const { state, dispatch, actions } = useGameState();
+  const { dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
   const [characterName, setCharacterName] = useState('');
   const [selectedClass, setSelectedClass] = useState('barbarian');
