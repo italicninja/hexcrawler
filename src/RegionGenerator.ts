@@ -1,13 +1,37 @@
-// @ts-nocheck
-// TODO: Add proper types
 import { PerlinNoise } from './noise';
 import logger from './utils/logger';
 import { getHexDistance, getHexNeighbors } from './utils/hexMath';
 
+export interface RegionType {
+  key: string;
+  name: string;
+  biomes: string[];
+  moistureRange: number[];
+  tempRange: number[];
+  weatherTable: Record<string, number>;
+}
+
+interface HexCoord {
+  col: number;
+  row: number;
+}
+
+export interface Region {
+  id: string;
+  centerHex: HexCoord;
+  radius: number;
+  biome: RegionType;
+  elevation: number;
+  moisture: number;
+  temperature: number;
+  weatherPattern: unknown;
+  boundaries: Set<string>;
+}
+
 /**
  * Region types with their characteristics
  */
-export const REGION_TYPES = {
+export const REGION_TYPES: Record<string, RegionType> = {
   TEMPERATE_FOREST: {
     key: 'temperate_forest',
     name: 'Temperate Forest',
@@ -104,7 +128,13 @@ export const REGION_TYPES = {
  * RegionGenerator - Creates coherent geographic regions using Voronoi partitioning
  */
 export class RegionGenerator {
-  constructor(seed, width, height) {
+  seed: number;
+  width: number;
+  height: number;
+  noise: PerlinNoise;
+  seedCounter: number;
+
+  constructor(seed: number, width: number, height: number) {
     this.seed = seed;
     this.width = width;
     this.height = height;
@@ -115,7 +145,7 @@ export class RegionGenerator {
   /**
    * Seeded random number generator
    */
-  random() {
+  random(): number {
     const x = Math.sin(this.seedCounter++) * 10000;
     return x - Math.floor(x);
   }
@@ -125,9 +155,13 @@ export class RegionGenerator {
    * @param {number} numRegions - Number of regions to create
    * @param {number} startCol - Player start column (pinned as first region center)
    * @param {number} startRow - Player start row (pinned as first region center)
-   * @returns {Object} { regions: Array, hexToRegion: Map }
+   * @returns { regions, hexToRegion }
    */
-  generate(numRegions = null, startCol = 10, startRow = 7) {
+  generate(
+    numRegions: number | null = null,
+    startCol = 10,
+    startRow = 7
+  ): { regions: Region[]; hexToRegion: Map<string, number> } {
     // Auto-calculate number of regions based on map size
     if (!numRegions) {
       const totalHexes = this.width * this.height;
@@ -176,9 +210,9 @@ export class RegionGenerator {
    * The start position is always placed first so it owns region index 0,
    * which is then forced to Temperate Forest in generate().
    */
-  scatterCenters(numRegions, startCol = 10, startRow = 7) {
+  scatterCenters(numRegions: number, startCol = 10, startRow = 7): HexCoord[] {
     // Pin the player start as the very first center (region 0).
-    const centers = [{ col: startCol, row: startRow }];
+    const centers: HexCoord[] = [{ col: startCol, row: startRow }];
     const minDistance = Math.sqrt((this.width * this.height) / numRegions) * 0.6;
 
     let attempts = 0;
@@ -219,8 +253,8 @@ export class RegionGenerator {
   /**
    * Assign each hex to its nearest region center (Voronoi diagram)
    */
-  assignHexesToRegions(centers) {
-    const map = new Map();
+  assignHexesToRegions(centers: HexCoord[]): Map<string, number> {
+    const map = new Map<string, number>();
 
     for (let row = 0; row < this.height; row++) {
       for (let col = 0; col < this.width; col++) {
@@ -246,8 +280,8 @@ export class RegionGenerator {
   /**
    * Characterize each region using noise layers
    */
-  characterizeRegions(centers, hexToRegion) {
-    return centers.map((center, idx) => {
+  characterizeRegions(centers: HexCoord[], hexToRegion: Map<string, number>): Region[] {
+    return centers.map((center, idx): Region => {
       // Use noise to determine region properties.
       // Scale /50 ensures adjacent region centers sample from the same broad
       // noise feature, producing natural climate gradients instead of random jumps.
@@ -281,7 +315,7 @@ export class RegionGenerator {
         moisture,
         temperature,
         weatherPattern: null, // Will be set by WeatherSystem
-        boundaries: new Set(),
+        boundaries: new Set<string>(),
       };
     });
   }
@@ -301,7 +335,7 @@ export class RegionGenerator {
    * Alpine now requires e > 0.7 in the temperate fallback (was 0.5),
    * reducing overclaiming from ~50% of temperate regions to ~15%.
    */
-  determineRegionType(elevation, moisture, temp) {
+  determineRegionType(elevation: number, moisture: number, temp: number): RegionType {
     // Normalize to 0-1
     const e = elevation / 10;
     const m = moisture / 10;
@@ -344,7 +378,7 @@ export class RegionGenerator {
   /**
    * Calculate average radius of a region
    */
-  calculateRadius(regionIdx, hexToRegion, center) {
+  calculateRadius(regionIdx: number, hexToRegion: Map<string, number>, center: HexCoord): number {
     let totalDistance = 0;
     let hexCount = 0;
 
@@ -363,11 +397,12 @@ export class RegionGenerator {
   /**
    * Calculate boundary hexes for each region
    */
-  calculateBoundaries(regions, hexToRegion) {
+  calculateBoundaries(regions: Region[], hexToRegion: Map<string, number>): void {
     for (let row = 0; row < this.height; row++) {
       for (let col = 0; col < this.width; col++) {
         const hexKey = `${col},${row}`;
         const regionId = hexToRegion.get(hexKey);
+        if (regionId === undefined) continue;
 
         // Check neighbors
         const neighbors = this.getNeighbors(col, row);
@@ -390,7 +425,7 @@ export class RegionGenerator {
    * Delegates to the shared hexMath utility to avoid offset-logic duplication.
    * Filters out neighbors that fall outside the map bounds.
    */
-  getNeighbors(col, row) {
+  getNeighbors(col: number, row: number): HexCoord[] {
     return getHexNeighbors(col, row).filter(
       n => n.col >= 0 && n.col < this.width && n.row >= 0 && n.row < this.height
     );
@@ -399,14 +434,19 @@ export class RegionGenerator {
   /**
    * Get region for a specific hex
    */
-  getRegionForHex(col, row, hexToRegion) {
+  getRegionForHex(col: number, row: number, hexToRegion: Map<string, number>): number | undefined {
     return hexToRegion.get(`${col},${row}`);
   }
 
   /**
    * Check if hex is on region boundary
    */
-  isOnBoundary(col, row, regions, hexToRegion) {
+  isOnBoundary(
+    col: number,
+    row: number,
+    regions: Region[],
+    hexToRegion: Map<string, number>
+  ): boolean {
     const regionId = hexToRegion.get(`${col},${row}`);
     if (regionId === undefined) return false;
     return regions[regionId].boundaries.has(`${col},${row}`);
@@ -415,9 +455,9 @@ export class RegionGenerator {
   /**
    * Get neighboring regions for blending
    */
-  getNeighborRegions(col, row, hexToRegion) {
+  getNeighborRegions(col: number, row: number, hexToRegion: Map<string, number>): number[] {
     const neighbors = this.getNeighbors(col, row);
-    const neighborRegions = new Set();
+    const neighborRegions = new Set<number>();
 
     for (const neighbor of neighbors) {
       const regionId = hexToRegion.get(`${neighbor.col},${neighbor.row}`);
