@@ -1,9 +1,41 @@
-// @ts-nocheck -- TODO: Remove after GameStateContext → .tsx and game/ files → .ts (Phase 3 & 6)
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import DiceRoller from '../game/DiceRoller';
 import { generateSettlementFlavor } from '../utils/flavorTextGenerator';
 import logger from '../utils/logger';
+
+/** POI fields this hook reads. Runtime POIs carry more than the canonical type. */
+interface InteractionPOI {
+  type: string;
+  name: string;
+  cr: number;
+  creatures?: string;
+  isStartingLocation?: boolean;
+  settlementSize?: string;
+}
+
+interface InteractionHex {
+  col: number;
+  row: number;
+  poi?: InteractionPOI | null;
+}
+
+/**
+ * Structural shape shared by the interior generators, which are loaded
+ * dynamically from modules still pending the TS migration. Once those files
+ * are typed this can be replaced with their concrete classes.
+ */
+interface InteriorGenerator {
+  setSeed: (seed: string) => void;
+  generate: (...args: any[]) => any;
+  placeEncounters: (...args: any[]) => any;
+  placeLoot: (...args: any[]) => any;
+  placeHazards: (...args: any[]) => any;
+  generateBossFloor?: (...args: any[]) => any;
+  generateFloor?: (...args: any[]) => any;
+}
+type InteriorGeneratorCtor = new () => InteriorGenerator;
 
 // Lazy load generators to reduce initial bundle size
 // These are loaded dynamically when entering POIs
@@ -30,7 +62,7 @@ const loadStartingCacheGenerator = () =>
  * @param {Object} hex - Current hex object
  * @returns {Object} - Action handlers for POI interactions
  */
-export function useHexInteraction(hex) {
+export function useHexInteraction(hex: InteractionHex | null) {
   const { state, dispatch, actions, isPoiSearched } = useGameState();
   const { addMessage } = useGameLog();
 
@@ -60,7 +92,7 @@ export function useHexInteraction(hex) {
     const result = diceRoller.perceptionCheck(state.playerCharacter, 0); // DC 0, we check thresholds manually
 
     // Generate hints based on roll thresholds
-    const hints = [];
+    const hints: string[] = [];
 
     if (result.total >= 5) {
       hints.push(`A ${poi.type} of unknown depth. Proceed with caution.`);
@@ -117,7 +149,7 @@ export function useHexInteraction(hex) {
       addMessage(`Preparing to explore ${poi.name}...`, 'action');
 
       // Dynamically load the appropriate generator based on POI type
-      let GeneratorClass;
+      let GeneratorClass: InteriorGeneratorCtor;
       try {
         switch (poi.type) {
           case 'cave':
@@ -151,7 +183,7 @@ export function useHexInteraction(hex) {
 
       // Determine interior size based on CR and POI type
       const cr = poi.cr || 1;
-      let width, height;
+      let width: number, height: number;
 
       if (poi.type === 'tower') {
         // Towers are wider (multiple floors side-by-side)
@@ -189,76 +221,6 @@ export function useHexInteraction(hex) {
     dispatch({
       type: actions.ENTER_EXPLORATION,
       payload: { col: hex.col, row: hex.row, poi: poi },
-    });
-  };
-
-  /**
-   * Handle pray action at shrine
-   */
-  const handleStairTransition = async (poiKey, poi, direction, targetFloor, spawnPos) => {
-    const floorKey = `${poiKey}:floor${targetFloor}`;
-
-    // Generate the target floor if not yet cached
-    if (!state.interiorMaps[floorKey]) {
-      addMessage(`Descending to floor ${targetFloor + 1}...`, 'action');
-
-      try {
-        if (poi.type === 'dungeon') {
-          // ── Dungeon boss floor ────────────────────────────────────────────
-          const DungeonGeneratorClass = await loadDungeonGenerator();
-          const generator = new DungeonGeneratorClass();
-          generator.setSeed(`${poiKey}:floor${targetFloor}-${state.mapSeed}`);
-
-          // The base map tells us the dimensions to reuse
-          const baseMap = state.interiorMaps[poiKey];
-          const width = baseMap?.width ?? 20;
-          const height = baseMap?.height ?? 16;
-          const cr = poi.cr ?? 1;
-
-          const bossFloorMap = generator.generateBossFloor(width, height, cr);
-
-          dispatch({
-            type: actions.SET_INTERIOR_MAP,
-            payload: { key: floorKey, map: bossFloorMap },
-          });
-        } else if (poi.type === 'tower') {
-          // ── Tower upper/lower floor ───────────────────────────────────────
-          const TowerGeneratorClass = await loadTowerGenerator();
-          const generator = new TowerGeneratorClass();
-          generator.setSeed(`${poiKey}:floor${targetFloor}-${state.mapSeed}`);
-
-          const baseMap = state.interiorMaps[poiKey];
-          const width = baseMap?.width ?? 20;
-          const height = baseMap?.height ?? 12;
-          const cr = poi.cr ?? 1;
-          const floorCount = baseMap?.floorCount ?? 3;
-
-          const floorMap = generator.generateFloor(width, height, cr, targetFloor, floorCount);
-
-          dispatch({
-            type: actions.SET_INTERIOR_MAP,
-            payload: { key: floorKey, map: floorMap },
-          });
-        }
-      } catch (error) {
-        logger.general.error('Failed to generate floor:', error);
-        addMessage('Failed to load next floor. Please try again.', 'error');
-        return;
-      }
-    } else {
-      const label = direction === 'up' ? 'Ascending' : 'Descending';
-      addMessage(`${label} to floor ${targetFloor + 1}...`, 'action');
-    }
-
-    // Switch active interior map to the target floor
-    dispatch({
-      type: actions.SWITCH_INTERIOR_FLOOR,
-      payload: {
-        poiKey,
-        floorKey,
-        targetFloor,
-        spawnPos,
-      },
     });
   };
 
@@ -360,7 +322,10 @@ export function useHexInteraction(hex) {
     // Check if interior already exists
     if (!state.interiorMaps[poiKey]) {
       // Dynamically load TownGenerator
-      let TownGeneratorClass;
+      let TownGeneratorClass: new () => {
+        setSeed: (seed: string) => void;
+        generate: (...args: any[]) => any;
+      };
       try {
         TownGeneratorClass = await loadTownGenerator();
       } catch (error) {
@@ -378,7 +343,7 @@ export function useHexInteraction(hex) {
       const settlementSize = poi.settlementSize || poi.type;
 
       // Determine interior size based on settlement tier
-      let width, height;
+      let width: number, height: number;
       switch (settlementSize) {
         case 'camp':
           width = 12;
