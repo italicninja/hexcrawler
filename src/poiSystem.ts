@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper types
 /**
  * POI System - Points of Interest with Events
  * Replaces the old encounter system with a unified POI system
@@ -8,6 +6,35 @@
 
 import { getHexDistance } from './utils/hexMath';
 import { STARTING_CACHE } from './constants/gameConstants';
+
+interface EncounterEntry {
+  name: string;
+  cr: number;
+  creatures: string;
+}
+
+interface TerrainLike {
+  name: string;
+  difficulty?: number;
+  [key: string]: unknown;
+}
+
+interface POI {
+  type: string;
+  name: string;
+  description: string;
+  visibleWithoutDiscovery: boolean;
+  eventType: string;
+  icon: string | null;
+  color: string | null;
+  settlementSize?: string;
+  questChance?: number;
+  cr?: number;
+  creatures?: string;
+  isStartingLocation?: boolean;
+}
+
+type RandomFn = () => number;
 
 /**
  * POI Type Definitions
@@ -31,6 +58,19 @@ export const POI_TYPES = {
  * POI System Class
  */
 export class POISystem {
+  encounterTables: Record<string, EncounterEntry[]>;
+  campNames: string[];
+  villageNames: string[];
+  townNames: string[];
+  cityNames: string[];
+  metropolisNames: string[];
+  dungeonNames: string[];
+  campDescriptions: string[];
+  villageDescriptions: string[];
+  townDescriptions: string[];
+  cityDescriptions: string[];
+  metropolisDescriptions: string[];
+
   constructor() {
     // Encounter tables by terrain type
     this.encounterTables = {
@@ -233,10 +273,17 @@ export class POISystem {
     ];
   }
 
-  calculateCR(col, row, startCol = 10, startRow = 7, terrainDifficulty = 1, random = Math.random) {
+  calculateCR(
+    col: number,
+    row: number,
+    startCol = 10,
+    startRow = 7,
+    terrainDifficulty = 1,
+    random: RandomFn = Math.random
+  ): number {
     const distance = getHexDistance(startCol, startRow, col, row);
 
-    let baseCR;
+    let baseCR: number;
     if (distance <= 2) {
       baseCR = 0;
     } else if (distance <= 5) {
@@ -255,10 +302,10 @@ export class POISystem {
     return Math.max(0, baseCR + terrainMod);
   }
 
-  getPOITypesForTerrain(terrain) {
+  getPOITypesForTerrain(terrain: TerrainLike): string[] {
     const terrainName = terrain.name.toLowerCase();
 
-    const preferences = {
+    const preferences: Record<string, string[]> = {
       mountains: [POI_TYPES.CAVE, POI_TYPES.TOWER, POI_TYPES.RUINS, POI_TYPES.DUNGEON],
       hills: [POI_TYPES.TOWER, POI_TYPES.RUINS, POI_TYPES.CAMP],
       forest: [POI_TYPES.SHRINE, POI_TYPES.CAMP, POI_TYPES.RUINS, POI_TYPES.ENCOUNTER],
@@ -272,7 +319,7 @@ export class POISystem {
     return preferences[terrainName] || [POI_TYPES.CAMP, POI_TYPES.ENCOUNTER];
   }
 
-  getEncounterForTerrain(terrain, cr, random = Math.random) {
+  getEncounterForTerrain(terrain: TerrainLike, cr: number, random: RandomFn = Math.random): EncounterEntry {
     const terrainKey = terrain.name.toLowerCase();
     const encounters = this.encounterTables[terrainKey] || this.encounterTables.grassland;
 
@@ -287,7 +334,15 @@ export class POISystem {
     return suitableEncounters[index];
   }
 
-  generatePOI(type, col, row, terrain, startCol = 10, startRow = 7, random = Math.random) {
+  generatePOI(
+    type: string,
+    col: number,
+    row: number,
+    terrain: TerrainLike,
+    startCol = 10,
+    startRow = 7,
+    random: RandomFn = Math.random
+  ): POI | null {
     const cr = this.calculateCR(col, row, startCol, startRow, terrain.difficulty, random);
 
     switch (type) {
@@ -318,7 +373,7 @@ export class POISystem {
     }
   }
 
-  generateTown(random) {
+  generateTown(random: RandomFn): POI {
     const name = this.townNames[Math.floor(random() * this.townNames.length)];
     const description = this.townDescriptions[Math.floor(random() * this.townDescriptions.length)];
 
@@ -335,7 +390,7 @@ export class POISystem {
     };
   }
 
-  generateDungeon(cr, terrain, random) {
+  generateDungeon(cr: number, terrain: TerrainLike, random: RandomFn): POI {
     const name = this.dungeonNames[Math.floor(random() * this.dungeonNames.length)];
     const encounter = this.getEncounterForTerrain(terrain, cr, random);
 
@@ -352,7 +407,7 @@ export class POISystem {
     };
   }
 
-  generateShrine(random) {
+  generateShrine(random: RandomFn): POI {
     const deities = ['Fortune', 'War', 'Nature', 'Knowledge', 'Light'];
     const deity = deities[Math.floor(random() * deities.length)];
 
@@ -367,7 +422,7 @@ export class POISystem {
     };
   }
 
-  generateEncounter(cr, terrain, random) {
+  generateEncounter(cr: number, terrain: TerrainLike, random: RandomFn): POI {
     const encounter = this.getEncounterForTerrain(terrain, cr, random);
 
     return {
@@ -383,7 +438,7 @@ export class POISystem {
     };
   }
 
-  generateCamp(cr, random) {
+  generateCamp(cr: number, random: RandomFn): POI {
     const name = this.campNames[Math.floor(random() * this.campNames.length)];
     const description = this.campDescriptions[Math.floor(random() * this.campDescriptions.length)];
 
@@ -400,7 +455,7 @@ export class POISystem {
     };
   }
 
-  generateVillage(random) {
+  generateVillage(random: RandomFn): POI {
     const name = this.villageNames[Math.floor(random() * this.villageNames.length)];
     const description =
       this.villageDescriptions[Math.floor(random() * this.villageDescriptions.length)];
@@ -418,7 +473,7 @@ export class POISystem {
     };
   }
 
-  generateCity(random) {
+  generateCity(random: RandomFn): POI {
     const name = this.cityNames[Math.floor(random() * this.cityNames.length)];
     const description = this.cityDescriptions[Math.floor(random() * this.cityDescriptions.length)];
 
@@ -435,7 +490,7 @@ export class POISystem {
     };
   }
 
-  generateMetropolis(random) {
+  generateMetropolis(random: RandomFn): POI {
     const name = this.metropolisNames[Math.floor(random() * this.metropolisNames.length)];
     const description =
       this.metropolisDescriptions[Math.floor(random() * this.metropolisDescriptions.length)];
@@ -453,7 +508,7 @@ export class POISystem {
     };
   }
 
-  generateRuins(cr, random) {
+  generateRuins(cr: number, random: RandomFn): POI {
     const adjectives = ['Ancient', 'Forgotten', 'Crumbling', 'Mysterious', 'Overgrown'];
     const adj = adjectives[Math.floor(random() * adjectives.length)];
 
@@ -469,7 +524,8 @@ export class POISystem {
     };
   }
 
-  generateCave(cr, random) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  generateCave(cr: number, random: RandomFn): POI {
     return {
       type: POI_TYPES.CAVE,
       name: 'Dark Cave',
@@ -482,7 +538,7 @@ export class POISystem {
     };
   }
 
-  generateTower(cr, random) {
+  generateTower(cr: number, random: RandomFn): POI {
     const owners = ['Wizard', 'Hermit', 'Watcher', 'Mage', 'Sorcerer'];
     const owner = owners[Math.floor(random() * owners.length)];
 
@@ -502,9 +558,8 @@ export class POISystem {
    * Generate the starting cache POI — placed on the player's spawn hex.
    * CR 0, no real combat, contains starter gear and a clearly marked Exit Hex.
    * The player begins the game inside this location.
-   * @param {Function} random - Seeded RNG
    */
-  generateStartingCache(random) {
+  generateStartingCache(random: RandomFn): POI {
     const name = STARTING_CACHE.NAMES[Math.floor(random() * STARTING_CACHE.NAMES.length)];
     const description =
       STARTING_CACHE.DESCRIPTIONS[Math.floor(random() * STARTING_CACHE.DESCRIPTIONS.length)];
