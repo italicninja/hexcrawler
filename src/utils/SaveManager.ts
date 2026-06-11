@@ -1,8 +1,8 @@
-// @ts-nocheck
-// TODO: Add proper types
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// gameState is the live reducer state at save time; treated as `any` at this
+// serialization boundary rather than coupling to the full GameState shape.
 import { SAVE } from '../constants/gameConstants';
 import logger from './logger';
-import { WeatherSystem } from '../WeatherSystem';
 
 /**
  * SaveManager - Handles game save/load operations with multiple save slots
@@ -30,7 +30,7 @@ export class SaveManager {
   static LAST_QUICKSAVE_KEY = 'hexcrawl_last_quicksave_slot';
   static SAVE_VERSION = SAVE.VERSION;
 
-  static saveToSlot(slotKey, gameState) {
+  static saveToSlot(slotKey: string, gameState: any): boolean {
     try {
       if (!gameState.playerCharacter) {
         logger.storage.warn('Cannot save: no player character', { slotKey });
@@ -38,9 +38,9 @@ export class SaveManager {
       }
 
       const serializeExplorationState = () => {
-        const clearedEncounters = {};
-        const collectedLoot = {};
-        const triggeredHazards = {};
+        const clearedEncounters: Record<string, unknown[]> = {};
+        const collectedLoot: Record<string, unknown[]> = {};
+        const triggeredHazards: Record<string, unknown[]> = {};
 
         Object.keys(gameState.explorationState.clearedEncounters).forEach(key => {
           clearedEncounters[key] = Array.from(gameState.explorationState.clearedEncounters[key]);
@@ -72,7 +72,7 @@ export class SaveManager {
       const serializeRegions = () => {
         if (!gameState.regions || gameState.regions.length === 0) return null;
 
-        return gameState.regions.map(region => ({
+        return gameState.regions.map((region: any) => ({
           ...region,
           boundaries: Array.from(region.boundaries),
         }));
@@ -108,10 +108,13 @@ export class SaveManager {
           explorationState: serializeExplorationState(),
           gameTime: gameState.gameTime,
           playtime: gameState.playtime || 0,
-          activeQuests: gameState.activeQuests.map(q => q.toJSON()),
-          completedQuests: gameState.completedQuests.map(q => q.toJSON()),
+          activeQuests: gameState.activeQuests.map((q: any) => q.toJSON()),
+          completedQuests: gameState.completedQuests.map((q: any) => q.toJSON()),
           shopInventories: Object.fromEntries(
-            Object.entries(gameState.shopInventories).map(([key, shop]) => [key, shop.toJSON()])
+            Object.entries(gameState.shopInventories).map(([key, shop]: [string, any]) => [
+              key,
+              shop.toJSON(),
+            ])
           ),
         },
       };
@@ -139,7 +142,7 @@ export class SaveManager {
     } catch (error) {
       logger.storage.error('Failed to save game', { error, slotKey });
 
-      if (error.name === 'QuotaExceededError') {
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
         logger.storage.error('Save Failed: Storage Quota Exceeded', { slotKey });
       }
 
@@ -147,7 +150,7 @@ export class SaveManager {
     }
   }
 
-  static loadFromSlot(slotKey) {
+  static loadFromSlot(slotKey: string): any {
     try {
       const saveDataStr = localStorage.getItem(slotKey);
       if (!saveDataStr) {
@@ -176,7 +179,7 @@ export class SaveManager {
     }
   }
 
-  static getSlotMetadata(slotKey) {
+  static getSlotMetadata(slotKey: string): any {
     try {
       const saveDataStr = localStorage.getItem(slotKey);
       if (!saveDataStr) {
@@ -195,7 +198,7 @@ export class SaveManager {
     }
   }
 
-  static deleteSlot(slotKey) {
+  static deleteSlot(slotKey: string): void {
     try {
       localStorage.removeItem(slotKey);
 
@@ -219,15 +222,15 @@ export class SaveManager {
     };
   }
 
-  static getActiveSlot() {
+  static getActiveSlot(): string | null {
     return localStorage.getItem(this.ACTIVE_SLOT_KEY);
   }
 
-  static setActiveSlot(slotKey) {
+  static setActiveSlot(slotKey: string): void {
     localStorage.setItem(this.ACTIVE_SLOT_KEY, slotKey);
   }
 
-  static hasSaveData() {
+  static hasSaveData(): boolean {
     return !!(
       this.getSlotMetadata(this.SAVE_SLOTS.AUTOSAVE) ||
       this.getSlotMetadata(this.SAVE_SLOTS.QUICKSAVE_A) ||
@@ -239,7 +242,7 @@ export class SaveManager {
     );
   }
 
-  static getNextQuicksaveSlot() {
+  static getNextQuicksaveSlot(): string {
     const lastSlot = localStorage.getItem(this.LAST_QUICKSAVE_KEY) || this.SAVE_SLOTS.QUICKSAVE_C;
 
     if (lastSlot === this.SAVE_SLOTS.QUICKSAVE_A) return this.SAVE_SLOTS.QUICKSAVE_B;
@@ -247,17 +250,17 @@ export class SaveManager {
     return this.SAVE_SLOTS.QUICKSAVE_A;
   }
 
-  static setLastQuicksaveSlot(slotKey) {
+  static setLastQuicksaveSlot(slotKey: string): void {
     localStorage.setItem(this.LAST_QUICKSAVE_KEY, slotKey);
   }
 
-  static _getCurrentLocationName(gameState) {
+  static _getCurrentLocationName(gameState: any): string {
     if (gameState.inInterior && gameState.currentPOI) {
       return gameState.currentPOI.name || gameState.currentPOI.type;
     }
 
     const currentHex = gameState.mapData?.find(
-      h => h.col === gameState.playerPosition.col && h.row === gameState.playerPosition.row
+      (h: any) => h.col === gameState.playerPosition.col && h.row === gameState.playerPosition.row
     );
 
     if (currentHex?.poi) {
