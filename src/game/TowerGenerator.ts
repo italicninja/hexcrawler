@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * TowerGenerator - Generates vertical tower structures with true per-floor layouts.
  * Each floor is a separate grid generated on demand.
@@ -8,11 +6,33 @@
  */
 
 import { InteriorGenerator } from './InteriorGenerator';
+import type { TerrainType, InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { LootGenerator } from './LootGenerator';
 import { HazardGenerator } from './HazardGenerator';
 import { TreasureGenerator } from './TreasureGenerator';
 
+/** Loose POI metadata passed into content placement. */
+interface PoiData {
+  creatures?: string;
+  [key: string]: unknown;
+}
+
+/** A generated tower floor / interior map. Extra fields ride the index signature. */
+interface FloorMap {
+  hexes: InteriorHex[];
+  entrance: HexCoord;
+  cr: number;
+  floorCount: number;
+  encounters: Record<string, unknown>[];
+  loot: Record<string, unknown>[];
+  hazards: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
 export class TowerGenerator extends InteriorGenerator {
+  lootGenerator: LootGenerator;
+  hazardGenerator: HazardGenerator;
+
   constructor() {
     super();
     this.lootGenerator = new LootGenerator();
@@ -42,7 +62,7 @@ export class TowerGenerator extends InteriorGenerator {
    * @param {number} cr - Challenge rating
    * @returns {object} Interior map for floor 0
    */
-  generate(width, height, cr) {
+  generate(width: number, height: number, cr: number): FloorMap {
     // Determine floor count based on CR (3-6 floors)
     const floorCount = Math.min(6, Math.max(3, 3 + Math.floor(cr / 2)));
 
@@ -81,7 +101,13 @@ export class TowerGenerator extends InteriorGenerator {
    * @param {number} floorCount - total floors
    * @returns {object} Interior map for this floor
    */
-  generateFloor(width, height, cr, floorIndex, floorCount) {
+  generateFloor(
+    width: number,
+    height: number,
+    cr: number,
+    floorIndex: number,
+    floorCount: number
+  ): FloorMap {
     const { grid, stairsUpPos, stairsDownPos } = this.generateFloorGrid(
       width,
       height,
@@ -100,7 +126,7 @@ export class TowerGenerator extends InteriorGenerator {
     const hexes = this.gridToHexes(grid);
     const floorCR = cr + Math.floor(floorIndex * 1.5);
 
-    const floorMap = {
+    const floorMap: FloorMap = {
       seed: `${this.seed}:floor${floorIndex}`,
       poiType: 'tower',
       cr: floorCR,
@@ -130,7 +156,13 @@ export class TowerGenerator extends InteriorGenerator {
    * Build the raw 2D grid for a single tower floor.
    * Returns the grid and positions of stair tiles placed.
    */
-  generateFloorGrid(width, height, cr, floorIndex, floorCount) {
+  generateFloorGrid(
+    width: number,
+    height: number,
+    cr: number,
+    floorIndex: number,
+    floorCount: number
+  ): { grid: InteriorGrid; stairsUpPos: HexCoord | null; stairsDownPos: HexCoord | null } {
     const grid = this.initializeGrid(width, height, this.terrainTypes.wall);
 
     // Circular room — radius shrinks slightly on upper floors
@@ -205,17 +237,17 @@ export class TowerGenerator extends InteriorGenerator {
    * @returns {{ col, row } | null}
    */
   _placeStairTile(
-    grid,
-    width,
-    height,
-    preferredCol,
-    preferredRow,
-    terrainType,
-    contentKey,
-    connectedFloor
-  ) {
+    grid: InteriorGrid,
+    width: number,
+    height: number,
+    preferredCol: number,
+    preferredRow: number,
+    terrainType: TerrainType,
+    contentKey: string,
+    connectedFloor: number
+  ): HexCoord | null {
     // Collect all free floor tiles on this grid, ordered by distance from preferred spot
-    const candidates = [];
+    const candidates: Array<{ col: number; row: number; d: number }> = [];
     for (let row = 1; row < height - 1; row++) {
       for (let col = 1; col < width - 1; col++) {
         if (grid[row][col].terrain.key === 'floor' && !grid[row][col].content) {
@@ -243,12 +275,12 @@ export class TowerGenerator extends InteriorGenerator {
    * The entrance is on the opposite side from the stairs up.
    * Returns the entrance position.
    */
-  placeEntranceAndExit(grid, stairsUpPos) {
+  placeEntranceAndExit(grid: InteriorGrid, stairsUpPos: HexCoord | null): HexCoord {
     const height = grid.length;
     const width = grid[0].length;
 
     // Find walkable tiles that are not stairs and not the center
-    const candidates = [];
+    const candidates: HexCoord[] = [];
     for (let row = 1; row < height - 1; row++) {
       for (let col = 1; col < width - 1; col++) {
         if (grid[row][col].terrain.key === 'floor' && !grid[row][col].content) {
@@ -284,8 +316,8 @@ export class TowerGenerator extends InteriorGenerator {
   /**
    * Add pillars to a single floor grid.
    */
-  addPillars(grid, percentage) {
-    const floorTiles = [];
+  addPillars(grid: InteriorGrid, percentage: number): void {
+    const floorTiles: HexCoord[] = [];
     for (let row = 0; row < grid.length; row++) {
       for (let col = 0; col < grid[row].length; col++) {
         if (grid[row][col].terrain.key === 'floor' && !grid[row][col].content) {
@@ -306,26 +338,31 @@ export class TowerGenerator extends InteriorGenerator {
   // ── placeEncounters / placeLoot / placeHazards (whole-map versions) ────────
   // Used for the ground floor via the standard pipeline in useHexInteraction
 
-  placeEncounters(interiorMap, poiData) {
+  placeEncounters(interiorMap: FloorMap, poiData: PoiData = {}) {
     return this.placeEncountersForFloor(interiorMap, 0, interiorMap.floorCount, poiData);
   }
 
-  placeLoot(interiorMap, partySize = 4) {
+  placeLoot(interiorMap: FloorMap, partySize = 4) {
     return this.placeLootForFloor(interiorMap, 0, interiorMap.floorCount, partySize);
   }
 
-  placeHazards(interiorMap) {
+  placeHazards(interiorMap: FloorMap) {
     return this.placeHazardsForFloor(interiorMap);
   }
 
   // ── Per-floor content placement ────────────────────────────────────────────
 
-  placeEncountersForFloor(interiorMap, floorIndex, floorCount, poiData = {}) {
+  placeEncountersForFloor(
+    interiorMap: FloorMap,
+    floorIndex: number,
+    floorCount: number,
+    poiData: PoiData = {}
+  ) {
     const floorTiles = interiorMap.hexes.filter(h => h.terrain.walkable && h.content === null);
     const cr = interiorMap.cr;
     const isBossFloor = floorIndex === floorCount - 1;
     const encounterCount = isBossFloor ? 1 : cr >= 5 ? 2 : 1;
-    const encounters = [];
+    const encounters: Record<string, unknown>[] = [];
 
     for (let i = 0; i < encounterCount && floorTiles.length > 0; i++) {
       const entrance = interiorMap.entrance;
@@ -356,13 +393,18 @@ export class TowerGenerator extends InteriorGenerator {
     return encounters;
   }
 
-  placeLootForFloor(interiorMap, floorIndex, floorCount, partySize = 4) {
+  placeLootForFloor(
+    interiorMap: FloorMap,
+    floorIndex: number,
+    floorCount: number,
+    partySize = 4
+  ) {
     const floorTiles = interiorMap.hexes.filter(h => h.terrain.walkable && h.content === null);
     const cr = interiorMap.cr;
     // More loot on higher floors
     const lootCount = Math.max(1, Math.floor(1 + cr * 0.5 + floorIndex * 0.5));
     const treasureGenerator = new TreasureGenerator();
-    const loot = [];
+    const loot: Record<string, unknown>[] = [];
 
     for (let i = 0; i < lootCount && floorTiles.length > 0; i++) {
       const tile = this.randomChoice(floorTiles);
@@ -385,8 +427,8 @@ export class TowerGenerator extends InteriorGenerator {
         floor: floorIndex,
         type: isChest ? 'chest' : 'loot',
         gold: lootData.gold,
-        items: lootData.items || [],
-        consumables: lootData.consumables || [],
+        items: 'items' in lootData ? lootData.items : [],
+        consumables: 'consumables' in lootData ? lootData.consumables : [],
         rarity: lootData.rarity,
         collected: false,
         discovered: false,
@@ -395,12 +437,12 @@ export class TowerGenerator extends InteriorGenerator {
     return loot;
   }
 
-  placeHazardsForFloor(interiorMap) {
+  placeHazardsForFloor(interiorMap: FloorMap) {
     const floorTiles = interiorMap.hexes.filter(h => h.terrain.walkable && h.content === null);
     const cr = interiorMap.cr;
     const hazardPercentage = 0.08 + this.random() * 0.1;
     const hazardCount = Math.floor(floorTiles.length * hazardPercentage);
-    const hazards = [];
+    const hazards: Record<string, unknown>[] = [];
 
     for (let i = 0; i < hazardCount && floorTiles.length > 0; i++) {
       const tile = this.randomChoice(floorTiles);

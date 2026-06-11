@@ -22,6 +22,8 @@ export interface InteriorHex {
   row: number;
   terrain: TerrainType;
   content: string | null;
+  /** Target floor index for stair tiles in multi-floor interiors (tower/dungeon). */
+  connectedFloor?: number;
 }
 
 export type InteriorGrid = InteriorHex[][];
