@@ -1,16 +1,69 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * DungeonGenerator - Generates complex dungeons using BSP (Binary Space Partitioning)
  * Extends InteriorGenerator base class
  */
 
 import { InteriorGenerator } from './InteriorGenerator';
+import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { LootGenerator } from './LootGenerator';
 import { HazardGenerator } from './HazardGenerator';
 import { TreasureGenerator } from './TreasureGenerator';
 
+/** Loose POI metadata passed into content placement. */
+interface PoiData {
+  creatures?: string;
+  [key: string]: unknown;
+}
+
+/** A rectangular dungeon room. */
+interface Room {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** A node in the BSP partition tree. */
+interface BSPNode {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  leftChild: BSPNode | null;
+  rightChild: BSPNode | null;
+  room: Room | null;
+}
+
+/** The generated ground-floor dungeon map. Extra fields ride the index signature. */
+interface DungeonMap {
+  hexes: InteriorHex[];
+  entrance: HexCoord;
+  cr: number;
+  rooms: Room[];
+  bossRoom: Room;
+  floorCount: number;
+  encounters: Record<string, unknown>[];
+  loot: Record<string, unknown>[];
+  hazards: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
+/** The generated boss floor (floor 1) — no room metadata. */
+interface BossFloorMap {
+  hexes: InteriorHex[];
+  entrance: HexCoord;
+  cr: number;
+  floorCount: number;
+  encounters: Record<string, unknown>[];
+  loot: Record<string, unknown>[];
+  hazards: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
 export class DungeonGenerator extends InteriorGenerator {
+  lootGenerator: LootGenerator;
+  hazardGenerator: HazardGenerator;
+
   constructor() {
     super();
     this.lootGenerator = new LootGenerator();
@@ -40,13 +93,13 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {number} cr - Challenge rating
    * @returns {object} Interior map data
    */
-  generate(width, height, cr) {
+  generate(width: number, height: number, cr: number): DungeonMap {
     const { grid, rooms, bossRoom } = this.generateDungeonLayout(width, height, cr);
     const entrance = this.placeEntrance(grid, rooms[0]);
 
     // For CR ≥ 3, add stairs to a separate boss floor instead of a boss room
     const hasSecondFloor = cr >= 3 && rooms.length >= 3;
-    let stairsPos = null;
+    let stairsPos: HexCoord | null = null;
     if (hasSecondFloor) {
       stairsPos = this.placeBossStairs(grid, bossRoom);
     }
@@ -76,7 +129,7 @@ export class DungeonGenerator extends InteriorGenerator {
    * Generate the boss floor (floor 1) for a multi-level dungeon.
    * A single large chamber with the boss encounter and rich loot.
    */
-  generateBossFloor(width, height, cr) {
+  generateBossFloor(width: number, height: number, cr: number): BossFloorMap {
     const grid = this.initializeGrid(width, height, this.terrainTypes.wall);
 
     // One large central boss chamber
@@ -122,7 +175,7 @@ export class DungeonGenerator extends InteriorGenerator {
     const bossFloorCR = Math.ceil(cr * 1.5);
     const spawnUp = { col: stairsUpCol, row: stairsUpRow };
 
-    const floorMap = {
+    const floorMap: BossFloorMap = {
       seed: `${this.seed}:boss`,
       poiType: 'dungeon',
       cr: bossFloorCR,
@@ -156,7 +209,7 @@ export class DungeonGenerator extends InteriorGenerator {
     const treasureGenerator = new TreasureGenerator();
     const lootCount = Math.max(2, Math.floor(2 + cr * 0.5));
     const lootTiles = hexes.filter(h => h.terrain.walkable && h.content === null);
-    const floorLoot = [];
+    const floorLoot: Record<string, unknown>[] = [];
     for (let i = 0; i < lootCount && lootTiles.length > 0; i++) {
       const tile = this.randomChoice(lootTiles);
       lootTiles.splice(lootTiles.indexOf(tile), 1);
@@ -169,8 +222,8 @@ export class DungeonGenerator extends InteriorGenerator {
         floor: 1,
         type: 'chest',
         gold: lootData.gold,
-        items: lootData.items || [],
-        consumables: lootData.consumables || [],
+        items: 'items' in lootData ? lootData.items : [],
+        consumables: 'consumables' in lootData ? lootData.consumables : [],
         rarity: lootData.rarity,
         collected: false,
         discovered: false,
@@ -186,12 +239,12 @@ export class DungeonGenerator extends InteriorGenerator {
    * Tries the center first, then spirals outward through all room tiles
    * to find a free walkable tile. Returns null only if the room is fully occupied.
    */
-  placeBossStairs(grid, bossRoom) {
+  placeBossStairs(grid: InteriorGrid, bossRoom: Room): HexCoord | null {
     const stairCol = Math.floor(bossRoom.x + bossRoom.width / 2);
     const stairRow = Math.floor(bossRoom.y + bossRoom.height / 2);
 
     // Collect all walkable, content-free tiles inside the boss room
-    const candidates = [];
+    const candidates: Array<{ col: number; row: number; d: number }> = [];
     for (let row = bossRoom.y; row < bossRoom.y + bossRoom.height; row++) {
       for (let col = bossRoom.x; col < bossRoom.x + bossRoom.width; col++) {
         if (
@@ -225,13 +278,17 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {number} cr
    * @returns {object} { grid, rooms, bossRoom }
    */
-  generateDungeonLayout(width, height, cr) {
+  generateDungeonLayout(
+    width: number,
+    height: number,
+    cr: number
+  ): { grid: InteriorGrid; rooms: Room[]; bossRoom: Room } {
     // Initialize grid with walls
-    let grid = this.initializeGrid(width, height, this.terrainTypes.wall);
+    const grid = this.initializeGrid(width, height, this.terrainTypes.wall);
 
     // Create BSP tree
     const minRoomSize = 4; // Minimum 4x4 rooms
-    const rootNode = {
+    const rootNode: BSPNode = {
       x: 1,
       y: 1,
       width: width - 2,
@@ -246,7 +303,7 @@ export class DungeonGenerator extends InteriorGenerator {
     this.partitionNode(rootNode, 0, targetDepth, minRoomSize);
 
     // Create rooms in leaf nodes
-    const rooms = [];
+    const rooms: Room[] = [];
     this.createRooms(rootNode, rooms);
 
     // Carve out rooms
@@ -276,7 +333,7 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {number} maxDepth - Maximum depth
    * @param {number} minRoomSize - Minimum room size
    */
-  partitionNode(node, depth, maxDepth, minRoomSize) {
+  partitionNode(node: BSPNode, depth: number, maxDepth: number, minRoomSize: number): void {
     if (depth >= maxDepth) {
       return; // Stop partitioning
     }
@@ -290,7 +347,7 @@ export class DungeonGenerator extends InteriorGenerator {
     }
 
     // Decide split direction
-    let splitHorizontally;
+    let splitHorizontally: boolean;
     if (canSplitHorizontally && !canSplitVertically) {
       splitHorizontally = true;
     } else if (!canSplitHorizontally && canSplitVertically) {
@@ -357,7 +414,7 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {object} node - BSP node
    * @param {Array} rooms - Array to collect rooms
    */
-  createRooms(node, rooms) {
+  createRooms(node: BSPNode, rooms: Room[]): void {
     if (node.leftChild === null && node.rightChild === null) {
       // Leaf node - create a room
       const roomWidth = this.randomInt(
@@ -396,7 +453,7 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {Array} grid - 2D grid
    * @param {object} node - BSP node
    */
-  connectRooms(grid, node) {
+  connectRooms(grid: InteriorGrid, node: BSPNode): void {
     if (node.leftChild === null && node.rightChild === null) {
       return; // Leaf node, no connections needed
     }
@@ -434,7 +491,7 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {object} node - BSP node
    * @returns {object|null} Room object
    */
-  getRandomRoom(node) {
+  getRandomRoom(node: BSPNode | null): Room | null {
     if (!node) return null;
 
     if (node.room) {
@@ -459,7 +516,7 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {object} start - {col, row}
    * @param {object} end - {col, row}
    */
-  carveDungeonCorridor(grid, start, end) {
+  carveDungeonCorridor(grid: InteriorGrid, start: HexCoord, end: HexCoord): void {
     // Choose to go horizontal first or vertical first randomly
     const horizontalFirst = this.random() > 0.5;
 
@@ -503,7 +560,7 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {object} firstRoom - First room object
    * @returns {object} {col, row} of entrance
    */
-  placeEntrance(grid, firstRoom) {
+  placeEntrance(grid: InteriorGrid, firstRoom: Room): HexCoord {
     // Entrance — center of first room
     const entrance = {
       col: Math.floor(firstRoom.x + firstRoom.width / 2),
@@ -539,20 +596,16 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {object} poiData - Original POI data
    * @returns {Array} Array of encounter objects
    */
-  placeEncounters(interiorMap, poiData) {
+  placeEncounters(interiorMap: DungeonMap, poiData: PoiData = {}) {
     const rooms = interiorMap.rooms;
     const bossRoom = interiorMap.bossRoom;
-    const encounters = [];
+    const encounters: Record<string, unknown>[] = [];
 
     // Place one encounter per room (except first room which has entrance)
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
 
-      // Get center of room
-      const centerCol = Math.floor(room.x + room.width / 2);
-      const centerRow = Math.floor(room.y + room.height / 2);
-
-      // Find a walkable tile near center (exclude stairsDown so boss encounter
+      // Find a walkable tile (exclude stairsDown so boss encounter
       // doesn't land on the staircase tile placed by placeBossStairs)
       const roomTiles = interiorMap.hexes.filter(hex => {
         return (
@@ -602,7 +655,7 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {number} partySize - Party size for treasure hoard generation
    * @returns {Array} Array of loot objects
    */
-  placeLoot(interiorMap, partySize = 4) {
+  placeLoot(interiorMap: DungeonMap, partySize = 4) {
     const cr = interiorMap.cr;
     const rooms = interiorMap.rooms;
 
@@ -610,7 +663,7 @@ export class DungeonGenerator extends InteriorGenerator {
     const lootCount = Math.max(3, Math.floor(3 + cr * 0.8));
 
     const treasureGenerator = new TreasureGenerator();
-    const loot = [];
+    const loot: Record<string, unknown>[] = [];
 
     for (let i = 0; i < lootCount; i++) {
       // Bias towards later rooms (60% chance of later half)
@@ -662,8 +715,8 @@ export class DungeonGenerator extends InteriorGenerator {
         row: tile.row,
         type: contentType,
         gold: lootData.gold,
-        items: lootData.items || [],
-        consumables: lootData.consumables || [],
+        items: 'items' in lootData ? lootData.items : [],
+        consumables: 'consumables' in lootData ? lootData.consumables : [],
         rarity: lootData.rarity,
         collected: false,
         discovered: false,
@@ -678,7 +731,7 @@ export class DungeonGenerator extends InteriorGenerator {
    * @param {object} interiorMap - Interior map data
    * @returns {Array} Array of hazard objects
    */
-  placeHazards(interiorMap) {
+  placeHazards(interiorMap: DungeonMap) {
     const floorTiles = interiorMap.hexes.filter(
       hex => hex.terrain.walkable && hex.content === null
     );
@@ -689,7 +742,7 @@ export class DungeonGenerator extends InteriorGenerator {
     const hazardPercentage = 0.2 + this.random() * 0.15;
     const hazardCount = Math.floor(floorTiles.length * hazardPercentage);
 
-    const hazards = [];
+    const hazards: Record<string, unknown>[] = [];
 
     for (let i = 0; i < hazardCount && floorTiles.length > 0; i++) {
       const tile = this.randomChoice(floorTiles);
