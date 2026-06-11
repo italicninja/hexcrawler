@@ -1,21 +1,50 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * RuinsGenerator - Generates ancient ruins with room-based layouts and crumbling walls
  * Extends InteriorGenerator base class
  */
 
 import { InteriorGenerator } from './InteriorGenerator';
+import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { LootGenerator } from './LootGenerator';
 import { HazardGenerator } from './HazardGenerator';
 import { TreasureGenerator } from './TreasureGenerator';
 import logger from '../utils/logger';
 
+/** Loose POI metadata passed into content placement. */
+interface PoiData {
+  creatures?: string;
+  [key: string]: unknown;
+}
+
+/** A rectangular room placed during ruins generation. */
+interface Room {
+  col: number;
+  row: number;
+  width: number;
+  height: number;
+}
+
+/** A generated ruins interior map. Extra fields ride the index signature. */
+interface InteriorMapData {
+  hexes: InteriorHex[];
+  entrance: HexCoord;
+  cr: number;
+  encounters: Record<string, unknown>[];
+  loot: Record<string, unknown>[];
+  hazards: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
 export class RuinsGenerator extends InteriorGenerator {
+  lootGenerator: LootGenerator;
+  hazardGenerator: HazardGenerator;
+  _rooms: Room[];
+
   constructor() {
     super();
     this.lootGenerator = new LootGenerator();
     this.hazardGenerator = new HazardGenerator();
+    this._rooms = [];
 
     // Add rubble terrain for ruins
     this.terrainTypes.rubble = {
@@ -33,7 +62,7 @@ export class RuinsGenerator extends InteriorGenerator {
    * @param {number} cr - Challenge rating
    * @returns {object} Interior map data
    */
-  generate(width, height, cr) {
+  generate(width: number, height: number, cr: number): InteriorMapData {
     // Generate ruins layout with room-based generation
     const grid = this.generateRuinsLayout(width, height, cr);
 
@@ -67,9 +96,9 @@ export class RuinsGenerator extends InteriorGenerator {
    * @param {number} cr - Challenge rating affects room count and density
    * @returns {Array} 2D grid
    */
-  generateRuinsLayout(width, height, cr) {
+  generateRuinsLayout(width: number, height: number, cr: number): InteriorGrid {
     // Initialize grid with walls
-    let grid = this.initializeGrid(width, height, this.terrainTypes.wall);
+    const grid = this.initializeGrid(width, height, this.terrainTypes.wall);
 
     // More rooms at higher CR (4-8 rooms)
     const roomCount = Math.min(8, Math.max(4, 4 + Math.floor(cr / 2)));
@@ -77,7 +106,7 @@ export class RuinsGenerator extends InteriorGenerator {
     logger.mapgen.info('Generating ruins', { width, height, cr, roomCount });
 
     // ── Room placement ───────────────────────────────────────────────────────
-    const rooms = [];
+    const rooms: Room[] = [];
     // More attempts so we actually fill the space
     const maxAttempts = 300;
     let attempts = 0;
@@ -180,7 +209,7 @@ export class RuinsGenerator extends InteriorGenerator {
 
     // ── Flood-fill connectivity guarantee ────────────────────────────────────
     // Find the largest connected region and carve straight paths to orphans
-    const allFloor = [];
+    const allFloor: HexCoord[] = [];
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         if (grid[row][col].terrain.walkable) allFloor.push({ col, row });
@@ -192,7 +221,7 @@ export class RuinsGenerator extends InteriorGenerator {
       const orphans = allFloor.filter(t => !connected.has(`${t.col},${t.row}`));
       for (const orphan of orphans) {
         // Carve direct line from orphan to seed
-        let cur = { ...orphan };
+        const cur = { ...orphan };
         while (cur.col !== seed.col || cur.row !== seed.row) {
           if (cur.row > 0 && cur.row < height - 1 && cur.col > 0 && cur.col < width - 1) {
             grid[cur.row][cur.col].terrain = this.terrainTypes.floor;
@@ -216,7 +245,7 @@ export class RuinsGenerator extends InteriorGenerator {
     // ── Re-run connectivity after chasms (chasms are non-walkable) ───────────
     // Chasms can cut off regions that were connected before, so we heal any new
     // orphans by carving floor paths — same technique as the first pass above.
-    const allFloor2 = [];
+    const allFloor2: HexCoord[] = [];
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         if (grid[row][col].terrain.walkable) allFloor2.push({ col, row });
@@ -227,7 +256,7 @@ export class RuinsGenerator extends InteriorGenerator {
       const connected2 = this.floodFill(grid, seed2.col, seed2.row, h => h.terrain.walkable);
       const orphans2 = allFloor2.filter(t => !connected2.has(`${t.col},${t.row}`));
       for (const orphan of orphans2) {
-        let cur = { ...orphan };
+        const cur = { ...orphan };
         while (cur.col !== seed2.col || cur.row !== seed2.row) {
           if (cur.row > 0 && cur.row < height - 1 && cur.col > 0 && cur.col < width - 1) {
             // Only carve through walls/chasms — don't downgrade rubble
@@ -255,7 +284,7 @@ export class RuinsGenerator extends InteriorGenerator {
    * @param {object} start - {col, row}
    * @param {object} end - {col, row}
    */
-  carveRuinsCorridor(grid, start, end) {
+  carveRuinsCorridor(grid: InteriorGrid, start: HexCoord, end: HexCoord): void {
     // Choose to go horizontal first or vertical first randomly
     const horizontalFirst = this.random() > 0.5;
 
@@ -292,8 +321,8 @@ export class RuinsGenerator extends InteriorGenerator {
    * @param {number} minPercent - Minimum percentage of floor tiles to convert
    * @param {number} maxPercent - Maximum percentage of floor tiles to convert
    */
-  addRubble(grid, minPercent, maxPercent) {
-    const floorTiles = [];
+  addRubble(grid: InteriorGrid, minPercent: number, maxPercent: number): void {
+    const floorTiles: HexCoord[] = [];
     for (let row = 0; row < grid.length; row++) {
       for (let col = 0; col < grid[row].length; col++) {
         if (grid[row][col].terrain.key === 'floor') {
@@ -320,8 +349,8 @@ export class RuinsGenerator extends InteriorGenerator {
    * @param {number} minPercent - Minimum percentage
    * @param {number} maxPercent - Maximum percentage
    */
-  addChasms(grid, minPercent, maxPercent) {
-    const floorTiles = [];
+  addChasms(grid: InteriorGrid, minPercent: number, maxPercent: number): void {
+    const floorTiles: HexCoord[] = [];
     for (let row = 0; row < grid.length; row++) {
       for (let col = 0; col < grid[row].length; col++) {
         if (grid[row][col].terrain.key === 'floor' || grid[row][col].terrain.key === 'rubble') {
@@ -354,11 +383,11 @@ export class RuinsGenerator extends InteriorGenerator {
    * @param {Array} grid
    * @returns {object} {col, row} of entrance
    */
-  placeEntrance(grid) {
+  placeEntrance(grid: InteriorGrid): HexCoord {
     const height = grid.length;
     const width = grid[0].length;
 
-    let entrance = null;
+    let entrance: HexCoord | null = null;
 
     // ── 1. Prefer the top-row of the top-left room ───────────────────────────
     if (this._rooms && this._rooms.length > 0) {
@@ -391,7 +420,7 @@ export class RuinsGenerator extends InteriorGenerator {
 
     // ── 3. Generic edge-scan fallback ────────────────────────────────────────
     if (!entrance) {
-      const candidates = [];
+      const candidates: HexCoord[] = [];
       for (let col = 1; col < width - 1; col++) {
         if (grid[1][col].terrain.walkable) candidates.push({ col, row: 1 });
         if (grid[height - 2][col].terrain.walkable) candidates.push({ col, row: height - 2 });
@@ -422,7 +451,7 @@ export class RuinsGenerator extends InteriorGenerator {
     // Carve a straight path from the entrance to the nearest existing floor/rubble
     // tile so the player is never isolated in an island of walls, even if chasms
     // consumed the whole first room before this method was called.
-    const allFloor = [];
+    const allFloor: HexCoord[] = [];
     for (let r = 0; r < height; r++) {
       for (let c = 0; c < width; c++) {
         const t = grid[r][c].terrain;
@@ -474,7 +503,7 @@ export class RuinsGenerator extends InteriorGenerator {
    * @param {object} poiData - Original POI data
    * @returns {Array} Array of encounter objects
    */
-  placeEncounters(interiorMap, poiData) {
+  placeEncounters(interiorMap: InteriorMapData, poiData: PoiData = {}) {
     const floorTiles = interiorMap.hexes.filter(
       hex => hex.terrain.walkable && hex.content === null
     );
@@ -486,7 +515,7 @@ export class RuinsGenerator extends InteriorGenerator {
     if (cr >= 3 && cr <= 5) encounterCount = 2;
     else if (cr > 5) encounterCount = 3;
 
-    const encounters = [];
+    const encounters: Record<string, unknown>[] = [];
 
     for (let i = 0; i < encounterCount && floorTiles.length > 0; i++) {
       const entrance = interiorMap.entrance;
@@ -525,7 +554,7 @@ export class RuinsGenerator extends InteriorGenerator {
    * @param {number} partySize - Party size for treasure hoard generation
    * @returns {Array} Array of loot objects
    */
-  placeLoot(interiorMap, partySize = 4) {
+  placeLoot(interiorMap: InteriorMapData, partySize = 4) {
     const floorTiles = interiorMap.hexes.filter(
       hex => hex.terrain.walkable && hex.content === null
     );
@@ -536,7 +565,7 @@ export class RuinsGenerator extends InteriorGenerator {
     const lootCount = Math.max(3, Math.floor(3 + cr * 0.6));
 
     const treasureGenerator = new TreasureGenerator();
-    const loot = [];
+    const loot: Record<string, unknown>[] = [];
 
     for (let i = 0; i < lootCount && floorTiles.length > 0; i++) {
       const tile = this.randomChoice(floorTiles);
@@ -570,8 +599,8 @@ export class RuinsGenerator extends InteriorGenerator {
         row: tile.row,
         type: contentType,
         gold: lootData.gold,
-        items: lootData.items || [],
-        consumables: lootData.consumables || [],
+        items: 'items' in lootData ? lootData.items : [],
+        consumables: 'consumables' in lootData ? lootData.consumables : [],
         rarity: lootData.rarity,
         collected: false,
         discovered: false,
@@ -586,7 +615,7 @@ export class RuinsGenerator extends InteriorGenerator {
    * @param {object} interiorMap - Interior map data
    * @returns {Array} Array of hazard objects
    */
-  placeHazards(interiorMap) {
+  placeHazards(interiorMap: InteriorMapData) {
     const floorTiles = interiorMap.hexes.filter(
       hex => hex.terrain.walkable && hex.content === null
     );
@@ -597,7 +626,7 @@ export class RuinsGenerator extends InteriorGenerator {
     const hazardPercentage = 0.15 + this.random() * 0.15;
     const hazardCount = Math.floor(floorTiles.length * hazardPercentage);
 
-    const hazards = [];
+    const hazards: Record<string, unknown>[] = [];
 
     for (let i = 0; i < hazardCount && floorTiles.length > 0; i++) {
       const tile = this.randomChoice(floorTiles);
