@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Equipment component - displays character equipment with equip/unequip functionality.
  * Layout: 3-column split — equipped slots | inventory list | item detail panel.
@@ -6,10 +5,24 @@
 
 import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
+import type { Item } from '../../game/Item';
+import type { Character } from '../../game/Character';
+
+interface ItemSource {
+  type: string;
+  slotId?: string;
+}
 
 // ─── Item Detail Panel ────────────────────────────────────────────────────────
 
-function ItemDetailPanel({ item, source, onEquip, onUnequip }) {
+interface ItemDetailPanelProps {
+  item: Item | null;
+  source: ItemSource | null;
+  onEquip: (item: Item) => void;
+  onUnequip: (slotId: string) => void;
+}
+
+function ItemDetailPanel({ item, source, onEquip, onUnequip }: ItemDetailPanelProps) {
   if (!item) {
     return (
       <div className="item-detail-panel empty">
@@ -96,7 +109,7 @@ function ItemDetailPanel({ item, source, onEquip, onUnequip }) {
 
       <div className="detail-actions">
         {source?.type === 'slot' && (
-          <button className="detail-action-btn unequip" onClick={() => onUnequip(source.slotId)}>
+          <button className="detail-action-btn unequip" onClick={() => onUnequip(source.slotId ?? '')}>
             Unequip
           </button>
         )}
@@ -112,7 +125,15 @@ function ItemDetailPanel({ item, source, onEquip, onUnequip }) {
 
 // ─── Equipment Slot (compact) ─────────────────────────────────────────────────
 
-function EquipmentSlot({ label, item, slotId, isSelected, onSelect }) {
+interface EquipmentSlotProps {
+  label: string;
+  item: Item | null;
+  slotId: string;
+  isSelected: boolean;
+  onSelect: (item: Item, source: ItemSource) => void;
+}
+
+function EquipmentSlot({ label, item, slotId, isSelected, onSelect }: EquipmentSlotProps) {
   const handleClick = () => {
     if (item) onSelect(item, { type: 'slot', slotId });
   };
@@ -152,7 +173,13 @@ function EquipmentSlot({ label, item, slotId, isSelected, onSelect }) {
 
 // ─── Inventory Item (mini-display) ────────────────────────────────────────────
 
-function InventoryItem({ item, isSelected, onSelect }) {
+interface InventoryItemProps {
+  item: Item;
+  isSelected: boolean;
+  onSelect: (item: Item, source: ItemSource) => void;
+}
+
+function InventoryItem({ item, isSelected, onSelect }: InventoryItemProps) {
   const itemType = item.type.charAt(0).toUpperCase() + item.type.slice(1);
 
   const handleClick = () => onSelect(item, { type: 'inventory' });
@@ -186,7 +213,13 @@ function InventoryItem({ item, isSelected, onSelect }) {
 
 // ─── Inventory Panel ──────────────────────────────────────────────────────────
 
-function Inventory({ inventory, selectedItem, onSelect }) {
+interface InventoryProps {
+  inventory: Item[] | null | undefined;
+  selectedItem: Item | null;
+  onSelect: (item: Item, source: ItemSource) => void;
+}
+
+function Inventory({ inventory, selectedItem, onSelect }: InventoryProps) {
   const [filter, setFilter] = useState('all');
 
   if (!inventory || inventory.length === 0) {
@@ -200,7 +233,13 @@ function Inventory({ inventory, selectedItem, onSelect }) {
     );
   }
 
-  const itemsByType = { weapon: [], armor: [], consumable: [], quest: [], misc: [] };
+  const itemsByType: Record<string, Item[]> = {
+    weapon: [],
+    armor: [],
+    consumable: [],
+    quest: [],
+    misc: [],
+  };
   inventory.forEach(item => {
     const type = item.type || 'misc';
     if (itemsByType[type]) itemsByType[type].push(item);
@@ -283,10 +322,14 @@ function Inventory({ inventory, selectedItem, onSelect }) {
 
 // ─── Equipment (root) ─────────────────────────────────────────────────────────
 
-function Equipment({ character }) {
+interface EquipmentProps {
+  character: Character | null;
+}
+
+function Equipment({ character }: EquipmentProps) {
   const { dispatch, actions } = useGameState();
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedSource, setSelectedSource] = useState(null);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [selectedSource, setSelectedSource] = useState<ItemSource | null>(null);
 
   if (!character) {
     return <div className="equipment-placeholder">Select a party member to view equipment</div>;
@@ -296,9 +339,9 @@ function Equipment({ character }) {
     return <div className="equipment-placeholder">Invalid character data (missing equipment)</div>;
   }
 
-  const equipment = character.equipment;
+  const equipment = character.equipment as Record<string, Item | null>;
 
-  const handleSelect = (item, source) => {
+  const handleSelect = (item: Item, source: ItemSource) => {
     // Clicking the same item again deselects it
     if (selectedItem?.id === item.id && selectedSource?.slotId === source?.slotId) {
       setSelectedItem(null);
@@ -309,13 +352,13 @@ function Equipment({ character }) {
     }
   };
 
-  const handleUnequip = slotId => {
+  const handleUnequip = (slotId: string) => {
     dispatch({ type: actions.UNEQUIP_ITEM, payload: { slot: slotId } });
     setSelectedItem(null);
     setSelectedSource(null);
   };
 
-  const handleEquip = item => {
+  const handleEquip = (item: Item) => {
     let targetSlot = item.slot;
 
     if (item.slot === 'ring1' || item.slot === 'ring2') {
