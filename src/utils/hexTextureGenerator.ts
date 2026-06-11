@@ -1,6 +1,14 @@
-// @ts-nocheck
-// TODO: Add proper types
 import logger from './logger';
+
+interface NoiseLike {
+  noise2D(x: number, y: number): number;
+}
+
+interface TextureTerrain {
+  key: string;
+  color: string;
+  [key: string]: unknown;
+}
 
 /**
  * Hex Texture Generator
@@ -9,13 +17,22 @@ import logger from './logger';
  * Uses noise functions and geometric patterns to create organic textures.
  */
 export class HexTextureGenerator {
-  constructor(noise) {
+  noise: NoiseLike;
+  patternCache: Map<string, CanvasPattern | null>;
+
+  constructor(noise: NoiseLike) {
     this.noise = noise;
     this.patternCache = new Map();
     logger.render.debug('HexTextureGenerator initialized');
   }
 
-  getPattern(ctx, terrainType, hexSize, col = 0, row = 0) {
+  getPattern(
+    ctx: CanvasRenderingContext2D,
+    terrainType: TextureTerrain,
+    hexSize: number,
+    col = 0,
+    row = 0
+  ): CanvasPattern | null | undefined {
     const key = `${terrainType.key}_${hexSize}_${col}_${row}`;
 
     if (!this.patternCache.has(key)) {
@@ -27,12 +44,18 @@ export class HexTextureGenerator {
     return this.patternCache.get(key);
   }
 
-  createPattern(ctx, terrainType, hexSize, seedOffset = 0) {
+  createPattern(
+    ctx: CanvasRenderingContext2D,
+    terrainType: TextureTerrain,
+    hexSize: number,
+    seedOffset = 0
+  ): CanvasPattern | null {
     const patternCanvas = document.createElement('canvas');
     const patternSize = Math.max(32, hexSize);
     patternCanvas.width = patternSize;
     patternCanvas.height = patternSize;
     const pctx = patternCanvas.getContext('2d');
+    if (!pctx) return null;
 
     switch (terrainType.key) {
       case 'grassland':
@@ -69,7 +92,7 @@ export class HexTextureGenerator {
     return ctx.createPattern(patternCanvas, 'repeat');
   }
 
-  drawGrasslandPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawGrasslandPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -95,7 +118,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawForestPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawForestPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -125,7 +148,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawMountainsPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawMountainsPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -154,7 +177,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawHillsPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawHillsPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -189,7 +212,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawWaterPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawWaterPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -224,7 +247,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawRiverPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawRiverPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -259,7 +282,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawDesertPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawDesertPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -291,7 +314,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawSwampPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawSwampPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -331,7 +354,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawTundraPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawTundraPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -373,7 +396,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawDefaultPattern(ctx, size, baseColor, seedOffset = 0) {
+  drawDefaultPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
@@ -387,7 +410,7 @@ export class HexTextureGenerator {
     }
   }
 
-  clearCache() {
+  clearCache(): void {
     this.patternCache.clear();
     logger.render.debug('Pattern cache cleared');
   }
