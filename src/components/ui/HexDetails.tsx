@@ -1,20 +1,40 @@
-// @ts-nocheck
-import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useHexInteraction } from '../../hooks/useHexInteraction';
-import QuestGiverUI from './QuestGiverUI';
-import QuestGenerator from '../../game/QuestGenerator';
-import ShopUI from './ShopUI';
-import { ACTIONS } from '../../contexts/GameStateContext';
-import { QUEST_COUNTS_BY_SIZE } from '../../constants/gameConstants';
 
 /**
  * HexDetails component - displays current hex and selected hex in two panes
  */
 
-function HexDetails({ hex, terrainGenerator, onMoveClick }) {
-  const { state, dispatch, isHexReachable, isPoiDiscovered, isPoiSearched, getHexDistance } =
-    useGameState();
+interface DetailsPoi {
+  name: string;
+  type: string;
+  description?: string;
+  cr?: number;
+  eventType?: string;
+  visibleWithoutDiscovery?: boolean;
+}
+
+interface DetailsWeather {
+  condition: string;
+  effect?: string;
+}
+
+interface DetailsHex {
+  col: number;
+  row: number;
+  terrain: { name: string; color?: string; difficulty?: number };
+  poi?: DetailsPoi | null;
+  weather?: DetailsWeather | null;
+}
+
+interface HexDetailsProps {
+  hex?: DetailsHex | null;
+  terrainGenerator?: { poiSystem?: unknown } | null;
+  onMoveClick?: (hex: DetailsHex) => void;
+}
+
+function HexDetails({ hex, terrainGenerator }: HexDetailsProps) {
+  const { state, isHexReachable, isPoiDiscovered, isPoiSearched, getHexDistance } = useGameState();
 
   // Current hex the player is standing on
   const currentHex = state.mapData?.find(
@@ -25,128 +45,10 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
   const selectedHex = hex;
 
   const { handleInteract, handleSearch, handleExplore, handlePray, handleOffer, handleEnterTown } =
-    useHexInteraction(currentHex);
-  const [showQuestGiver, setShowQuestGiver] = useState(false);
-  const [showShop, setShowShop] = useState(false);
-  const [shopType, setShopType] = useState('general');
-
-  // Check for blocking movement during active events
-  const isBlockingMovement = state.hasActiveEvent || false;
-
-  // Handler for opening quest giver dialog
-  const handleTalkToQuestGiver = () => {
-    const location = { col: currentHex.col, row: currentHex.row };
-    const locationKey = `${location.col},${location.row}`;
-
-    // Check if quests already exist for this town
-    if (!state.townQuests[locationKey]) {
-      // Extract quest chance and settlement size from POI
-      const poi = currentHex.poi;
-      const questChance = poi.questChance || 0.75;
-      const settlementSize = poi.settlementSize || poi.type;
-
-      // Check if quests should be generated based on chance
-      let quests = [];
-      if (Math.random() < questChance) {
-        // Generate quests for this town
-        const generator = new QuestGenerator(state.mapSeed);
-        const playerLevel = state.playerCharacter?.level || 1;
-
-        // Get nearby terrain types for context
-        const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
-
-        // Determine quest count based on settlement size
-        const questRange = QUEST_COUNTS_BY_SIZE[settlementSize] || { min: 0, max: 1 };
-        const minQuests = questRange.min;
-        const maxQuests = questRange.max;
-
-        const questCount = minQuests + Math.floor(Math.random() * (maxQuests - minQuests + 1));
-        quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);
-      }
-
-      // Store quests in state (even if empty array)
-      dispatch({
-        type: ACTIONS.GENERATE_TOWN_QUESTS,
-        payload: { location, quests },
-      });
-    } else {
-      // Check if quests should be refreshed (every 7 days)
-      const townData = state.townQuests[locationKey];
-      const daysSinceGenerated = state.gameTime.day - townData.lastGenerated;
-
-      if (daysSinceGenerated >= 7) {
-        // Refresh quests with same logic
-        const poi = currentHex.poi;
-        const questChance = poi.questChance || 0.75;
-        const settlementSize = poi.settlementSize || poi.type;
-
-        let quests = [];
-        if (Math.random() < questChance) {
-          const generator = new QuestGenerator(state.mapSeed);
-          const playerLevel = state.playerCharacter?.level || 1;
-          const nearbyTerrain = getNearbyTerrain(currentHex, state.mapData);
-
-          const questRange = QUEST_COUNTS_BY_SIZE[settlementSize] || { min: 0, max: 1 };
-          const minQuests = questRange.min;
-          const maxQuests = questRange.max;
-
-          const questCount = minQuests + Math.floor(Math.random() * (maxQuests - minQuests + 1));
-          quests = generator.generateTownQuests(playerLevel, location, questCount, nearbyTerrain);
-        }
-
-        dispatch({
-          type: ACTIONS.REFRESH_QUESTS,
-          payload: { location, quests },
-        });
-      }
-    }
-
-    setShowQuestGiver(true);
-  };
-
-  // Handler for accepting a quest
-  const handleAcceptQuest = quest => {
-    dispatch({
-      type: ACTIONS.ACCEPT_QUEST,
-      payload: { quest },
-    });
-    setShowQuestGiver(false);
-  };
-
-  // Get nearby terrain types
-  const getNearbyTerrain = (centerHex, mapData) => {
-    if (!mapData) return [];
-
-    const terrainTypes = new Set();
-    const radius = 3;
-
-    for (let r = centerHex.row - radius; r <= centerHex.row + radius; r++) {
-      for (let c = centerHex.col - radius; c <= centerHex.col + radius; c++) {
-        const key = `${c},${r}`;
-        if (mapData[key]) {
-          terrainTypes.add(mapData[key].terrain.name.toLowerCase());
-        }
-      }
-    }
-
-    return Array.from(terrainTypes);
-  };
-
-  // Get available quests for this town
-  const getAvailableQuests = () => {
-    const locationKey = `${currentHex.col},${currentHex.row}`;
-    const townData = state.townQuests[locationKey];
-
-    if (!townData) return [];
-
-    // Filter out quests that have already been accepted
-    return townData.quests.filter(quest => {
-      return !state.activeQuests.find(aq => aq.id === quest.id);
-    });
-  };
+    useHexInteraction(currentHex ?? null);
 
   // Render a single hex pane
-  const renderHexPane = (displayHex, isCurrentHex) => {
+  const renderHexPane = (displayHex: DetailsHex | null | undefined, isCurrentHex: boolean) => {
     if (!displayHex) {
       return (
         <div
@@ -190,9 +92,6 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
     const poiVisible = displayHex.poi
       ? displayHex.poi.visibleWithoutDiscovery || poiDiscovered
       : false;
-
-    // Check if this is a town with quest givers
-    const isTown = displayHex.poi && displayHex.poi.type === 'town';
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -596,25 +495,6 @@ function HexDetails({ hex, terrainGenerator, onMoveClick }) {
       >
         {renderHexPane(selectedHex, false)}
       </div>
-
-      {/* Quest Giver UI Modal */}
-      {showQuestGiver && isTown && currentHex && (
-        <QuestGiverUI
-          questGiver={{ name: 'Village Elder' }}
-          availableQuests={getAvailableQuests()}
-          onClose={() => setShowQuestGiver(false)}
-          onAcceptQuest={handleAcceptQuest}
-        />
-      )}
-
-      {/* Shop UI Modal */}
-      {showShop && currentHex && (
-        <ShopUI
-          poiKey={`${currentHex.col},${currentHex.row}`}
-          shopType={shopType}
-          onClose={() => setShowShop(false)}
-        />
-      )}
     </div>
   );
 }
