@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * ClassIcon — unique SVG icons for each D&D 5e character class.
  * All icons are 32×32 viewBox, pure inline SVG, no external deps.
  */
+
+import type { ComponentType } from 'react';
 
 interface ClassIconProps {
   className: string;
@@ -352,7 +353,7 @@ const WizardIcon = ({ color }: { color: string }) => (
 
 // ─── Icon map ─────────────────────────────────────────────────────────────────
 
-const ICON_MAP: Record<string, React.ComponentType<{ color: string }>> = {
+const ICON_MAP: Record<string, ComponentType<{ color: string }>> = {
   barbarian: BarbarianIcon,
   bard: BardIcon,
   cleric: ClericIcon,
