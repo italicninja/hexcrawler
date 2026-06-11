@@ -23,3 +23,6 @@ tests/reports/
 tests/videos/
 test-results/
 playwright-report/
+
+# Unit test coverage
+coverage/
