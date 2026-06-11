@@ -1,6 +1,6 @@
 # Hexcrawler - Consolidated TODO
 
-**Last Updated:** February 26, 2026
+**Last Updated:** June 10, 2026
 **Current Completeness:** ~92% (Core gameplay complete, TypeScript migration done)
 **Focus:** Code quality + remaining polish
 
@@ -30,7 +30,7 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 ### 1. Remove `// @ts-nocheck` Suppressions
 
-**Priority:** High | **Time:** 8-12 hours
+**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (91 files remaining, down from 100)
 
 **Problem:** `tsconfig.json` has `strict: true` enabled, but the majority of source files begin with `// @ts-nocheck`, which completely bypasses TypeScript checking. The TypeScript migration is structurally complete but type safety is not enforced.
 
@@ -44,6 +44,8 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 4. Recommended order: `utils/` → `game/` pure classes → `contexts/reducers/` → `hooks/` → `components/`
 
 **Commit pattern:** `chore: Remove @ts-nocheck from [filename], fix type errors`
+
+**Done so far (v0.7.x):** `DiceRoller`, `LineOfSight`, `Spell`, `Character` (keystone — its fields were leaking 22 errors into already-checked reducers), `OpportunityAttack`, `Pathfinding`, `EncounterPositions`, `HazardGenerator`, and `utils/regionDebug`. Typecheck is at **0 errors**; the project-wide baseline now stays clean after each removal. Bugs surfaced and fixed along the way: `Character.gainXP()` → `awardXP()` (3 reducers, would `TypeError` on every XP award), missing `logger` import in `inventoryReducer`, and dead `CONSUME_WATER`/`FIND_WATER` reducer cases referencing the removed `water` field.
 
 ---
 
@@ -177,6 +179,8 @@ afterEach(() => cleanup());
 ### 5. Add Git Pre-commit Hooks
 
 **Priority:** Low | **Time:** 1 hour
+
+**BLOCKER:** `npm run lint` is currently broken project-wide — ESLint v9 is installed but the repo only has a legacy `.eslintrc.cjs` (ESLint v9 requires flat config `eslint.config.js`). Migrate the config to flat format before wiring lint into pre-commit hooks, otherwise the hook will fail on every commit. Note that ~91 files still carry `@ts-nocheck` and use `any`, so expect a large lint baseline — relax `--max-warnings 0` to a known baseline until item #1 is further along.
 
 ESLint and Prettier are installed but not enforced at commit time.
 
