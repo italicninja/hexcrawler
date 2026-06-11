@@ -1,16 +1,73 @@
-// @ts-nocheck
-// TODO: Add proper types
-import { PerlinNoise, SimpleNoise } from './noise';
+import { PerlinNoise } from './noise';
 import { TerrainAlgorithms } from './terrainAlgorithms';
 import { RiverGenerator } from './riverGenerator';
 import { POISystem, POI_TYPES } from './poiSystem';
-import { RegionGenerator } from './RegionGenerator';
-import { WeatherSystem } from './WeatherSystem';
+import { RegionGenerator, type Region } from './RegionGenerator';
+import { WeatherSystem, type WeatherType } from './WeatherSystem';
 import logger from './utils/logger';
 import { getHexDistance } from './utils/hexMath';
 import { GAME_DEFAULTS } from './constants/gameConstants';
 
+interface TerrainType {
+  key: string;
+  name: string;
+  color: string;
+  difficulty: number;
+  // Allows assignment to the structural terrain shapes other modules expect
+  [key: string]: unknown;
+}
+
+interface POITypeWeight {
+  name: string;
+  weight: number;
+}
+
+interface HexWeather {
+  condition: string;
+  effect: string;
+}
+
+interface GridHex {
+  terrain: TerrainType;
+  poi: unknown;
+  weather: HexWeather | null;
+  elevation: number;
+  regionId?: number;
+  // Compatible with the structural grid shape riverGenerator expects
+  [key: string]: unknown;
+}
+
+type Grid = GridHex[][];
+
+interface SettlementLocation {
+  row: number;
+  col: number;
+  score: number;
+}
+
+interface MapGenerationResult {
+  grid: Grid;
+  regions: Region[];
+  hexToRegion: Map<string, number> | null;
+  weatherSystem: WeatherSystem | null;
+}
+
 export class TerrainGenerator {
+  terrainTypes: Record<string, TerrainType>;
+  poiTypes: POITypeWeight[];
+  seed: number;
+  noise: PerlinNoise;
+  terrainAlgorithms: TerrainAlgorithms;
+  riverGenerator: RiverGenerator;
+  poiSystem: POISystem;
+  algorithm: string;
+  regionGenerator: RegionGenerator | null;
+  weatherSystem: WeatherSystem | null;
+  regions: Region[];
+  hexToRegion: Map<string, number> | null;
+  startCol?: number;
+  startRow?: number;
+
   constructor() {
     this.terrainTypes = {
       water: { key: 'water', name: 'Water', color: '#4682B4', difficulty: 4 },
@@ -51,12 +108,12 @@ export class TerrainGenerator {
     this.hexToRegion = null;
   }
 
-  setSeed(seed) {
-    this.seed = seed ? parseInt(seed) : Date.now();
+  setSeed(seed: string | number | null): void {
+    this.seed = seed ? parseInt(String(seed), 10) : Date.now();
     this.noise.setSeed(this.seed);
   }
 
-  initializeRegions(width, height) {
+  initializeRegions(width: number, height: number): void {
     const { col: startCol, row: startRow } = GAME_DEFAULTS.START_POSITION;
     logger.mapgen.info('Initializing region-based generation', {
       width,
@@ -75,8 +132,15 @@ export class TerrainGenerator {
     this.regions = regions;
     this.hexToRegion = hexToRegion;
 
-    // Initialize weather system with actual map dimensions so edge spawning is correct
-    this.weatherSystem = new WeatherSystem(this.regions, this.seed + 1000, width, height);
+    // Initialize weather system with actual map dimensions so edge spawning is correct.
+    // Region.weatherPattern is typed `unknown` upstream; WeatherSystem narrows it to
+    // WeatherType — same runtime objects, so cast through the boundary.
+    this.weatherSystem = new WeatherSystem(
+      this.regions as unknown as ConstructorParameters<typeof WeatherSystem>[0],
+      this.seed + 1000,
+      width,
+      height
+    );
     this.weatherSystem.initializeWeather();
 
     logger.mapgen.info('Regions initialized', {
@@ -85,23 +149,28 @@ export class TerrainGenerator {
     });
   }
 
-  setAlgorithm(algorithm) {
+  setAlgorithm(algorithm: string): void {
     this.algorithm = algorithm;
   }
 
   // Simple seeded random number generator
-  random() {
+  random(): number {
     const x = Math.sin(this.seed++) * 10000;
     return x - Math.floor(x);
   }
 
-  generate(width, height, terrainVariety, poiFrequency) {
+  generate(
+    width: number,
+    height: number,
+    terrainVariety: number,
+    poiFrequency: number
+  ): MapGenerationResult {
     logger.mapgen.time('full-map-generation');
 
     // Initialize regions first
     this.initializeRegions(width, height);
 
-    const grid = [];
+    const grid: Grid = [];
 
     // Generate base terrain using region-aware algorithm
     logger.mapgen.time('terrain-generation');
@@ -121,7 +190,7 @@ export class TerrainGenerator {
           poi: null,
           weather: null, // Will be set by weather system
           elevation: 0, // Will be set during generation
-          regionId: this.hexToRegion.get(`${col},${row}`),
+          regionId: this.hexToRegion!.get(`${col},${row}`),
         };
       }
     }
@@ -146,21 +215,30 @@ export class TerrainGenerator {
     };
   }
 
-  generateTerrain(x, y, width, height, variety) {
+  generateTerrain(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    variety: number
+  ): TerrainType {
     // Scale controls the zoom level (higher = more zoomed out)
     const scale = variety * 3;
 
     // Use selected algorithm
     const algorithmName = TerrainAlgorithms.getAlgorithm(this.algorithm);
 
+    // terrainAlgorithms operates on a generic terrain map and is dispatched by
+    // name; cast through this dynamic boundary.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const algos = this.terrainAlgorithms as any;
     if (this.algorithm === 'island') {
-      return this.terrainAlgorithms.islandTerrain(x, y, width, height, scale, this.terrainTypes);
-    } else {
-      return this.terrainAlgorithms[algorithmName](x, y, scale, this.terrainTypes);
+      return algos.islandTerrain(x, y, width, height, scale, this.terrainTypes);
     }
+    return algos[algorithmName](x, y, scale, this.terrainTypes);
   }
 
-  generatePOI(frequency) {
+  generatePOI(frequency: number): POITypeWeight | null {
     if (this.random() * 100 > frequency) {
       return null;
     }
@@ -178,7 +256,13 @@ export class TerrainGenerator {
     return null;
   }
 
-  generateRegionBasedTerrain(col, row, width, height, variety) {
+  generateRegionBasedTerrain(
+    col: number,
+    row: number,
+    width: number,
+    height: number,
+    variety: number
+  ): TerrainType {
     // Hard-radius grassland lock: any hex within 3 of the player start is
     // always open grassland, guaranteeing a safe, passable starting area.
     const startCol = this.startCol ?? GAME_DEFAULTS.START_POSITION.col;
@@ -187,7 +271,7 @@ export class TerrainGenerator {
       return this.terrainTypes.grassland;
     }
 
-    const regionId = this.hexToRegion.get(`${col},${row}`);
+    const regionId = this.hexToRegion!.get(`${col},${row}`);
     if (regionId === undefined) {
       // Fallback to old algorithm if no region
       return this.generateTerrain(col, row, width, height, variety);
@@ -206,7 +290,13 @@ export class TerrainGenerator {
     return this.selectTerrainForRegion(region, normalizedElevation, edgeFactor, col, row);
   }
 
-  selectTerrainForRegion(region, elevation, edgeFactor, col, row) {
+  selectTerrainForRegion(
+    region: Region,
+    elevation: number,
+    edgeFactor: number,
+    col: number,
+    row: number
+  ): TerrainType {
     const biomeTypes = region.biome.biomes;
 
     // Core region (< 40% of radius)
@@ -220,13 +310,13 @@ export class TerrainGenerator {
     }
 
     // Edge region - blend with neighbors
-    const neighborRegions = this.regionGenerator.getNeighborRegions(col, row, this.hexToRegion);
+    const neighborRegions = this.regionGenerator!.getNeighborRegions(col, row, this.hexToRegion!);
 
     if (neighborRegions.length > 1) {
       // Blend with neighboring region biomes
-      const allBiomes = new Set([...biomeTypes]);
+      const allBiomes = new Set<string>([...biomeTypes]);
       neighborRegions.forEach(nrId => {
-        if (nrId !== this.hexToRegion.get(`${col},${row}`)) {
+        if (nrId !== this.hexToRegion!.get(`${col},${row}`)) {
           const nr = this.regions[nrId];
           nr.biome.biomes.forEach(b => allBiomes.add(b));
         }
@@ -237,9 +327,10 @@ export class TerrainGenerator {
     return this.selectByElevation(biomeTypes, elevation, 'edge');
   }
 
-  selectByElevation(biomeTypes, elevation, zone) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  selectByElevation(biomeTypes: string[], elevation: number, zone: string): TerrainType {
     // Map biome types to elevation preferences
-    const elevationMap = {
+    const elevationMap: Record<string, number[]> = {
       water: [0, 0.2],
       swamp: [0.15, 0.35],
       grassland: [0.25, 0.55],
@@ -282,12 +373,12 @@ export class TerrainGenerator {
     return this.terrainTypes[selectedType] || this.terrainTypes.grassland;
   }
 
-  applyRegionalWeather(grid, width, height) {
+  applyRegionalWeather(grid: Grid, width: number, height: number): void {
     logger.mapgen.time('weather-application');
 
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
-        const weather = this.weatherSystem.getWeatherForHex(col, row, this.hexToRegion);
+        const weather = this.weatherSystem!.getWeatherForHex(col, row, this.hexToRegion!);
 
         // Convert new weather format to old format for compatibility
         grid[row][col].weather = {
@@ -300,24 +391,26 @@ export class TerrainGenerator {
     logger.mapgen.timeEnd('weather-application');
   }
 
-  formatWeatherEffect(weather) {
-    const effects = [];
+  formatWeatherEffect(weather: WeatherType): string {
+    const effects: string[] = [];
+    const e = weather.effects;
+    const visibility = e.visibility;
+    const movementCost = e.movementCost;
+    // temperature/description are optional extras carried via the effects index signature
+    const temperature = e.temperature as number | undefined;
+    const description = e.description as string | undefined;
 
-    if (weather.effects.visibility !== 0) {
-      effects.push(
-        `Visibility ${weather.effects.visibility > 0 ? '+' : ''}${weather.effects.visibility}`
-      );
+    if (visibility !== 0) {
+      effects.push(`Visibility ${visibility > 0 ? '+' : ''}${visibility}`);
     }
-    if (weather.effects.movementCost !== 0) {
-      effects.push(`Movement +${weather.effects.movementCost}`);
+    if (movementCost !== 0) {
+      effects.push(`Movement +${movementCost}`);
     }
-    if (weather.effects.temperature) {
-      effects.push(
-        `Temp ${weather.effects.temperature > 0 ? '+' : ''}${weather.effects.temperature}°C`
-      );
+    if (temperature) {
+      effects.push(`Temp ${temperature > 0 ? '+' : ''}${temperature}°C`);
     }
-    if (weather.effects.description) {
-      effects.push(weather.effects.description);
+    if (description) {
+      effects.push(description);
     }
 
     return effects.length > 0 ? effects.join(', ') : 'Normal conditions';
@@ -329,7 +422,7 @@ export class TerrainGenerator {
    * so newly revealed hexes get biome-coherent weather instead of per-terrain lookups.
    * Falls back to clear skies if the weather system is not yet initialised.
    */
-  getWeatherForHex(col, row) {
+  getWeatherForHex(col: number, row: number): HexWeather {
     if (!this.weatherSystem || !this.hexToRegion) {
       return { condition: 'Clear Skies', effect: 'Normal conditions' };
     }
@@ -340,7 +433,8 @@ export class TerrainGenerator {
     };
   }
 
-  generateRivers(grid, width, height, terrainVariety) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  generateRivers(grid: Grid, width: number, height: number, terrainVariety: number): void {
     // Number of rivers based on map size
     const numRivers = Math.floor((width * height) / 100) + 2;
     this.riverGenerator.generateRivers(grid, width, height, numRivers, () => this.random());
@@ -356,7 +450,14 @@ export class TerrainGenerator {
     }
   }
 
-  generateSmartPOIs(grid, width, height, baseFrequency, startCol = 10, startRow = 7) {
+  generateSmartPOIs(
+    grid: Grid,
+    width: number,
+    height: number,
+    baseFrequency: number,
+    startCol = 10,
+    startRow = 7
+  ): void {
     // Find suitable settlement locations (shared by all tiers)
     const settlementLocations = this.findSettlementLocations(grid, width, height);
 
@@ -532,8 +633,8 @@ export class TerrainGenerator {
     }
   }
 
-  findSettlementLocations(grid, width, height) {
-    const locations = [];
+  findSettlementLocations(grid: Grid, width: number, height: number): SettlementLocation[] {
+    const locations: SettlementLocation[] = [];
 
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
@@ -549,7 +650,13 @@ export class TerrainGenerator {
     return locations;
   }
 
-  scoreSettlementLocation(grid, width, height, row, col) {
+  scoreSettlementLocation(
+    grid: Grid,
+    width: number,
+    height: number,
+    row: number,
+    col: number
+  ): number {
     const terrain = grid[row][col].terrain.name;
     let score = 0;
 
@@ -585,7 +692,7 @@ export class TerrainGenerator {
     }
 
     // Check for variety in nearby terrain (resources)
-    const terrainTypes = new Set();
+    const terrainTypes = new Set<string>();
     for (const n of neighbors) {
       terrainTypes.add(grid[n.row][n.col].terrain.name);
     }
@@ -594,11 +701,11 @@ export class TerrainGenerator {
     return score;
   }
 
-  selectPOIForTerrain(terrain, poiTypes) {
+  selectPOIForTerrain(terrain: TerrainType, poiTypes: POITypeWeight[]): POITypeWeight | null {
     const terrainName = terrain.name;
 
     // Terrain-appropriate POIs
-    const preferences = {
+    const preferences: Record<string, string[]> = {
       Mountains: ['Cave', 'Tower', 'Ruins'],
       Hills: ['Tower', 'Ruins', 'Camp'],
       Forest: ['Shrine', 'Camp', 'Ruins'],
@@ -628,7 +735,7 @@ export class TerrainGenerator {
     return suitable[0];
   }
 
-  getTerrainTypes() {
+  getTerrainTypes(): Record<string, TerrainType> {
     return this.terrainTypes;
   }
 }
