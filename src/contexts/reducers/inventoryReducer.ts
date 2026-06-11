@@ -7,9 +7,7 @@
  * - EQUIP_ITEM
  * - UNEQUIP_ITEM
  * - CONSUME_RATIONS
- * - CONSUME_WATER
  * - FORAGE
- * - FIND_WATER
  */
 
 import { Character } from '../../game/Character';
@@ -73,7 +71,7 @@ export function inventoryReducer(
         return state;
       }
 
-      const slot = payloadSlot || item.slot;
+      const slot = (payloadSlot || item.slot) as keyof typeof character.equipment;
 
       // Remove from inventory
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,9 +95,10 @@ export function inventoryReducer(
       if (!state.playerCharacter) return state;
 
       const character = Character.fromJSON(state.playerCharacter.toJSON());
-      const item = character.equipment[slot];
+      const equipSlot = slot as keyof typeof character.equipment;
+      const item = character.equipment[equipSlot];
       if (item) {
-        delete character.equipment[slot];
+        character.equipment[equipSlot] = null;
         character.inventory.push(item);
       }
 
@@ -123,38 +122,11 @@ export function inventoryReducer(
       };
     }
 
-    case ACTIONS.CONSUME_WATER: {
-      const { amount } = action.payload;
-
-      if (!state.playerCharacter) return state;
-
-      const character = Character.fromJSON(state.playerCharacter.toJSON());
-      character.water = Math.max(0, character.water - amount);
-
-      return {
-        ...state,
-        playerCharacter: character,
-      };
-    }
-
     case ACTIONS.FORAGE: {
       const { character } = action.payload;
 
       // Advance time
       const newGameTime = advanceTime(state.gameTime, TIME.FORAGE_TIME_MINUTES);
-
-      return {
-        ...state,
-        playerCharacter: character,
-        gameTime: newGameTime,
-      };
-    }
-
-    case ACTIONS.FIND_WATER: {
-      const { character } = action.payload;
-
-      // Advance time
-      const newGameTime = advanceTime(state.gameTime, TIME.SEARCH_TIME_MINUTES);
 
       return {
         ...state,

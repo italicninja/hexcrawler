@@ -1,14 +1,109 @@
-// @ts-nocheck
-// TODO: Add proper types - large D&D 5e Character class (~1093 lines)
+// Character — D&D 5e player/NPC character model
 import { GAME_DEFAULTS, DND, XP_TABLE } from '../constants/gameConstants';
 import logger from '../utils/logger';
-import { Item } from './Item';
+import { Item, type ItemConfig, type ItemJSON } from './Item';
+
+type AbilityName =
+  | 'strength'
+  | 'dexterity'
+  | 'constitution'
+  | 'intelligence'
+  | 'wisdom'
+  | 'charisma';
+
+type AbilityScores = Record<AbilityName, number>;
+
+type EquipmentSlot =
+  | 'head'
+  | 'neck'
+  | 'chest'
+  | 'hands'
+  | 'legs'
+  | 'feet'
+  | 'ring1'
+  | 'ring2'
+  | 'mainHand'
+  | 'offHand';
+
+type Equipment = Record<EquipmentSlot, Item | null>;
+
+interface ClassFeature {
+  name: string;
+  uses?: number;
+  maxUses?: number;
+  actionType?: string;
+  restType?: string;
+  description?: string;
+}
+
+interface HiddenStats {
+  piety: number;
+  generosity: number;
+}
+
+interface BaseStats {
+  armorClass: number;
+  abilities: AbilityScores;
+  maxHP: number;
+}
+
+interface ClassConfig {
+  hitDie: string;
+  abilities: AbilityScores;
+  armorClass: number;
+  proficiencies: string[];
+  abilities_list: ClassFeature[];
+}
+
+interface LevelUpResult {
+  oldLevel: number;
+  newLevel: number;
+  hpGain: number;
+  proficiencyBonus: number;
+  newMaxHP: number;
+  newFeatures: ClassFeature[];
+}
 
 /**
  * Character class representing player and NPC characters in D&D 5e
  */
 export class Character {
-  constructor(name, charClass) {
+  name: string;
+  class: string | null;
+  level: number;
+  abilities: AbilityScores;
+  maxHP: number;
+  currentHP: number;
+  armorClass: number;
+  proficiencyBonus: number;
+  initiativeBonus: number;
+  moveDistance: number;
+  viewDistance: number;
+  hitDie: string;
+  proficiencies: string[];
+  spells: unknown[];
+  abilities_list: ClassFeature[];
+  equipment: Equipment;
+  inventory: Item[];
+  gold: number;
+  personality: string | null;
+  background: string | null;
+  gender: string | null;
+  hitDiceRemaining: number;
+  lastLongRest: number;
+  spellSlotsUsed: Record<number, number>;
+  knownSpells: unknown[];
+  preparedSpells: unknown[];
+  rations: number;
+  daysWithoutFood: number;
+  exhaustionLevel: number;
+  foragedHexes: Record<string, number>;
+  xp: number;
+  xpToNextLevel: number;
+  hiddenStats: HiddenStats;
+  baseStats?: BaseStats;
+
+  constructor(name: string, charClass: string | null) {
     this.name = name;
     this.class = charClass;
     this.level = 1;
@@ -104,7 +199,7 @@ export class Character {
    * D&D 5e XP Progression Table
    * Maps level to XP required to reach that level
    */
-  static XP_TABLE = {
+  static XP_TABLE: Record<number, number> = {
     1: 0,
     2: 300,
     3: 900,
@@ -130,50 +225,50 @@ export class Character {
   /**
    * Get XP required to reach a specific level
    */
-  static getXPForLevel(level) {
+  static getXPForLevel(level: number): number {
     if (level < 1) return 0;
     if (level > 20) return Character.XP_TABLE[20];
     return Character.XP_TABLE[level] || 0;
   }
 
-  awardXP(amount) {
+  awardXP(amount: number): boolean {
     if (typeof amount !== 'number' || amount < 0) return false;
     this.xp += amount;
     return this.shouldLevelUp();
   }
 
-  shouldLevelUp() {
+  shouldLevelUp(): boolean {
     if (this.level >= XP_TABLE.length) return false; // Max level
     return this.xp >= this.xpToNextLevel;
   }
 
-  addGold(amount) {
+  addGold(amount: number): boolean {
     if (typeof amount !== 'number' || amount < 0) return false;
     this.gold += amount;
     return true;
   }
 
-  removeGold(amount) {
+  removeGold(amount: number): boolean {
     if (typeof amount !== 'number' || amount < 0) return false;
     if (this.gold < amount) return false;
     this.gold -= amount;
     return true;
   }
 
-  addItem(item) {
+  addItem(item: Item | null): boolean {
     if (!item) return false;
     this.inventory.push(item);
     return true;
   }
 
-  removeItem(itemId) {
+  removeItem(itemId: string): Item | null {
     const index = this.inventory.findIndex(item => item.id === itemId);
     if (index === -1) return null;
     const removed = this.inventory.splice(index, 1)[0];
     return removed;
   }
 
-  equipItem(itemId, slot = null) {
+  equipItem(itemId: string, slot: EquipmentSlot | null = null): boolean {
     const item = this.inventory.find(i => i.id === itemId);
     if (!item) {
       logger.items.warn('Item not found in inventory', { itemId, character: this.name });
@@ -185,7 +280,7 @@ export class Character {
       return false;
     }
 
-    const targetSlot = slot || item.slot;
+    const targetSlot = (slot || item.slot) as EquipmentSlot;
     if (!targetSlot) {
       logger.items.warn('No slot specified for item', { item: item.name, character: this.name });
       return false;
@@ -223,7 +318,7 @@ export class Character {
     return true;
   }
 
-  unequipItem(slot) {
+  unequipItem(slot: EquipmentSlot): boolean {
     if (!this.equipment[slot]) {
       logger.items.warn('No item equipped in slot', { slot, character: this.name });
       return false;
@@ -236,21 +331,22 @@ export class Character {
     return true;
   }
 
-  getEquippedItems() {
-    const equipped = {};
-    Object.keys(this.equipment).forEach(slot => {
-      if (this.equipment[slot]) {
-        equipped[slot] = this.equipment[slot];
+  getEquippedItems(): Partial<Record<EquipmentSlot, Item>> {
+    const equipped: Partial<Record<EquipmentSlot, Item>> = {};
+    (Object.keys(this.equipment) as EquipmentSlot[]).forEach(slot => {
+      const item = this.equipment[slot];
+      if (item) {
+        equipped[slot] = item;
       }
     });
     return equipped;
   }
 
-  getInventoryItems() {
+  getInventoryItems(): Item[] {
     return [...this.inventory];
   }
 
-  calculateEffectiveStats() {
+  calculateEffectiveStats(): void {
     if (!this.baseStats) {
       this.baseStats = {
         armorClass: this.armorClass,
@@ -258,13 +354,23 @@ export class Character {
         maxHP: this.maxHP,
       };
     }
+    const base = this.baseStats;
 
-    this.armorClass = this.baseStats.armorClass;
-    this.maxHP = this.baseStats.maxHP;
+    this.armorClass = base.armorClass;
+    this.maxHP = base.maxHP;
     this.initiativeBonus = 0;
-    Object.keys(this.abilities).forEach(ability => {
-      this.abilities[ability] = this.baseStats.abilities[ability];
+    (Object.keys(this.abilities) as AbilityName[]).forEach(ability => {
+      this.abilities[ability] = base.abilities[ability];
     });
+
+    const abilityMap: Record<string, AbilityName> = {
+      str: 'strength',
+      dex: 'dexterity',
+      con: 'constitution',
+      int: 'intelligence',
+      wis: 'wisdom',
+      cha: 'charisma',
+    };
 
     Object.values(this.equipment).forEach(item => {
       if (item && item.effects) {
@@ -272,15 +378,7 @@ export class Character {
           this.armorClass += item.effects.ac;
         }
 
-        ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(ability => {
-          const abilityMap = {
-            str: 'strength',
-            dex: 'dexterity',
-            con: 'constitution',
-            int: 'intelligence',
-            wis: 'wisdom',
-            cha: 'charisma',
-          };
+        (['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).forEach(ability => {
           const fullAbilityName = abilityMap[ability];
           if (item.effects[ability]) {
             this.abilities[fullAbilityName] += item.effects[ability];
@@ -299,7 +397,7 @@ export class Character {
     });
   }
 
-  getTotalWeight() {
+  getTotalWeight(): number {
     let weight = 0;
     this.inventory.forEach(item => {
       weight += item.weight || 0;
@@ -312,10 +410,10 @@ export class Character {
     return weight;
   }
 
-  applyClassModifiers(charClass) {
+  applyClassModifiers(charClass: string): void {
     const classKey = charClass.toLowerCase();
 
-    const classConfigs = {
+    const classConfigs: Record<string, ClassConfig> = {
       barbarian: {
         hitDie: 'd12',
         abilities: {
@@ -604,7 +702,7 @@ export class Character {
     this.hitDie = config.hitDie;
     this.abilities = { ...config.abilities };
 
-    const hitDieValue = parseInt(config.hitDie.substring(1));
+    const hitDieValue = parseInt(config.hitDie.substring(1), 10);
     this.maxHP = hitDieValue + this.getModifier('constitution');
     this.currentHP = this.maxHP;
 
@@ -622,12 +720,12 @@ export class Character {
    * they are granted, not purchased. calculateEffectiveStats() is called once at the
    * end so any item effects (e.g. AC from armor) are applied correctly.
    */
-  applyStartingLoadout(charClass) {
+  applyStartingLoadout(charClass: string): void {
     const cls = (charClass || '').toLowerCase();
 
     // Use Item factory methods so equipment slots hold proper Item instances
     // with all class methods (getRarityColor, isEquippable, etc.) intact.
-    const W = (name, damage, damageType, opts = {}) =>
+    const W = (name: string, damage: string, damageType: string, opts: ItemConfig = {}) =>
       Item.createWeapon(name, damage, damageType, {
         description: `Starting ${name}.`,
         value: 0,
@@ -635,7 +733,7 @@ export class Character {
         ...opts,
       });
 
-    const A = (name, acType, slot = 'chest') =>
+    const A = (name: string, acType: string, slot = 'chest') =>
       Item.createArmor(name, 0, acType, {
         // AC is already baked into armorClass via applyClassModifiers — effects.ac = 0
         // avoids double-counting when calculateEffectiveStats runs.
@@ -645,7 +743,7 @@ export class Character {
         slot,
       });
 
-    const shield = () =>
+    const shield = (): Item =>
       Item.createArmor('Shield', 0, 'shield', {
         description: 'A sturdy wooden shield.',
         value: 0,
@@ -774,25 +872,25 @@ export class Character {
     };
   }
 
-  getModifier(ability) {
+  getModifier(ability: AbilityName): number {
     const score = this.abilities[ability];
     return Math.floor((score - GAME_DEFAULTS.ABILITY_SCORE) / 2);
   }
 
-  takeDamage(amount) {
+  takeDamage(amount: number): boolean {
     this.currentHP = Math.max(0, this.currentHP - amount);
     return this.currentHP === 0;
   }
 
-  damage(amount) {
+  damage(amount: number): boolean {
     return this.takeDamage(amount);
   }
 
-  heal(amount) {
+  heal(amount: number): void {
     this.currentHP = Math.min(this.maxHP, this.currentHP + amount);
   }
 
-  levelUp() {
+  levelUp(): LevelUpResult | null {
     if (this.level >= 20) {
       logger.general.warn('Character is already max level', { character: this.name, level: 20 });
       return null;
@@ -803,7 +901,7 @@ export class Character {
     this.proficiencyBonus =
       DND.PROFICIENCY_BONUS[this.level - 1] || GAME_DEFAULTS.PROFICIENCY_BONUS;
 
-    const hitDieValue = parseInt(this.hitDie.substring(1));
+    const hitDieValue = parseInt(this.hitDie.substring(1), 10);
     const hpGain = Math.floor(hitDieValue / 2) + 1 + this.getModifier('constitution');
     this.maxHP += hpGain;
     this.currentHP += hpGain;
@@ -834,9 +932,9 @@ export class Character {
    * Returns class features gained at a specific level.
    * Called by levelUp() to grant features automatically.
    */
-  _getClassFeaturesForLevel(charClass, level) {
+  _getClassFeaturesForLevel(charClass: string | null, level: number): ClassFeature[] {
     const cls = (charClass || '').toLowerCase();
-    const features = [];
+    const features: ClassFeature[] = [];
 
     if (cls === 'barbarian') {
       if (level === 2) {
@@ -880,14 +978,14 @@ export class Character {
     return features;
   }
 
-  useHitDice(count) {
+  useHitDice(count: number): number {
     const diceToUse = Math.min(count, this.hitDiceRemaining);
     this.hitDiceRemaining -= diceToUse;
     return diceToUse;
   }
 
-  getAttacksPerAction() {
-    const classKey = this.class.toLowerCase();
+  getAttacksPerAction(): number {
+    const classKey = (this.class || '').toLowerCase();
 
     if (classKey === 'fighter') {
       if (this.level >= 20) return 4;
@@ -903,16 +1001,17 @@ export class Character {
     return 1;
   }
 
-  hasAbility(abilityName) {
+  hasAbility(abilityName: string): boolean {
     return this.abilities_list.some(
       ability => ability.name.toLowerCase() === abilityName.toLowerCase()
     );
   }
 
-  getAvailableBonusActions() {
-    const bonusActions = [];
+  getAvailableBonusActions(): ClassFeature[] {
+    const bonusActions: ClassFeature[] = [];
+    const classKey = (this.class || '').toLowerCase();
 
-    if (this.class.toLowerCase() === 'rogue' && this.level >= 2) {
+    if (classKey === 'rogue' && this.level >= 2) {
       bonusActions.push({
         name: 'Cunning Action',
         actionType: 'bonusAction',
@@ -922,7 +1021,7 @@ export class Character {
       });
     }
 
-    if (this.class.toLowerCase() === 'monk') {
+    if (classKey === 'monk') {
       bonusActions.push({
         name: 'Martial Arts',
         actionType: 'bonusAction',
@@ -932,9 +1031,9 @@ export class Character {
       });
     }
 
-    if (this.class.toLowerCase() === 'barbarian') {
+    if (classKey === 'barbarian') {
       const rageAbility = this.abilities_list.find(a => a.name === 'Rage');
-      if (rageAbility && rageAbility.uses > 0) {
+      if (rageAbility && (rageAbility.uses ?? 0) > 0) {
         bonusActions.push({
           ...rageAbility,
           actionType: 'bonusAction',
@@ -945,29 +1044,29 @@ export class Character {
     const customBonusActions = this.abilities_list.filter(
       ability =>
         ability.actionType === 'bonusAction' &&
-        (!ability.maxUses || ability.maxUses === -1 || ability.uses > 0)
+        (!ability.maxUses || ability.maxUses === -1 || (ability.uses ?? 0) > 0)
     );
     bonusActions.push(...customBonusActions);
 
     return bonusActions;
   }
 
-  recoverHitDice(count) {
+  recoverHitDice(count: number): number {
     const maxHitDice = this.level;
     const diceToRecover = Math.min(count, maxHitDice - this.hitDiceRemaining);
     this.hitDiceRemaining += diceToRecover;
     return diceToRecover;
   }
 
-  hasRaft() {
+  hasRaft(): boolean {
     return this.inventory.some(item => item.effects && item.effects.allowsRiverCrossing === true);
   }
 
-  hasBoat() {
+  hasBoat(): boolean {
     return this.inventory.some(item => item.effects && item.effects.allowsWaterCrossing === true);
   }
 
-  canCrossTerrain(terrainKey) {
+  canCrossTerrain(terrainKey: string): boolean {
     if (terrainKey === 'river') {
       return this.hasRaft() || this.hasBoat();
     }
@@ -977,7 +1076,7 @@ export class Character {
     return true;
   }
 
-  increasePiety(amount = 1) {
+  increasePiety(amount = 1): number {
     this.hiddenStats.piety += amount;
     logger.items.info('Piety increased', {
       character: this.name,
@@ -987,7 +1086,7 @@ export class Character {
     return this.hiddenStats.piety;
   }
 
-  increaseGenerosity(goldOffered) {
+  increaseGenerosity(goldOffered: number) {
     if (goldOffered <= 0) {
       return { success: false, message: 'Offering must be greater than 0 gold' };
     }
@@ -1018,7 +1117,7 @@ export class Character {
     };
   }
 
-  initializeSpellSlots() {
+  initializeSpellSlots(): void {
     const casterClasses = [
       'Wizard',
       'Cleric',
@@ -1029,19 +1128,16 @@ export class Character {
       'Paladin',
       'Ranger',
     ];
-    if (casterClasses.includes(this.class)) {
+    if (this.class && casterClasses.includes(this.class)) {
       this.spellSlotsUsed = { 1: 0, 2: 0, 3: 0 };
     }
   }
 
   toJSON() {
-    const serializedEquipment = {};
-    Object.keys(this.equipment).forEach(slot => {
-      if (this.equipment[slot]) {
-        serializedEquipment[slot] = this.equipment[slot].toJSON();
-      } else {
-        serializedEquipment[slot] = null;
-      }
+    const serializedEquipment: Record<string, unknown> = {};
+    (Object.keys(this.equipment) as EquipmentSlot[]).forEach(slot => {
+      const item = this.equipment[slot];
+      serializedEquipment[slot] = item ? item.toJSON() : null;
     });
 
     const serializedInventory = this.inventory.map(item => (item.toJSON ? item.toJSON() : item));
@@ -1081,7 +1177,8 @@ export class Character {
     };
   }
 
-  static fromJSON(data) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static fromJSON(data: any): Character {
     const char = new Character(data.name, null);
     char.class = data.class;
     char.level = data.level;
@@ -1097,20 +1194,17 @@ export class Character {
     char.spells = [...data.spells];
     char.abilities_list = [...data.abilities_list];
 
-    char.equipment = {};
+    char.equipment = {} as Equipment;
     if (data.equipment) {
+      const eq = char.equipment as Record<string, Item | null>;
       Object.keys(data.equipment).forEach(slot => {
-        if (data.equipment[slot]) {
-          char.equipment[slot] = Item.fromJSON(data.equipment[slot]);
-        } else {
-          char.equipment[slot] = null;
-        }
+        eq[slot] = data.equipment[slot] ? Item.fromJSON(data.equipment[slot]) : null;
       });
     }
 
     char.inventory = [];
     if (data.inventory) {
-      char.inventory = data.inventory.map(itemData => Item.fromJSON(itemData));
+      char.inventory = data.inventory.map((itemData: ItemJSON) => Item.fromJSON(itemData));
     }
 
     char.gold = data.gold || 0;

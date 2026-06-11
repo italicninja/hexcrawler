@@ -129,7 +129,7 @@ export function explorationReducer(
       // Award XP — immutably
       if (xp && state.playerCharacter) {
         const character = Character.fromJSON(state.playerCharacter.toJSON());
-        character.gainXP(xp);
+        character.awardXP(xp);
         newState.playerCharacter = character;
       }
 

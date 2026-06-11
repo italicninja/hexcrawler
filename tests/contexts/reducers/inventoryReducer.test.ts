@@ -201,7 +201,8 @@ describe('inventoryReducer — UNEQUIP_ITEM', () => {
       ACTIONS
     );
     const char = result?.playerCharacter as any;
-    expect(char.equipment.offHand).toBeUndefined();
+    // Empty slots are represented as null (matches Character.unequipItem and toJSON), not deleted.
+    expect(char.equipment.offHand).toBeNull();
     expect(char.inventory.some((i: any) => i.id === 'shield-1')).toBe(true);
   });
 

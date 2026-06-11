@@ -61,7 +61,7 @@ export function questReducer(
           character.gold += quest.rewards.gold;
         }
         if (quest.rewards.xp) {
-          character.gainXP(quest.rewards.xp);
+          character.awardXP(quest.rewards.xp);
         }
         updatedCharacter = character;
       }
