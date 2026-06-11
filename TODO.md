@@ -30,7 +30,7 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 ### 1. Remove `// @ts-nocheck` Suppressions
 
-**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (21 files remaining, down from 100)
+**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (20 files remaining, down from 100)
 
 **Problem:** `tsconfig.json` has `strict: true` enabled, but the majority of source files begin with `// @ts-nocheck`, which completely bypasses TypeScript checking. The TypeScript migration is structurally complete but type safety is not enforced.
 
@@ -47,9 +47,11 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 **Done so far (v0.7.x):** Pure/leaf game + utils modules — `DiceRoller`, `LineOfSight`, `Spell`, `Character` (keystone — its fields were leaking 22 errors into already-checked reducers), `OpportunityAttack`, `Pathfinding`, `EncounterPositions`, `HazardGenerator`, `Enemy`, `Party`, `SpellManager`, `TreasureGenerator`, `QuestGenerator` (+ `Quest`), `NPCGenerator`, `Shop`, `LootGenerator`, and `utils/regionDebug`. Typecheck holds at **0 errors** after every removal.
 
-Bugs surfaced and fixed along the way: `Character.gainXP()` → `awardXP()` (3 reducers, would `TypeError` on every XP award); missing `logger` import in `inventoryReducer`; dead `CONSUME_WATER`/`FIND_WATER` reducer cases referencing the removed `water` field; and quest difficulty `level` silently dropped because `QuestConfig` had no `level` field.
+Bugs surfaced and fixed along the way: `Character.gainXP()` → `awardXP()` (3 reducers, would `TypeError` on every XP award); missing `logger` import in `inventoryReducer`; dead `CONSUME_WATER`/`FIND_WATER` reducer cases referencing the removed `water` field; quest difficulty `level` silently dropped because `QuestConfig` had no `level` field; `DiceRoller`'s `LogCallback` typed `type?: string` instead of `LogMessageType` (blocked every `addMessage`→`DiceRoller` call site); a latent `isTown` `ReferenceError` in `HexDetails`' dead quest-giver modal (out-of-scope closure var); and ~150 lines of dead/unreachable code removed (`HexDetails` quest-giver + shop modals, `useHexInteraction.handleStairTransition` superseded by `OverworldScene`).
 
-**Remaining (~32):** the canvas components (`HexGridCanvas`/`CombatCanvas`/`InteriorHexCanvas`), the larger scenes (`OverworldScene`, `TownScene`, `ExplorationScene`, `CharacterCreationScene`), several mid components (`Equipment`, `SurvivalMenu`, `RestMenu`, `QuestLog`, `ShopUI` done, interior panels, `ClassIcon`), remaining hooks (`useHexInteraction`, `useInfiniteTerrainExpansion`), the data-heavy `Combat.ts` (+ its gated `combatReducer`), `AbilityEffects`, `SpellList`, `GameTableData`, `CombatTerrainGenerator`, the `Dungeon`/`Cave`/`Tower`/`Ruins`/`Town` generators, and `DevTools.jsx`. The entire `game/ai/`, most `game/`, all `utils/`, and the top-level map/terrain modules are now typed.
+**Type debt to reconcile:** `state.activeQuests`/`completedQuests`/etc. are typed with the lightweight `game/game.ts` `Quest` interface, but at runtime hold `game/Quest.ts` `Quest` **class** instances (methods + `QuestObjective[]`). `QuestLog` casts at the boundary (`as unknown as Quest[]`); reconcile by switching the state types to the class when the quest reducers are migrated.
+
+**Remaining (20):** canvas components (`HexGridCanvas`, `CombatCanvas`, `InteriorHexCanvas`), the scenes (`OverworldScene`, `TownScene`, `ExplorationScene`, `CharacterCreationScene`), the data-heavy `Combat.ts` (+ its gated `combatReducer`), `AbilityEffects`, `SpellList`, `GameTableData`, `CombatTerrainGenerator`, the `Dungeon`/`Cave`/`Tower`/`Ruins`/`Town`/`StartingCache` generators, and `DevTools.jsx`. All `game/ai/`, most `game/`, all `utils/`, all hooks, the top-level map/terrain modules, and the mid/interior UI components (`Equipment`, `SurvivalMenu`, `RestMenu`, `QuestLog`, `ShopUI`, `ClassIcon`, `HexDetails`, interior panels) are now typed.
 
 ---
 
