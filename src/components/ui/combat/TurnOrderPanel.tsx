@@ -1,13 +1,23 @@
-// @ts-nocheck
 import { useState } from 'react';
-import CombatantCard from './CombatantCard.jsx';
+import CombatantCard from './CombatantCard';
 
 /**
  * TurnOrderPanel - Display initiative order in sidebar
  * Shows all combatants in initiative order with current turn highlighted
  * Mobile-friendly with collapse/expand functionality
  */
-function TurnOrderPanel({ turnOrder, currentTurnIndex, round }) {
+interface TurnOrderCombatant {
+  id?: string | number;
+  [key: string]: unknown;
+}
+
+interface TurnOrderPanelProps {
+  turnOrder: TurnOrderCombatant[];
+  currentTurnIndex: number;
+  round: number;
+}
+
+function TurnOrderPanel({ turnOrder, currentTurnIndex, round }: TurnOrderPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (!turnOrder || turnOrder.length === 0) {

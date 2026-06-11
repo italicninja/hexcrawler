@@ -1,11 +1,28 @@
-// @ts-nocheck
-import PropTypes from 'prop-types';
-
 /**
  * ActionEconomyDisplay - Visual tracker for D&D 5e action economy
  * Shows Action, Bonus Action, Movement, and Free Object Interaction status
  */
-function ActionEconomyDisplay({ turnState, character }) {
+interface TurnStateLike {
+  movementUsed?: number;
+  actionUsed?: boolean;
+  bonusActionUsed?: boolean;
+  freeObjectUsed?: boolean;
+}
+
+interface ActionEconomyDisplayProps {
+  turnState?: TurnStateLike;
+  character?: { moveDistance?: number };
+}
+
+interface EconomyItemProps {
+  icon: string;
+  label: string;
+  isUsed?: boolean;
+  showMovement?: boolean;
+  movementData?: { used: number; total: number };
+}
+
+function ActionEconomyDisplay({ turnState, character }: ActionEconomyDisplayProps) {
   const movementUsed = turnState?.movementUsed || 0;
   const movementTotal = (character?.moveDistance || 6) * 5; // Convert hexes to feet
 
@@ -13,7 +30,7 @@ function ActionEconomyDisplay({ turnState, character }) {
   const bonusActionUsed = turnState?.bonusActionUsed || false;
   const objectInteractionUsed = turnState?.freeObjectUsed || false;
 
-  const EconomyItem = ({ icon, label, isUsed, showMovement, movementData }) => (
+  const EconomyItem = ({ icon, label, isUsed, showMovement, movementData }: EconomyItemProps) => (
     <div
       className="flex items-center gap-2 px-3 py-2 rounded-lg"
       style={{
@@ -31,10 +48,13 @@ function ActionEconomyDisplay({ turnState, character }) {
         <span
           className="text-sm font-bold"
           style={{
-            color: movementData.used >= movementData.total ? 'var(--text-muted)' : '#2ecc71',
+            color:
+              (movementData?.used ?? 0) >= (movementData?.total ?? 0)
+                ? 'var(--text-muted)'
+                : '#2ecc71',
           }}
         >
-          {movementData.used}/{movementData.total} ft
+          {movementData?.used ?? 0}/{movementData?.total ?? 0} ft
         </span>
       ) : (
         <span
@@ -48,17 +68,6 @@ function ActionEconomyDisplay({ turnState, character }) {
       )}
     </div>
   );
-
-  EconomyItem.propTypes = {
-    icon: PropTypes.string.isRequired,
-    label: PropTypes.string.isRequired,
-    isUsed: PropTypes.bool,
-    showMovement: PropTypes.bool,
-    movementData: PropTypes.shape({
-      used: PropTypes.number,
-      total: PropTypes.number,
-    }),
-  };
 
   return (
     <div

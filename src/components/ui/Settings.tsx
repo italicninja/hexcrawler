@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useSettings } from '../../contexts/SettingsContext';
 import KeybindingsMenu from './KeybindingsMenu';
 
