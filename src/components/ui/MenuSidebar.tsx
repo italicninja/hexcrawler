@@ -1,9 +1,23 @@
-// @ts-nocheck
-
 /**
  * MenuSidebar - Vertical list of clickable menu items
  */
-function MenuSidebar({ items, onItemClick, selectedItem }) {
+interface MenuItem {
+  id: string;
+  label: string;
+  icon?: string;
+  disabled?: boolean;
+  disabledReason?: string;
+  isDev?: boolean;
+  badge?: number;
+}
+
+interface MenuSidebarProps {
+  items: MenuItem[];
+  onItemClick: (item: MenuItem) => void;
+  selectedItem?: MenuItem | null;
+}
+
+function MenuSidebar({ items, onItemClick, selectedItem }: MenuSidebarProps) {
   return (
     <div
       className="menu-sidebar"

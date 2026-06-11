@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEventListener } from '../../hooks/useEventListener';
 import './AboutModal.css';
 
@@ -6,9 +5,14 @@ import './AboutModal.css';
  * AboutModal Component
  * Displays app information, version, tech stack, and credits
  */
-function AboutModal({ isOpen, onClose }) {
+interface AboutModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function AboutModal({ isOpen, onClose }: AboutModalProps) {
   // Escape key handler
-  useEventListener('keydown', e => {
+  useEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Escape' && isOpen) {
       onClose();
     }

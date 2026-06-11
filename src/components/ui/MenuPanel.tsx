@@ -1,13 +1,29 @@
-// @ts-nocheck
+import type { ReactNode, MouseEvent } from 'react';
 
 /**
  * MenuPanel - Reusable popup panel for menus
  * Displays content in a centered modal overlay
  */
-function MenuPanel({ title, isOpen, onClose, children, width = '600px', maxWidth = '90vw' }) {
+interface MenuPanelProps {
+  title: string;
+  isOpen: boolean;
+  onClose: () => void;
+  children?: ReactNode;
+  width?: string;
+  maxWidth?: string;
+}
+
+function MenuPanel({
+  title,
+  isOpen,
+  onClose,
+  children,
+  width = '600px',
+  maxWidth = '90vw',
+}: MenuPanelProps) {
   if (!isOpen) return null;
 
-  const handleBackdropClick = e => {
+  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -79,8 +95,8 @@ function MenuPanel({ title, isOpen, onClose, children, width = '600px', maxWidth
               lineHeight: 1,
               transition: 'color 0.2s',
             }}
-            onMouseEnter={e => (e.target.style.color = 'var(--text-color)')}
-            onMouseLeave={e => (e.target.style.color = 'var(--text-muted)')}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-color)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
           >
             ✕
           </button>

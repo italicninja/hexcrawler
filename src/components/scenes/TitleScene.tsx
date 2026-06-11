@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import logger from '../../utils/logger';
 import { useGameState } from '../../contexts/GameStateContext';
@@ -9,12 +8,12 @@ import { SaveManager } from '../../utils/SaveManager';
 import SaveSlotManager from '../ui/SaveSlotManager';
 
 function TitleScene() {
-  const { state, dispatch, actions, hasSave, loadGame, deleteSave } = useGameState();
+  const { dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
   const [seed, setSeed] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
-  const { confirm, dialogProps } = useConfirm();
+  const { dialogProps } = useConfirm();
 
   const handleNewGame = () => {
     try {
@@ -22,8 +21,9 @@ function TitleScene() {
       // NEW_GAME action sets mapSeed and currentScene automatically
       dispatch({ type: actions.NEW_GAME, payload: gameSeed });
     } catch (error) {
-      logger.general.error('Error starting new game:', { error, message: error.message });
-      addMessage('Failed to start new game: ' + error.message, 'error');
+      const message = error instanceof Error ? error.message : String(error);
+      logger.general.error('Error starting new game:', { error, message });
+      addMessage('Failed to start new game: ' + message, 'error');
     }
   };
 
