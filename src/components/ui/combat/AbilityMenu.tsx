@@ -1,29 +1,46 @@
-// @ts-nocheck
+import type { MouseEvent } from 'react';
 import { useEventListener } from '../../../hooks/useEventListener';
 
 /**
  * AbilityMenu - Modal overlay for selecting class ability
  * Shows available abilities with uses remaining, descriptions, and effects.
- *
- * Props:
- *   character  - Character instance (abilities_list, class, level, etc.)
- *   combatant  - turnOrder entry (statusEffects, id) — used to surface dynamic
- *                combat abilities like "Extend Rage"
- *   onSelect   - Called with the selected ability object
- *   onClose    - Called when the menu is dismissed
  */
-function AbilityMenu({ character, combatant, onSelect, onClose }) {
+interface Ability {
+  name: string;
+  uses?: number;
+  maxUses?: number;
+  actionType?: string;
+  description?: string;
+  effect?: string;
+}
+
+interface AbilityCharacter {
+  abilities_list?: Ability[];
+}
+
+interface AbilityCombatant {
+  statusEffects?: Array<{ name: string; roundsActive?: number }>;
+}
+
+interface AbilityMenuProps {
+  character?: AbilityCharacter | null;
+  combatant?: AbilityCombatant | null;
+  onSelect: (ability: Ability) => void;
+  onClose: () => void;
+}
+
+function AbilityMenu({ character, combatant, onSelect, onClose }: AbilityMenuProps) {
   // Filter abilities with uses remaining (or unlimited uses)
   const baseAbilities =
     character?.abilities_list?.filter(
-      ability => !ability.maxUses || ability.maxUses === -1 || ability.uses > 0
+      ability => !ability.maxUses || ability.maxUses === -1 || (ability.uses ?? 0) > 0
     ) || [];
 
   // Dynamically surface "Extend Rage" as a bonus action when the combatant is
   // currently raging and the bonus action hasn't been used yet.
   const rageEffect = combatant?.statusEffects?.find(e => e.name === 'Rage');
-  const extendRageOption =
-    rageEffect && rageEffect.roundsActive > 0
+  const extendRageOption: Ability | null =
+    rageEffect && (rageEffect.roundsActive ?? 0) > 0
       ? {
           name: 'Extend Rage',
           uses: -1,
@@ -39,14 +56,14 @@ function AbilityMenu({ character, combatant, onSelect, onClose }) {
     : baseAbilities;
 
   // Handle ESC key to close
-  useEventListener('keydown', e => {
+  useEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
     }
   });
 
   // Handle click outside to close
-  const handleOverlayClick = e => {
+  const handleOverlayClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -90,8 +107,8 @@ function AbilityMenu({ character, combatant, onSelect, onClose }) {
   /**
    * Get ability description based on class and ability name
    */
-  const getAbilityDescription = ability => {
-    const descriptions = {
+  const getAbilityDescription = (ability: Ability) => {
+    const descriptions: Record<string, string> = {
       Rage: 'Enter a Rage (Bonus Action). Resistance to Bludgeoning/Piercing/Slashing damage, +2 bonus damage on Strength attacks, and Advantage on Strength checks and saving throws. Lasts until end of next turn — extend by attacking, forcing a save, or using Bonus Action.',
       'Extend Rage':
         'Spend your Bonus Action to extend your Rage for another round when you have not made an attack or forced a saving throw this turn.',
