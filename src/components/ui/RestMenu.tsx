@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useMemo } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -6,7 +5,11 @@ import { RestManager } from '../../game/RestManager';
 import { applyStarvation } from '../../game/SurvivalManager';
 import { generateRestFlavor } from '../../utils/flavorTextGenerator';
 
-function RestMenu({ onClose }) {
+interface RestMenuProps {
+  onClose?: () => void;
+}
+
+function RestMenu({ onClose }: RestMenuProps) {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
   const [hitDiceToSpend, setHitDiceToSpend] = useState(1);
@@ -80,11 +83,8 @@ function RestMenu({ onClose }) {
     const interrupted = RestManager.isRestInterrupted(terrainType, terrainDifficulty);
 
     if (interrupted) {
-      // Rest was interrupted - only recover partial HP
-      const partialResult = RestManager.shortRest(
-        character,
-        Math.floor(character.hitDiceRemaining / 2)
-      );
+      // Rest was interrupted - only recover partial HP (mutates character in place)
+      RestManager.shortRest(character, Math.floor(character.hitDiceRemaining / 2));
 
       dispatch({
         type: actions.SHORT_REST, // Use short rest since interrupted
@@ -239,7 +239,7 @@ function RestMenu({ onClose }) {
             min="0"
             max={character.hitDiceRemaining}
             value={hitDiceToSpend}
-            onChange={e => setHitDiceToSpend(parseInt(e.target.value))}
+            onChange={e => setHitDiceToSpend(parseInt(e.target.value, 10))}
             disabled={!canShortRest || isResting}
             style={{ width: '100%' }}
           />
