@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Item } from './Item';
 /**
  * StartingCacheGenerator
@@ -19,8 +18,39 @@ import { Item } from './Item';
  */
 
 import { InteriorGenerator } from './InteriorGenerator';
+import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { STARTING_CACHE, GAME_DEFAULTS } from '../constants/gameConstants';
 import { getHexDistance } from '../utils/hexMath';
+
+/** Minimal overworld-hex shape needed to locate settlements. */
+interface WorldHex {
+  col: number;
+  row: number;
+  poi?: { type?: string; name?: string } | null;
+}
+
+/** A hand-placed room in the starting cache (x/y top-left + size). */
+interface CacheRoom {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The generated starting-cache interior map. Extra fields ride the index signature. */
+interface CacheMap {
+  hexes: InteriorHex[];
+  rooms?: CacheRoom[];
+  [key: string]: unknown;
+}
+
+interface NearestSettlement {
+  name: string;
+  col: number;
+  row: number;
+  distance: number;
+  direction: string;
+}
 
 // Settlement POI types that count as "a place to head to"
 const SETTLEMENT_TYPES = new Set(['camp', 'village', 'town', 'city', 'metropolis']);
@@ -29,7 +59,7 @@ const SETTLEMENT_TYPES = new Set(['camp', 'village', 'town', 'city', 'metropolis
  * Given a delta (target - origin) in offset-grid col/row space, return the
  * nearest cardinal/intercardinal compass direction as a lowercase string.
  */
-function getCompassDirection(dCol, dRow) {
+function getCompassDirection(dCol: number, dRow: number): string {
   // In an offset hex grid, increasing row goes DOWN on screen (south),
   // increasing col goes RIGHT (east).  We treat dRow as the N/S axis and
   // dCol as the E/W axis, then snap to the 8 compass points.
@@ -53,7 +83,7 @@ function getCompassDirection(dCol, dRow) {
  * Build a natural-language travel-time string from a hex distance.
  * 1 hex = 1 game-day of travel (per TIME.TRAVEL_TIME_PER_HEX_MINUTES × 48 = 1 440 min).
  */
-function formatTravelTime(hexDistance) {
+function formatTravelTime(hexDistance: number): string {
   const days = Math.round(hexDistance);
   if (days <= 0) return "less than a day's walk";
   if (days === 1) return "a day's walk";
@@ -64,12 +94,16 @@ function formatTravelTime(hexDistance) {
  * Find the nearest settlement hex to the starting position.
  * Returns { name, col, row, distance, direction } or null if none found.
  */
-function findNearestSettlement(worldHexes, startCol, startRow) {
-  let nearest = null;
+function findNearestSettlement(
+  worldHexes: WorldHex[],
+  startCol: number,
+  startRow: number
+): NearestSettlement | null {
+  let nearest: WorldHex | null = null;
   let nearestDist = Infinity;
 
   for (const hex of worldHexes) {
-    if (!hex.poi || !SETTLEMENT_TYPES.has(hex.poi.type)) continue;
+    if (!hex.poi || !hex.poi.type || !SETTLEMENT_TYPES.has(hex.poi.type)) continue;
     // Skip the starting cache itself
     if (hex.col === startCol && hex.row === startRow) continue;
 
@@ -80,7 +114,7 @@ function findNearestSettlement(worldHexes, startCol, startRow) {
     }
   }
 
-  if (!nearest) return null;
+  if (!nearest || !nearest.poi || !nearest.poi.name) return null;
 
   return {
     name: nearest.poi.name,
@@ -95,7 +129,7 @@ function findNearestSettlement(worldHexes, startCol, startRow) {
  * Build the dynamic survival note text using real world data.
  * Falls back to a vague version if no settlement is found.
  */
-function buildSurvivalNote(worldHexes, startCol, startRow) {
+function buildSurvivalNote(worldHexes: WorldHex[], startCol: number, startRow: number): string {
   const settlement = findNearestSettlement(worldHexes, startCol, startRow);
 
   if (!settlement) {
@@ -122,7 +156,11 @@ export class StartingCacheGenerator extends InteriorGenerator {
    * @param {number} cr     - Always 0 for this generator
    * @returns {object} Interior map data
    */
-  generate(width = STARTING_CACHE.WIDTH, height = STARTING_CACHE.HEIGHT, cr = 0) {
+  generate(
+    width: number = STARTING_CACHE.WIDTH,
+    height: number = STARTING_CACHE.HEIGHT,
+    cr = 0
+  ): CacheMap {
     const grid = this.initializeGrid(width, height, this.terrainTypes.wall);
 
     // ── Build three hand-placed rooms ──────────────────────────────────────
@@ -169,8 +207,8 @@ export class StartingCacheGenerator extends InteriorGenerator {
    * Place three rooms deterministically across the grid.
    * Rooms are evenly spaced horizontally with 1-cell wall margins.
    */
-  placeRooms(grid, width, height) {
-    const rooms = [];
+  placeRooms(grid: InteriorGrid, width: number, height: number): CacheRoom[] {
+    const rooms: CacheRoom[] = [];
 
     // Divide the width into 3 equal sections, one room per section.
     const sectionWidth = Math.floor((width - 2) / 3);
@@ -198,7 +236,7 @@ export class StartingCacheGenerator extends InteriorGenerator {
   }
 
   /** Return the center coordinate of a room. */
-  roomCenter(room) {
+  roomCenter(room: CacheRoom): HexCoord {
     return {
       col: Math.floor(room.x + room.width / 2),
       row: Math.floor(room.y + room.height / 2),
@@ -208,7 +246,7 @@ export class StartingCacheGenerator extends InteriorGenerator {
   /**
    * Carve an L-shaped corridor between two points (horizontal then vertical).
    */
-  carveCorridor(grid, start, end) {
+  carveCorridor(grid: InteriorGrid, start: HexCoord, end: HexCoord): void {
     // Horizontal leg
     const minCol = Math.min(start.col, end.col);
     const maxCol = Math.max(start.col, end.col);
@@ -242,7 +280,7 @@ export class StartingCacheGenerator extends InteriorGenerator {
    * @param {object} exitRoom   - Room 0 (left-most room)
    * @param {object} spawnRoom  - Room 2 (right-most room)
    */
-  placeEntranceAndExit(grid, exitRoom, spawnRoom) {
+  placeEntranceAndExit(grid: InteriorGrid, exitRoom: CacheRoom, spawnRoom: CacheRoom): HexCoord {
     // Exit tile — center of Room 0
     const exitCy = Math.floor(exitRoom.y + exitRoom.height / 2);
     const exitCol = Math.floor(exitRoom.x + exitRoom.width / 2);
@@ -280,12 +318,12 @@ export class StartingCacheGenerator extends InteriorGenerator {
    * @returns {Array} Array of loot objects
    */
   placeLoot(
-    interiorMap,
-    worldHexes: any[] = [],
+    interiorMap: CacheMap,
+    worldHexes: WorldHex[] = [],
     startCol = GAME_DEFAULTS.START_POSITION.col,
     startRow = GAME_DEFAULTS.START_POSITION.row
   ) {
-    const loot = [];
+    const loot: Record<string, unknown>[] = [];
     const { rooms } = interiorMap;
 
     if (!rooms || rooms.length < 3) return loot;
@@ -477,14 +515,14 @@ export class StartingCacheGenerator extends InteriorGenerator {
   /**
    * No hazards in the starting cache — always returns empty array.
    */
-  placeHazards(_interiorMap) {
+  placeHazards(_interiorMap: CacheMap): Record<string, unknown>[] {
     return [];
   }
 
   /**
    * No combat encounters in the starting cache — always returns empty array.
    */
-  placeEncounters(_interiorMap, _poiData) {
+  placeEncounters(_interiorMap: CacheMap, _poiData?: unknown): Record<string, unknown>[] {
     return [];
   }
 
@@ -493,7 +531,7 @@ export class StartingCacheGenerator extends InteriorGenerator {
   /**
    * Get all walkable, content-free tiles within a specific room.
    */
-  getWalkableTilesInRoom(interiorMap, room) {
+  getWalkableTilesInRoom(interiorMap: CacheMap, room: CacheRoom): InteriorHex[] {
     return interiorMap.hexes.filter(
       hex =>
         hex.col >= room.x &&
@@ -508,9 +546,9 @@ export class StartingCacheGenerator extends InteriorGenerator {
   /**
    * Pick `n` unique random elements from an array.
    */
-  pickUnique(array, n) {
+  pickUnique<T>(array: T[], n: number): T[] {
     const pool = [...array];
-    const result = [];
+    const result: T[] = [];
     const count = Math.min(n, pool.length);
     for (let i = 0; i < count; i++) {
       const idx = Math.floor(this.random() * pool.length);

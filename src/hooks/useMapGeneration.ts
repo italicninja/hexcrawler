@@ -154,13 +154,12 @@ export function useMapGeneration(
       const cacheGenerator = new StartingCacheGenerator();
       cacheGenerator.setSeed(`poi-${poiKey}-${state.mapSeed}`);
 
-      // generate() returns an object whose loot/hazards/encounters start as []
-      // (inferred never[] under the generator's @ts-nocheck); widen for the fills below.
+      // generate() returns a typed CacheMap; loot/hazards/encounters are filled below.
       const interiorMap = cacheGenerator.generate(
         STARTING_CACHE.WIDTH,
         STARTING_CACHE.HEIGHT,
         0
-      ) as Record<string, unknown>;
+      );
       interiorMap.loot = cacheGenerator.placeLoot(
         interiorMap,
         generatedHexes,
