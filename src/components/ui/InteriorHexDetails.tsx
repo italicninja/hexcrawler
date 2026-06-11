@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * InteriorHexDetails - Shows details for interior hexes and interaction buttons
  */
@@ -6,15 +5,78 @@
 import { getHexDistance } from '../../utils/hexMath';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
-import { DiceRoller } from '../../game/DiceRoller';
-import { getCombatDuration, TIME_COSTS } from '../../game/TimeManager';
-import { Combat } from '../../game/Combat';
-import { Enemy } from '../../game/Enemy';
-import { Character } from '../../game/Character';
+import { TIME_COSTS } from '../../game/TimeManager';
 import './InteriorHexDetails.css';
 
-function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveToHex }) {
-  const { state, actions, dispatch } = useGameState();
+interface HexLike {
+  col: number;
+  row: number;
+  terrain: { name: string; walkable?: boolean };
+  content?: string | null;
+}
+
+interface LootItem {
+  name: string;
+  rarity: string;
+  getRarityColor?: () => string;
+}
+
+interface InteriorEncounter {
+  col: number;
+  row: number;
+  cr?: number;
+  creatures?: string;
+  defeated?: boolean;
+  discovered?: boolean;
+}
+
+interface InteriorLoot {
+  col: number;
+  row: number;
+  gold: number;
+  items: LootItem[];
+  consumables?: string[];
+  rarity: string;
+  type?: string;
+  collected?: boolean;
+  discovered?: boolean;
+}
+
+interface InteriorHazard {
+  col: number;
+  row: number;
+  type: string;
+  category: string;
+  description: string;
+  dc: number;
+  saveType: string;
+  damage: number;
+  damageType: string;
+  triggered?: boolean;
+  discovered?: boolean;
+}
+
+interface InteriorMapLike {
+  encounters?: InteriorEncounter[];
+  loot?: InteriorLoot[];
+  hazards?: InteriorHazard[];
+}
+
+interface InteriorHexDetailsProps {
+  hex: HexLike | null;
+  playerPosition?: { col: number; row: number } | null;
+  interiorMap?: InteriorMapLike | null;
+  poiKey: string;
+  onMoveToHex?: (hex: HexLike) => void;
+}
+
+function InteriorHexDetails({
+  hex,
+  playerPosition,
+  interiorMap,
+  poiKey,
+}: InteriorHexDetailsProps) {
+  const { actions, dispatch } = useGameState();
   const { addMessage } = useGameLog();
 
   if (!hex) {
@@ -40,34 +102,6 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
   const hazard = interiorMap?.hazards?.find(
     h => h.col === hex.col && h.row === hex.row && h.discovered
   );
-
-  // Handle encounter engagement
-  const handleEngageEncounter = () => {
-    if (!encounter || encounter.defeated) return;
-
-    const combatTime = getCombatDuration();
-
-    // TODO: Real combat system
-    addMessage(
-      `Combat! You engage ${encounter.creatures}!\n\n(Combat system coming soon - auto-resolving...)\n\nYou defeat the enemies!\n\nTime elapsed: ${combatTime} minutes`,
-      'encounter'
-    );
-
-    // Advance time for combat
-    dispatch({
-      type: actions.ADVANCE_TIME,
-      payload: combatTime,
-    });
-
-    // Mark encounter as defeated
-    dispatch({
-      type: actions.DEFEAT_ENCOUNTER,
-      payload: {
-        poiKey,
-        encounterKey: `${encounter.col},${encounter.row}`,
-      },
-    });
-  };
 
   // Handle loot collection
   const handleCollectLoot = () => {
@@ -212,8 +246,8 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
   };
 
   // Get rarity color
-  const getRarityColor = rarity => {
-    const colors = {
+  const getRarityColor = (rarity: string): string => {
+    const colors: Record<string, string> = {
       common: '#9d9d9d',
       uncommon: '#1eff00',
       rare: '#0070dd',
@@ -221,28 +255,6 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey, onMoveTo
       legendary: '#ff8000',
     };
     return colors[rarity] || colors.common;
-  };
-
-  // Handle move button click
-  const handleMoveClick = () => {
-    if (distance === 0) {
-      addMessage('You are already on this hex', 'info');
-      return;
-    }
-    if (!hex.terrain.walkable) {
-      addMessage('Cannot move - hex is not walkable (wall or obstacle)', 'warning');
-      return;
-    }
-    if (distance > 1) {
-      addMessage(
-        `Too far - hex is ${distance} away. You can only move 1 hex at a time.`,
-        'warning'
-      );
-      return;
-    }
-    if (onMoveToHex) {
-      onMoveToHex(hex);
-    }
   };
 
   return (
