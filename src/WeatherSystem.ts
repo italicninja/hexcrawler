@@ -1,11 +1,50 @@
-// @ts-nocheck
-// TODO: Add proper types
 import logger from './utils/logger';
+
+interface WeatherEffects {
+  visibility: number;
+  movementCost: number;
+  skillChecks: Record<string, number>;
+  // Some weather types carry extra effects (damage, temperature, description, etc.)
+  [key: string]: unknown;
+}
+
+export interface WeatherType {
+  key: string;
+  name: string;
+  intensity: number;
+  effects: WeatherEffects;
+}
+
+interface Position {
+  col: number;
+  row: number;
+}
+
+interface Movement {
+  dx: number;
+  dy: number;
+}
+
+/** Loose shape for the region objects WeatherSystem reads/mutates. */
+interface WeatherRegion {
+  id: string;
+  centerHex: { col: number; row: number };
+  biome: { key: string; weatherTable: Record<string, number> };
+  weatherPattern: WeatherType | null;
+}
+
+interface WeatherFrontJSON {
+  type: string;
+  position: Position;
+  radius: number;
+  duration: number;
+  movement: Movement;
+}
 
 /**
  * Weather type definitions with gameplay effects
  */
-export const WEATHER_TYPES = {
+export const WEATHER_TYPES: Record<string, WeatherType> = {
   // Clear/Neutral
   CLEAR: {
     key: 'clear',
@@ -185,7 +224,22 @@ export const WEATHER_TYPES = {
  * Weather front - a moving weather pattern that affects multiple regions
  */
 class WeatherFront {
-  constructor(type, position, radius, duration, movement, random) {
+  type: string;
+  position: Position;
+  radius: number;
+  duration: number;
+  movement: Movement;
+  weather: WeatherType;
+  random: () => number;
+
+  constructor(
+    type: string,
+    position: Position,
+    radius: number,
+    duration: number,
+    movement: Movement,
+    random: () => number
+  ) {
     this.type = type;
     this.position = { ...position };
     this.radius = radius;
@@ -198,7 +252,7 @@ class WeatherFront {
   /**
    * Move the front based on elapsed time
    */
-  move(hours) {
+  move(hours: number): void {
     this.position.col += this.movement.dx * hours;
     this.position.row += this.movement.dy * hours;
     this.duration -= hours;
@@ -207,7 +261,7 @@ class WeatherFront {
   /**
    * Check if front affects a position
    */
-  affects(col, row) {
+  affects(col: number, row: number): boolean {
     const dx = this.position.col - col;
     const dy = this.position.row - row;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -217,7 +271,7 @@ class WeatherFront {
   /**
    * Check if front is expired
    */
-  isExpired() {
+  isExpired(): boolean {
     return this.duration <= 0;
   }
 }
@@ -226,7 +280,16 @@ class WeatherFront {
  * WeatherSystem - Manages regional weather patterns and fronts
  */
 export class WeatherSystem {
-  constructor(regions, seed, mapWidth = 50, mapHeight = 30) {
+  regions: WeatherRegion[];
+  seed: number;
+  seedCounter: number;
+  mapWidth: number;
+  mapHeight: number;
+  weatherFronts: WeatherFront[];
+  lastUpdateTime: number;
+  lastEvolutionTime: number;
+
+  constructor(regions: WeatherRegion[], seed: number, mapWidth = 50, mapHeight = 30) {
     this.regions = regions;
     this.seed = seed;
     this.seedCounter = seed;
@@ -240,7 +303,7 @@ export class WeatherSystem {
   /**
    * Seeded random number generator
    */
-  random() {
+  random(): number {
     const x = Math.sin(this.seedCounter++) * 10000;
     return x - Math.floor(x);
   }
@@ -248,16 +311,17 @@ export class WeatherSystem {
   /**
    * Initialize weather for all regions
    */
-  initializeWeather() {
+  initializeWeather(): void {
     logger.general.time('weather-init');
     logger.general.info('Initializing regional weather', { regions: this.regions.length });
 
-    this.regions.forEach((region, idx) => {
-      region.weatherPattern = this.rollWeatherForRegion(region);
+    this.regions.forEach(region => {
+      const weather = this.rollWeatherForRegion(region);
+      region.weatherPattern = weather;
       logger.general.debug('Region weather set', {
         regionId: region.id,
         biome: region.biome.key,
-        weather: region.weatherPattern.key,
+        weather: weather.key,
       });
     });
 
@@ -273,7 +337,7 @@ export class WeatherSystem {
   /**
    * Roll weather for a region based on its biome weather table
    */
-  rollWeatherForRegion(region) {
+  rollWeatherForRegion(region: WeatherRegion): WeatherType {
     const weatherTable = region.biome.weatherTable;
     const roll = this.random();
     let cumulative = 0;
@@ -292,9 +356,9 @@ export class WeatherSystem {
   /**
    * Get weather type by key (handles aliases)
    */
-  getWeatherByKey(key) {
+  getWeatherByKey(key: string): WeatherType {
     // Handle common aliases
-    const aliases = {
+    const aliases: Record<string, string> = {
       clear: 'CLEAR',
       rain: 'RAIN',
       storm: 'STORM',
@@ -315,7 +379,7 @@ export class WeatherSystem {
   /**
    * Advance weather simulation by hours
    */
-  advanceTime(hours) {
+  advanceTime(hours: number): void {
     if (hours <= 0) return;
 
     logger.general.debug('Advancing weather', { hours, currentTime: this.lastUpdateTime });
@@ -354,7 +418,7 @@ export class WeatherSystem {
    * This ensures fronts feel climatically appropriate for their origin region —
    * sandstorms only spawn near deserts, blizzards near arctic/alpine, etc.
    */
-  pickFrontTypeFromRegion(region) {
+  pickFrontTypeFromRegion(region: WeatherRegion): string {
     const weatherTable = region.biome.weatherTable;
     const roll = this.random();
     let cumulative = 0;
@@ -365,7 +429,7 @@ export class WeatherSystem {
         // Map the biome weather key to a WEATHER_TYPES key via the same alias
         // lookup used by rollWeatherForRegion, then return the string key for
         // WeatherFront construction (which expects the WEATHER_TYPES key name).
-        const aliases = {
+        const aliases: Record<string, string> = {
           clear: 'CLEAR',
           rain: 'RAIN',
           storm: 'STORM',
@@ -392,7 +456,7 @@ export class WeatherSystem {
    * Find the region whose center is nearest to a given position.
    * Used to pick a biome-appropriate front type when spawning from a map edge.
    */
-  nearestRegionTo(col, row) {
+  nearestRegionTo(col: number, row: number): WeatherRegion {
     let nearest = this.regions[0];
     let minDist = Infinity;
     for (const region of this.regions) {
@@ -412,10 +476,10 @@ export class WeatherSystem {
    * Front type is drawn from the biome weather table of the region nearest to
    * the spawn point, so fronts are always climatically coherent with their origin.
    */
-  spawnWeatherFront() {
+  spawnWeatherFront(): void {
     // Random starting position (edge of map or random region center)
-    let position;
-    let sourceRegion;
+    let position: Position;
+    let sourceRegion: WeatherRegion;
     const spawnAtEdge = this.random() < 0.5;
 
     if (spawnAtEdge) {
@@ -463,7 +527,7 @@ export class WeatherSystem {
   /**
    * Get position at map edge
    */
-  getEdgePosition(edge) {
+  getEdgePosition(edge: number): Position {
     const width = this.mapWidth;
     const height = this.mapHeight;
 
@@ -484,7 +548,7 @@ export class WeatherSystem {
   /**
    * Update regional weather based on active fronts
    */
-  updateRegionalWeather() {
+  updateRegionalWeather(): void {
     this.regions.forEach(region => {
       // Check if any front affects this region
       const affectingFront = this.weatherFronts.find(front =>
@@ -501,7 +565,7 @@ export class WeatherSystem {
   /**
    * Natural weather evolution (gradual changes over time)
    */
-  evolveNaturalWeather() {
+  evolveNaturalWeather(): void {
     this.regions.forEach(region => {
       // Skip if currently affected by a front
       const hasActiveFront = this.weatherFronts.some(front =>
@@ -520,7 +584,7 @@ export class WeatherSystem {
   /**
    * Get weather for a specific hex
    */
-  getWeatherForHex(col, row, hexToRegion) {
+  getWeatherForHex(col: number, row: number, hexToRegion: Map<string, number>): WeatherType {
     const regionId = hexToRegion.get(`${col},${row}`);
     if (regionId === undefined || !this.regions[regionId]) {
       return WEATHER_TYPES.CLEAR;
@@ -532,7 +596,7 @@ export class WeatherSystem {
   /**
    * Get all active weather fronts
    */
-  getActiveFronts() {
+  getActiveFronts(): WeatherFront[] {
     return this.weatherFronts;
   }
 
@@ -564,7 +628,8 @@ export class WeatherSystem {
   /**
    * Deserialize weather state from save
    */
-  static fromJSON(data, regions) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static fromJSON(data: any, regions: WeatherRegion[]): WeatherSystem {
     const weather = new WeatherSystem(
       regions,
       data.seed,
@@ -577,7 +642,7 @@ export class WeatherSystem {
 
     // Restore weather fronts
     weather.weatherFronts = data.weatherFronts.map(
-      frontData =>
+      (frontData: WeatherFrontJSON) =>
         new WeatherFront(
           frontData.type,
           frontData.position,
@@ -589,7 +654,7 @@ export class WeatherSystem {
     );
 
     // Restore regional weather
-    data.regionalWeather.forEach(rw => {
+    data.regionalWeather.forEach((rw: { id: string; weatherKey: string }) => {
       const region = regions.find(r => r.id === rw.id);
       if (region) {
         region.weatherPattern = weather.getWeatherByKey(rw.weatherKey);
