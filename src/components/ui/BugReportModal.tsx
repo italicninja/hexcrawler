@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { submitBugReport } from '../../utils/githubApi';
 import { useEventListener } from '../../hooks/useEventListener';
@@ -10,20 +9,25 @@ import './BugReportModal.css';
  * Modal for submitting bug reports to GitHub issues
  * Automatically attaches game log to the issue
  */
-function BugReportModal({ isOpen, onClose }) {
+interface BugReportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function BugReportModal({ isOpen, onClose }: BugReportModalProps) {
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const { messages, addMessage } = useGameLog();
 
   // Escape key handler
-  useEventListener('keydown', e => {
+  useEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Escape' && isOpen) {
       handleCancel();
     }
   });
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!description.trim()) {
@@ -50,7 +54,7 @@ function BugReportModal({ isOpen, onClose }) {
         setError(result.error || 'Failed to submit bug report');
       }
     } catch (err) {
-      setError(err.message || 'An unexpected error occurred');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }

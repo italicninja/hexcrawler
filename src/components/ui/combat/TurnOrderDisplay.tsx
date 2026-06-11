@@ -1,10 +1,22 @@
-// @ts-nocheck
-
 /**
  * TurnOrderDisplay - Shows the initiative order and current turn
  * Displays combatants in initiative order with HP and status
  */
-function TurnOrderDisplay({ turnOrder, currentTurnIndex }) {
+interface DisplayCombatant {
+  id?: string | number;
+  name?: string;
+  initiative?: number;
+  currentHP: number;
+  maxHP: number;
+  isAlly?: boolean;
+}
+
+interface TurnOrderDisplayProps {
+  turnOrder: DisplayCombatant[];
+  currentTurnIndex: number;
+}
+
+function TurnOrderDisplay({ turnOrder, currentTurnIndex }: TurnOrderDisplayProps) {
   if (!turnOrder || turnOrder.length === 0) {
     return null;
   }
