@@ -1,18 +1,40 @@
-// @ts-nocheck
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { useEventListener } from '../../../hooks/useEventListener';
 
 /**
  * SpellMenu - Modal overlay for selecting spell to cast
  * Shows spells grouped by level with slot tracking
  */
-function SpellMenu({ character, onSelect, onClose }) {
+interface SpellLike {
+  level?: number;
+  name?: string;
+  school?: string;
+  range?: string;
+  description?: string;
+  components?: string;
+}
+
+interface SpellCharacter {
+  level?: number;
+  class?: string;
+  name?: string;
+  spells?: SpellLike[];
+  spellSlotsUsed?: Record<number, number>;
+}
+
+interface SpellMenuProps {
+  character: SpellCharacter;
+  onSelect: (spell: SpellLike, spellLevel: number) => void;
+  onClose: () => void;
+}
+
+function SpellMenu({ character, onSelect, onClose }: SpellMenuProps) {
   const [selectedLevel, setSelectedLevel] = useState('all');
 
   // Spell slot configuration by class and level
-  const getSpellSlots = () => {
+  const getSpellSlots = (): Record<number, number> => {
     // Simplified spell slot table for level 1-5 characters
-    const spellSlots = {
+    const spellSlots: Record<number, Record<number, number>> = {
       1: { 1: 2 },
       2: { 1: 3 },
       3: { 1: 4, 2: 2 },
@@ -28,16 +50,16 @@ function SpellMenu({ character, onSelect, onClose }) {
   const spellSlotsUsed = character.spellSlotsUsed || {};
 
   // Calculate remaining spell slots per level
-  const getRemainingSlots = level => {
+  const getRemainingSlots = (level: number) => {
     const max = spellSlots[level] || 0;
     const used = spellSlotsUsed[level] || 0;
     return Math.max(0, max - used);
   };
 
   // Group spells by level
-  const groupSpellsByLevel = () => {
+  const groupSpellsByLevel = (): Record<string, SpellLike[]> => {
     const spells = character.spells || [];
-    const grouped = {
+    const grouped: Record<string, SpellLike[]> = {
       0: [], // Cantrips
       1: [],
       2: [],
@@ -57,14 +79,14 @@ function SpellMenu({ character, onSelect, onClose }) {
   const groupedSpells = groupSpellsByLevel();
 
   // Handle ESC key to close
-  useEventListener('keydown', e => {
+  useEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
     }
   });
 
   // Handle click outside to close
-  const handleOverlayClick = e => {
+  const handleOverlayClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -73,16 +95,16 @@ function SpellMenu({ character, onSelect, onClose }) {
   /**
    * Check if spell can be cast (has available slots or is cantrip)
    */
-  const canCastSpell = spell => {
+  const canCastSpell = (spell: SpellLike) => {
     if (spell.level === 0) return true; // Cantrips are always available
-    return getRemainingSlots(spell.level) > 0;
+    return getRemainingSlots(spell.level ?? 0) > 0;
   };
 
   /**
    * Get spell school color
    */
-  const getSchoolColor = school => {
-    const colors = {
+  const getSchoolColor = (school?: string) => {
+    const colors: Record<string, string> = {
       Abjuration: '#3498db',
       Conjuration: '#9b59b6',
       Divination: '#f39c12',
@@ -92,7 +114,7 @@ function SpellMenu({ character, onSelect, onClose }) {
       Necromancy: '#2c3e50',
       Transmutation: '#16a085',
     };
-    return colors[school] || 'var(--primary-color)';
+    return colors[school ?? ''] || 'var(--primary-color)';
   };
 
   return (
@@ -268,7 +290,7 @@ function SpellMenu({ character, onSelect, onClose }) {
                         }}
                         onClick={() => {
                           if (canCast) {
-                            onSelect(spell, spell.level);
+                            onSelect(spell, spell.level ?? 0);
                             onClose();
                           }
                         }}
@@ -312,7 +334,7 @@ function SpellMenu({ character, onSelect, onClose }) {
                         )}
 
                         {/* Can't cast warning */}
-                        {!canCast && spell.level > 0 && (
+                        {!canCast && (spell.level ?? 0) > 0 && (
                           <div className="text-xs mt-2 text-red-400">No spell slots remaining</div>
                         )}
                       </button>
