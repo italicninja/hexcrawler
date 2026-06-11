@@ -1,39 +1,91 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * AIEngine.js - Hybrid Behavior Tree + Utility AI Engine
  * Core AI decision-making system for enemy combatants
  */
 
-import { executeCondition } from './conditions';
+import { executeCondition, type ConditionContext } from './conditions';
 import { executeAction } from './actions';
-import { calculateScore } from './scorers';
+import { calculateScore, type ScorerContext } from './scorers';
 import logger from '../../utils/logger';
+
+interface AITreeNode {
+  type?: string;
+  action?: string;
+  check?: string;
+  value?: unknown;
+  needsTarget?: boolean;
+  children?: AITreeNode[];
+  [key: string]: unknown;
+}
+
+interface AIConfig {
+  family?: string;
+  variant?: string;
+  tree?: AITreeNode;
+  scorers?: Record<string, unknown[]>;
+  config?: Record<string, unknown>;
+  overrides?: {
+    tree?: AITreeNode;
+    scorers?: Record<string, unknown[]>;
+    config?: Record<string, unknown>;
+  };
+}
+
+interface HexPos {
+  col: number;
+  row: number;
+}
+
+interface Combatant {
+  name?: string;
+  currentHP: number;
+  maxHP: number;
+  position?: HexPos;
+  isEnemy?: boolean;
+  isAlly?: boolean;
+  aiConfig?: AIConfig;
+  [key: string]: unknown;
+}
+
+interface AIContext {
+  combatant: Combatant;
+  battlefield: unknown;
+  turnOrder: Combatant[];
+  movementRemaining: number;
+}
+
+interface AIAction {
+  type: string;
+  [key: string]: unknown;
+}
+
+/** Tree traversal yields an action node, a condition boolean, or null. */
+type TreeResult = AITreeNode | boolean | null;
 
 /**
  * AI configuration cache
  * Maps "family/variant" to loaded config
  */
-const aiCache = new Map();
+const aiCache = new Map<string, AIConfig>();
 
 /**
  * Main AI Engine class
  */
 export class AIEngine {
   /**
-   * Load AI configuration for a combatant
-   * @param {string} familyName - AI family name (e.g., 'goblinoid', 'beast')
-   * @param {string|null} variantName - AI variant name (e.g., 'berserker', 'dire')
-   * @param {boolean} forceReload - Force reload from server (bypass cache)
-   * @returns {Promise<Object>} AI configuration object
+   * Load AI configuration for a combatant.
    */
-  static async loadAI(familyName, variantName = null, forceReload = false) {
+  static async loadAI(
+    familyName: string,
+    variantName: string | null = null,
+    forceReload = false
+  ): Promise<AIConfig> {
     const cacheKey = `${familyName}${variantName ? '/' + variantName : ''}`;
 
     // Check cache first
     if (!forceReload && aiCache.has(cacheKey)) {
       logger.combat.debug('AI config loaded from cache', { cacheKey });
-      return aiCache.get(cacheKey);
+      return aiCache.get(cacheKey)!;
     }
 
     logger.combat.info('Loading AI config', { family: familyName, variant: variantName });
@@ -47,16 +99,16 @@ export class AIEngine {
         throw new Error(`Failed to load family AI: ${familyUrl}`);
       }
 
-      const familyConfig = await familyResponse.json();
+      const familyConfig = (await familyResponse.json()) as AIConfig;
 
       // Load variant if specified
-      let variantConfig = null;
+      let variantConfig: AIConfig | null = null;
       if (variantName) {
         const variantUrl = `/ai/variants/${variantName}.json`;
         const variantResponse = await fetch(variantUrl);
 
         if (variantResponse.ok) {
-          variantConfig = await variantResponse.json();
+          variantConfig = (await variantResponse.json()) as AIConfig;
         } else {
           logger.combat.warn('Variant AI not found, using family base', {
             variant: variantName,
@@ -76,7 +128,7 @@ export class AIEngine {
       logger.combat.error('Failed to load AI config', {
         family: familyName,
         variant: variantName,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
 
       // Return fallback AI (wait only)
@@ -90,7 +142,7 @@ export class AIEngine {
    * @param {Object|null} variantConfig - Variant AI config
    * @returns {Object} Merged AI config
    */
-  static merge(baseConfig, variantConfig) {
+  static merge(baseConfig: AIConfig, variantConfig: AIConfig | null): AIConfig {
     if (!variantConfig || !variantConfig.overrides) {
       return baseConfig;
     }
@@ -116,7 +168,7 @@ export class AIEngine {
    * Get fallback AI (simple wait behavior)
    * @returns {Object} Fallback AI config
    */
-  static getFallbackAI() {
+  static getFallbackAI(): AIConfig {
     return {
       family: 'fallback',
       tree: {
@@ -136,7 +188,12 @@ export class AIEngine {
    * @param {number} movementRemaining - Movement remaining this turn
    * @returns {Object} Action object { type, target?, destination?, path?, moveCost? }
    */
-  static decideAction(combatant, battlefield, turnOrder, movementRemaining) {
+  static decideAction(
+    combatant: Combatant,
+    battlefield: unknown,
+    turnOrder: Combatant[],
+    movementRemaining: number
+  ): AIAction {
     logger.combat.info('AI deciding action', {
       combatant: combatant.name,
       hp: `${combatant.currentHP}/${combatant.maxHP}`,
@@ -162,7 +219,7 @@ export class AIEngine {
     // Traverse behavior tree
     const actionNode = this.traverseTree(combatant.aiConfig.tree, context);
 
-    if (!actionNode) {
+    if (!actionNode || typeof actionNode === 'boolean') {
       logger.combat.warn('Behavior tree returned no action', {
         combatant: combatant.name,
       });
@@ -170,10 +227,10 @@ export class AIEngine {
     }
 
     // If action needs a target, use utility scoring to select one
-    let target = null;
+    let target: Combatant | null = null;
     if (actionNode.needsTarget) {
       target = this.selectTarget(
-        combatant.aiConfig.scorers[actionNode.action],
+        combatant.aiConfig.scorers?.[actionNode.action ?? ''] ?? [],
         combatant,
         turnOrder,
         battlefield
@@ -193,7 +250,7 @@ export class AIEngine {
       ...context,
       params: actionNode,
       target,
-    });
+    }) as AIAction;
 
     logger.combat.info('AI action decided', {
       combatant: combatant.name,
@@ -210,7 +267,7 @@ export class AIEngine {
    * @param {Object} context - Execution context
    * @returns {Object|null} Action node or null
    */
-  static traverseTree(node, context) {
+  static traverseTree(node: AITreeNode | null | undefined, context: AIContext): TreeResult {
     if (!node) {
       logger.combat.error('Null node in behavior tree');
       return null;
@@ -241,7 +298,7 @@ export class AIEngine {
    * @param {Object} context - Execution context
    * @returns {Object|null} First successful child result
    */
-  static traverseSelector(node, context) {
+  static traverseSelector(node: AITreeNode, context: AIContext): TreeResult {
     if (!node.children || node.children.length === 0) {
       logger.combat.warn('Selector node has no children');
       return null;
@@ -263,13 +320,13 @@ export class AIEngine {
    * @param {Object} context - Execution context
    * @returns {Object|null} Last child result or null if any fails
    */
-  static traverseSequence(node, context) {
+  static traverseSequence(node: AITreeNode, context: AIContext): TreeResult {
     if (!node.children || node.children.length === 0) {
       logger.combat.warn('Sequence node has no children');
       return null;
     }
 
-    let lastResult = null;
+    let lastResult: TreeResult = null;
 
     for (const child of node.children) {
       const result = this.traverseTree(child, context);
@@ -293,7 +350,7 @@ export class AIEngine {
    * @param {Object} context - Execution context
    * @returns {boolean} Condition result
    */
-  static traverseCondition(node, context) {
+  static traverseCondition(node: AITreeNode, context: AIContext): boolean {
     if (!node.check) {
       logger.combat.error('Condition node missing check field');
       return false;
@@ -302,7 +359,7 @@ export class AIEngine {
     const result = executeCondition(node.check, {
       ...context,
       params: node,
-    });
+    } as unknown as ConditionContext);
 
     logger.combat.debug('Condition evaluated', {
       check: node.check,
@@ -321,7 +378,12 @@ export class AIEngine {
    * @param {Object} battlefield - Battlefield grid
    * @returns {Object|null} Highest-scored target or null
    */
-  static selectTarget(scorerConfigs, combatant, turnOrder, battlefield) {
+  static selectTarget(
+    scorerConfigs: unknown[],
+    combatant: Combatant,
+    turnOrder: Combatant[],
+    battlefield: unknown
+  ): Combatant | null {
     // Get all valid targets (opposite faction, alive)
     const targets = turnOrder.filter(c => {
       if (c.currentHP <= 0) return false;
@@ -344,12 +406,14 @@ export class AIEngine {
 
     // Score each target
     const scores = targets.map(target => {
-      const score = calculateScore(scorerConfigs, {
+      // conditions/scorers use their own structurally-compatible combatant types;
+      // bridge across the module boundary.
+      const score = calculateScore(scorerConfigs as Parameters<typeof calculateScore>[0], {
         combatant,
         target,
         battlefield,
         turnOrder,
-      });
+      } as unknown as Omit<ScorerContext, 'params'>);
 
       return { target, score };
     });
