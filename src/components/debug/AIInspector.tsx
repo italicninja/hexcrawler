@@ -8,9 +8,60 @@ import { useState, useEffect } from 'react';
 import { AIEngine } from '../../game/ai/AIEngine';
 import './AIInspector.css';
 
-function AIInspector({ combatState }) {
-  const [selectedCombatant, setSelectedCombatant] = useState(null);
-  const [aiConfig, setAiConfig] = useState(null);
+interface AIScorer {
+  type: string;
+  weight: number;
+  curve?: string;
+}
+
+interface AITreeNode {
+  type?: string;
+  name?: string;
+  check?: string;
+  value?: string | number;
+  ability?: string;
+  action?: string;
+  attackType?: string;
+  needsTarget?: boolean;
+  children?: AITreeNode[];
+}
+
+interface AIConfig {
+  family?: string;
+  variant?: string;
+  tree?: AITreeNode;
+  scorers?: Record<string, AIScorer[]>;
+}
+
+interface InspectorEnemy {
+  name?: string;
+  family?: string;
+  variant?: string;
+  aiConfig?: AIConfig;
+  [key: string]: unknown;
+}
+
+interface InspectorCombatant {
+  isEnemy?: boolean;
+  enemy?: InspectorEnemy;
+  aiConfig?: AIConfig;
+  currentHP: number;
+  maxHP: number;
+  [key: string]: unknown;
+}
+
+interface CombatStateLike {
+  turnOrder: InspectorCombatant[];
+  currentTurnIndex: number;
+}
+
+interface AIInspectorProps {
+  combatState: CombatStateLike | null;
+}
+
+function AIInspector({ combatState }: AIInspectorProps) {
+  const [selectedCombatant, setSelectedCombatant] = useState<InspectorCombatant | null>(null);
+  const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
 
   // Show inspector for current enemy turn
   useEffect(() => {
@@ -35,6 +86,7 @@ function AIInspector({ combatState }) {
     if (!selectedCombatant) return;
 
     const enemy = selectedCombatant.enemy;
+    if (!enemy) return;
     const newConfig = await AIEngine.loadAI(enemy.family, enemy.variant, true); // force reload
     setAiConfig(newConfig);
     selectedCombatant.aiConfig = newConfig;
@@ -53,7 +105,7 @@ function AIInspector({ combatState }) {
   return (
     <div className="ai-inspector">
       <div className="ai-inspector-header">
-        <h3>AI Inspector: {selectedCombatant.enemy.name}</h3>
+        <h3>AI Inspector: {selectedCombatant.enemy?.name}</h3>
         <button onClick={handleReloadAI} className="reload-btn">
           Reload AI
         </button>
@@ -107,7 +159,7 @@ function AIInspector({ combatState }) {
 /**
  * Tree visualization component
  */
-function TreeViewer({ tree, depth = 0 }) {
+function TreeViewer({ tree, depth = 0 }: { tree?: AITreeNode | null; depth?: number }) {
   if (!tree) return null;
 
   const indent = depth * 20;
