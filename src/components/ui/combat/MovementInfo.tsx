@@ -1,10 +1,13 @@
-// @ts-nocheck
-
 /**
  * MovementInfo - Display movement remaining during combat
  * Shows a visual bar and text representation of remaining movement
  */
-function MovementInfo({ remaining, max }) {
+interface MovementInfoProps {
+  remaining: number;
+  max: number;
+}
+
+function MovementInfo({ remaining, max }: MovementInfoProps) {
   if (max <= 0) {
     return null;
   }
@@ -12,7 +15,7 @@ function MovementInfo({ remaining, max }) {
   const percent = (remaining / max) * 100;
 
   // Color-coded: green (full/high), yellow (medium), red (low)
-  const getColor = pct => {
+  const getColor = (pct: number) => {
     if (pct >= 75) return { bg: 'bg-green-500', text: 'text-green-400' };
     if (pct >= 35) return { bg: 'bg-yellow-500', text: 'text-yellow-400' };
     return { bg: 'bg-red-500', text: 'text-red-400' };

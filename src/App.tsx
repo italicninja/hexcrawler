@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, lazy, Suspense } from 'react';
 import { GameStateProvider, useGameState } from './contexts/GameStateContext';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';

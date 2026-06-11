@@ -1,10 +1,25 @@
-// @ts-nocheck
-
 /**
  * OpportunityAttackPrompt - Modal prompt for D&D 5e Opportunity Attacks
  * Shows when enemy movement triggers an opportunity attack
  */
-function OpportunityAttackPrompt({ attackers, target, onConfirm, onDecline }) {
+interface OAName {
+  name: string;
+  [key: string]: unknown;
+}
+
+interface OpportunityAttackPromptProps {
+  attackers: OAName[];
+  target: OAName;
+  onConfirm: () => void;
+  onDecline: () => void;
+}
+
+function OpportunityAttackPrompt({
+  attackers,
+  target,
+  onConfirm,
+  onDecline,
+}: OpportunityAttackPromptProps) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50"
