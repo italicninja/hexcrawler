@@ -1,10 +1,40 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 import { Character } from './Character';
 
 /**
  * NPCGenerator - generates random NPCs with stats, personalities, and backgrounds
  */
+
+interface AbilityStats {
+  strength: number;
+  dexterity: number;
+  constitution: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
+}
+
+interface AbilityEntry {
+  name: string;
+  uses: number;
+  maxUses: number;
+}
+
+interface ClassConfig {
+  hitDie: string;
+  primaryStat: string;
+  secondaryStat: string;
+  stats: AbilityStats;
+  armorClass: number;
+  proficiencies: string[];
+  abilities: AbilityEntry[];
+}
+
+interface GeneratedName {
+  fullName: string;
+  firstName: string;
+  surname: string;
+  gender: string;
+}
 
 // Name tables
 const MALE_NAMES = [
@@ -121,7 +151,7 @@ const BACKGROUNDS = [
 ];
 
 // Available classes with configurations
-const CLASS_CONFIGS = {
+const CLASS_CONFIGS: Record<string, ClassConfig> = {
   fighter: {
     hitDie: 'd10',
     primaryStat: 'strength',
@@ -260,20 +290,22 @@ const CLASS_CONFIGS = {
 
 // Random number generator with seed support
 class SeededRandom {
-  constructor(seed) {
+  seed: number;
+
+  constructor(seed: number) {
     this.seed = seed;
   }
 
-  next() {
+  next(): number {
     this.seed = (this.seed * 9301 + 49297) % 233280;
     return this.seed / 233280;
   }
 
-  nextInt(min, max) {
+  nextInt(min: number, max: number): number {
     return Math.floor(this.next() * (max - min + 1)) + min;
   }
 
-  choice(array) {
+  choice<T>(array: T[]): T {
     return array[this.nextInt(0, array.length - 1)];
   }
 }
@@ -281,7 +313,7 @@ class SeededRandom {
 /**
  * Generate a random fantasy name
  */
-export function generateName(seed = Date.now(), gender = null) {
+export function generateName(seed: number = Date.now(), gender: string | null = null): GeneratedName {
   const rng = new SeededRandom(seed);
 
   // Random gender if not specified
@@ -304,12 +336,12 @@ export function generateName(seed = Date.now(), gender = null) {
 /**
  * Generate a random personality trait
  */
-export function generatePersonality(seed = Date.now()) {
+export function generatePersonality(seed: number = Date.now()): string {
   const rng = new SeededRandom(seed);
 
   // Pick 1-2 personality traits
   const numTraits = rng.nextInt(1, 2);
-  const traits = [];
+  const traits: string[] = [];
 
   const availableTraits = [...PERSONALITIES];
   for (let i = 0; i < numTraits; i++) {
@@ -324,19 +356,20 @@ export function generatePersonality(seed = Date.now()) {
 /**
  * Generate a random background
  */
-export function generateBackground(seed = Date.now()) {
+export function generateBackground(seed: number = Date.now()): string {
   const rng = new SeededRandom(seed);
   return rng.choice(BACKGROUNDS);
 }
 
 /**
- * Generate a random NPC Character
- * @param {number} level - Character level (1-20)
- * @param {string} classType - Character class (fighter, rogue, cleric, wizard, ranger, or null for random)
- * @param {number} seed - Random seed for reproducible generation
- * @returns {Character} - Generated NPC character
+ * Generate a random NPC Character.
+ * classType may be null for a random class.
  */
-export function generateNPC(level = 1, classType = null, seed = Date.now()) {
+export function generateNPC(
+  level = 1,
+  classType: string | null = null,
+  seed: number = Date.now()
+): Character {
   const rng = new SeededRandom(seed);
 
   // Select random class if not specified
@@ -365,14 +398,14 @@ export function generateNPC(level = 1, classType = null, seed = Date.now()) {
   npc.abilities = { ...config.stats };
 
   // Add slight random variation to stats (+/- 1)
-  Object.keys(npc.abilities).forEach(ability => {
+  (Object.keys(npc.abilities) as (keyof AbilityStats)[]).forEach(ability => {
     const variation = rng.nextInt(-1, 1);
     npc.abilities[ability] = Math.max(6, Math.min(18, npc.abilities[ability] + variation));
   });
 
   // Calculate HP
   npc.hitDie = config.hitDie;
-  const hitDieValue = parseInt(config.hitDie.substring(1));
+  const hitDieValue = parseInt(config.hitDie.substring(1), 10);
   const conMod = npc.getModifier('constitution');
 
   // First level gets max HP
@@ -419,21 +452,18 @@ export function generateNPC(level = 1, classType = null, seed = Date.now()) {
 }
 
 /**
- * Generate a party of 3 random NPCs
- * @param {number} level - Character level for all NPCs
- * @param {number} seed - Random seed for reproducible generation
- * @returns {Array<Character>} - Array of 3 NPC characters
+ * Generate a party of 3 random NPCs (each a different class where possible).
  */
-export function generateNPCParty(level = 1, seed = Date.now()) {
+export function generateNPCParty(level = 1, seed: number = Date.now()): Character[] {
   const rng = new SeededRandom(seed);
-  const npcs = [];
+  const npcs: Character[] = [];
   const availableClasses = Object.keys(CLASS_CONFIGS);
-  const usedClasses = new Set();
+  const usedClasses = new Set<string>();
 
   // Generate 3 NPCs with different classes
   for (let i = 0; i < 3; i++) {
     // Find an unused class
-    let selectedClass;
+    let selectedClass: string;
     let attempts = 0;
     do {
       selectedClass = rng.choice(availableClasses);
