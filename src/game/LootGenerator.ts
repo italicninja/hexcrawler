@@ -1,14 +1,29 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * LootGenerator - Generates loot based on Challenge Rating
  * Creates treasure hoards with gold, items, and rarity scaling
  */
 
 import { BaseGenerator } from './BaseGenerator';
-import { Item } from './Item';
+import { Item, type ItemConfig } from './Item';
+
+interface LootTableEntry {
+  goldMin: number;
+  goldMax: number;
+  rarity: string;
+  itemCountMin: number;
+  itemCountMax: number;
+}
+
+interface Loot {
+  gold: number;
+  items: Item[];
+  rarity: string;
+}
 
 export class LootGenerator extends BaseGenerator {
+  lootTables: Record<number, LootTableEntry>;
+  itemData: Record<string, ItemConfig[]>;
+
   constructor() {
     super();
 
@@ -632,9 +647,9 @@ export class LootGenerator extends BaseGenerator {
    * @param {Function} random - Random function (0-1)
    * @returns {object} { gold, items: Item[], rarity }
    */
-  generateLoot(cr, random = Math.random) {
+  generateLoot(cr: number, random: () => number = Math.random): Loot {
     // Get loot table for this CR (uses base class method with fallback)
-    const lootTable = this.getCRTable(cr, 11);
+    const lootTable = this.getCRTable(cr, 11) as LootTableEntry | null;
 
     if (!lootTable) {
       // Fallback to minimal loot
@@ -648,7 +663,7 @@ export class LootGenerator extends BaseGenerator {
     const itemCount = this.randomInt(lootTable.itemCountMin, lootTable.itemCountMax, random);
 
     // Generate items - create actual Item instances
-    const items = [];
+    const items: Item[] = [];
     const itemPool = this.itemData[lootTable.rarity];
 
     for (let i = 0; i < itemCount; i++) {
@@ -675,8 +690,8 @@ export class LootGenerator extends BaseGenerator {
    * @param {string} rarity
    * @returns {string} Hex color
    */
-  getRarityColor(rarity) {
-    const colors = {
+  getRarityColor(rarity: string): string {
+    const colors: Record<string, string> = {
       common: '#9d9d9d',
       uncommon: '#1eff00',
       rare: '#0070dd',
@@ -687,19 +702,17 @@ export class LootGenerator extends BaseGenerator {
   }
 
   /**
-   * Format loot for display
-   * @param {object} loot - Loot object with Item instances
-   * @returns {string} Formatted string
+   * Format loot for display. Accepts Item instances or plain strings (legacy).
    */
-  formatLoot(loot) {
+  formatLoot(loot: { gold: number; items: Array<Item | string> }): string {
     let text = `${loot.gold} gold`;
 
     if (loot.items.length > 0) {
       text += '\n\nItems found:';
       loot.items.forEach(item => {
         // Handle both Item instances and plain strings (backward compatibility)
-        const itemName = item.name || item;
-        const itemRarity = item.rarity ? ` (${item.rarity})` : '';
+        const itemName = typeof item === 'string' ? item : item.name;
+        const itemRarity = typeof item === 'string' ? '' : item.rarity ? ` (${item.rarity})` : '';
         text += `\n• ${itemName}${itemRarity}`;
       });
     }
