@@ -1,9 +1,65 @@
-// @ts-nocheck
-// TODO: Add proper types - Spell class with effect functions
+// Spell — D&D 5e spell definition with an effect callback
 import logger from '../utils/logger';
 
+interface SpellComponents {
+  verbal: boolean;
+  somatic: boolean;
+  material: boolean;
+}
+
+/** Loose shape for a spellcaster (Character / Enemy). */
+interface SpellCaster {
+  name?: string;
+  class?: string;
+  proficiencyBonus?: number;
+  abilities?: Record<string, number | undefined>;
+  [key: string]: unknown;
+}
+
+type SpellEffect = (
+  caster: SpellCaster,
+  target: unknown,
+  diceRoller: unknown
+) => Record<string, unknown>;
+
+interface CastResult {
+  success: boolean;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface SpellConfig {
+  name: string;
+  level: number;
+  school: string;
+  castingTime?: string;
+  range?: string;
+  components?: SpellComponents;
+  duration?: string;
+  concentration?: boolean;
+  targetType?: string;
+  savingThrow?: string | null;
+  attackRoll?: boolean;
+  effect?: SpellEffect;
+  description?: string;
+}
+
 export class Spell {
-  constructor(config) {
+  name: string;
+  level: number;
+  school: string;
+  castingTime: string;
+  range: string;
+  components: SpellComponents;
+  duration: string;
+  concentration: boolean;
+  targetType: string;
+  savingThrow: string | null;
+  attackRoll: boolean;
+  effect?: SpellEffect;
+  description: string;
+
+  constructor(config: SpellConfig) {
     this.name = config.name;
     this.level = config.level;
     this.school = config.school;
@@ -19,7 +75,7 @@ export class Spell {
     this.description = config.description || '';
   }
 
-  cast(caster, target, diceRoller) {
+  cast(caster: SpellCaster, target: unknown, diceRoller: unknown): CastResult {
     if (!this.effect) {
       return { success: false, message: `${this.name} has no effect defined` };
     }
@@ -28,30 +84,31 @@ export class Spell {
       const result = this.effect(caster, target, diceRoller);
       return { success: true, ...result };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       logger.combat.error('Error casting spell', {
         spell: this.name,
-        error: error.message,
+        error: message,
         caster: caster.name,
       });
-      return { success: false, message: `Failed to cast ${this.name}: ${error.message}` };
+      return { success: false, message: `Failed to cast ${this.name}: ${message}` };
     }
   }
 
-  getSpellSaveDC(caster) {
-    const spellcastingAbility = this._getSpellcastingAbility(caster.class);
-    const abilityMod = this._getAbilityModifier(caster.abilities[spellcastingAbility]);
+  getSpellSaveDC(caster: SpellCaster): number {
+    const spellcastingAbility = this._getSpellcastingAbility(caster.class ?? '');
+    const abilityMod = this._getAbilityModifier(caster.abilities?.[spellcastingAbility] ?? 10);
     return 8 + (caster.proficiencyBonus || 2) + abilityMod;
   }
 
-  getSpellAttackBonus(caster) {
-    const spellcastingAbility = this._getSpellcastingAbility(caster.class);
-    const abilityMod = this._getAbilityModifier(caster.abilities[spellcastingAbility]);
+  getSpellAttackBonus(caster: SpellCaster): number {
+    const spellcastingAbility = this._getSpellcastingAbility(caster.class ?? '');
+    const abilityMod = this._getAbilityModifier(caster.abilities?.[spellcastingAbility] ?? 10);
     return (caster.proficiencyBonus || 2) + abilityMod;
   }
 
-  _getSpellcastingAbility(className) {
+  _getSpellcastingAbility(className: string): string {
     const classKey = className.toLowerCase();
-    const spellcastingAbilities = {
+    const spellcastingAbilities: Record<string, string> = {
       wizard: 'intelligence',
       sorcerer: 'charisma',
       warlock: 'charisma',
@@ -64,7 +121,7 @@ export class Spell {
     return spellcastingAbilities[classKey] || 'intelligence';
   }
 
-  _getAbilityModifier(abilityScore) {
+  _getAbilityModifier(abilityScore: number): number {
     return Math.floor((abilityScore - 10) / 2);
   }
 

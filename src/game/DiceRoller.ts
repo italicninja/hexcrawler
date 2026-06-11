@@ -1,15 +1,53 @@
-// @ts-nocheck
-// TODO: Add proper types - DiceRoller D&D 5e dice rolling system
+// DiceRoller — D&D 5e dice rolling system
 import logger from '../utils/logger';
 
+type RollType = 'normal' | 'advantage' | 'disadvantage';
+type LogCallback = (message: string, type?: string) => void;
+
+/** Loose shape for the character objects passed into checks/attacks. */
+interface RollableCharacter {
+  proficiencyBonus?: number;
+  saveProficiencies?: string[];
+  abilities?: Record<string, number | undefined>;
+  [key: string]: unknown;
+}
+
+interface AdvantageRoll {
+  roll: number;
+  kept: number;
+  dropped: number;
+}
+
+interface CheckResult {
+  roll: number;
+  modifier: number;
+  total: number;
+  success: boolean;
+  dc: number;
+}
+
+interface AttackResult {
+  roll: number;
+  modifier: number;
+  total: number;
+  hit: boolean;
+  crit: boolean;
+  targetAC: number;
+  rollType: RollType;
+}
+
 export class DiceRoller {
-  constructor(seed = null, logger = null) {
+  seed: string | null;
+  rng: (() => number) | null;
+  logger: LogCallback | null;
+
+  constructor(seed: string | null = null, logCallback: LogCallback | null = null) {
     this.seed = seed;
     this.rng = seed !== null ? this.createSeededRNG(seed) : null;
-    this.logger = logger; // Optional callback function (message, type) => void
+    this.logger = logCallback; // Optional callback function (message, type) => void
   }
 
-  createSeededRNG(seed) {
+  createSeededRNG(seed: string): () => number {
     let seedValue = 0;
     for (let i = 0; i < seed.length; i++) {
       seedValue = (seedValue << 5) - seedValue + seed.charCodeAt(i);
@@ -22,21 +60,21 @@ export class DiceRoller {
     };
   }
 
-  random() {
+  random(): number {
     return this.rng ? this.rng() : Math.random();
   }
 
-  log(message, type = 'info') {
+  log(message: string, type = 'info'): void {
     if (this.logger) {
       this.logger(message, type);
     }
   }
 
-  rollD20() {
+  rollD20(): number {
     return Math.floor(this.random() * 20) + 1;
   }
 
-  rollDice(sides, count = 1) {
+  rollDice(sides: number, count = 1): number {
     let total = 0;
     for (let i = 0; i < count; i++) {
       total += Math.floor(this.random() * sides) + 1;
@@ -44,7 +82,7 @@ export class DiceRoller {
     return total;
   }
 
-  rollWithAdvantage() {
+  rollWithAdvantage(): AdvantageRoll {
     const roll1 = this.rollD20();
     const roll2 = this.rollD20();
     const kept = Math.max(roll1, roll2);
@@ -52,7 +90,7 @@ export class DiceRoller {
     return { roll: kept, kept, dropped };
   }
 
-  rollWithDisadvantage() {
+  rollWithDisadvantage(): AdvantageRoll {
     const roll1 = this.rollD20();
     const roll2 = this.rollD20();
     const kept = Math.min(roll1, roll2);
@@ -60,23 +98,23 @@ export class DiceRoller {
     return { roll: kept, kept, dropped };
   }
 
-  getAbilityModifier(abilityScore) {
+  getAbilityModifier(abilityScore: number): number {
     return Math.floor((abilityScore - 10) / 2);
   }
 
   skillCheck(
-    character,
-    ability,
+    character: RollableCharacter,
+    ability: string,
     proficient = false,
     dc = 10,
-    rollType = 'normal',
-    skillName = null
-  ) {
+    rollType: RollType = 'normal',
+    skillName: string | null = null
+  ): CheckResult {
     if (!character) {
       throw new Error('DiceRoller.skillCheck: character is required');
     }
 
-    const abilityScore = character[ability] || 10;
+    const abilityScore = (character[ability] as number | undefined) || 10;
     const modifier = this.getAbilityModifier(abilityScore);
     const proficiencyBonus = proficient ? character.proficiencyBonus || 2 : 0;
 
@@ -115,15 +153,24 @@ export class DiceRoller {
     };
   }
 
-  perceptionCheck(character, dc = 10, rollType = 'normal') {
+  perceptionCheck(character: RollableCharacter, dc = 10, rollType: RollType = 'normal'): CheckResult {
     return this.skillCheck(character, 'wisdom', true, dc, rollType, 'Perception');
   }
 
-  investigationCheck(character, dc = 10, rollType = 'normal') {
+  investigationCheck(
+    character: RollableCharacter,
+    dc = 10,
+    rollType: RollType = 'normal'
+  ): CheckResult {
     return this.skillCheck(character, 'intelligence', true, dc, rollType, 'Investigation');
   }
 
-  savingThrow(character, ability, dc = 10, rollType = 'normal') {
+  savingThrow(
+    character: RollableCharacter,
+    ability: string,
+    dc = 10,
+    rollType: RollType = 'normal'
+  ): CheckResult {
     if (!character) {
       throw new Error('DiceRoller.savingThrow: character is required');
     }
@@ -136,12 +183,12 @@ export class DiceRoller {
   }
 
   attackRoll(
-    character,
-    attackType = 'melee',
+    character: RollableCharacter,
+    attackType: 'melee' | 'ranged' = 'melee',
     targetAC = 10,
-    attackName = null,
-    rollType = 'normal'
-  ) {
+    attackName: string | null = null,
+    rollType: RollType = 'normal'
+  ): AttackResult {
     if (!character) {
       throw new Error('DiceRoller.attackRoll: character is required');
     }
@@ -202,16 +249,16 @@ export class DiceRoller {
     };
   }
 
-  damageRoll(diceString, damageType = null) {
+  damageRoll(diceString: string, damageType: string | null = null): number {
     const match = diceString.match(/(\d+)d(\d+)([+-]\d+)?/);
     if (!match) {
       logger.general.error('Invalid dice string', { diceString });
       return 0;
     }
 
-    const count = parseInt(match[1]);
-    const sides = parseInt(match[2]);
-    const bonus = match[3] ? parseInt(match[3]) : 0;
+    const count = parseInt(match[1], 10);
+    const sides = parseInt(match[2], 10);
+    const bonus = match[3] ? parseInt(match[3], 10) : 0;
 
     const damage = this.rollDice(sides, count) + bonus;
 
