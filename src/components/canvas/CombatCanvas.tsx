@@ -1,5 +1,12 @@
-// @ts-nocheck
-import { useRef, useEffect, useCallback, useState } from 'react';
+import {
+  useRef,
+  useEffect,
+  useCallback,
+  useState,
+  type MouseEvent,
+  type WheelEvent,
+  type TouchEvent,
+} from 'react';
 import { getHexDistance } from '../../contexts/GameStateContext';
 import { calculateReachableHexes } from '../../game/Pathfinding';
 import { checkLineOfSight } from '../../game/LineOfSight';
@@ -25,6 +32,68 @@ const FIXED_ZOOM = 1.0; // Zoom is disabled - always use 1.0
 // Duration (ms) spent sliding between each individual hex step
 const STEP_DURATION_MS = 120;
 
+interface Coord {
+  col: number;
+  row: number;
+}
+
+interface Pixel {
+  x: number;
+  y: number;
+}
+
+interface BattleHex {
+  col: number;
+  row: number;
+  terrain?: { key?: string; color?: string; type?: string; [key: string]: unknown };
+  difficultTerrain?: boolean;
+  blocked?: boolean;
+  obstacleType?: string;
+  [key: string]: unknown;
+}
+
+interface Battlefield {
+  hexes: BattleHex[];
+  hexContext?: { terrainKey?: string; poiType?: string; weather?: string };
+  [key: string]: unknown;
+}
+
+interface Combatant {
+  id?: string | number;
+  name?: string;
+  position?: Coord | null;
+  statusEffects?: Array<{ name: string; [key: string]: unknown }>;
+  isAlly?: boolean;
+  currentHP: number;
+  maxHP: number;
+  characterClass?: string;
+  attackRange?: number;
+  [key: string]: unknown;
+}
+
+interface MovementAnim {
+  combatantId: string | number;
+  path: Coord[];
+  stepIndex: number;
+  stepStartTime: number;
+}
+
+interface CombatCanvasProps {
+  battlefield?: Battlefield | null;
+  combatants: Combatant[];
+  currentTurnIndex: number;
+  selectedAction?: string;
+  hoveredHex?: Coord | null;
+  movementRemaining: number;
+  onHexClick: (hex: BattleHex) => void;
+  onHexHover: (hex: BattleHex | null) => void;
+  cameraOffset: Pixel;
+  cameraZoom?: number;
+  onCameraChange: (offset: Pixel, zoom: number) => void;
+  pendingAnimation?: { combatantId: string | number; path: Coord[] } | null;
+  onAnimationComplete?: () => void;
+}
+
 function CombatCanvas({
   battlefield,
   combatants,
@@ -39,22 +108,22 @@ function CombatCanvas({
   onCameraChange,
   pendingAnimation,
   onAnimationComplete,
-}) {
-  const canvasRef = useRef(null);
+}: CombatCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState<Pixel>({ x: 0, y: 0 });
   const [hasDragged, setHasDragged] = useState(false); // Track if mouse actually moved
-  const [lastTouchDistance, setLastTouchDistance] = useState(null);
-  const animationFrameRef = useRef(null);
-  const lastHoveredHexRef = useRef(null);
-  const lastCameraRef = useRef({ offset: cameraOffset, zoom: FIXED_ZOOM });
-  const textureGenerator = useRef(null);
+  const lastHoveredHexRef = useRef<BattleHex | null>(null);
+  const lastCameraRef = useRef<{ offset: Pixel; zoom: number }>({
+    offset: cameraOffset,
+    zoom: FIXED_ZOOM,
+  });
+  const textureGenerator = useRef<HexTextureGenerator | null>(null);
 
   // Active movement animation state (stored as a ref so rAF reads latest without closures)
-  // Shape: { combatantId, path, stepIndex, stepStartTime } | null
-  const movementAnimRef = useRef(null);
+  const movementAnimRef = useRef<MovementAnim | null>(null);
   // Visual override positions: Map<combatantId, {x, y}> pixel coords
-  const visualOverridesRef = useRef(new Map());
+  const visualOverridesRef = useRef<Map<string | number, Pixel>>(new Map());
 
   // Initialize texture generator once
   useEffect(() => {
@@ -71,7 +140,7 @@ function CombatCanvas({
    * @param {number} y - Center Y position
    * @param {number} size - Size scale factor
    */
-  const drawTree = useCallback((ctx, x, y, size) => {
+  const drawTree = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
 
     // Brown trunk
@@ -94,7 +163,7 @@ function CombatCanvas({
    * @param {number} y - Center Y position
    * @param {number} size - Size scale factor
    */
-  const drawRock = useCallback((ctx, x, y, size) => {
+  const drawRock = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
 
     // Irregular gray polygon
@@ -121,7 +190,7 @@ function CombatCanvas({
    * @param {number} y - Center Y position
    * @param {number} size - Size scale factor
    */
-  const drawWall = useCallback((ctx, x, y, size) => {
+  const drawWall = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
     ctx.fillStyle = '#555555';
     ctx.fillRect(x - size * 0.45, y - size * 0.2, size * 0.9, size * 0.4);
@@ -146,7 +215,7 @@ function CombatCanvas({
    * @param {number} y - Center Y position
    * @param {number} size - Size scale factor
    */
-  const drawReed = useCallback((ctx, x, y, size) => {
+  const drawReed = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
     ctx.strokeStyle = '#4a6030';
     ctx.lineWidth = 1.5;
@@ -173,7 +242,7 @@ function CombatCanvas({
    * @param {number} y - Center Y position
    * @param {number} size - Size scale factor
    */
-  const drawIceMound = useCallback((ctx, x, y, size) => {
+  const drawIceMound = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
     ctx.fillStyle = '#d0e8f0';
     ctx.beginPath();
@@ -200,7 +269,7 @@ function CombatCanvas({
    * @param {number} y - Center Y position
    * @param {number} size - Size scale factor
    */
-  const drawDune = useCallback((ctx, x, y, size) => {
+  const drawDune = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
     ctx.fillStyle = '#c8902a';
     ctx.beginPath();
@@ -223,7 +292,7 @@ function CombatCanvas({
    * @param {number} y - Center Y position
    * @param {number} size - Size scale factor
    */
-  const drawBoulder = useCallback((ctx, x, y, size) => {
+  const drawBoulder = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
     ctx.fillStyle = '#9a8a78';
     ctx.beginPath();
@@ -248,7 +317,8 @@ function CombatCanvas({
    * @param {string} className - Character class name
    * @param {number} size - Size scale factor
    */
-  const drawClassIcon = useCallback((ctx, x, y, className, size) => {
+  const drawClassIcon = useCallback(
+    (ctx: CanvasRenderingContext2D, x: number, y: number, className: string, size: number) => {
     ctx.save();
     ctx.lineWidth = 1.8;
     ctx.lineCap = 'round';
@@ -524,7 +594,8 @@ function CombatCanvas({
    * @param {number} width - Bar width
    * @param {number} hpPercent - HP percentage (0-1)
    */
-  const drawHPBar = useCallback((ctx, x, y, width, hpPercent) => {
+  const drawHPBar = useCallback(
+    (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, hpPercent: number) => {
     ctx.save();
 
     const barHeight = 4;
@@ -561,15 +632,21 @@ function CombatCanvas({
    * @param {{x:number,y:number}|null} overridePixel - Optional pixel position override for animation
    */
   const drawCombatant = useCallback(
-    (ctx, combatant, isCurrentTurn, overridePixel = null) => {
+    (
+      ctx: CanvasRenderingContext2D,
+      combatant: Combatant,
+      isCurrentTurn: boolean,
+      overridePixel: Pixel | null = null
+    ) => {
       if (!combatant.position && !overridePixel) return;
 
-      let x, y;
+      let x: number, y: number;
       if (overridePixel) {
         x = overridePixel.x;
         y = overridePixel.y;
       } else {
-        const pos = calculateHexPosition(combatant.position.col, combatant.position.row, HEX_SIZE);
+        const cpos = combatant.position!;
+        const pos = calculateHexPosition(cpos.col, cpos.row, HEX_SIZE);
         x = pos.x;
         y = pos.y;
       }
@@ -616,7 +693,7 @@ function CombatCanvas({
       ctx.restore();
 
       // Draw class icon
-      drawClassIcon(ctx, x, y, combatant.characterClass, HEX_SIZE * 0.3);
+      drawClassIcon(ctx, x, y, combatant.characterClass ?? 'fighter', HEX_SIZE * 0.3);
 
       // Draw HP bar below circle
       const barY = y + radius + 6;
@@ -631,8 +708,8 @@ function CombatCanvas({
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       const nameY = barY + 6;
-      ctx.strokeText(combatant.name, x, nameY);
-      ctx.fillText(combatant.name, x, nameY);
+      ctx.strokeText(combatant.name ?? '', x, nameY);
+      ctx.fillText(combatant.name ?? '', x, nameY);
       ctx.restore();
     },
     [drawClassIcon, drawHPBar]
@@ -676,7 +753,7 @@ function CombatCanvas({
       if (textureGenerator.current && hex.terrain) {
         const pattern = textureGenerator.current.getPattern(
           ctx,
-          hex.terrain,
+          hex.terrain as Parameters<HexTextureGenerator['getPattern']>[1],
           HEX_SIZE,
           hex.col,
           hex.row
@@ -727,11 +804,12 @@ function CombatCanvas({
     // Draw movement range overlay
     if (selectedAction === 'move' && combatants[currentTurnIndex]?.position) {
       const currentCombatant = combatants[currentTurnIndex];
+      const ccPos = currentCombatant.position!;
       const reachableHexes = calculateReachableHexes(
-        currentCombatant.position,
+        ccPos,
         movementRemaining / 5, // Convert feet to hexes (5 feet per hex)
-        battlefield,
-        combatants
+        battlefield as unknown as Parameters<typeof calculateReachableHexes>[2],
+        combatants as unknown as Parameters<typeof calculateReachableHexes>[3]
       );
 
       ctx.save();
@@ -746,23 +824,20 @@ function CombatCanvas({
     // Draw attack range overlay
     if (selectedAction === 'attack' && combatants[currentTurnIndex]?.position) {
       const currentCombatant = combatants[currentTurnIndex];
+      const ccPos = currentCombatant.position!;
       const attackRange = currentCombatant.attackRange || 1; // Default melee range
 
       combatants.forEach((target, index) => {
         if (index === currentTurnIndex || !target.position) return;
         if (currentCombatant.isAlly === target.isAlly) return; // Same team
+        const tPos = target.position;
 
-        const distance = getHexDistance(
-          currentCombatant.position.col,
-          currentCombatant.position.row,
-          target.position.col,
-          target.position.row
-        );
+        const distance = getHexDistance(ccPos.col, ccPos.row, tPos.col, tPos.row);
 
         if (distance <= attackRange) {
-          const hasLoS = checkLineOfSight(currentCombatant.position, target.position, battlefield);
+          const hasLoS = checkLineOfSight(ccPos, tPos, battlefield);
 
-          const pos = calculateHexPosition(target.position.col, target.position.row, HEX_SIZE);
+          const pos = calculateHexPosition(tPos.col, tPos.row, HEX_SIZE);
           const outlineColor = hasLoS ? '#00ff00' : '#ff0000';
           drawHexOutline(ctx, pos.x, pos.y, HEX_SIZE, outlineColor, 3);
         }
@@ -772,7 +847,7 @@ function CombatCanvas({
     // Draw combatants (use animated pixel position if available)
     let drawnCount = 0;
     combatants.forEach((combatant, index) => {
-      const overridePixel = visualOverridesRef.current.get(combatant.id) || null;
+      const overridePixel = visualOverridesRef.current.get(combatant.id ?? '') || null;
       if (combatant.position || overridePixel) {
         const isCurrentTurn = index === currentTurnIndex;
         drawCombatant(ctx, combatant, isCurrentTurn, overridePixel);
@@ -845,10 +920,10 @@ function CombatCanvas({
       stepStartTime: performance.now(),
     };
 
-    let rafId = null;
+    let rafId: number | null = null;
     let running = true;
 
-    const tick = now => {
+    const tick = (now: number) => {
       if (!running) return;
 
       const anim = movementAnimRef.current;
@@ -931,7 +1006,7 @@ function CombatCanvas({
       hasPoi || (weatherCondition && weatherCondition.toLowerCase() !== 'clear');
     if (!needsAnimation) return;
 
-    let rafId;
+    let rafId: number | null = null;
     let running = true;
 
     const animate = () => {
@@ -1011,7 +1086,7 @@ function CombatCanvas({
    * @returns {Object} - {x, y} canvas coordinates
    */
   const screenToCanvas = useCallback(
-    (clientX, clientY) => {
+    (clientX: number, clientY: number) => {
       const canvas = canvasRef.current;
       if (!canvas) return { x: 0, y: 0 };
 
@@ -1028,7 +1103,7 @@ function CombatCanvas({
    * Handle mouse down (start dragging)
    */
   const handleMouseDown = useCallback(
-    e => {
+    (e: MouseEvent<HTMLCanvasElement>) => {
       setIsDragging(true);
       setHasDragged(false); // Reset drag flag
       setDragStart({ x: e.clientX - cameraOffset.x, y: e.clientY - cameraOffset.y });
@@ -1040,7 +1115,7 @@ function CombatCanvas({
    * Handle mouse move (pan camera or hover)
    */
   const handleMouseMove = useCallback(
-    e => {
+    (e: MouseEvent<HTMLCanvasElement>) => {
       if (isDragging) {
         // Pan camera
         const newOffset = {
@@ -1071,7 +1146,12 @@ function CombatCanvas({
           return { ...hex, x: pos.x, y: pos.y };
         });
 
-        const newHoveredHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
+        const newHoveredHex = findHexAtPoint(
+          canvasPos.x,
+          canvasPos.y,
+          positionedHexes,
+          HEX_SIZE
+        ) as BattleHex | null;
 
         // Only call onHexHover if the hovered hex actually changed
         const lastHex = lastHoveredHexRef.current;
@@ -1102,7 +1182,7 @@ function CombatCanvas({
    * Handle mouse click (hex selection)
    */
   const handleClick = useCallback(
-    e => {
+    (e: MouseEvent<HTMLCanvasElement>) => {
       // Block clicks while a movement animation is running
       if (movementAnimRef.current) {
         logger.combat.debug('[CombatCanvas] Click ignored - movement animation in progress');
@@ -1136,7 +1216,12 @@ function CombatCanvas({
         return { ...hex, x: pos.x, y: pos.y };
       });
 
-      const clickedHex = findHexAtPoint(canvasPos.x, canvasPos.y, positionedHexes, HEX_SIZE);
+      const clickedHex = findHexAtPoint(
+        canvasPos.x,
+        canvasPos.y,
+        positionedHexes,
+        HEX_SIZE
+      ) as BattleHex | null;
       logger.combat.debug('[CombatCanvas] Clicked hex', clickedHex);
 
       if (clickedHex) {
@@ -1152,25 +1237,16 @@ function CombatCanvas({
   /**
    * Handle mouse wheel (zoom) - DISABLED for combat
    */
-  const handleWheel = useCallback(e => {
+  const handleWheel = useCallback((_e: WheelEvent<HTMLCanvasElement>) => {
     // Note: preventDefault on wheel events can cause warnings
     // Zoom is disabled for combat, so we just ignore the event
   }, []);
 
   /**
-   * Calculate distance between two touch points
-   */
-  const getTouchDistance = (touch1, touch2) => {
-    const dx = touch1.clientX - touch2.clientX;
-    const dy = touch1.clientY - touch2.clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  /**
    * Handle touch start (pan or zoom)
    */
   const handleTouchStart = useCallback(
-    e => {
+    (e: TouchEvent<HTMLCanvasElement>) => {
       if (e.touches.length === 1) {
         // Single touch: start panning
         setIsDragging(true);
@@ -1188,7 +1264,7 @@ function CombatCanvas({
    * Handle touch move (pan only, zoom disabled)
    */
   const handleTouchMove = useCallback(
-    e => {
+    (e: TouchEvent<HTMLCanvasElement>) => {
       // Note: Don't call e.preventDefault() here - use touchAction: 'none' in CSS instead
       // to avoid "passive event listener" warnings
 
@@ -1210,7 +1286,6 @@ function CombatCanvas({
    */
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
-    setLastTouchDistance(null);
   }, []);
 
   return (
