@@ -1,22 +1,48 @@
-// @ts-nocheck
 import { useState } from 'react';
 
 /**
  * PartyList component - displays the party composition
  */
 
-function getHPColor(percent) {
+interface MemberData {
+  name: string;
+  currentHP: number;
+  maxHP: number;
+  level: number;
+  class: string;
+  gender?: string;
+  personality?: string;
+  background?: string;
+}
+
+interface PartyMemberProps {
+  member: MemberData | null;
+  index: number;
+  isSelected: boolean;
+  onClick: (member: MemberData, index: number) => void;
+}
+
+interface PartyLike {
+  getAllMembers(): (MemberData | null)[];
+}
+
+interface PartyListProps {
+  party: PartyLike | null;
+  onMemberSelect?: (member: MemberData, index: number) => void;
+}
+
+function getHPColor(percent: number): string {
   if (percent > 75) return '#10b981'; // Green
   if (percent > 50) return '#eab308'; // Yellow
   if (percent > 25) return '#f59e0b'; // Orange
   return '#ef4444'; // Red
 }
 
-function capitalize(str) {
+function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function PartyMember({ member, index, isSelected, onClick }) {
+function PartyMember({ member, index, isSelected, onClick }: PartyMemberProps) {
   // Defensive null check
   if (!member) {
     return null;
@@ -69,7 +95,7 @@ function PartyMember({ member, index, isSelected, onClick }) {
   );
 }
 
-function PartyList({ party, onMemberSelect }) {
+function PartyList({ party, onMemberSelect }: PartyListProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   if (!party) {
@@ -78,7 +104,7 @@ function PartyList({ party, onMemberSelect }) {
 
   const members = party.getAllMembers();
 
-  const handleMemberClick = (member, index) => {
+  const handleMemberClick = (member: MemberData, index: number) => {
     setSelectedIndex(index);
     if (onMemberSelect) {
       onMemberSelect(member, index);

@@ -1,4 +1,3 @@
-// @ts-nocheck -- TODO: Remove after GameStateContext → .tsx and game/ files → .ts (Phase 3 & 6)
 /**
  * useCombatHandler - Custom hook for handling combat initiation
  *
@@ -10,19 +9,35 @@ import { useGameLog } from '../contexts/GameLogContext';
 import { Enemy } from '../game/Enemy';
 import { DiceRoller } from '../game/DiceRoller';
 
+interface EncounterPOI {
+  name: string;
+  creatures: string;
+  cr: number;
+  eventType?: string;
+  type?: string;
+  [key: string]: unknown;
+}
+
+/** The subset of hex fields this hook reads (spans HexGrid.Hex and raw mapData). */
+interface CombatHex {
+  terrain?: { key?: string; name?: string; color?: string };
+  elevation?: number;
+  weather?: { condition?: string };
+  regionBiome?: string;
+}
+
 export function useCombatHandler() {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
 
   /**
    * Initiate combat with a POI encounter
-   * @param {object} poi - Point of interest with encounter data
    */
-  const handleEngageCombat = poi => {
+  const handleEngageCombat = (poi: EncounterPOI) => {
     addMessage(`You engage ${poi.name} in combat!`, 'encounter');
 
     // Get party members
-    const allies = state.party.getAllMembers().filter(m => m);
+    const allies = state.party.getAllMembers().filter((m: unknown) => m);
 
     // Parse enemies from POI
     const diceRoller = new DiceRoller();
@@ -34,11 +49,14 @@ export function useCombatHandler() {
     if (poi.cr >= 5) encounterType = 'boss';
 
     // Get terrain type from current hex
-    const currentHex = state.hexGrid
-      ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
-      : state.mapData?.find(
-          h => h.col === state.playerPosition.col && h.row === state.playerPosition.row
-        );
+    const currentHex = (
+      state.hexGrid
+        ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
+        : state.mapData?.find(
+            (h: { col: number; row: number }) =>
+              h.col === state.playerPosition.col && h.row === state.playerPosition.row
+          )
+    ) as CombatHex | undefined;
     const terrainType = currentHex?.terrain?.name || 'plains';
 
     // Build hex context for battlefield theming
@@ -70,10 +88,8 @@ export function useCombatHandler() {
 
   /**
    * Handle event choices (fight, flee, etc.)
-   * @param {string} action - Action to take
-   * @param {object} poi - POI data
    */
-  const handleEventChoice = (action, poi) => {
+  const handleEventChoice = (action: string, poi: EncounterPOI) => {
     if (action === 'fight') {
       handleEngageCombat(poi);
     } else if (action === 'continue') {
