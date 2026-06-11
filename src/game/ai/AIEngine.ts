@@ -246,11 +246,11 @@ export class AIEngine {
     }
 
     // Execute action
-    const action = executeAction(actionNode.action, {
+    const action = executeAction(actionNode.action ?? 'wait', {
       ...context,
       params: actionNode,
       target,
-    }) as AIAction;
+    } as unknown as Parameters<typeof executeAction>[1]) as AIAction;
 
     logger.combat.info('AI action decided', {
       combatant: combatant.name,

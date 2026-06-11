@@ -1,31 +1,68 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * actions.js - AI Action Registry
  * Functions that return action objects for the combat system
  */
 
-import { findPath } from '../Pathfinding';
 import { getHexDistance, getHexNeighbors } from '../../utils/hexMath';
 import logger from '../../utils/logger';
 
-/**
- * Action context passed to all action functions
- * @typedef {Object} ActionContext
- * @property {Object} combatant - Current combatant object
- * @property {Object} battlefield - Battlefield grid
- * @property {Array} turnOrder - All combatants in combat
- * @property {number} movementRemaining - Movement remaining this turn
- * @property {Object} params - Action parameters from JSON
- * @property {Object} target - Target combatant (if selected by utility scorer)
- */
+interface HexPos {
+  col: number;
+  row: number;
+}
+
+interface BattlefieldHex {
+  col: number;
+  row: number;
+  blocked?: boolean;
+  [key: string]: unknown;
+}
+
+interface ActionBattlefield {
+  width: number;
+  height: number;
+  hexes: BattlefieldHex[];
+}
+
+interface ActionEntity {
+  specialAbilities?: Array<{ name: string }>;
+}
+
+interface ActionCombatant {
+  name?: string;
+  id?: string | number;
+  currentHP?: number;
+  isEnemy?: boolean;
+  isAlly?: boolean;
+  position?: HexPos;
+  enemy?: ActionEntity;
+  character?: ActionEntity;
+}
+
+interface ActionParams {
+  attackType?: string;
+  ability?: string;
+  [key: string]: unknown;
+}
+
+export interface ActionContext {
+  combatant: ActionCombatant;
+  battlefield?: ActionBattlefield;
+  turnOrder: ActionCombatant[];
+  movementRemaining: number;
+  params: ActionParams;
+  target?: ActionCombatant | null;
+}
+
+interface AIAction {
+  type: string;
+  [key: string]: unknown;
+}
 
 /**
  * Attack action (melee or ranged)
- * @param {ActionContext} context
- * @returns {Object} Attack action
  */
-export function attack(context) {
+export function attack(context: ActionContext): AIAction {
   const { combatant, params, target } = context;
 
   if (!target) {
@@ -53,18 +90,18 @@ export function attack(context) {
  * @param {ActionContext} context
  * @returns {Object} Ability action
  */
-export function useAbility(context) {
+export function useAbility(context: ActionContext): AIAction {
   const { combatant, params, target } = context;
   const enemy = combatant.enemy || combatant.character;
 
   // Get ability to use (either from params or first available)
-  let ability = null;
+  let ability: { name: string } | undefined;
 
   if (params.ability) {
-    ability = enemy.specialAbilities?.find(a => a.name === params.ability);
-  } else if (enemy.specialAbilities?.length > 0) {
+    ability = enemy?.specialAbilities?.find(a => a.name === params.ability);
+  } else if ((enemy?.specialAbilities?.length ?? 0) > 0) {
     // Use first available ability
-    ability = enemy.specialAbilities[0];
+    ability = enemy?.specialAbilities?.[0];
   }
 
   if (!ability) {
@@ -92,8 +129,8 @@ export function useAbility(context) {
  * Build a hex lookup map from the flat hexes array.
  * Called once per action so the inner loops are O(1) per hex lookup.
  */
-function buildHexMap(hexes) {
-  const map = new Map();
+function buildHexMap(hexes: BattlefieldHex[]): Map<string, BattlefieldHex> {
+  const map = new Map<string, BattlefieldHex>();
   hexes.forEach(h => map.set(`${h.col},${h.row}`, h));
   return map;
 }
@@ -103,7 +140,11 @@ function buildHexMap(hexes) {
  * Uses getHexNeighbors from hexMath for offsets, then filters by
  * battlefield bounds and blocked status.
  */
-function getNeighbours(pos, battlefield, hexMap) {
+function getNeighbours(
+  pos: HexPos,
+  battlefield: ActionBattlefield,
+  hexMap: Map<string, BattlefieldHex>
+): HexPos[] {
   const { width, height } = battlefield;
 
   return getHexNeighbors(pos.col, pos.row).filter(n => {
@@ -127,20 +168,22 @@ function getNeighbours(pos, battlefield, hexMap) {
  * @param {ActionContext} context
  * @returns {Object} Move action
  */
-export function moveTo(context) {
+export function moveTo(context: ActionContext): AIAction {
   const { combatant, battlefield, turnOrder, movementRemaining, target } = context;
 
-  if (!combatant.position) {
+  if (!combatant.position || !battlefield) {
     logger.combat.error('MoveTo action: combatant has no position', {
       combatant: combatant.name,
     });
     return { type: 'wait' };
   }
+  const fromPos = combatant.position;
 
   if (!target || !target.position) {
     logger.combat.warn('MoveTo action: no valid target', { combatant: combatant.name });
     return { type: 'wait' };
   }
+  const targetPos = target.position;
 
   const maxMoveHexes = Math.floor(movementRemaining / 5); // Convert feet to hexes
   if (maxMoveHexes <= 0) return { type: 'wait' };
@@ -152,26 +195,21 @@ export function moveTo(context) {
   const occupiedSet = new Set(
     turnOrder
       .filter(c => c.position && c.id !== combatant.id)
-      .map(c => `${c.position.col},${c.position.row}`)
+      .map(c => `${c.position!.col},${c.position!.row}`)
   );
 
   // Direction vector toward target
-  const dx = target.position.col - combatant.position.col;
-  const dy = target.position.row - combatant.position.row;
+  const dx = targetPos.col - fromPos.col;
+  const dy = targetPos.row - fromPos.row;
   const targetDist = Math.sqrt(dx * dx + dy * dy);
 
   // Walk step-by-step, building path
-  const path = [combatant.position];
-  let current = combatant.position;
+  const path: HexPos[] = [fromPos];
+  let current: HexPos = fromPos;
 
   for (let step = 0; step < maxMoveHexes; step++) {
     // Stop one hex away from target so we don't move onto the target's hex
-    const distToTarget = getHexDistance(
-      current.col,
-      current.row,
-      target.position.col,
-      target.position.row
-    );
+    const distToTarget = getHexDistance(current.col, current.row, targetPos.col, targetPos.row);
     if (distToTarget <= 1) break;
 
     const neighbours = getNeighbours(current, battlefield, hexMap);
@@ -239,7 +277,7 @@ export function moveTo(context) {
  * @param {ActionContext} context
  * @returns {Object} Move action
  */
-export function flee(context) {
+export function flee(context: ActionContext): AIAction {
   const { combatant, battlefield, turnOrder, movementRemaining } = context;
 
   if (!combatant.position || !battlefield) {
@@ -248,13 +286,14 @@ export function flee(context) {
     });
     return { type: 'wait' };
   }
+  const fromPos = combatant.position;
 
   const maxMoveHexes = Math.floor(movementRemaining / 5);
   if (maxMoveHexes <= 0) return { type: 'wait' };
 
   // Find nearest enemy (opposite faction)
   const threats = turnOrder.filter(c => {
-    if (!c.position || c.currentHP <= 0) return false;
+    if (!c.position || (c.currentHP ?? 0) <= 0) return false;
     return combatant.isEnemy ? c.isAlly : c.isEnemy;
   });
 
@@ -262,24 +301,19 @@ export function flee(context) {
 
   // Find closest threat
   const nearest = threats.reduce((closest, c) => {
-    const d = getHexDistance(
-      combatant.position.col,
-      combatant.position.row,
-      c.position.col,
-      c.position.row
-    );
+    const d = getHexDistance(fromPos.col, fromPos.row, c.position!.col, c.position!.row);
     const dc = getHexDistance(
-      combatant.position.col,
-      combatant.position.row,
-      closest.position.col,
-      closest.position.row
+      fromPos.col,
+      fromPos.row,
+      closest.position!.col,
+      closest.position!.row
     );
     return d < dc ? c : closest;
   });
 
   // Direction AWAY from nearest threat
-  const dx = combatant.position.col - nearest.position.col;
-  const dy = combatant.position.row - nearest.position.row;
+  const dx = fromPos.col - nearest.position!.col;
+  const dy = fromPos.row - nearest.position!.row;
   const threatDist = Math.sqrt(dx * dx + dy * dy) || 1;
 
   const hexMap = buildHexMap(battlefield.hexes);
@@ -287,11 +321,11 @@ export function flee(context) {
   const occupiedSet = new Set(
     turnOrder
       .filter(c => c.position && c.id !== combatant.id)
-      .map(c => `${c.position.col},${c.position.row}`)
+      .map(c => `${c.position!.col},${c.position!.row}`)
   );
 
-  const path = [combatant.position];
-  let current = combatant.position;
+  const path: HexPos[] = [fromPos];
+  let current: HexPos = fromPos;
 
   for (let step = 0; step < maxMoveHexes; step++) {
     const neighbours = getNeighbours(current, battlefield, hexMap);
@@ -347,7 +381,7 @@ export function flee(context) {
  * @param {ActionContext} context
  * @returns {Object} Dodge action
  */
-export function dodge(context) {
+export function dodge(context: ActionContext): AIAction {
   const { combatant } = context;
 
   logger.combat.debug('AI dodge action', { combatant: combatant.name });
@@ -362,7 +396,7 @@ export function dodge(context) {
  * @param {ActionContext} context
  * @returns {Object} Dash action
  */
-export function dash(context) {
+export function dash(context: ActionContext): AIAction {
   const { combatant } = context;
 
   logger.combat.debug('AI dash action', { combatant: combatant.name });
@@ -377,7 +411,7 @@ export function dash(context) {
  * @param {ActionContext} context
  * @returns {Object} Wait action
  */
-export function wait(context) {
+export function wait(context: ActionContext): AIAction {
   const { combatant } = context;
 
   logger.combat.debug('AI wait action', { combatant: combatant.name });
@@ -390,7 +424,7 @@ export function wait(context) {
 /**
  * Action registry - maps action names to functions
  */
-export const ACTIONS = {
+export const ACTIONS: Record<string, (context: ActionContext) => AIAction> = {
   attack,
   useAbility,
   moveTo,
@@ -406,7 +440,7 @@ export const ACTIONS = {
  * @param {ActionContext} context - Action context
  * @returns {Object} Action object
  */
-export function executeAction(actionName, context) {
+export function executeAction(actionName: string, context: ActionContext): AIAction {
   const action = ACTIONS[actionName];
 
   if (!action) {
