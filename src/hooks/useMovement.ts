@@ -1,4 +1,3 @@
-// @ts-nocheck -- TODO: Remove after GameStateContext → .tsx (Phase 6)
 /**
  * useMovement - Custom hook for hex movement and navigation
  *
@@ -22,10 +21,8 @@ export function useMovement() {
 
   /**
    * Get hex in a specific direction from current position
-   * @param {string} direction - 'up', 'down', 'left', 'right', etc.
-   * @returns {object|null} Hex object or null
    */
-  const getHexInDirection = direction => {
+  const getHexInDirection = (direction: Direction) => {
     if (!state.mapData) return null;
 
     const { col, row } = state.playerPosition;
@@ -78,7 +75,6 @@ export function useMovement() {
 
   /**
    * Get current hex the player is standing on
-   * @returns {object|null} Hex object or null
    */
   const getCurrentHex = () => {
     if (!state.mapData) return null;
@@ -95,11 +91,8 @@ export function useMovement() {
 
   /**
    * Get all adjacent hexes (6 neighbors)
-   * @param {number} col - Column
-   * @param {number} row - Row
-   * @returns {Array} Array of hex objects
    */
-  const getAdjacentHexes = (col, row) => {
+  const getAdjacentHexes = (col: number, row: number) => {
     // Use HexGrid spatial index if available (much faster than linear search)
     if (state.hexGrid) {
       return state.hexGrid.getNeighbors(col, row);
@@ -125,7 +118,7 @@ export function useMovement() {
           { dc: 1, dr: 1 }, // bottom-right
         ];
 
-    const adjacent = [];
+    const adjacent: NonNullable<ReturnType<typeof getCurrentHex>>[] = [];
     offsets.forEach(({ dc, dr }) => {
       const hex = state.mapData?.find(h => h.col === col + dc && h.row === row + dr);
       if (hex) {
