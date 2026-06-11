@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * InteriorHexCanvas - Renders interior maps (caves, dungeons, etc.)
  * Simplified version of HexGridCanvas adapted for interior exploration
  */
 
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, type MouseEvent } from 'react';
 import {
   calculateHexPosition,
   drawHexShape,
@@ -15,6 +14,66 @@ import {
 import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
 import { PerlinNoise } from '../../noise';
 
+interface Coord {
+  col: number;
+  row: number;
+}
+
+interface CanvasHex {
+  col: number;
+  row: number;
+  terrain: { key: string; color: string; walkable?: boolean; [key: string]: unknown };
+  content?: string | null;
+  [key: string]: unknown;
+}
+
+interface PositionedHex extends CanvasHex {
+  x: number;
+  y: number;
+}
+
+/** A loot/encounter/hazard entry placed on the interior map. */
+interface ContentEntry {
+  col: number;
+  row: number;
+  discovered?: boolean;
+  defeated?: boolean;
+  collected?: boolean;
+  triggered?: boolean;
+  isBoss?: boolean;
+  cr?: number;
+  [key: string]: unknown;
+}
+
+interface InteriorMapView {
+  hexes: CanvasHex[];
+  encounters?: ContentEntry[];
+  loot?: ContentEntry[];
+  hazards?: ContentEntry[];
+  [key: string]: unknown;
+}
+
+interface VisualPos {
+  x: number;
+  y: number;
+}
+
+interface PlayerAnim {
+  startPos: VisualPos;
+  endPos: VisualPos;
+  startTime: number;
+  duration: number;
+}
+
+interface InteriorHexCanvasProps {
+  interiorMap?: InteriorMapView | null;
+  playerPosition?: Coord | null;
+  playerIcon?: string;
+  selectedHex?: Coord | null;
+  onHexClick?: (hex: PositionedHex) => void;
+  onHexDoubleClick?: (hex: PositionedHex) => void;
+}
+
 function InteriorHexCanvas({
   interiorMap,
   playerPosition,
@@ -22,19 +81,19 @@ function InteriorHexCanvas({
   selectedHex,
   onHexClick,
   onHexDoubleClick,
-}) {
-  const canvasRef = useRef(null);
+}: InteriorHexCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hexSize] = useState(30);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [targetOffsetX, setTargetOffsetX] = useState(0);
   const [targetOffsetY, setTargetOffsetY] = useState(0);
-  const [hoveredHex, setHoveredHex] = useState(null);
-  const animationFrameRef = useRef(null);
-  const playerAnimationRef = useRef(null);
-  const playerVisualPosRef = useRef(null);
-  const previousPlayerPosRef = useRef(playerPosition);
-  const textureGenerator = useRef(null);
+  const [hoveredHex, setHoveredHex] = useState<PositionedHex | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const playerAnimationRef = useRef<PlayerAnim | null>(null);
+  const playerVisualPosRef = useRef<VisualPos | null>(null);
+  const previousPlayerPosRef = useRef<Coord | null>(playerPosition ?? null);
+  const textureGenerator = useRef<HexTextureGenerator | null>(null);
 
   // Initialize texture generator once
   useEffect(() => {
@@ -45,7 +104,7 @@ function InteriorHexCanvas({
   }, []);
 
   // Convert grid to positioned hexes (using utility function)
-  const positionedHexes = useCallback(() => {
+  const positionedHexes = useCallback((): PositionedHex[] => {
     if (!interiorMap?.hexes) return [];
 
     return interiorMap.hexes.map(hex => {
@@ -55,21 +114,21 @@ function InteriorHexCanvas({
   }, [interiorMap, hexSize]);
 
   // Check if content should be visible
-  const shouldRenderEncounter = useCallback(encounter => {
+  const shouldRenderEncounter = useCallback((encounter: ContentEntry) => {
     return encounter.discovered || encounter.defeated;
   }, []);
 
-  const shouldRenderHazard = useCallback(hazard => {
+  const shouldRenderHazard = useCallback((hazard: ContentEntry) => {
     return hazard.discovered || hazard.triggered;
   }, []);
 
-  const shouldRenderLoot = useCallback(loot => {
+  const shouldRenderLoot = useCallback((loot: ContentEntry) => {
     return loot.discovered || loot.collected;
   }, []);
 
   // Check if content is collected/defeated
   const isContentCollected = useCallback(
-    hex => {
+    (hex: CanvasHex) => {
       if (!interiorMap) return false;
 
       // Check if loot is collected
@@ -99,7 +158,7 @@ function InteriorHexCanvas({
 
   // Draw a single hex (using utility function)
   const drawHex = useCallback(
-    (ctx, hex) => {
+    (ctx: CanvasRenderingContext2D, hex: PositionedHex) => {
       const { x, y, terrain, content } = hex;
 
       // Draw hex shape with procedural texture or solid color fallback
@@ -131,7 +190,7 @@ function InteriorHexCanvas({
           shouldRender = true;
         } else if (content === 'hazard') {
           const hazard = interiorMap?.hazards?.find(h => h.col === hex.col && h.row === hex.row);
-          shouldRender = hazard && shouldRenderHazard(hazard);
+          shouldRender = Boolean(hazard && shouldRenderHazard(hazard));
         } else if (content === 'loot' || content === 'chest') {
           // Loot/chests are always visible — you can see the chest, you just
           // can't collect it until you walk onto the hex.
@@ -158,7 +217,15 @@ function InteriorHexCanvas({
   );
 
   // Draw content marker icons
-  const drawContentMarker = (ctx, x, y, content, isCollected = false, col = 0, row = 0) => {
+  const drawContentMarker = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    content: string,
+    isCollected = false,
+    col = 0,
+    row = 0
+  ) => {
     ctx.save();
 
     // Gray out collected/defeated content
@@ -436,7 +503,7 @@ function InteriorHexCanvas({
 
   // Draw hex outline (for selection) - wrapper around utility function
   const drawHexOutline = useCallback(
-    (ctx, hex, color, width) => {
+    (ctx: CanvasRenderingContext2D, hex: PositionedHex, color: string, width: number) => {
       renderHexOutline(ctx, hex.x, hex.y, hexSize, color, width);
     },
     [hexSize]
@@ -444,11 +511,11 @@ function InteriorHexCanvas({
 
   // Draw player marker (using utility function with smooth animation)
   const drawPlayer = useCallback(
-    (ctx, hexArray) => {
+    (ctx: CanvasRenderingContext2D, hexArray: PositionedHex[]) => {
       if (!playerPosition) return;
 
       // Use animated position if available, otherwise actual position
-      let x, y;
+      let x: number, y: number;
       if (playerVisualPosRef.current) {
         x = playerVisualPosRef.current.x;
         y = playerVisualPosRef.current.y;
@@ -472,6 +539,7 @@ function InteriorHexCanvas({
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     const hexArray = positionedHexes();
 
     // Clear canvas with dark background
@@ -568,15 +636,9 @@ function InteriorHexCanvas({
     if (!playerHex) return;
 
     // Start player movement animation if position changed
-    if (
-      previousPlayerPosRef.current &&
-      (previousPlayerPosRef.current.col !== playerPosition.col ||
-        previousPlayerPosRef.current.row !== playerPosition.row)
-    ) {
-      const prevHex = hexArray.find(
-        h =>
-          h.col === previousPlayerPosRef.current.col && h.row === previousPlayerPosRef.current.row
-      );
+    const prev = previousPlayerPosRef.current;
+    if (prev && (prev.col !== playerPosition.col || prev.row !== playerPosition.row)) {
+      const prevHex = hexArray.find(h => h.col === prev.col && h.row === prev.row);
 
       if (prevHex) {
         playerAnimationRef.current = {
@@ -659,20 +721,22 @@ function InteriorHexCanvas({
 
   // Get hex at point (using utility function)
   const getHexAtPoint = useCallback(
-    (x, y) => {
+    (x: number, y: number): PositionedHex | null => {
       const worldX = x - offsetX;
       const worldY = y - offsetY;
       const hexArray = positionedHexes();
 
-      return findHexAtPoint(worldX, worldY, hexArray, hexSize);
+      return findHexAtPoint(worldX, worldY, hexArray, hexSize) as PositionedHex | null;
     },
     [hexSize, offsetX, offsetY, positionedHexes]
   );
 
   // Handle click
   const handleClick = useCallback(
-    e => {
-      const rect = canvasRef.current.getBoundingClientRect();
+    (e: MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
@@ -686,8 +750,10 @@ function InteriorHexCanvas({
 
   // Handle double click
   const handleDoubleClick = useCallback(
-    e => {
-      const rect = canvasRef.current.getBoundingClientRect();
+    (e: MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
@@ -701,8 +767,10 @@ function InteriorHexCanvas({
 
   // Handle mouse move for cursor and hover highlight
   const handleMouseMove = useCallback(
-    e => {
-      const rect = canvasRef.current.getBoundingClientRect();
+    (e: MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
@@ -712,16 +780,16 @@ function InteriorHexCanvas({
       // Change cursor based on content
       if (hex) {
         if (hex.content === 'loot' || hex.content === 'chest') {
-          canvasRef.current.style.cursor = 'grab';
+          canvas.style.cursor = 'grab';
         } else if (hex.content === 'exit') {
-          canvasRef.current.style.cursor = 'crosshair';
+          canvas.style.cursor = 'crosshair';
         } else if (hex.terrain?.walkable) {
-          canvasRef.current.style.cursor = 'pointer';
+          canvas.style.cursor = 'pointer';
         } else {
-          canvasRef.current.style.cursor = 'not-allowed';
+          canvas.style.cursor = 'not-allowed';
         }
       } else {
-        canvasRef.current.style.cursor = 'default';
+        canvas.style.cursor = 'default';
       }
     },
     [getHexAtPoint]
