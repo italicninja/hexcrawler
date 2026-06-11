@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * EnemyMovement — Framework for interior dungeon enemy AI and movement.
  *
