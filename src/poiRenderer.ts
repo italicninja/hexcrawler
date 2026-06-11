@@ -1,11 +1,18 @@
-// @ts-nocheck
-// TODO: Add proper types
 /**
  * POI Icon Renderer
  * Draws custom icons for points of interest on the hex map
  */
 
+type DrawFn = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => void;
+
+interface POIMarker {
+  icon?: string;
+  name?: string;
+}
+
 export class POIRenderer {
+  iconDrawers: Record<string, DrawFn>;
+
   constructor() {
     // Icon drawing functions for each POI type
     this.iconDrawers = {
@@ -23,7 +30,7 @@ export class POIRenderer {
     };
   }
 
-  draw(ctx, x, y, size, poi) {
+  draw(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, poi: POIMarker): void {
     const iconKey = poi.icon || poi.name;
     if (!iconKey) return;
 
@@ -35,7 +42,7 @@ export class POIRenderer {
     }
   }
 
-  drawDungeon(ctx, x, y, size) {
+  drawDungeon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#2c3e50';
     ctx.strokeStyle = '#1a252f';
@@ -49,7 +56,7 @@ export class POIRenderer {
     ctx.strokeRect(x - s * 0.4, y - s * 0.2, s * 0.8, s * 0.6);
   }
 
-  drawSettlement(ctx, x, y, size) {
+  drawSettlement(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#8B4513';
     ctx.strokeStyle = '#654321';
@@ -74,7 +81,7 @@ export class POIRenderer {
     ctx.stroke();
   }
 
-  drawRuins(ctx, x, y, size) {
+  drawRuins(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#95a5a6';
     ctx.strokeStyle = '#7f8c8d';
@@ -92,7 +99,7 @@ export class POIRenderer {
     ctx.restore();
   }
 
-  drawTower(ctx, x, y, size) {
+  drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#34495e';
     ctx.strokeStyle = '#2c3e50';
@@ -110,7 +117,7 @@ export class POIRenderer {
     ctx.fillRect(x - s * 0.1, y - s * 0.15, s * 0.2, s * 0.15);
   }
 
-  drawCave(ctx, x, y, size) {
+  drawCave(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#2c3e50';
     ctx.beginPath();
@@ -131,7 +138,7 @@ export class POIRenderer {
     ctx.stroke();
   }
 
-  drawShrine(ctx, x, y, size) {
+  drawShrine(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#e74c3c';
     ctx.strokeStyle = '#c0392b';
@@ -149,7 +156,7 @@ export class POIRenderer {
     ctx.fillRect(x - s * 0.55, y - s * 0.3, s * 1.1, s * 0.1);
   }
 
-  drawCamp(ctx, x, y, size) {
+  drawCamp(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#8B7355';
     ctx.strokeStyle = '#654321';
@@ -184,7 +191,7 @@ export class POIRenderer {
     ctx.fill();
   }
 
-  drawVillage(ctx, x, y, size) {
+  drawVillage(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#A0826D';
     ctx.strokeStyle = '#7D6651';
@@ -209,7 +216,7 @@ export class POIRenderer {
     ctx.stroke();
   }
 
-  drawCity(ctx, x, y, size) {
+  drawCity(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#654321';
     ctx.strokeStyle = '#4a3319';
@@ -229,7 +236,7 @@ export class POIRenderer {
     ctx.fillRect(x - s * 0.01, y - s * 0.2, s * 0.08, s * 0.08);
   }
 
-  drawMetropolis(ctx, x, y, size) {
+  drawMetropolis(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     const s = size * 0.9;
     ctx.fillStyle = '#8B7500';
     ctx.strokeStyle = '#6B5800';
