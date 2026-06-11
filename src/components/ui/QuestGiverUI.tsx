@@ -10,22 +10,59 @@ import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import './QuestGiverUI.css';
 
-function QuestGiverUI({ questGiver, availableQuests = [], onClose, onAcceptQuest }) {
+interface QuestObjectiveLike {
+  description: string;
+  [key: string]: unknown;
+}
+
+interface QuestRewardsLike {
+  xp: number;
+  gold: number;
+  items?: unknown[];
+}
+
+interface QuestLike {
+  id?: string | number;
+  title: string;
+  level: number;
+  description: string;
+  objectives: QuestObjectiveLike[];
+  rewards: QuestRewardsLike;
+}
+
+interface QuestGiverLike {
+  name?: string;
+  dialogue?: string;
+}
+
+interface QuestGiverUIProps {
+  questGiver: QuestGiverLike | null;
+  availableQuests?: QuestLike[];
+  onClose: () => void;
+  onAcceptQuest?: (quest: QuestLike) => void;
+}
+
+function QuestGiverUI({
+  questGiver,
+  availableQuests = [],
+  onClose,
+  onAcceptQuest,
+}: QuestGiverUIProps) {
   const { state } = useGameState();
-  const [selectedQuest, setSelectedQuest] = useState(null);
+  const [selectedQuest, setSelectedQuest] = useState<QuestLike | null>(null);
 
   if (!questGiver) {
     return null;
   }
 
-  const handleAccept = quest => {
+  const handleAccept = (quest: QuestLike) => {
     if (onAcceptQuest) {
       onAcceptQuest(quest);
       setSelectedQuest(null);
     }
   };
 
-  const getQuestLevelColor = (questLevel, playerLevel) => {
+  const getQuestLevelColor = (questLevel: number, playerLevel: number) => {
     const diff = questLevel - playerLevel;
     if (diff <= -2) return '#666'; // Gray (trivial)
     if (diff === -1) return '#4a9eff'; // Blue (easy)
@@ -145,8 +182,8 @@ function QuestGiverUI({ questGiver, availableQuests = [], onClose, onAcceptQuest
 /**
  * Get default dialogue based on quest giver name
  */
-function getDefaultDialogue(name) {
-  const dialogues = {
+function getDefaultDialogue(name?: string): string {
+  const dialogues: Record<string, string> = {
     'Village Elder':
       'Greetings, traveler. Our village faces many challenges. Perhaps you can help us with some tasks?',
     'Town Guard Captain':
@@ -157,7 +194,7 @@ function getDefaultDialogue(name) {
       'Knowledge and adventure go hand in hand. I have several matters that require investigation.',
   };
 
-  return dialogues[name] || 'Welcome, adventurer. I have some tasks that need attention.';
+  return dialogues[name ?? ''] || 'Welcome, adventurer. I have some tasks that need attention.';
 }
 
 export default QuestGiverUI;

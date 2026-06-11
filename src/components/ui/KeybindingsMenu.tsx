@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react';
-import { useSettings } from '../../contexts/SettingsContext';
+import { useSettings, type Keybindings } from '../../contexts/SettingsContext';
 import './KeybindingsMenu.css';
 
 /**
@@ -8,10 +7,10 @@ import './KeybindingsMenu.css';
  */
 function KeybindingsMenu() {
   const { settings, set } = useSettings();
-  const [editing, setEditing] = useState(null);
-  const [listeningFor, setListeningFor] = useState(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [listeningFor, setListeningFor] = useState<string | null>(null);
 
-  const keybindingLabels = {
+  const keybindingLabels: Record<string, string> = {
     moveUp: 'Move Up',
     moveDown: 'Move Down',
     moveLeft: 'Move Left',
@@ -25,7 +24,7 @@ function KeybindingsMenu() {
     map: 'Map View',
   };
 
-  const formatKey = key => {
+  const formatKey = (key: string) => {
     if (key === ' ') return 'Space';
     if (key === 'Shift') return 'Shift';
     if (key === 'Control') return 'Ctrl';
@@ -33,34 +32,12 @@ function KeybindingsMenu() {
     return key.toUpperCase();
   };
 
-  const handleKeyPress = (e, action) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Ignore modifier keys by themselves
-    if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
-      return;
-    }
-
-    const newKey = e.key;
-
-    // Update keybinding
-    const newKeybindings = {
-      ...settings.keybindings,
-      [action]: newKey,
-    };
-
-    set('keybindings', newKeybindings);
-    setEditing(null);
-    setListeningFor(null);
-  };
-
-  const startListening = action => {
+  const startListening = (action: string) => {
     setEditing(action);
     setListeningFor(action);
 
     // Add global keydown listener
-    const handleGlobalKeyDown = e => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
         return;
       }
@@ -69,7 +46,7 @@ function KeybindingsMenu() {
       e.stopPropagation();
 
       const newKey = e.key;
-      const newKeybindings = {
+      const newKeybindings: Keybindings = {
         ...settings.keybindings,
         [action]: newKey,
       };
@@ -95,7 +72,7 @@ function KeybindingsMenu() {
   };
 
   const resetToDefaults = () => {
-    const defaultKeybindings = {
+    const defaultKeybindings: Keybindings = {
       moveUp: 'w',
       moveDown: 's',
       moveLeft: 'a',
@@ -107,6 +84,7 @@ function KeybindingsMenu() {
       inventory: 'i',
       quests: 'q',
       map: 'm',
+      quicksave: 'F5',
     };
 
     set('keybindings', defaultKeybindings);
@@ -128,12 +106,14 @@ function KeybindingsMenu() {
             <button
               className={`keybinding-button ${editing === action ? 'editing' : ''}`}
               onClick={() => startListening(action)}
-              disabled={editing && editing !== action}
+              disabled={!!editing && editing !== action}
             >
               {editing === action ? (
                 <span className="listening">Press any key...</span>
               ) : (
-                <span className="key-display">{formatKey(settings.keybindings[action])}</span>
+                <span className="key-display">
+                  {formatKey(settings.keybindings[action as keyof Keybindings])}
+                </span>
               )}
             </button>
           </div>
