@@ -30,9 +30,9 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 ### 1. Remove `// @ts-nocheck` Suppressions
 
-**Priority:** High | **Time:** 8-12 hours | **Status:** IN PROGRESS (2 files remaining, down from 100 — Combat.ts (the keystone) + its gated combatReducer left)
+**Priority:** High | **Time:** 8-12 hours | **Status:** ✅ COMPLETE — 0 of 100 files carry `@ts-nocheck`; `tsc --noEmit` passes clean and all 269 tests pass.
 
-**Problem:** `tsconfig.json` has `strict: true` enabled, but the majority of source files begin with `// @ts-nocheck`, which completely bypasses TypeScript checking. The TypeScript migration is structurally complete but type safety is not enforced.
+**Problem (resolved):** `tsconfig.json` has `strict: true` enabled, but every source file began with `// @ts-nocheck`, which completely bypassed TypeScript checking. The TypeScript migration was structurally complete but type safety was not enforced. It now is — every file is type-checked under strict mode.
 
 **Scope:** `App.tsx`, `OverworldScene.tsx`, `Combat.ts`, all `ai/` files, most `hooks/`, `contexts/reducers/` files, canvas components.
 
@@ -186,7 +186,7 @@ afterEach(() => cleanup());
 
 **Priority:** Low | **Time:** 1 hour
 
-**BLOCKER:** `npm run lint` is currently broken project-wide — ESLint v9 is installed but the repo only has a legacy `.eslintrc.cjs` (ESLint v9 requires flat config `eslint.config.js`). Migrate the config to flat format before wiring lint into pre-commit hooks, otherwise the hook will fail on every commit. Note that ~91 files still carry `@ts-nocheck` and use `any`, so expect a large lint baseline — relax `--max-warnings 0` to a known baseline until item #1 is further along.
+**BLOCKER:** `npm run lint` is currently broken project-wide — ESLint v9 is installed but the repo only has a legacy `.eslintrc.cjs` (ESLint v9 requires flat config `eslint.config.js`). Migrate the config to flat format before wiring lint into pre-commit hooks, otherwise the hook will fail on every commit. Note: item #1 is now complete (0 `@ts-nocheck`), but several files carry scoped `eslint-disable @typescript-eslint/no-explicit-any` at genuinely loose boundaries (combat, generators, save serialization) — expect those `any` usages in the lint baseline.
 
 ESLint and Prettier are installed but not enforced at commit time.
 
@@ -682,7 +682,7 @@ The following `TODO` comments exist in source files but are not yet captured as 
 | `src/game/TreasureGenerator.ts`              | 41–174             | 8 stub TODOs for CR bracket lookup, coin/gem/art/magic item rolls | Full treasure generation is unimplemented; partially tracked via `GameTableData.ts:828` (`TODO: Implement full magic item generation`) |
 | `src/game/data/GameTableData.ts`             | 828                | `TODO: Implement full magic item generation`                      | Promote to a numbered item when spell/item system work begins                                                                          |
 
-**Note:** The ~25 `// TODO: Add proper TypeScript types` comments across `src/game/` and `src/utils/` are intentional migration markers for item #1 (Remove `@ts-nocheck`). Leave them in place — they guide the file-by-file type work.
+**Note:** The `// TODO: Add proper TypeScript types` migration markers have all been removed — item #1 (Remove `@ts-nocheck`) is complete and every file is type-checked under strict mode.
 
 ---
 
@@ -690,7 +690,7 @@ The following `TODO` comments exist in source files but are not yet captured as 
 
 ### Now (High Priority)
 
-- [ ] 1. Remove `// @ts-nocheck` suppressions (file by file)
+- [x] 1. Remove `// @ts-nocheck` suppressions (file by file) — DONE, 0 remain
 - [ ] 2. Test save/load system thoroughly
 - [ ] 3. Split OverworldScene.tsx (1,960 lines)
 - [ ] 4. Add Vitest unit testing
@@ -726,7 +726,7 @@ The following `TODO` comments exist in source files but are not yet captured as 
 
 **Technical Health:**
 
-- [ ] Zero `// @ts-nocheck` suppressions
+- [x] Zero `// @ts-nocheck` suppressions
 - [ ] All files <600 lines (OverworldScene.tsx is 1,960 — primary blocker)
 - [x] ESLint/Prettier configured
 - [ ] 60%+ unit test coverage on game logic
