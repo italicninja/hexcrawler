@@ -1,15 +1,39 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * HazardGenerator - Generates traps and environmental hazards
  * Uses official D&D 5e SRD traps with level-based scaling
  */
 
 import { BaseGenerator } from './BaseGenerator';
-import { SRD_TRAPS, getScaledTrap } from './data/GameTableData';
+import { getScaledTrap } from './data/GameTableData';
 import logger from '../utils/logger';
 
+interface Hazard {
+  type: string;
+  category: string;
+  description: string;
+  trigger: string;
+  saveType: string;
+  damageType: string;
+  dc: number;
+  damage: number;
+  triggered: boolean;
+  discovered: boolean;
+  resets?: boolean;
+  effects?: string;
+  condition?: string;
+  detectDC: number;
+  detectSkill: string;
+}
+
+interface SaveResult {
+  success: boolean;
+  roll: number;
+  modifier: number;
+}
+
 export class HazardGenerator extends BaseGenerator {
+  trapWeights: Record<string, number>;
+
   constructor() {
     super();
 
@@ -28,11 +52,8 @@ export class HazardGenerator extends BaseGenerator {
 
   /**
    * Generate a random hazard using SRD traps
-   * @param {number} cr - Challenge Rating
-   * @param {Function} random - Random function (0-1)
-   * @returns {object} Hazard object
    */
-  generateHazard(cr, random = Math.random) {
+  generateHazard(cr: number, random: () => number = Math.random): Hazard {
     // Convert CR to character level
     const level = this._crToLevel(cr);
 
@@ -65,12 +86,10 @@ export class HazardGenerator extends BaseGenerator {
   }
 
   /**
-   * Convert CR to character level tier
-   * @param {number} cr - Challenge Rating
-   * @returns {number} Character level (1, 5, 11, or 17)
+   * Convert CR to character level tier (1, 5, 11, or 17)
    * @private
    */
-  _crToLevel(cr) {
+  _crToLevel(cr: number): number {
     if (cr <= 4) return 1 + Math.floor(cr); // CR 0-4 → level 1-4
     if (cr <= 10) return 5 + Math.floor((cr - 5) / 2); // CR 5-10 → level 5-10
     if (cr <= 16) return 11 + Math.floor((cr - 11) / 2); // CR 11-16 → level 11-16
@@ -79,12 +98,9 @@ export class HazardGenerator extends BaseGenerator {
 
   /**
    * Select random trap using weighted selection
-   * @param {number} level - Character level
-   * @param {Function} random - Random function
-   * @returns {string} Trap name
    * @private
    */
-  _selectRandomTrap(level, random) {
+  _selectRandomTrap(level: number, random: () => number): string {
     // Adjust weights based on level (Rolling Stone only at high levels)
     const weights = { ...this.trapWeights };
 
@@ -110,12 +126,9 @@ export class HazardGenerator extends BaseGenerator {
 
   /**
    * Calculate actual trap damage by rolling dice
-   * @param {object} scaledTrap - Scaled trap data
-   * @param {Function} random - Random function
-   * @returns {number} Total damage
    * @private
    */
-  _calculateTrapDamage(scaledTrap, random) {
+  _calculateTrapDamage(scaledTrap: Record<string, unknown>, random: () => number): number {
     // Use scaledDamage instead of damage (scaledDamage is the string for the level)
     const damageString = scaledTrap.scaledDamage || scaledTrap.damage;
 
@@ -168,28 +181,23 @@ export class HazardGenerator extends BaseGenerator {
 
   /**
    * Roll damage dice from notation (e.g., "2d6", "1d10")
-   * @param {string} diceString - Dice notation
-   * @param {Function} random - Random function
-   * @returns {number} Rolled damage
    * @private
    */
-  _rollDamage(diceString, random) {
+  _rollDamage(diceString: string, random: () => number): number {
     // Handle single numbers
     if (!diceString.includes('d')) {
-      return parseInt(diceString);
+      return parseInt(diceString, 10);
     }
 
-    const [numDice, diceSize] = diceString.split('d').map(s => parseInt(s));
+    const [numDice, diceSize] = diceString.split('d').map(s => parseInt(s, 10));
     return this.rollDice(numDice, diceSize, random);
   }
 
   /**
    * Get hazard category color for display
-   * @param {string} category
-   * @returns {string} Hex color
    */
-  getCategoryColor(category) {
-    const colors = {
+  getCategoryColor(category: string): string {
+    const colors: Record<string, string> = {
       trap: '#e67e22',
       environmental: '#e74c3c',
       magical: '#9b59b6',
@@ -199,11 +207,9 @@ export class HazardGenerator extends BaseGenerator {
 
   /**
    * Get damage type color for display
-   * @param {string} damageType
-   * @returns {string} Hex color
    */
-  getDamageTypeColor(damageType) {
-    const colors = {
+  getDamageTypeColor(damageType: string): string {
+    const colors: Record<string, string> = {
       fire: '#e74c3c',
       cold: '#3498db',
       lightning: '#f1c40f',
@@ -222,12 +228,9 @@ export class HazardGenerator extends BaseGenerator {
   }
 
   /**
-   * Format hazard for display with save result
-   * @param {object} hazard - Hazard object
-   * @param {object} saveResult - Optional save result {success: boolean, roll: number, modifier: number}
-   * @returns {string} Formatted string
+   * Format hazard for display with optional save result
    */
-  formatHazard(hazard, saveResult = null) {
+  formatHazard(hazard: Hazard, saveResult: SaveResult | null = null): string {
     let output = `${hazard.description}\n`;
     output += `Trigger: ${hazard.trigger}\n\n`;
 

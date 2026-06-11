@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * EncounterPositions - Places combatants on battlefield based on encounter type
  * Handles different tactical formations for various encounter scenarios
@@ -8,20 +6,44 @@
 import logger from '../utils/logger';
 import { getHexNeighbors } from '../utils/hexMath';
 
+interface HexCoord {
+  col: number;
+  row: number;
+}
+
+interface BattlefieldHex extends HexCoord {
+  blocked?: boolean;
+}
+
+interface Battlefield {
+  hexes: BattlefieldHex[];
+  width: number;
+  height: number;
+}
+
+interface Combatant {
+  position?: HexCoord;
+  [key: string]: unknown;
+}
+
+interface PlacementResult {
+  allies: Combatant[];
+  enemies: Combatant[];
+}
+
 export class EncounterPositions {
   /**
-   * Place combatants on battlefield based on encounter type
-   * @param {string} encounterType - Type of encounter (standard, ambush, boss, surrounded)
-   * @param {Array} allies - Array of ally combatants
-   * @param {Array} enemies - Array of enemy combatants
-   * @param {Object} battlefield - Battlefield object with {hexes, width, height}
-   * @returns {Object} {allies, enemies} with positions set
+   * Place combatants on battlefield based on encounter type.
+   * Returns { allies, enemies } with positions set.
    */
-  static placeForEncounter(encounterType, allies, enemies, battlefield) {
-    const { width, height } = battlefield;
-
+  static placeForEncounter(
+    encounterType: string,
+    allies: Combatant[],
+    enemies: Combatant[],
+    battlefield: Battlefield
+  ): PlacementResult {
     // Create occupied positions tracking
-    const occupied = new Set();
+    const occupied = new Set<string>();
 
     switch (encounterType) {
       case 'standard':
@@ -43,7 +65,12 @@ export class EncounterPositions {
    * Standard encounter: Party bottom 2 rows, enemies top 3 rows
    * @private
    */
-  static _placeStandard(allies, enemies, battlefield, occupied) {
+  static _placeStandard(
+    allies: Combatant[],
+    enemies: Combatant[],
+    battlefield: Battlefield,
+    occupied: Set<string>
+  ): PlacementResult {
     const { width, height } = battlefield;
 
     // Place allies in bottom 2 rows (rows 18-19)
@@ -75,7 +102,12 @@ export class EncounterPositions {
    * Ambush encounter: Party clustered in center, enemies surrounding edges
    * @private
    */
-  static _placeAmbush(allies, enemies, battlefield, occupied) {
+  static _placeAmbush(
+    allies: Combatant[],
+    enemies: Combatant[],
+    battlefield: Battlefield,
+    occupied: Set<string>
+  ): PlacementResult {
     const { width, height } = battlefield;
     const centerCol = Math.floor(width / 2);
     const centerRow = Math.floor(height / 2);
@@ -101,7 +133,7 @@ export class EncounterPositions {
     }
 
     // Place enemies around edges
-    const edgePositions = [];
+    const edgePositions: HexCoord[] = [];
 
     // Top edge
     for (let col = 2; col < width - 2; col += 3) {
@@ -146,7 +178,12 @@ export class EncounterPositions {
    * Boss encounter: Boss in center-top, minions around, party in bottom row
    * @private
    */
-  static _placeBoss(allies, enemies, battlefield, occupied) {
+  static _placeBoss(
+    allies: Combatant[],
+    enemies: Combatant[],
+    battlefield: Battlefield,
+    occupied: Set<string>
+  ): PlacementResult {
     const { width, height } = battlefield;
 
     // Place allies in bottom row
@@ -197,18 +234,19 @@ export class EncounterPositions {
   }
 
   /**
-   * Find nearest free hex to target position using spiral outward search
-   * @param {Object} target - Target position {col, row}
-   * @param {Object} battlefield - Battlefield object
-   * @param {Set} occupiedBy - Set of occupied position keys
-   * @returns {Object} Free position {col, row}
+   * Find nearest free hex to target position using spiral outward search.
+   * Returns a free position {col, row}.
    * @private
    */
-  static _findNearestFreeHex(target, battlefield, occupiedBy) {
+  static _findNearestFreeHex(
+    target: HexCoord,
+    battlefield: Battlefield,
+    occupiedBy: Set<string>
+  ): HexCoord {
     const { hexes, width, height } = battlefield;
 
     // Create hex lookup map
-    const hexMap = new Map();
+    const hexMap = new Map<string, BattlefieldHex>();
     hexes.forEach(hex => {
       hexMap.set(`${hex.col},${hex.row}`, hex);
     });
@@ -222,12 +260,13 @@ export class EncounterPositions {
     }
 
     // Spiral outward using BFS
-    const visited = new Set();
-    const queue = [target];
+    const visited = new Set<string>();
+    const queue: HexCoord[] = [target];
     visited.add(targetKey);
 
     while (queue.length > 0) {
       const current = queue.shift();
+      if (!current) break;
 
       // Get all neighbors
       const neighbors = getHexNeighbors(current.col, current.row);
