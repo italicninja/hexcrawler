@@ -1,6 +1,5 @@
-// @ts-nocheck
 /**
- * QuestGiverUI.jsx - Quest Giver Dialog Component
+ * QuestGiverUI - Quest Giver Dialog Component
  * Part of D&D 5e Hexcrawler - Task 4.4 (Quest Givers)
  *
  * Displays available quests from NPCs in towns
