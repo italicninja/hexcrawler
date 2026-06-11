@@ -1,9 +1,80 @@
-// @ts-nocheck
-// TODO: Add proper types - Enemy D&D 5e monster class
+// Enemy — D&D 5e monster model
 import { DiceRoller } from './DiceRoller';
 
+interface Attack {
+  name: string;
+  damage: string;
+  damageType: string;
+  range?: number;
+}
+
+interface EnemyAbilities {
+  strength: number;
+  dexterity: number;
+  constitution: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
+}
+
+interface StatTable {
+  hp: number;
+  ac: number;
+  attackBonus: number;
+  damagePerRound: number;
+  saveDC: number;
+  strength: number;
+  dexterity: number;
+  constitution: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
+  attacks: Attack[];
+  multiattack?: number;
+  moveDistance?: number;
+  range?: number;
+  // Tolerate per-creature extra fields without tripping excess-property checks
+  [key: string]: unknown;
+}
+
+interface AttackResult {
+  roll: number;
+  modifier: number;
+  total: number;
+  hit: boolean;
+  crit: boolean;
+  targetAC: number;
+}
+
 export class Enemy {
-  constructor(name, cr, type = 'generic', family = null, variant = null) {
+  name: string;
+  cr: number;
+  type: string;
+  family: string;
+  variant: string | null;
+  aiConfig: unknown;
+  currentHP: number;
+  isDead: boolean;
+  specialAbilities: unknown[];
+  // Assigned via applyStatsByCR(), called from the constructor
+  maxHP!: number;
+  ac!: number;
+  attackBonus!: number;
+  damagePerRound!: number;
+  saveDC!: number;
+  abilities!: EnemyAbilities;
+  attacks!: Attack[];
+  multiattack!: number;
+  moveDistance!: number;
+  range!: number;
+
+  constructor(
+    name: string,
+    cr: number,
+    type = 'generic',
+    family: string | null = null,
+    variant: string | null = null
+  ) {
     this.name = name;
     this.cr = cr;
     this.type = type;
@@ -28,7 +99,7 @@ export class Enemy {
    * Allows named variants like "Goblin Archer" or "Skeleton Bowman" to have
    * ranged attacks without needing a separate CR table entry per role.
    */
-  _applyRoleOverrides(name) {
+  _applyRoleOverrides(name: string): void {
     const nameLower = (name || '').toLowerCase();
 
     // Skip role overrides for named creatures that already have full stat blocks —
@@ -94,8 +165,8 @@ export class Enemy {
     // Explicitly melee — range stays at 1 from stat table
   }
 
-  _inferFamilyFromType(type) {
-    const typeToFamily = {
+  _inferFamilyFromType(type: string): string {
+    const typeToFamily: Record<string, string> = {
       beast: 'beast',
       humanoid: 'humanoid',
       undead: 'undead',
@@ -106,7 +177,7 @@ export class Enemy {
     return typeToFamily[type.toLowerCase()] || 'humanoid';
   }
 
-  applyStatsByCR(cr, name = '') {
+  applyStatsByCR(cr: number, name = ''): void {
     // Named lookup takes priority over generic CR bracket
     const namedTable = this.getStatTableByName(name);
     const statTable = namedTable || this.getStatTableByCR(cr);
@@ -135,7 +206,7 @@ export class Enemy {
    * Returns a full stat block if a match is found, otherwise null (fall back to CR table).
    * Stats sourced from MM 2025 / SRD 5.2.
    */
-  getStatTableByName(name) {
+  getStatTableByName(name: string): StatTable | null {
     const n = (name || '').toLowerCase();
 
     // ── Goblinoid family ─────────────────────────────────────────────────────
@@ -465,8 +536,8 @@ export class Enemy {
     return null;
   }
 
-  getStatTableByCR(cr) {
-    const tables = {
+  getStatTableByCR(cr: number): StatTable {
+    const tables: Record<number, StatTable> = {
       0: {
         hp: 7,
         ac: 13,
@@ -679,7 +750,7 @@ export class Enemy {
     return tables[0];
   }
 
-  takeDamage(amount) {
+  takeDamage(amount: number): boolean {
     this.currentHP = Math.max(0, this.currentHP - amount);
     if (this.currentHP === 0) {
       this.isDead = true;
@@ -688,11 +759,11 @@ export class Enemy {
     return false;
   }
 
-  checkIsDead() {
+  checkIsDead(): boolean {
     return this.isDead || this.currentHP <= 0;
   }
 
-  rollAttack(target, diceRoller) {
+  rollAttack(target: { armorClass: number }, diceRoller: DiceRoller): AttackResult {
     const roll = diceRoller.rollD20();
     const total = roll + this.attackBonus;
     const hit = roll === 20 || (roll !== 1 && total >= target.armorClass);
@@ -700,7 +771,11 @@ export class Enemy {
     return { roll, modifier: this.attackBonus, total, hit, crit, targetAC: target.armorClass };
   }
 
-  rollDamage(isCrit, diceRoller, attackIndex = 0) {
+  rollDamage(
+    isCrit: boolean,
+    diceRoller: DiceRoller,
+    attackIndex = 0
+  ): { damage: number; damageType: string; attackName: string } {
     const attack = this.attacks[attackIndex] || this.attacks[0];
     let damage = diceRoller.damageRoll(attack.damage);
     if (isCrit) {
@@ -709,12 +784,12 @@ export class Enemy {
     return { damage, damageType: attack.damageType, attackName: attack.name };
   }
 
-  getModifier(ability) {
+  getModifier(ability: keyof EnemyAbilities): number {
     const score = this.abilities[ability];
     return Math.floor((score - 10) / 2);
   }
 
-  addSpecialAbility(ability) {
+  addSpecialAbility(ability: unknown): void {
     this.specialAbilities.push(ability);
   }
 
@@ -740,7 +815,8 @@ export class Enemy {
     };
   }
 
-  static fromJSON(data) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static fromJSON(data: any): Enemy {
     const enemy = new Enemy(data.name, data.cr, data.type, data.family, data.variant);
     enemy.currentHP = data.currentHP;
     enemy.isDead = data.isDead || false;
@@ -749,7 +825,13 @@ export class Enemy {
     return enemy;
   }
 
-  static parseCreatureString(creatureString, cr, diceRoller, family = null, variant = null) {
+  static parseCreatureString(
+    creatureString: string,
+    cr: number,
+    diceRoller: DiceRoller,
+    family: string | null = null,
+    variant: string | null = null
+  ): Enemy[] {
     const match = creatureString.match(/^(\d+d\d+|\d+)\s+(.+)$/i);
 
     if (!match) {
@@ -759,17 +841,17 @@ export class Enemy {
     const countPart = match[1];
     const namePart = match[2];
 
-    let count;
+    let count: number;
     if (countPart.includes('d')) {
       const [numDice, diceSize] = countPart.split('d').map(Number);
       count = diceRoller.rollDice(diceSize, numDice);
     } else {
-      count = parseInt(countPart);
+      count = parseInt(countPart, 10);
     }
 
     const inferredType = this._inferTypeFromName(namePart);
 
-    const enemies = [];
+    const enemies: Enemy[] = [];
     for (let i = 0; i < count; i++) {
       const enemyName = count > 1 ? `${namePart} #${i + 1}` : namePart;
       enemies.push(new Enemy(enemyName, cr, inferredType, family, variant));
@@ -778,7 +860,7 @@ export class Enemy {
     return enemies;
   }
 
-  static _inferTypeFromName(name) {
+  static _inferTypeFromName(name: string): string {
     const nameLower = name.toLowerCase();
     if (
       nameLower.includes('goblin') ||
