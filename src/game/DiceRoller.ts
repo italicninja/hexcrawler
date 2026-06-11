@@ -1,8 +1,9 @@
 // DiceRoller — D&D 5e dice rolling system
 import logger from '../utils/logger';
+import type { LogMessageType } from '../types/game';
 
 type RollType = 'normal' | 'advantage' | 'disadvantage';
-type LogCallback = (message: string, type?: string) => void;
+type LogCallback = (message: string, type?: LogMessageType) => void;
 
 /** Loose shape for the character objects passed into checks/attacks. */
 interface RollableCharacter {
@@ -64,7 +65,7 @@ export class DiceRoller {
     return this.rng ? this.rng() : Math.random();
   }
 
-  log(message: string, type = 'info'): void {
+  log(message: string, type: LogMessageType = 'info'): void {
     if (this.logger) {
       this.logger(message, type);
     }

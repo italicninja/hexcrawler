@@ -1,13 +1,17 @@
-// @ts-nocheck
-import { useState, useRef, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { DiceRoller } from '../../game/DiceRoller';
 import { Character } from '../../game/Character';
 import SurvivalManager from '../../game/SurvivalManager';
 import { TIME_COSTS } from '../../game/TimeManager';
+import type { Hex } from '../../types/game';
 
-function SurvivalMenu({ onClose }) {
+interface SurvivalMenuProps {
+  onClose?: () => void;
+}
+
+function SurvivalMenu({ onClose }: SurvivalMenuProps) {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
   const [isForaging, setIsForaging] = useState(false);
@@ -24,11 +28,10 @@ function SurvivalMenu({ onClose }) {
         );
   }, [state.hexGrid, state.mapData, state.playerPosition.col, state.playerPosition.row]);
 
-  const terrainKey = currentHex?.terrain?.key || 'grassland';
   const terrainName = currentHex?.terrain?.name || 'Grassland';
 
   // Get adjacent hexes (uses HexGrid spatial index for O(1) lookup if available)
-  const getAdjacentHexes = (col, row) => {
+  const getAdjacentHexes = (col: number, row: number) => {
     if (state.hexGrid) {
       return state.hexGrid.getNeighbors(col, row);
     }
@@ -53,7 +56,7 @@ function SurvivalMenu({ onClose }) {
           { dc: 1, dr: 1 },
         ];
 
-    const adjacent = [];
+    const adjacent: Hex[] = [];
     offsets.forEach(({ dc, dr }) => {
       const hex = state.mapData?.find(h => h.col === col + dc && h.row === row + dr);
       if (hex) {
@@ -140,7 +143,7 @@ function SurvivalMenu({ onClose }) {
   const exhaustionEffects = SurvivalManager.getExhaustionEffects(character.exhaustionLevel);
 
   // Determine foraging difficulty (biome-specific)
-  const forageDCs = {
+  const forageDCs: Record<string, number> = {
     grassland: 10,
     forest: 10,
     hills: 12,
@@ -152,7 +155,7 @@ function SurvivalMenu({ onClose }) {
     river: 12,
   };
 
-  const getDifficultyLabel = dc => {
+  const getDifficultyLabel = (dc: number) => {
     if (dc <= 10) return 'Easy';
     if (dc <= 12) return 'Moderate';
     if (dc <= 15) return 'Hard';
