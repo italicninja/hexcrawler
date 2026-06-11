@@ -1,22 +1,27 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * TreasureGenerator - Generates treasure hoards using official DMG treasure tables
  * Implements D&D 5e treasure hoard tables with CR-based scaling
  * Converts all coinage to gold and gems/art objects to gold values
  * Generates consumables (potions/scrolls) from magic item tables
+ *
+ * NOTE: The full DMG-table implementation is still stubbed (see TODO.md). The
+ * GameTableData table imports (TREASURE_HOARD_TABLES, GEMSTONE_TABLES,
+ * ART_OBJECT_TABLES, MAGIC_ITEM_TABLES, getCRBracket) will be re-added when the
+ * commented-out roll logic below is implemented.
  */
 
 import { BaseGenerator } from './BaseGenerator';
-import {
-  TREASURE_HOARD_TABLES,
-  GEMSTONE_TABLES,
-  ART_OBJECT_TABLES,
-  MAGIC_ITEM_TABLES,
-  getCRBracket,
-} from './data/GameTableData';
+
+interface TreasureHoard {
+  type: string;
+  gold: number;
+  consumables: string[];
+  rarity: string;
+}
 
 export class TreasureGenerator extends BaseGenerator {
+  COIN_TO_GOLD: Record<string, number>;
+
   constructor() {
     super();
 
@@ -31,13 +36,13 @@ export class TreasureGenerator extends BaseGenerator {
   }
 
   /**
-   * Generate treasure hoard based on CR using DMG treasure tables
-   * @param {number} cr - Challenge Rating (0-30)
-   * @param {number} partySize - Number of party members (default 4)
-   * @param {Function} random - Random function (0-1)
-   * @returns {object} { type: 'chest', gold: number, consumables: string[], rarity: string }
+   * Generate treasure hoard based on CR using DMG treasure tables.
    */
-  generateTreasureHoard(cr, partySize = 4, random = Math.random) {
+  generateTreasureHoard(
+    cr: number,
+    partySize = 4,
+    random: () => number = Math.random
+  ): TreasureHoard {
     // TODO: Replace with actual implementation once GameTableData.js is created
     // For now, return a placeholder structure
 
@@ -76,13 +81,10 @@ export class TreasureGenerator extends BaseGenerator {
   }
 
   /**
-   * Roll coins from treasure table and convert to gold
-   * @param {object} coinTable - Coin table with CP/SP/EP/GP/PP entries
-   * @param {Function} random - Random function (0-1)
-   * @returns {number} Total gold value
+   * Roll coins from treasure table and convert to gold.
    * @private
    */
-  _rollCoins(coinTable, random = Math.random) {
+  _rollCoins(coinTable: Record<string, string>, random: () => number = Math.random): number {
     let totalGold = 0;
 
     // Iterate through each coin type in the table
@@ -103,13 +105,13 @@ export class TreasureGenerator extends BaseGenerator {
   }
 
   /**
-   * Calculate gem value from treasure table
-   * @param {object} gemData - Gem data with count and value table
-   * @param {Function} random - Random function (0-1)
-   * @returns {number} Total gold value of gems
+   * Calculate gem value from treasure table.
    * @private
    */
-  _calculateGemValue(gemData, random = Math.random) {
+  _calculateGemValue(
+    gemData: { count?: string; valueTable?: string } | null,
+    random: () => number = Math.random
+  ): number {
     if (!gemData || !gemData.count) return 0;
 
     // Roll gem count
@@ -126,13 +128,13 @@ export class TreasureGenerator extends BaseGenerator {
   }
 
   /**
-   * Calculate art object value from treasure table
-   * @param {object} artData - Art object data with count and value table
-   * @param {Function} random - Random function (0-1)
-   * @returns {number} Total gold value of art objects
+   * Calculate art object value from treasure table.
    * @private
    */
-  _calculateArtValue(artData, random = Math.random) {
+  _calculateArtValue(
+    artData: { count?: string; valueTable?: string } | null,
+    random: () => number = Math.random
+  ): number {
     if (!artData || !artData.count) return 0;
 
     // Roll art object count
@@ -149,16 +151,16 @@ export class TreasureGenerator extends BaseGenerator {
   }
 
   /**
-   * Roll consumables (potions/scrolls) from magic item tables
-   * @param {object} magicItemData - Magic item table data
-   * @param {Function} random - Random function (0-1)
-   * @returns {string[]} Array of consumable item names
+   * Roll consumables (potions/scrolls) from magic item tables.
    * @private
    */
-  _rollConsumables(magicItemData, random = Math.random) {
+  _rollConsumables(
+    magicItemData: { count?: string; table?: string } | null,
+    random: () => number = Math.random
+  ): string[] {
     if (!magicItemData || !magicItemData.count) return [];
 
-    const consumables = [];
+    const consumables: string[] = [];
 
     // Roll magic item count
     const itemCount = this._parseDiceRoll(magicItemData.count, 1, random);
@@ -178,14 +180,10 @@ export class TreasureGenerator extends BaseGenerator {
   }
 
   /**
-   * Parse dice roll string and apply multiplier
-   * @param {string} diceString - Dice notation (e.g., "3d6", "1d4+2", "2d10*100")
-   * @param {number} multiplier - Multiplier for final result (default 1)
-   * @param {Function} random - Random function (0-1)
-   * @returns {number} Rolled result
+   * Parse dice roll string (e.g., "3d6", "1d4+2", "2d10*100") and apply multiplier.
    * @private
    */
-  _parseDiceRoll(diceString, multiplier = 1, random = Math.random) {
+  _parseDiceRoll(diceString: string, multiplier = 1, random: () => number = Math.random): number {
     if (!diceString) return 0;
 
     // Handle multiplier in dice string (e.g., "1d6*10")
@@ -194,7 +192,7 @@ export class TreasureGenerator extends BaseGenerator {
 
     const multMatch = diceString.match(/\*(\d+)/);
     if (multMatch) {
-      finalMultiplier *= parseInt(multMatch[1]);
+      finalMultiplier *= parseInt(multMatch[1], 10);
       cleanDiceString = diceString.replace(/\*\d+/, '');
     }
 
@@ -202,13 +200,13 @@ export class TreasureGenerator extends BaseGenerator {
     const match = cleanDiceString.match(/(\d+)d(\d+)([+-]\d+)?/);
     if (!match) {
       // If not dice notation, try to parse as integer
-      const value = parseInt(diceString);
+      const value = parseInt(diceString, 10);
       return isNaN(value) ? 0 : value * finalMultiplier;
     }
 
-    const diceCount = parseInt(match[1]);
-    const diceSides = parseInt(match[2]);
-    const modifier = match[3] ? parseInt(match[3]) : 0;
+    const diceCount = parseInt(match[1], 10);
+    const diceSides = parseInt(match[2], 10);
+    const modifier = match[3] ? parseInt(match[3], 10) : 0;
 
     // Roll dice using base class method
     const rolled = this.rollDice(diceCount, diceSides, random);
@@ -217,12 +215,10 @@ export class TreasureGenerator extends BaseGenerator {
   }
 
   /**
-   * Determine treasure rarity based on CR
-   * @param {number} cr - Challenge Rating
-   * @returns {string} Rarity tier
+   * Determine treasure rarity tier based on CR.
    * @private
    */
-  _determineRarity(cr) {
+  _determineRarity(cr: number): string {
     if (cr >= 17) return 'very rare';
     if (cr >= 11) return 'rare';
     if (cr >= 5) return 'uncommon';

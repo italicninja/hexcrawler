@@ -42,6 +42,8 @@ export interface QuestConfig {
   status?: string;
   questGiver?: string;
   location?: string;
+  /** Recommended/difficulty level for the quest (set by QuestGenerator). */
+  level?: number;
 }
 
 /**
@@ -57,6 +59,7 @@ export class Quest {
   status: string;
   questGiver: string;
   location: string;
+  level: number;
 
   constructor(config: QuestConfig = {}) {
     this.id = config.id || `quest_${Date.now()}`;
@@ -67,6 +70,7 @@ export class Quest {
     this.status = config.status || QuestStatus.AVAILABLE;
     this.questGiver = config.questGiver || 'Unknown';
     this.location = config.location || 'Unknown';
+    this.level = config.level ?? 1;
   }
 
   /**
@@ -148,6 +152,7 @@ export class Quest {
       status: this.status,
       questGiver: this.questGiver,
       location: this.location,
+      level: this.level,
     };
   }
 
@@ -165,6 +170,7 @@ export class Quest {
       status: json.status,
       questGiver: json.questGiver,
       location: json.location,
+      level: json.level,
     });
   }
 

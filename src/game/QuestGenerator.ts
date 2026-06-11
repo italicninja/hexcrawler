@@ -1,29 +1,57 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
- * QuestGenerator.js - Procedural Quest Generation System
+ * QuestGenerator - Procedural Quest Generation System
  * Part of D&D 5e Hexcrawler - Task 4.4 (Quest Givers)
  *
  * Generates quests based on character level and nearby terrain
  */
 
-import { Quest, ObjectiveType, QuestStatus } from './Quest';
+import { Quest, QuestStatus } from './Quest';
 import { DiceRoller } from './DiceRoller';
 
+interface QuestLocation {
+  col: number;
+  row: number;
+}
+
+interface EnemyEntry {
+  name: string;
+  cr: number;
+  terrains: string[];
+}
+
+interface CollectibleItem {
+  name: string;
+  level: number;
+  terrains: string[];
+}
+
+interface DeliveryItem {
+  name: string;
+  level: number;
+}
+
+interface QuestRewards {
+  xp: number;
+  gold: number;
+  items: string[];
+}
+
 export class QuestGenerator {
-  constructor(seed = null) {
+  roller: DiceRoller;
+
+  constructor(seed: string | null = null) {
     this.roller = new DiceRoller(seed);
   }
 
   /**
    * Generate a random quest
-   * @param {number} level - Character level
-   * @param {Object} location - Quest giver location {col, row}
-   * @param {string} questGiverName - Name of the quest giver
-   * @param {Array} nearbyTerrain - Array of nearby terrain types
-   * @returns {Quest}
    */
-  generateQuest(level, location, questGiverName = 'Town Elder', nearbyTerrain = []) {
+  generateQuest(
+    level: number,
+    location: QuestLocation,
+    questGiverName = 'Town Elder',
+    nearbyTerrain: string[] = []
+  ): Quest {
     const questTypes = ['kill', 'collect', 'explore', 'deliver'];
     const questType = questTypes[Math.floor(this.roller.random() * questTypes.length)];
 
@@ -51,7 +79,12 @@ export class QuestGenerator {
   /**
    * Generate a kill quest
    */
-  generateKillQuest(level, location, questGiverName, nearbyTerrain) {
+  generateKillQuest(
+    level: number,
+    location: QuestLocation,
+    questGiverName: string,
+    nearbyTerrain: string[]
+  ): Quest {
     const difficulty = level + Math.floor(this.roller.random() * 3) - 1; // ±1 level variance
     const enemy = this.selectEnemyForLevel(difficulty, nearbyTerrain);
     const count = 5 + Math.floor(difficulty * 1.5) + Math.floor(this.roller.random() * 5);
@@ -78,7 +111,12 @@ export class QuestGenerator {
   /**
    * Generate a collect quest
    */
-  generateCollectQuest(level, location, questGiverName, nearbyTerrain) {
+  generateCollectQuest(
+    level: number,
+    location: QuestLocation,
+    questGiverName: string,
+    nearbyTerrain: string[]
+  ): Quest {
     const difficulty = level + Math.floor(this.roller.random() * 3) - 1;
     const item = this.selectCollectibleItem(difficulty, nearbyTerrain);
     const count = 3 + Math.floor(this.roller.random() * 6); // 3-8 items
@@ -105,7 +143,12 @@ export class QuestGenerator {
   /**
    * Generate an explore quest
    */
-  generateExploreQuest(level, location, questGiverName, nearbyTerrain) {
+  generateExploreQuest(
+    level: number,
+    location: QuestLocation,
+    questGiverName: string,
+    nearbyTerrain: string[]
+  ): Quest {
     const difficulty = level + Math.floor(this.roller.random() * 3) - 1;
     const poiType = this.selectPOIType(nearbyTerrain);
 
@@ -131,7 +174,13 @@ export class QuestGenerator {
   /**
    * Generate a delivery quest
    */
-  generateDeliverQuest(level, location, questGiverName, nearbyTerrain) {
+  generateDeliverQuest(
+    level: number,
+    location: QuestLocation,
+    questGiverName: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    nearbyTerrain: string[]
+  ): Quest {
     const difficulty = level + Math.floor(this.roller.random() * 3) - 1;
     const item = this.selectDeliveryItem(difficulty);
     const recipient = this.generateRecipientName();
@@ -158,8 +207,8 @@ export class QuestGenerator {
   /**
    * Select enemy appropriate for level
    */
-  selectEnemyForLevel(level, nearbyTerrain = []) {
-    const enemies = {
+  selectEnemyForLevel(level: number, nearbyTerrain: string[] = []): EnemyEntry {
+    const enemies: Record<string, EnemyEntry[]> = {
       low: [
         { name: 'Goblin', cr: 0, terrains: ['forest', 'hills'] },
         { name: 'Wolf', cr: 0, terrains: ['forest', 'grassland'] },
@@ -211,8 +260,8 @@ export class QuestGenerator {
   /**
    * Select collectible item
    */
-  selectCollectibleItem(level, nearbyTerrain = []) {
-    const items = [
+  selectCollectibleItem(level: number, nearbyTerrain: string[] = []): CollectibleItem {
+    const items: CollectibleItem[] = [
       { name: 'Wolf Pelt', level: 1, terrains: ['forest', 'grassland'] },
       { name: 'Goblin Ear', level: 1, terrains: ['forest', 'hills'] },
       { name: 'Rare Herb', level: 2, terrains: ['forest', 'swamp'] },
@@ -241,7 +290,8 @@ export class QuestGenerator {
   /**
    * Select POI type for exploration
    */
-  selectPOIType(nearbyTerrain = []) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  selectPOIType(nearbyTerrain: string[] = []): string {
     const poiTypes = ['cave', 'ruins', 'tower', 'dungeon'];
     return poiTypes[Math.floor(this.roller.random() * poiTypes.length)];
   }
@@ -249,8 +299,8 @@ export class QuestGenerator {
   /**
    * Select delivery item
    */
-  selectDeliveryItem(level) {
-    const items = [
+  selectDeliveryItem(level: number): DeliveryItem {
+    const items: DeliveryItem[] = [
       { name: 'Sealed Letter', level: 1 },
       { name: 'Package of Supplies', level: 1 },
       { name: 'Valuable Artifact', level: 3 },
@@ -265,7 +315,7 @@ export class QuestGenerator {
   /**
    * Generate recipient name for delivery quests
    */
-  generateRecipientName() {
+  generateRecipientName(): string {
     const firstNames = ['Eldrin', 'Mara', 'Theron', 'Lyra', 'Gareth', 'Selene', 'Bran', 'Aria'];
     const titles = ['the Wise', 'the Brave', 'the Merchant', 'the Smith', 'the Healer'];
 
@@ -278,8 +328,9 @@ export class QuestGenerator {
   /**
    * Calculate quest rewards based on difficulty
    */
-  calculateRewards(difficulty, questType) {
-    let xpBase, goldBase;
+  calculateRewards(difficulty: number, questType: string): QuestRewards {
+    let xpBase: number;
+    let goldBase: number;
 
     // Base rewards by level
     if (difficulty <= 2) {
@@ -297,7 +348,7 @@ export class QuestGenerator {
     }
 
     // Modify by quest type
-    const typeMultipliers = {
+    const typeMultipliers: Record<string, number> = {
       kill: 1.2,
       collect: 1.0,
       explore: 1.1,
@@ -309,7 +360,7 @@ export class QuestGenerator {
     const xp = Math.floor(xpBase * multiplier * (0.8 + this.roller.random() * 0.4)); // ±20% variance
     const gold = Math.floor(goldBase * multiplier * (0.8 + this.roller.random() * 0.4));
 
-    const rewards = { xp, gold, items: [] };
+    const rewards: QuestRewards = { xp, gold, items: [] };
 
     // 20% chance of item reward
     if (this.roller.random() < 0.2) {
@@ -322,7 +373,8 @@ export class QuestGenerator {
   /**
    * Generate a reward item
    */
-  generateRewardItem(level) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  generateRewardItem(level: number): string {
     const items = [
       'Healing Potion',
       'Magic Dagger +1',
@@ -337,7 +389,7 @@ export class QuestGenerator {
   /**
    * Get kill quest title
    */
-  getKillQuestTitle(enemyName) {
+  getKillQuestTitle(enemyName: string): string {
     const templates = [
       `${enemyName} Menace`,
       `Clear the ${enemyName}s`,
@@ -351,7 +403,7 @@ export class QuestGenerator {
   /**
    * Get kill quest description
    */
-  getKillQuestDescription(enemyName, count) {
+  getKillQuestDescription(enemyName: string, count: number): string {
     const templates = [
       `A pack of ${enemyName}s has been terrorizing the area. Defeat ${count} of them to restore peace.`,
       `The local militia is overwhelmed by ${enemyName} attacks. Help them by eliminating ${count} ${enemyName}s.`,
@@ -364,7 +416,7 @@ export class QuestGenerator {
   /**
    * Get collect quest title
    */
-  getCollectQuestTitle(itemName) {
+  getCollectQuestTitle(itemName: string): string {
     const templates = [
       `Gather ${itemName}s`,
       `${itemName} Collection`,
@@ -377,7 +429,7 @@ export class QuestGenerator {
   /**
    * Get collect quest description
    */
-  getCollectQuestDescription(itemName, count) {
+  getCollectQuestDescription(itemName: string, count: number): string {
     const templates = [
       `I need ${count} ${itemName}s for my research. Bring them to me and you'll be well compensated.`,
       `The town needs ${count} ${itemName}s. Search the wilderness and return with what you find.`,
@@ -390,8 +442,8 @@ export class QuestGenerator {
   /**
    * Get explore quest title
    */
-  getExploreQuestTitle(poiType) {
-    const templates = {
+  getExploreQuestTitle(poiType: string): string {
+    const templates: Record<string, string[]> = {
       cave: ['Explore the Dark Cave', 'Mystery of the Cave', 'Cave Expedition'],
       ruins: ['Ancient Ruins Discovery', 'Explore the Ruins', 'Lost Ruins Investigation'],
       tower: ['Tower of Secrets', 'Explore the Tower', 'The Abandoned Tower'],
@@ -405,8 +457,8 @@ export class QuestGenerator {
   /**
    * Get explore quest description
    */
-  getExploreQuestDescription(poiType) {
-    const templates = {
+  getExploreQuestDescription(poiType: string): string {
+    const templates: Record<string, string> = {
       cave: 'A mysterious cave has been discovered nearby. Explore it and report what you find.',
       ruins: 'Ancient ruins hold secrets of the past. Venture inside and uncover their mysteries.',
       tower: 'An old tower stands abandoned. Investigate it and return with your findings.',
@@ -419,10 +471,15 @@ export class QuestGenerator {
   /**
    * Generate multiple quests for a town
    */
-  generateTownQuests(level, location, count = 3, nearbyTerrain = []) {
+  generateTownQuests(
+    level: number,
+    location: QuestLocation,
+    count = 3,
+    nearbyTerrain: string[] = []
+  ): Quest[] {
     const questGivers = ['Village Elder', 'Town Guard Captain', 'Local Merchant', 'Traveling Sage'];
 
-    const quests = [];
+    const quests: Quest[] = [];
     for (let i = 0; i < count; i++) {
       const questGiver = questGivers[i % questGivers.length];
       const quest = this.generateQuest(level, location, questGiver, nearbyTerrain);
