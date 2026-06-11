@@ -1,24 +1,53 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Combat.js - D&D 5e combat system
+ * Combat.ts - D&D 5e combat system
  */
 import { DiceRoller } from './DiceRoller';
-import { Character } from './Character';
-import { Enemy } from './Enemy';
 import { getHexDistance } from '../utils/hexMath';
-import { DND, COMBAT } from '../constants/gameConstants';
+import { DND } from '../constants/gameConstants';
 import { checkLineOfSight } from './LineOfSight';
 import { AbilityEffects } from './AbilityEffects';
 import { getSpell, hasSpellSlot, useSpellSlot } from './SpellManager';
 import { AIEngine } from './ai/AIEngine';
 import logger from '../utils/logger';
+import type { LogMessageType } from '../types/game';
+
+type CombatLogger = (message: string, type?: LogMessageType) => void;
+
+interface StatusEffect {
+  name: string;
+  duration?: number;
+  maxDuration?: number;
+  roundsActive?: number;
+  extendedThisTurn?: boolean;
+  effects?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+/** A combat participant — wraps a Character or Enemy with combat-time state. */
+interface Combatant {
+  id: string;
+  character: any;
+  hp: number;
+  maxHp: number;
+  isEnemy: boolean;
+  position: { col: number; row: number } | null;
+  statusEffects: StatusEffect[];
+  aiConfig?: unknown;
+  [key: string]: any;
+}
+
+interface CombatOptions {
+  logger?: CombatLogger | null;
+  canFlee?: boolean;
+  [key: string]: unknown;
+}
 
 /**
  * D&D 5e CR to XP Conversion Table
  * Maps Challenge Rating to Experience Points awarded
  */
-export const CR_TO_XP = {
+export const CR_TO_XP: Record<number, number> = {
   0: 10,
   0.125: 25, // CR 1/8
   0.25: 50, // CR 1/4
@@ -60,12 +89,33 @@ export const CR_TO_XP = {
  * @param {number} cr - Challenge Rating
  * @returns {number} XP value
  */
-export function getXPForCR(cr) {
+export function getXPForCR(cr: number): number {
   return CR_TO_XP[cr] || 0;
 }
 
 export class Combat {
-  constructor(characters, enemies, battlefield = null, options = {}) {
+  characters: any[];
+  enemies: any[];
+  allies: Combatant[];
+  enemyCombatants: Combatant[];
+  battlefield: any;
+  turnOrder: Combatant[];
+  currentTurnIndex: number;
+  logger: CombatLogger | null;
+  diceRoller: DiceRoller;
+  combatLog: string[];
+  round: number;
+  canFlee: boolean;
+  fleeAttempted: boolean;
+  fleeDC: number;
+  aiInitialized: boolean;
+
+  constructor(
+    characters: any[],
+    enemies: any[],
+    battlefield: any = null,
+    options: CombatOptions = {}
+  ) {
     // Legacy support: if battlefield is an object with canFlee property, it's actually options
     if (
       battlefield &&
@@ -159,7 +209,7 @@ export class Combat {
           name: enemy.name,
           family: enemy.family,
           variant: enemy.variant,
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
         });
 
         // Use fallback AI
@@ -187,7 +237,12 @@ export class Combat {
    * @returns {Array} Turn order (sorted by initiative)
    */
   rollInitiative() {
-    const initiatives = [];
+    const initiatives: Array<{
+      type: string;
+      combatant: any;
+      initiative: number;
+      roll: number;
+    }> = [];
 
     // Roll for characters
     this.characters.forEach(char => {
@@ -247,7 +302,7 @@ export class Combat {
    * @param {Array} turnOrder - Initiative order
    * @returns {boolean} True if combat should continue
    */
-  simulateRound(turnOrder) {
+  simulateRound(turnOrder: any[]) {
     this.round++;
     this.log(`=== ROUND ${this.round} ===`);
 
@@ -285,7 +340,7 @@ export class Combat {
   /**
    * Execute a character's turn
    */
-  executeCharacterTurn(character) {
+  executeCharacterTurn(character: any) {
     this.log(`${character.name}'s turn:`);
 
     // Find living enemies
@@ -361,7 +416,7 @@ export class Combat {
   /**
    * Execute an enemy's turn
    */
-  executeEnemyTurn(enemy) {
+  executeEnemyTurn(enemy: any) {
     this.log(`${enemy.name}'s turn:`);
 
     // Find living characters
@@ -594,7 +649,7 @@ export class Combat {
   /**
    * Add log entry
    */
-  log(message) {
+  log(message: string) {
     this.combatLog.push(message);
   }
 
@@ -608,7 +663,7 @@ export class Combat {
   /**
    * Get combat summary for UI
    */
-  getCombatSummary(result) {
+  getCombatSummary(result: any) {
     let summary = '';
 
     if (result.victory) {
@@ -622,14 +677,14 @@ export class Combat {
     summary += `Combat lasted ${result.rounds} round${result.rounds !== 1 ? 's' : ''}.\n\n`;
 
     summary += '--- Party Status ---\n';
-    result.characterStates.forEach(char => {
+    result.characterStates.forEach((char: any) => {
       const status = char.alive ? `${char.currentHP}/${char.maxHP} HP` : 'Unconscious';
       summary += `${char.name}: ${status}\n`;
     });
 
     if (result.victory) {
       summary += '\n--- Defeated Enemies ---\n';
-      result.enemyStates.forEach(enemy => {
+      result.enemyStates.forEach((enemy: any) => {
         summary += `${enemy.name}\n`;
       });
 
@@ -652,7 +707,7 @@ export class Combat {
    * @param {string} id - Combatant ID
    * @returns {object|null} Combatant or null if not found
    */
-  getCombatantById(id) {
+  getCombatantById(id: string): Combatant | null {
     return this.turnOrder.find(c => c.id === id) || null;
   }
 
@@ -662,7 +717,7 @@ export class Combat {
    * @param {string} targetId - ID of target combatant
    * @returns {object} Result {success, hit, critical, damage, message}
    */
-  processAttack(attackerId, targetId) {
+  processAttack(attackerId: string, targetId: string) {
     const attacker = this.getCombatantById(attackerId);
     const target = this.getCombatantById(targetId);
 
@@ -763,7 +818,7 @@ export class Combat {
    * @param {object} target - Target combatant
    * @returns {object} Result {hit, critical, damage, message}
    */
-  _resolveAttack(attacker, target) {
+  _resolveAttack(attacker: Combatant, target: Combatant) {
     // Support both hero combatants (attacker.character) and enemy combatants (attacker.enemy)
     const attackerChar = attacker.character || attacker.enemy;
     const targetChar = target.character || target.enemy;
@@ -881,7 +936,7 @@ export class Combat {
         attackType,
         targetAC, // use raw targetAC; disadvantage handled via rollType for hero attackers
         weaponName,
-        rollType
+        rollType as 'normal' | 'advantage' | 'disadvantage'
       );
       hit = attackResult.hit;
       critical = attackResult.crit;
@@ -916,7 +971,7 @@ export class Combat {
         // --- Rage damage bonus (PHB'24): applies to STR-based melee and unarmed attacks ---
         const attackerRage = attacker.statusEffects?.find(e => e.name === 'Rage');
         if (attackerRage && attackType === 'melee') {
-          const rageBonus = attackerRage.effects?.rageDamageBonus || 2;
+          const rageBonus = Number(attackerRage.effects?.rageDamageBonus) || 2;
           damage += rageBonus;
           // Mark rage as extended since an attack was made
           attackerRage.extendedThisTurn = true;
@@ -1017,7 +1072,7 @@ export class Combat {
    * @param {string} targetId - ID of target (optional for some abilities)
    * @returns {object} Result from AbilityEffects
    */
-  processAbility(combatantId, abilityName, targetId = null) {
+  processAbility(combatantId: string, abilityName: string, targetId: string | null = null) {
     const combatant = this.getCombatantById(combatantId);
 
     if (!combatant) {
@@ -1030,7 +1085,9 @@ export class Combat {
     const target = targetId ? this.getCombatantById(targetId) : null;
 
     // Check if combatant has the ability
-    const ability = combatant.character.abilities_list?.find(a => a.name === abilityName);
+    const ability = combatant.character.abilities_list?.find(
+      (a: any) => a.name === abilityName
+    );
 
     if (!ability) {
       return {
@@ -1048,7 +1105,7 @@ export class Combat {
     }
 
     // Execute ability
-    const result = AbilityEffects.execute(abilityName, combatant, target, this);
+    const result = AbilityEffects.execute(abilityName, combatant as any, target as any, this);
 
     // Decrement uses on the live ability object so the Redux sync below picks it up
     if (result.success && ability.maxUses !== -1 && ability.uses !== undefined) {
@@ -1066,7 +1123,12 @@ export class Combat {
    * @param {number} spellLevel - Level to cast spell at
    * @returns {object} Result from spell cast
    */
-  processSpell(combatantId, spellName, targetId = null, spellLevel = 1) {
+  processSpell(
+    combatantId: string,
+    spellName: string,
+    targetId: string | null = null,
+    spellLevel = 1
+  ) {
     const caster = this.getCombatantById(combatantId);
 
     if (!caster) {
@@ -1104,7 +1166,11 @@ export class Combat {
     }
 
     // Cast spell
-    const result = spell.cast(caster.character, target?.character || null, this.diceRoller);
+    const result = (spell.cast as (...args: any[]) => any)(
+      caster.character,
+      target?.character || null,
+      this.diceRoller
+    );
 
     // Use spell slot if not a cantrip and cast was successful
     if (result.success && !isCantrip) {
@@ -1119,7 +1185,7 @@ export class Combat {
    * @param {string} combatantId - ID of combatant taking dodge action
    * @returns {object} Result {success, message}
    */
-  processDodge(combatantId) {
+  processDodge(combatantId: string) {
     const combatant = this.getCombatantById(combatantId);
 
     if (!combatant) {
@@ -1146,7 +1212,7 @@ export class Combat {
    * @param {string} combatantId - ID of combatant taking dash action
    * @returns {object} Result {success, message}
    */
-  processDash(combatantId) {
+  processDash(combatantId: string) {
     const combatant = this.getCombatantById(combatantId);
 
     if (!combatant) {
@@ -1180,7 +1246,7 @@ export class Combat {
    *
    * @param {object} combatant - Combatant whose Rage to tick (turnOrder entry)
    */
-  tickRage(combatant) {
+  tickRage(combatant: Combatant) {
     if (!combatant.statusEffects) return;
 
     const rageEffect = combatant.statusEffects.find(e => e.name === 'Rage');
@@ -1192,7 +1258,7 @@ export class Combat {
     rageEffect.roundsActive = (rageEffect.roundsActive || 0) + 1;
 
     // Hard cap: 10 rounds maximum (10 minutes)
-    if (rageEffect.roundsActive > rageEffect.maxDuration) {
+    if (rageEffect.roundsActive > (rageEffect.maxDuration ?? Infinity)) {
       combatant.statusEffects = combatant.statusEffects.filter(e => e.name !== 'Rage');
       if (this.logger) {
         this.logger(`${name}'s Rage ends — 10-round limit reached.`, 'info');
@@ -1231,7 +1297,7 @@ export class Combat {
    * @param {string} ability - The ability being checked ('strength', 'dexterity', etc.)
    * @returns {'advantage'|'disadvantage'|'normal'}
    */
-  getRollTypeForAbilityCheck(combatant, ability) {
+  getRollTypeForAbilityCheck(combatant: Combatant, ability: string) {
     let hasAdvantage = false;
     let hasDisadvantage = false;
 
@@ -1261,7 +1327,7 @@ export class Combat {
    * @param {object} combatant - Combatant to add effect to
    * @param {object} effect - Effect object {name, duration, description}
    */
-  addStatusEffect(combatant, effect) {
+  addStatusEffect(combatant: Combatant, effect: StatusEffect) {
     if (!combatant.statusEffects) {
       combatant.statusEffects = [];
     }
@@ -1273,7 +1339,7 @@ export class Combat {
    * @param {object} combatant - Combatant to remove effect from
    * @param {string} effectName - Name of effect to remove
    */
-  removeStatusEffect(combatant, effectName) {
+  removeStatusEffect(combatant: Combatant, effectName: string) {
     if (!combatant.statusEffects) return;
     combatant.statusEffects = combatant.statusEffects.filter(e => e.name !== effectName);
   }
@@ -1282,7 +1348,7 @@ export class Combat {
    * Tick status effects (decrease duration, remove expired effects)
    * @param {object} combatant - Combatant whose effects to tick
    */
-  tickStatusEffects(combatant) {
+  tickStatusEffects(combatant: Combatant) {
     if (!combatant.statusEffects) return;
 
     combatant.statusEffects.forEach(effect => {
