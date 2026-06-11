@@ -11,7 +11,7 @@ import './InteriorHexDetails.css';
 interface HexLike {
   col: number;
   row: number;
-  terrain: { name: string; walkable?: boolean };
+  terrain: { name?: string; walkable?: boolean };
   content?: string | null;
 }
 

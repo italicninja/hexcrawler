@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ExplorationScene - Interior exploration scene for POIs (caves, dungeons, etc.)
  * Similar layout to OverworldScene but for interior hex maps
@@ -14,8 +13,20 @@ import GameLog from '../ui/GameLog';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import InteriorHexDetails from '../ui/InteriorHexDetails';
 import { DiceRoller } from '../../game/DiceRoller';
-import { formatTime, getCombatDuration, TIME_COSTS } from '../../game/TimeManager';
+import { formatTime, getCombatDuration } from '../../game/TimeManager';
 import './ExplorationScene.css';
+
+interface Coord {
+  col: number;
+  row: number;
+}
+
+interface SceneHex {
+  col: number;
+  row: number;
+  terrain: { name?: string; key?: string; walkable?: boolean };
+  content?: string | null;
+}
 
 const CLASS_ICONS: Record<string, string> = {
   fighter: '⚔️',
@@ -35,7 +46,7 @@ const CLASS_ICONS: Record<string, string> = {
 function ExplorationScene() {
   const { state, actions, dispatch } = useGameState();
   const { addMessage } = useGameLog();
-  const [selectedHex, setSelectedHex] = useState(null);
+  const [selectedHex, setSelectedHex] = useState<SceneHex | null>(null);
 
   const { currentPOI, interiorMaps } = state;
 
@@ -44,13 +55,17 @@ function ExplorationScene() {
   const interiorMap = poiKey ? interiorMaps[poiKey] : null;
 
   // Set player position to entrance when entering
-  const [playerPosition, setPlayerPosition] = useState(interiorMap?.entrance || { col: 0, row: 0 });
+  const [playerPosition, setPlayerPosition] = useState<Coord>(
+    interiorMap?.entrance || { col: 0, row: 0 }
+  );
 
   // True once the player has stepped onto the Exit Hex — enables the exit button
   const [exitReady, setExitReady] = useState(false);
 
   // Towns can exit freely; non-settlements require reaching the Exit Hex first
-  const isTown = ['town', 'village', 'city', 'metropolis', 'camp'].includes(currentPOI?.poi?.type);
+  const isTown = ['town', 'village', 'city', 'metropolis', 'camp'].includes(
+    currentPOI?.poi?.type ?? ''
+  );
   const canExitFreely = isTown;
 
   useEffect(() => {
@@ -60,12 +75,12 @@ function ExplorationScene() {
   }, [interiorMap]);
 
   // Handle hex selection
-  const handleHexClick = hex => {
+  const handleHexClick = (hex: SceneHex) => {
     setSelectedHex(hex);
   };
 
   // Handle hex movement
-  const handleHexDoubleClick = hex => {
+  const handleHexDoubleClick = (hex: SceneHex) => {
     if (!hex.terrain.walkable) {
       addMessage('Cannot move - hex is not walkable (wall or obstacle)', 'warning');
       return;
@@ -110,7 +125,7 @@ function ExplorationScene() {
   };
 
   // Handle encounter auto-trigger
-  const handleEncounterTrigger = hex => {
+  const handleEncounterTrigger = (hex: SceneHex) => {
     if (!interiorMap) return;
 
     if (!state.playerCharacter) {
@@ -177,7 +192,7 @@ function ExplorationScene() {
   };
 
   // Handle loot discovery
-  const handleLootDiscovery = hex => {
+  const handleLootDiscovery = (hex: SceneHex) => {
     if (!interiorMap) return;
 
     const loot = interiorMap.loot.find(
@@ -199,7 +214,7 @@ function ExplorationScene() {
   };
 
   // Handle hazard triggers
-  const handleHazardTrigger = hex => {
+  const handleHazardTrigger = (hex: SceneHex) => {
     if (!interiorMap) return;
 
     // Null check for player character
@@ -222,8 +237,7 @@ function ExplorationScene() {
         },
       });
       // Create dice roller with map seed for consistency
-      const diceRoller = new DiceRoller();
-      diceRoller.setSeed(`${state.mapSeed}-hazard-${hex.col}-${hex.row}`);
+      const diceRoller = new DiceRoller(`${state.mapSeed}-hazard-${hex.col}-${hex.row}`);
 
       // Roll saving throw
       const saveResult = diceRoller.savingThrow(state.playerCharacter, hazard.saveType, hazard.dc);
@@ -301,7 +315,7 @@ function ExplorationScene() {
     <div className="exploration-scene">
       {/* Left Panel */}
       <div className="left-panel">
-        <CharacterStats />
+        <CharacterStats character={state.playerCharacter} />
         <div className="equipment-panel">
           <h3>Equipment</h3>
           <p className="stub-message">Equipment system coming soon...</p>
@@ -312,7 +326,7 @@ function ExplorationScene() {
       <div className="center-panel">
         <div className="interior-header">
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <h2>{currentPOI.poi.name || 'Unknown Location'}</h2>
+            <h2>{currentPOI?.poi?.name || 'Unknown Location'}</h2>
             <div
               style={{
                 fontSize: '0.9rem',
@@ -344,9 +358,9 @@ function ExplorationScene() {
           </button>
         </div>
         <InteriorHexCanvas
-          interiorMap={interiorMap}
+          interiorMap={interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']}
           playerPosition={playerPosition}
-          playerIcon={CLASS_ICONS[state.party?.player?.class] ?? '🧍'}
+          playerIcon={CLASS_ICONS[state.party?.player?.class ?? ''] ?? '🧍'}
           selectedHex={selectedHex}
           onHexClick={handleHexClick}
           onHexDoubleClick={handleHexDoubleClick}
@@ -359,8 +373,8 @@ function ExplorationScene() {
           hex={selectedHex}
           playerPosition={playerPosition}
           interiorMap={interiorMap}
-          poiKey={poiKey}
-          onMoveToHex={hex => {
+          poiKey={poiKey ?? ''}
+          onMoveToHex={(hex: SceneHex) => {
             setPlayerPosition({ col: hex.col, row: hex.row });
             setSelectedHex(hex);
 
