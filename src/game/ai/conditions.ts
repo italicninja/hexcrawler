@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * conditions.js - AI Condition Registry
  * Functions that return true/false for behavior tree conditions
@@ -9,22 +7,51 @@ import { getHexDistance } from '../../contexts/GameStateContext';
 import { checkLineOfSight } from '../LineOfSight';
 import logger from '../../utils/logger';
 
-/**
- * Condition context passed to all condition functions
- * @typedef {Object} ConditionContext
- * @property {Object} combatant - Current combatant object
- * @property {Object} battlefield - Battlefield grid
- * @property {Array} turnOrder - All combatants in combat
- * @property {number} movementRemaining - Movement remaining this turn
- * @property {Object} params - Condition parameters from JSON
- */
+interface HexPos {
+  col: number;
+  row: number;
+}
+
+interface AIEntity {
+  specialAbilities?: Array<{ name: string; uses?: number; usesRemaining?: number }>;
+  attacks?: Array<{ range?: number }>;
+  range?: number;
+}
+
+interface AICombatant {
+  currentHP: number;
+  maxHP: number;
+  isEnemy?: boolean;
+  isAlly?: boolean;
+  position?: HexPos;
+  enemy?: AIEntity;
+  character?: AIEntity;
+}
+
+interface ConditionBattlefield {
+  height: number;
+  width?: number;
+  hexes: Array<{ col: number; row: number; blocked?: boolean }>;
+}
+
+interface ConditionParams {
+  value?: number;
+  ability?: string;
+  [key: string]: unknown;
+}
+
+export interface ConditionContext {
+  combatant: AICombatant;
+  battlefield?: ConditionBattlefield;
+  turnOrder: AICombatant[];
+  movementRemaining?: number;
+  params: ConditionParams;
+}
 
 /**
  * Check if combatant's HP is below a threshold
- * @param {ConditionContext} context
- * @returns {boolean}
  */
-export function hpBelow(context) {
+export function hpBelow(context: ConditionContext): boolean {
   const { combatant, params } = context;
   const threshold = params.value || 0.25;
   const hpPercent = combatant.currentHP / combatant.maxHP;
@@ -36,7 +63,7 @@ export function hpBelow(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function hpAbove(context) {
+export function hpAbove(context: ConditionContext): boolean {
   const { combatant, params } = context;
   const threshold = params.value || 0.75;
   const hpPercent = combatant.currentHP / combatant.maxHP;
@@ -48,17 +75,17 @@ export function hpAbove(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function hasAbility(context) {
+export function hasAbility(context: ConditionContext): boolean {
   const { combatant, params } = context;
   const enemy = combatant.enemy || combatant.character;
 
   // If specific ability name provided, check for it
   if (params.ability) {
-    return enemy.specialAbilities?.some(a => a.name === params.ability) || false;
+    return enemy?.specialAbilities?.some(a => a.name === params.ability) || false;
   }
 
   // Otherwise, check if has any abilities
-  return enemy.specialAbilities?.length > 0 || false;
+  return (enemy?.specialAbilities?.length ?? 0) > 0;
 }
 
 /**
@@ -66,13 +93,13 @@ export function hasAbility(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function abilityReady(context) {
+export function abilityReady(context: ConditionContext): boolean {
   const { combatant, params } = context;
   const enemy = combatant.enemy || combatant.character;
 
   if (!params.ability) return false;
 
-  const ability = enemy.specialAbilities?.find(a => a.name === params.ability);
+  const ability = enemy?.specialAbilities?.find(a => a.name === params.ability);
   if (!ability) return false;
 
   // If ability has uses, check if any remaining
@@ -89,7 +116,7 @@ export function abilityReady(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function randomChance(context) {
+export function randomChance(context: ConditionContext): boolean {
   const { params } = context;
   const probability = params.value || 0.5;
   return Math.random() < probability;
@@ -100,10 +127,11 @@ export function randomChance(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function inMeleeRange(context) {
+export function inMeleeRange(context: ConditionContext): boolean {
   const { combatant, turnOrder } = context;
 
-  if (!combatant.position) return false;
+  const pos = combatant.position;
+  if (!pos) return false;
 
   // Get all living enemies (opposite faction)
   const enemies = turnOrder.filter(c => {
@@ -119,8 +147,8 @@ export function inMeleeRange(context) {
     if (!enemy.position) return false;
 
     const distance = getHexDistance(
-      combatant.position.col,
-      combatant.position.row,
+      pos.col,
+      pos.row,
       enemy.position.col,
       enemy.position.row
     );
@@ -134,11 +162,12 @@ export function inMeleeRange(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function inRange(context) {
+export function inRange(context: ConditionContext): boolean {
   const { combatant, turnOrder, params } = context;
   const range = params.value || 12; // Default 12 hexes (60 feet)
 
-  if (!combatant.position) return false;
+  const pos = combatant.position;
+  if (!pos) return false;
 
   // Get all living enemies
   const enemies = turnOrder.filter(c => {
@@ -153,8 +182,8 @@ export function inRange(context) {
     if (!enemy.position) return false;
 
     const distance = getHexDistance(
-      combatant.position.col,
-      combatant.position.row,
+      pos.col,
+      pos.row,
       enemy.position.col,
       enemy.position.row
     );
@@ -168,10 +197,11 @@ export function inRange(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function hasLineOfSight(context) {
+export function hasLineOfSight(context: ConditionContext): boolean {
   const { combatant, turnOrder, battlefield } = context;
 
-  if (!combatant.position || !battlefield) return false;
+  const pos = combatant.position;
+  if (!pos || !battlefield) return false;
 
   // Get all living enemies
   const enemies = turnOrder.filter(c => {
@@ -184,7 +214,7 @@ export function hasLineOfSight(context) {
 
   return enemies.some(enemy => {
     if (!enemy.position) return false;
-    return checkLineOfSight(combatant.position, enemy.position, battlefield);
+    return checkLineOfSight(pos, enemy.position, battlefield);
   });
 }
 
@@ -193,7 +223,7 @@ export function hasLineOfSight(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function isAlly(context) {
+export function isAlly(context: ConditionContext): boolean {
   const { combatant } = context;
   return combatant.isAlly === true;
 }
@@ -203,7 +233,7 @@ export function isAlly(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function isEnemy(context) {
+export function isEnemy(context: ConditionContext): boolean {
   const { combatant } = context;
   return combatant.isEnemy === true;
 }
@@ -213,7 +243,7 @@ export function isEnemy(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function notInBackline(context) {
+export function notInBackline(context: ConditionContext): boolean {
   const { combatant, battlefield } = context;
 
   if (!combatant.position || !battlefield) return true;
@@ -228,7 +258,7 @@ export function notInBackline(context) {
  * @param {ConditionContext} context
  * @returns {boolean}
  */
-export function hasRangedAttack(context) {
+export function hasRangedAttack(context: ConditionContext): boolean {
   const { combatant } = context;
   const enemy = combatant.enemy || combatant.character;
 
@@ -240,13 +270,13 @@ export function hasRangedAttack(context) {
   }
 
   // Check enemy.range property (set by CR stat table)
-  return enemy.range > 1;
+  return (enemy.range ?? 0) > 1;
 }
 
 /**
  * Condition registry - maps condition names to functions
  */
-export const CONDITIONS = {
+export const CONDITIONS: Record<string, (context: ConditionContext) => boolean> = {
   hpBelow,
   hpAbove,
   hasAbility,
@@ -267,7 +297,7 @@ export const CONDITIONS = {
  * @param {ConditionContext} context - Condition context
  * @returns {boolean} Condition result
  */
-export function executeCondition(conditionName, context) {
+export function executeCondition(conditionName: string, context: ConditionContext): boolean {
   const condition = CONDITIONS[conditionName];
 
   if (!condition) {
