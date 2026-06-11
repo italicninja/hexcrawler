@@ -1,11 +1,45 @@
-// @ts-nocheck
 import { useGameState } from '../../contexts/GameStateContext';
 
 /**
  * InteriorInfoPane - Info panel shown when inside a POI/town
  * Displays current location info and selected hex details in dual-pane layout
  */
-function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
+interface HexTerrain {
+  name: string;
+  key?: string;
+  walkable?: boolean;
+  isInteractive?: boolean;
+}
+
+interface InteriorHex {
+  col: number;
+  row: number;
+  terrain: HexTerrain;
+  content?: string | null;
+  buildingType?: string | null;
+}
+
+interface InteriorEncounter {
+  col: number;
+  row: number;
+  cr?: number | null;
+  creatures?: string;
+  defeated?: boolean;
+  isBoss?: boolean;
+}
+
+interface InteriorMapLike {
+  hexes: InteriorHex[];
+  encounters?: InteriorEncounter[];
+}
+
+interface InteriorInfoPaneProps {
+  selectedHex?: InteriorHex | null;
+  playerPosition?: { col: number; row: number } | null;
+  interiorMap?: InteriorMapLike | null;
+}
+
+function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }: InteriorInfoPaneProps) {
   const { state, actions, dispatch } = useGameState();
 
   if (!state.currentPOI || !interiorMap || !playerPosition) {
@@ -42,7 +76,7 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
   };
 
   // Render a single hex pane
-  const renderHexPane = (displayHex, isCurrentHex) => {
+  const renderHexPane = (displayHex: InteriorHex | null | undefined, isCurrentHex: boolean) => {
     if (!displayHex) {
       return (
         <div
