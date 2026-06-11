@@ -1,17 +1,31 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * LineOfSight - Line of sight calculation for hex grid
  * Uses Bresenham's line algorithm adapted for hexagonal grids
  */
 
+interface HexCoord {
+  col: number;
+  row: number;
+}
+
+interface CubeCoord {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface BattlefieldHex extends HexCoord {
+  blocked?: boolean;
+}
+
+interface Battlefield {
+  hexes: BattlefieldHex[];
+}
+
 /**
  * Convert offset coordinates to cube coordinates
- * @param {number} col - Column coordinate
- * @param {number} row - Row coordinate
- * @returns {Object} Cube coordinates {x, y, z}
  */
-export function offsetToCube(col, row) {
+export function offsetToCube(col: number, row: number): CubeCoord {
   const x = col - Math.floor(row / 2);
   const z = row;
   const y = -x - z;
@@ -20,12 +34,9 @@ export function offsetToCube(col, row) {
 
 /**
  * Convert cube coordinates to offset coordinates
- * @param {number} x - Cube X coordinate
- * @param {number} y - Cube Y coordinate (unused but kept for completeness)
- * @param {number} z - Cube Z coordinate
- * @returns {Object} Offset coordinates {col, row}
+ * (y is unused but kept for signature completeness)
  */
-export function cubeToOffset(x, y, z) {
+export function cubeToOffset(x: number, _y: number, z: number): HexCoord {
   const row = z;
   const col = x + Math.floor(z / 2);
   return { col, row };
@@ -33,12 +44,8 @@ export function cubeToOffset(x, y, z) {
 
 /**
  * Round fractional cube coordinates to nearest hex
- * @param {number} x - Fractional cube X
- * @param {number} y - Fractional cube Y
- * @param {number} z - Fractional cube Z
- * @returns {Object} Rounded cube coordinates {x, y, z}
  */
-function cubeRound(x, y, z) {
+function cubeRound(x: number, y: number, z: number): CubeCoord {
   let rx = Math.round(x);
   let ry = Math.round(y);
   let rz = Math.round(z);
@@ -60,22 +67,15 @@ function cubeRound(x, y, z) {
 
 /**
  * Linear interpolation between two values
- * @param {number} a - Start value
- * @param {number} b - End value
- * @param {number} t - Interpolation factor (0-1)
- * @returns {number} Interpolated value
  */
-function lerp(a, b, t) {
+function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
 /**
  * Get all hexes on a line from start to end
- * @param {Object} from - Starting hex {col, row}
- * @param {Object} to - Ending hex {col, row}
- * @returns {Array} Array of hex positions [{col, row}, ...]
  */
-function getHexLine(from, to) {
+function getHexLine(from: HexCoord, to: HexCoord): HexCoord[] {
   const fromCube = offsetToCube(from.col, from.row);
   const toCube = offsetToCube(to.col, to.row);
 
@@ -92,7 +92,7 @@ function getHexLine(from, to) {
   }
 
   // Generate line
-  const results = [];
+  const results: HexCoord[] = [];
   for (let i = 0; i <= distance; i++) {
     const t = i / distance;
     const x = lerp(fromCube.x, toCube.x, t);
@@ -109,12 +109,8 @@ function getHexLine(from, to) {
 
 /**
  * Check if a target is in range using cube coordinate distance
- * @param {Object} from - Starting hex {col, row}
- * @param {Object} to - Target hex {col, row}
- * @param {number} range - Maximum range in hexes
- * @returns {boolean} True if target is in range
  */
-export function isInRange(from, to, range) {
+export function isInRange(from: HexCoord, to: HexCoord, range: number): boolean {
   const fromCube = offsetToCube(from.col, from.row);
   const toCube = offsetToCube(to.col, to.row);
 
@@ -129,17 +125,14 @@ export function isInRange(from, to, range) {
 }
 
 /**
- * Check line of sight between two hexes
- * @param {Object} from - Starting hex {col, row}
- * @param {Object} to - Target hex {col, row}
- * @param {Object} battlefield - Battlefield object with {hexes, width, height}
- * @returns {boolean} True if line of sight is clear, false if blocked
+ * Check line of sight between two hexes.
+ * Returns true if line of sight is clear, false if blocked.
  */
-export function checkLineOfSight(from, to, battlefield) {
+export function checkLineOfSight(from: HexCoord, to: HexCoord, battlefield: Battlefield): boolean {
   const { hexes } = battlefield;
 
   // Create hex lookup map
-  const hexMap = new Map();
+  const hexMap = new Map<string, BattlefieldHex>();
   hexes.forEach(hex => {
     hexMap.set(`${hex.col},${hex.row}`, hex);
   });
