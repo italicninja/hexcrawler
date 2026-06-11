@@ -38,6 +38,12 @@ export class InteriorGenerator {
         color: '#8B4513',
         walkable: true,
       },
+      exit: {
+        key: 'exit',
+        name: 'Exit',
+        color: '#2ecc71',
+        walkable: true,
+      },
       chasm: {
         key: 'chasm',
         name: 'Chasm',

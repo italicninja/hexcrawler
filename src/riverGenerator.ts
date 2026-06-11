@@ -5,6 +5,8 @@
  * Rivers flow from high elevation to low elevation (mountains to water)
  */
 
+import { getHexNeighbors } from './utils/hexMath';
+
 export class RiverGenerator {
   constructor(noise) {
     this.noise = noise;
@@ -140,41 +142,14 @@ export class RiverGenerator {
   }
 
   /**
-   * Get neighboring hexes (offset grid)
+   * Get neighboring hexes (offset grid).
+   * Delegates to the shared hexMath utility; filters to map bounds.
+   * Note: argument order is (row, col, width, height) to match existing call sites.
    */
   getNeighbors(row, col, width, height) {
-    const neighbors = [];
-    // Use Math.abs to handle negative rows correctly
-    const isOddRow = Math.abs(row % 2) === 1;
-
-    const offsets = isOddRow
-      ? [
-          [-1, 0],
-          [-1, 1], // top-left, top-right
-          [0, -1],
-          [0, 1], // left, right
-          [1, 0],
-          [1, 1], // bottom-left, bottom-right
-        ]
-      : [
-          [-1, -1],
-          [-1, 0], // top-left, top-right
-          [0, -1],
-          [0, 1], // left, right
-          [1, -1],
-          [1, 0], // bottom-left, bottom-right
-        ];
-
-    for (const [dRow, dCol] of offsets) {
-      const newRow = row + dRow;
-      const newCol = col + dCol;
-
-      if (newRow >= 0 && newRow < height && newCol >= 0 && newCol < width) {
-        neighbors.push({ row: newRow, col: newCol });
-      }
-    }
-
-    return neighbors;
+    return getHexNeighbors(col, row).filter(
+      n => n.col >= 0 && n.col < width && n.row >= 0 && n.row < height
+    );
   }
 
   /**

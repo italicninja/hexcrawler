@@ -16,6 +16,21 @@ import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import { formatTime } from '../../game/TimeManager';
 import './TownScene.css';
 
+const CLASS_ICONS: Record<string, string> = {
+  fighter: '⚔️',
+  wizard: '✨',
+  cleric: '✝️',
+  rogue: '🗡️',
+  ranger: '🏹',
+  barbarian: '🪓',
+  paladin: '🛡️',
+  druid: '🌿',
+  bard: '🎵',
+  sorcerer: '🔥',
+  warlock: '👁️',
+  monk: '👊',
+};
+
 function TownScene() {
   const { state, actions, dispatch } = useGameState();
   const { addMessage } = useGameLog();
@@ -326,6 +341,7 @@ function TownScene() {
         <InteriorHexCanvas
           interiorMap={interiorMap}
           playerPosition={playerPosition}
+          playerIcon={CLASS_ICONS[state.party?.player?.class] ?? '🧍'}
           selectedHex={selectedHex}
           onHexClick={handleHexClick}
           onHexDoubleClick={handleHexDoubleClick}

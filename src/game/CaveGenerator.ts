@@ -53,33 +53,53 @@ export class CaveGenerator extends InteriorGenerator {
   }
 
   /**
-   * Generate cave layout using cellular automata
+   * Generate cave layout using cellular automata (4-5 rule).
+   * Uses a 40% initial wall density (slightly open) for better connectivity.
    * @param {number} width
    * @param {number} height
    * @returns {Array} 2D grid
    */
   generateCaveLayout(width, height) {
-    // Initialize grid with random fill (45% walls)
     let grid = this.initializeGrid(width, height, this.terrainTypes.floor);
 
-    // Random fill
+    // Seed with 40% walls (fewer than original 45% → larger open regions)
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
-        // Edges are always walls
         if (row === 0 || row === height - 1 || col === 0 || col === width - 1) {
           grid[row][col].terrain = this.terrainTypes.wall;
         } else {
-          // 45% chance of wall
           grid[row][col].terrain =
-            this.random() < 0.45 ? this.terrainTypes.wall : this.terrainTypes.floor;
+            this.random() < 0.4 ? this.terrainTypes.wall : this.terrainTypes.floor;
         }
       }
     }
 
-    // Apply cellular automata iterations
-    const iterations = 5;
-    for (let i = 0; i < iterations; i++) {
+    // Apply cellular automata (5 iterations)
+    for (let i = 0; i < 5; i++) {
       grid = this.applyCellularAutomata(grid);
+    }
+
+    // Guarantee full connectivity — same approach as RuinsGenerator
+    const allFloor = [];
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        if (grid[row][col].terrain.walkable) allFloor.push({ col, row });
+      }
+    }
+
+    if (allFloor.length === 0) {
+      // Extreme edge case — carve a cross through the middle
+      const cy = Math.floor(height / 2);
+      const cx = Math.floor(width / 2);
+      for (let c = 1; c < width - 1; c++) grid[cy][c].terrain = this.terrainTypes.floor;
+      for (let r = 1; r < height - 1; r++) grid[r][cx].terrain = this.terrainTypes.floor;
+    } else {
+      const seed = allFloor[0];
+      const connected = this.floodFill(grid, seed.col, seed.row, h => h.terrain.walkable);
+      const orphans = allFloor.filter(t => !connected.has(`${t.col},${t.row}`));
+      for (const orphan of orphans) {
+        this.carvePath(grid, orphan, seed);
+      }
     }
 
     return grid;
@@ -204,7 +224,13 @@ export class CaveGenerator extends InteriorGenerator {
   }
 
   /**
-   * Place entrance hex
+   * Place entrance and exit hexes near the cave mouth.
+   *
+   * - Entrance (brown): where the player spawns on entry.
+   * - Exit    (green):  an adjacent walkable tile the player must reach to leave.
+   *   Placing them 1 tile apart means the player can't immediately exit, but also
+   *   doesn't need to hunt for the exit after exploring.
+   *
    * @param {Array} grid
    * @returns {object} {col, row} of entrance
    */
@@ -212,48 +238,66 @@ export class CaveGenerator extends InteriorGenerator {
     const height = grid.length;
     const width = grid[0].length;
 
-    // Find floor tiles near edges (not on edge, but close)
-    const candidates = [];
-
-    // Check tiles 1 row/col from edge
+    // Prefer tiles near the edge (row 1 or height-2, col 1 or width-2)
+    const edgeCandidates = [];
     for (let col = 1; col < width - 1; col++) {
-      // Top area
-      if (grid[1][col].terrain.walkable) {
-        candidates.push({ col, row: 1 });
-      }
-      // Bottom area
-      if (grid[height - 2][col].terrain.walkable) {
-        candidates.push({ col, row: height - 2 });
-      }
+      if (grid[1][col].terrain.walkable) edgeCandidates.push({ col, row: 1 });
+      if (grid[height - 2][col].terrain.walkable) edgeCandidates.push({ col, row: height - 2 });
+    }
+    for (let row = 2; row < height - 2; row++) {
+      if (grid[row][1].terrain.walkable) edgeCandidates.push({ col: 1, row });
+      if (grid[row][width - 2].terrain.walkable) edgeCandidates.push({ col: width - 2, row });
     }
 
-    for (let row = 1; row < height - 1; row++) {
-      // Left area
-      if (grid[row][1].terrain.walkable) {
-        candidates.push({ col: 1, row });
-      }
-      // Right area
-      if (grid[row][width - 2].terrain.walkable) {
-        candidates.push({ col: width - 2, row });
-      }
+    // Fall back to any walkable tile
+    const allWalkable = this.getWalkableTiles(grid);
+    const candidates = edgeCandidates.length > 0 ? edgeCandidates : allWalkable;
+
+    if (candidates.length === 0) {
+      // Extreme fallback — use grid center and mark it as both entrance and exit
+      const fc = { col: Math.floor(width / 2), row: Math.floor(height / 2) };
+      grid[fc.row][fc.col].terrain = this.terrainTypes.entrance;
+      grid[fc.row][fc.col].content = 'exit';
+      return fc;
     }
 
-    // Pick random candidate or fallback to center
-    let entrance;
-    if (candidates.length > 0) {
-      entrance = this.randomChoice(candidates);
-    } else {
-      // Fallback: find any floor tile
-      const floorTiles = this.getWalkableTiles(grid);
-      entrance =
-        floorTiles.length > 0
-          ? this.randomChoice(floorTiles)
-          : { col: Math.floor(width / 2), row: Math.floor(height / 2) };
-    }
-
-    // Mark as entrance
+    // Pick the entrance
+    const entrance = this.randomChoice(candidates);
     grid[entrance.row][entrance.col].terrain = this.terrainTypes.entrance;
     grid[entrance.row][entrance.col].content = 'entrance';
+
+    // Find an adjacent walkable tile for the exit (prefer cardinal neighbours)
+    const cardinalOffsets = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
+    let exitPos = null;
+    for (const { dc, dr } of cardinalOffsets) {
+      const nc = entrance.col + dc;
+      const nr = entrance.row + dr;
+      if (
+        nr > 0 &&
+        nr < height - 1 &&
+        nc > 0 &&
+        nc < width - 1 &&
+        grid[nr][nc].terrain.walkable &&
+        !grid[nr][nc].content
+      ) {
+        exitPos = { col: nc, row: nr };
+        break;
+      }
+    }
+
+    // If no adjacent tile is free, fall back to combining entrance+exit on one tile
+    if (!exitPos) {
+      grid[entrance.row][entrance.col].content = 'exit';
+      return entrance;
+    }
+
+    grid[exitPos.row][exitPos.col].terrain = this.terrainTypes.exit;
+    grid[exitPos.row][exitPos.col].content = 'exit';
 
     return entrance;
   }
@@ -388,8 +432,8 @@ export class CaveGenerator extends InteriorGenerator {
 
     const cr = interiorMap.cr;
 
-    // 20-40% of remaining floor tiles become hazards
-    const hazardPercentage = 0.2 + this.random() * 0.2;
+    // 10-20% of remaining floor tiles become hazards (reduced from 20-40% which was oppressive)
+    const hazardPercentage = 0.1 + this.random() * 0.1;
     const hazardCount = Math.floor(floorTiles.length * hazardPercentage);
 
     const hazards = [];

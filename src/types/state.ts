@@ -160,7 +160,9 @@ export interface GameState {
   inInterior: boolean;
   currentPOI: { poi: POI; col: number; row: number } | null;
   interiorMap: InteriorMap | null; // legacy field
-  interiorMaps: Record<string, InteriorMap>; // poiKey → map
+  interiorMaps: Record<string, InteriorMap>; // poiKey → map  (single-floor POIs)
+  interiorFloors: Record<string, InteriorMap>; // floorKey "col,row:N" → floor map
+  currentFloor: number; // active floor index (0 = ground)
   interiorPlayerPosition: HexCoordinates | null;
   explorationState: ExplorationState;
 

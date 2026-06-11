@@ -18,6 +18,7 @@ import { PerlinNoise } from '../../noise';
 function InteriorHexCanvas({
   interiorMap,
   playerPosition,
+  playerIcon = '🧍',
   selectedHex,
   onHexClick,
   onHexDoubleClick,
@@ -28,6 +29,7 @@ function InteriorHexCanvas({
   const [offsetY, setOffsetY] = useState(0);
   const [targetOffsetX, setTargetOffsetX] = useState(0);
   const [targetOffsetY, setTargetOffsetY] = useState(0);
+  const [hoveredHex, setHoveredHex] = useState(null);
   const animationFrameRef = useRef(null);
   const playerAnimationRef = useRef(null);
   const playerVisualPosRef = useRef(null);
@@ -124,24 +126,24 @@ function InteriorHexCanvas({
         let shouldRender = false;
 
         if (content === 'encounter') {
-          const encounter = interiorMap?.encounters?.find(
-            e => e.col === hex.col && e.row === hex.row
-          );
-          shouldRender = encounter && shouldRenderEncounter(encounter);
+          // Encounters are always visible — enemies stand in plain sight.
+          // Defeated encounters render at low opacity (handled in drawContentMarker).
+          shouldRender = true;
         } else if (content === 'hazard') {
           const hazard = interiorMap?.hazards?.find(h => h.col === hex.col && h.row === hex.row);
           shouldRender = hazard && shouldRenderHazard(hazard);
         } else if (content === 'loot' || content === 'chest') {
-          const loot = interiorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
-          shouldRender = loot && shouldRenderLoot(loot);
+          // Loot/chests are always visible — you can see the chest, you just
+          // can't collect it until you walk onto the hex.
+          shouldRender = true;
         } else {
-          // Always render non-hidden content (entrance, stairs, etc.)
+          // Always render non-hidden content (entrance, exit, stairs, etc.)
           shouldRender = true;
         }
 
         if (shouldRender) {
           const isCollected = isContentCollected(hex);
-          drawContentMarker(ctx, x, y, content, isCollected);
+          drawContentMarker(ctx, x, y, content, isCollected, hex.col, hex.row);
         }
       }
     },
@@ -156,7 +158,7 @@ function InteriorHexCanvas({
   );
 
   // Draw content marker icons
-  const drawContentMarker = (ctx, x, y, content, isCollected = false) => {
+  const drawContentMarker = (ctx, x, y, content, isCollected = false, col = 0, row = 0) => {
     ctx.save();
 
     // Gray out collected/defeated content
@@ -174,39 +176,189 @@ function InteriorHexCanvas({
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
         ctx.strokeRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize);
+        // Door knob
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath();
+        ctx.arc(x + iconSize * 0.25, y, iconSize * 0.1, 0, Math.PI * 2);
+        ctx.fill();
         break;
 
-      case 'encounter':
-        // Red/gray skull icon (gray if defeated)
-        ctx.fillStyle = isCollected ? '#666666' : '#e74c3c';
-        ctx.beginPath();
-        ctx.arc(x, y, iconSize * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        // Eye sockets
-        ctx.fillStyle = '#000';
-        ctx.beginPath();
-        ctx.arc(x - iconSize * 0.2, y - iconSize * 0.1, iconSize * 0.1, 0, Math.PI * 2);
-        ctx.arc(x + iconSize * 0.2, y - iconSize * 0.1, iconSize * 0.1, 0, Math.PI * 2);
-        ctx.fill();
+      case 'exit': {
+        // Wooden ladder leading up to the surface
+        const railColor = '#8B5E3C';
+        const railHighlight = '#C49A6C';
+        const rungColor = '#6B4423';
+        const rungHighlight = '#A0713A';
+        const railW = iconSize * 0.12;
+        const halfSpan = iconSize * 0.28;
+        const ladderTop = y - iconSize * 0.52;
+        const ladderBottom = y + iconSize * 0.48;
+
+        // Left rail
+        ctx.fillStyle = railColor;
+        ctx.fillRect(x - halfSpan - railW / 2, ladderTop, railW, ladderBottom - ladderTop);
+        // Left rail highlight
+        ctx.fillStyle = railHighlight;
+        ctx.fillRect(x - halfSpan - railW / 2, ladderTop, railW * 0.3, ladderBottom - ladderTop);
+
+        // Right rail
+        ctx.fillStyle = railColor;
+        ctx.fillRect(x + halfSpan - railW / 2, ladderTop, railW, ladderBottom - ladderTop);
+        // Right rail highlight
+        ctx.fillStyle = railHighlight;
+        ctx.fillRect(x + halfSpan - railW / 2, ladderTop, railW * 0.3, ladderBottom - ladderTop);
+
+        // Rungs (4 horizontal bars evenly spaced)
+        const rungCount = 4;
+        const rungH = iconSize * 0.09;
+        for (let i = 0; i < rungCount; i++) {
+          const rungY = ladderTop + ((ladderBottom - ladderTop) / (rungCount + 1)) * (i + 1);
+          ctx.fillStyle = rungColor;
+          ctx.fillRect(x - halfSpan - railW / 2, rungY - rungH / 2, halfSpan * 2 + railW, rungH);
+          // Rung highlight (top edge)
+          ctx.fillStyle = rungHighlight;
+          ctx.fillRect(
+            x - halfSpan - railW / 2,
+            rungY - rungH / 2,
+            halfSpan * 2 + railW,
+            rungH * 0.3
+          );
+        }
+
         break;
+      }
+
+      case 'encounter': {
+        // Look up the encounter object for extra info (CR, isBoss, defeated)
+        const enc = interiorMap?.encounters?.find(e => e.col === col && e.row === row);
+        const isBoss = enc?.isBoss === true;
+        const defeated = enc?.defeated === true || isCollected;
+        const crLabel = enc?.cr != null ? `${enc.cr}` : '?';
+
+        // Token base color: dark crimson for normal, deep purple for boss, gray for defeated
+        const tokenColor = defeated ? '#555' : isBoss ? '#6a0dad' : '#c0392b';
+        const borderColor = defeated ? '#333' : isBoss ? '#d4a0ff' : '#ff6b6b';
+
+        // ── Body (hexagon-ish circle) ───────────────────────────────────────
+        ctx.beginPath();
+        ctx.arc(x, y + iconSize * 0.1, iconSize * 0.55, 0, Math.PI * 2);
+        ctx.fillStyle = tokenColor;
+        ctx.fill();
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = defeated ? 1.5 : 2.5;
+        ctx.stroke();
+
+        // ── Head ───────────────────────────────────────────────────────────
+        ctx.beginPath();
+        ctx.arc(x, y - iconSize * 0.28, iconSize * 0.26, 0, Math.PI * 2);
+        ctx.fillStyle = tokenColor;
+        ctx.fill();
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = defeated ? 1 : 2;
+        ctx.stroke();
+
+        // ── Skull face (X eyes when defeated, dot eyes when alive) ─────────
+        if (defeated) {
+          // X eyes
+          ctx.strokeStyle = '#aaa';
+          ctx.lineWidth = 1.2;
+          for (const ox of [-0.12, 0.12]) {
+            const ex = x + iconSize * ox;
+            const ey = y - iconSize * 0.31;
+            const r = iconSize * 0.06;
+            ctx.beginPath();
+            ctx.moveTo(ex - r, ey - r);
+            ctx.lineTo(ex + r, ey + r);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(ex + r, ey - r);
+            ctx.lineTo(ex - r, ey + r);
+            ctx.stroke();
+          }
+        } else {
+          // Glowing dot eyes
+          ctx.fillStyle = isBoss ? '#d4a0ff' : '#ff9999';
+          for (const ox of [-0.12, 0.12]) {
+            ctx.beginPath();
+            ctx.arc(x + iconSize * ox, y - iconSize * 0.3, iconSize * 0.055, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // ── Boss crown ─────────────────────────────────────────────────────
+        if (isBoss && !defeated) {
+          ctx.fillStyle = '#f1c40f';
+          ctx.strokeStyle = '#b8860b';
+          ctx.lineWidth = 1;
+          const cy2 = y - iconSize * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x - iconSize * 0.22, cy2);
+          ctx.lineTo(x - iconSize * 0.22, cy2 - iconSize * 0.18);
+          ctx.lineTo(x - iconSize * 0.1, cy2 - iconSize * 0.1);
+          ctx.lineTo(x, cy2 - iconSize * 0.22);
+          ctx.lineTo(x + iconSize * 0.1, cy2 - iconSize * 0.1);
+          ctx.lineTo(x + iconSize * 0.22, cy2 - iconSize * 0.18);
+          ctx.lineTo(x + iconSize * 0.22, cy2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // ── CR badge ───────────────────────────────────────────────────────
+        if (!defeated) {
+          const badgeX = x + iconSize * 0.38;
+          const badgeY = y + iconSize * 0.48;
+          ctx.fillStyle = isBoss ? '#6a0dad' : '#c0392b';
+          ctx.strokeStyle = isBoss ? '#d4a0ff' : '#ff6b6b';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(badgeX, badgeY, iconSize * 0.22, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#fff';
+          ctx.font = `bold ${Math.max(7, iconSize * 0.22)}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(crLabel, badgeX, badgeY);
+        }
+        break;
+      }
 
       case 'loot':
-      case 'chest':
-        // Gold/gray chest icon (gray if collected)
-        ctx.fillStyle = isCollected ? '#666666' : '#f39c12';
-        ctx.fillRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize * 0.7);
-        ctx.strokeStyle = '#000';
+      case 'chest': {
+        if (!isCollected) {
+          // Glow behind chest so it stands out on dark tiles
+          ctx.shadowColor = '#f39c12';
+          ctx.shadowBlur = 10;
+        }
+        // Chest body
+        ctx.fillStyle = isCollected ? '#555' : '#8B6914';
+        ctx.fillRect(x - iconSize * 0.55, y - iconSize * 0.2, iconSize * 1.1, iconSize * 0.65);
+        // Chest lid (lighter strip on top)
+        ctx.fillStyle = isCollected ? '#666' : '#f39c12';
+        ctx.fillRect(x - iconSize * 0.55, y - iconSize * 0.35, iconSize * 1.1, iconSize * 0.22);
+        // Outline
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = isCollected ? '#444' : '#000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize * 0.7);
-        // Lock
-        ctx.fillStyle = '#333';
+        ctx.strokeRect(x - iconSize * 0.55, y - iconSize * 0.35, iconSize * 1.1, iconSize * 0.87);
+        // Dividing line between lid and body
         ctx.beginPath();
-        ctx.arc(x, y, iconSize * 0.15, 0, Math.PI * 2);
+        ctx.moveTo(x - iconSize * 0.55, y - iconSize * 0.13);
+        ctx.lineTo(x + iconSize * 0.55, y - iconSize * 0.13);
+        ctx.strokeStyle = isCollected ? '#444' : '#000';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Lock clasp (center)
+        ctx.fillStyle = isCollected ? '#888' : '#f1c40f';
+        ctx.beginPath();
+        ctx.arc(x, y - iconSize * 0.13, iconSize * 0.13, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
         break;
+      }
 
       case 'hazard':
         // Orange/gray warning triangle (gray if triggered)
@@ -309,7 +461,7 @@ function InteriorHexCanvas({
         y = playerHex.y;
       }
 
-      drawPlayerMarker(ctx, x, y, hexSize, 'P');
+      drawPlayerMarker(ctx, x, y, hexSize, playerIcon);
     },
     [hexSize, playerPosition]
   );
@@ -333,7 +485,7 @@ function InteriorHexCanvas({
     // Draw all hexes
     hexArray.forEach(hex => drawHex(ctx, hex));
 
-    // Draw selected hex outline
+    // Draw selected hex outline (blue)
     if (selectedHex) {
       const selectedHexData = hexArray.find(
         h => h.col === selectedHex.col && h.row === selectedHex.row
@@ -343,11 +495,45 @@ function InteriorHexCanvas({
       }
     }
 
+    // Draw hovered hex outline — color by content type
+    if (hoveredHex) {
+      const hoveredHexData = hexArray.find(
+        h => h.col === hoveredHex.col && h.row === hoveredHex.row
+      );
+      if (hoveredHexData) {
+        if (hoveredHex.content === 'loot' || hoveredHex.content === 'chest') {
+          drawHexOutline(ctx, hoveredHexData, '#f39c12', 3); // Gold for loot
+        } else if (hoveredHex.content === 'exit') {
+          drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.35)', 2);
+        } else if (hoveredHex.content === 'encounter') {
+          const enc = interiorMap?.encounters?.find(
+            e => e.col === hoveredHex.col && e.row === hoveredHex.row
+          );
+          if (!enc?.defeated) {
+            drawHexOutline(ctx, hoveredHexData, '#e74c3c', 3); // Red for active enemy
+          } else {
+            drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.2)', 2);
+          }
+        } else if (hoveredHex.terrain?.walkable) {
+          drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.35)', 2);
+        }
+      }
+    }
+
     // Draw player marker
     drawPlayer(ctx, hexArray);
 
     ctx.restore();
-  }, [positionedHexes, offsetX, offsetY, selectedHex, drawHex, drawHexOutline, drawPlayer]);
+  }, [
+    positionedHexes,
+    offsetX,
+    offsetY,
+    selectedHex,
+    hoveredHex,
+    drawHex,
+    drawHexOutline,
+    drawPlayer,
+  ]);
 
   // Setup canvas and handle resize
   useEffect(() => {
@@ -513,7 +699,7 @@ function InteriorHexCanvas({
     [getHexAtPoint, onHexDoubleClick]
   );
 
-  // Handle mouse move for cursor
+  // Handle mouse move for cursor and hover highlight
   const handleMouseMove = useCallback(
     e => {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -521,7 +707,22 @@ function InteriorHexCanvas({
       const y = e.clientY - rect.top;
 
       const hex = getHexAtPoint(x, y);
-      canvasRef.current.style.cursor = hex ? 'pointer' : 'default';
+      setHoveredHex(hex || null);
+
+      // Change cursor based on content
+      if (hex) {
+        if (hex.content === 'loot' || hex.content === 'chest') {
+          canvasRef.current.style.cursor = 'grab';
+        } else if (hex.content === 'exit') {
+          canvasRef.current.style.cursor = 'crosshair';
+        } else if (hex.terrain?.walkable) {
+          canvasRef.current.style.cursor = 'pointer';
+        } else {
+          canvasRef.current.style.cursor = 'not-allowed';
+        }
+      } else {
+        canvasRef.current.style.cursor = 'default';
+      }
     },
     [getHexAtPoint]
   );

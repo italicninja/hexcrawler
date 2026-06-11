@@ -7,6 +7,7 @@
  */
 
 import { getHexDistance } from './utils/hexMath';
+import { STARTING_CACHE } from './constants/gameConstants';
 
 /**
  * POI Type Definitions
@@ -23,6 +24,7 @@ export const POI_TYPES = {
   RUINS: 'ruins',
   CAVE: 'cave',
   TOWER: 'tower',
+  STARTING_CACHE: 'starting_cache',
 };
 
 /**
@@ -493,6 +495,30 @@ export class POISystem {
       cr,
       icon: 'Tower',
       color: '#34495e',
+    };
+  }
+
+  /**
+   * Generate the starting cache POI — placed on the player's spawn hex.
+   * CR 0, no real combat, contains starter gear and a clearly marked Exit Hex.
+   * The player begins the game inside this location.
+   * @param {Function} random - Seeded RNG
+   */
+  generateStartingCache(random) {
+    const name = STARTING_CACHE.NAMES[Math.floor(random() * STARTING_CACHE.NAMES.length)];
+    const description =
+      STARTING_CACHE.DESCRIPTIONS[Math.floor(random() * STARTING_CACHE.DESCRIPTIONS.length)];
+
+    return {
+      type: POI_TYPES.STARTING_CACHE,
+      name,
+      description,
+      visibleWithoutDiscovery: true,
+      eventType: 'passive',
+      cr: STARTING_CACHE.CR,
+      icon: 'Cache',
+      color: '#4a7c59',
+      isStartingLocation: true,
     };
   }
 }

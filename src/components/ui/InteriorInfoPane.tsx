@@ -8,7 +8,7 @@ import { useGameState } from '../../contexts/GameStateContext';
 function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
   const { state, actions, dispatch } = useGameState();
 
-  if (!state.currentPOI || !interiorMap) {
+  if (!state.currentPOI || !interiorMap || !playerPosition) {
     return (
       <div
         style={{
@@ -24,10 +24,14 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
 
   const { poi } = state.currentPOI;
 
-  // Get current hex player is standing on
+  // Towns exit freely; dungeons/caves/ruins/towers/starting_cache require the Exit Hex
+  const isTown = ['town', 'village', 'city', 'metropolis', 'camp'].includes(poi.type);
+
+  // Check if the player is currently standing on an Exit Hex
   const currentHex = interiorMap.hexes.find(
     h => h.col === playerPosition.col && h.row === playerPosition.row
   );
+  const onExitHex = currentHex?.terrain?.key === 'exit' || currentHex?.content === 'exit';
 
   const handleExitInterior = () => {
     if (poi.type === 'town') {
@@ -168,6 +172,67 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
             </div>
           )}
 
+          {/* Encounter info */}
+          {displayHex.content === 'encounter' &&
+            (() => {
+              const enc = interiorMap?.encounters?.find(
+                e => e.col === displayHex.col && e.row === displayHex.row
+              );
+              if (!enc) return null;
+              return (
+                <div
+                  style={{
+                    padding: '0.3rem 0.4rem',
+                    backgroundColor: enc.defeated ? 'rgba(80,80,80,0.2)' : 'rgba(231,76,60,0.15)',
+                    borderRadius: '3px',
+                    border: `1px solid ${enc.defeated ? '#555' : enc.isBoss ? '#d4a0ff' : '#e74c3c'}`,
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      color: enc.defeated ? '#888' : enc.isBoss ? '#d4a0ff' : '#e74c3c',
+                      fontWeight: '700',
+                      marginBottom: '0.2rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span>{enc.defeated ? 'Defeated' : enc.isBoss ? 'Boss' : 'Enemy'}</span>
+                    {enc.cr != null && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '0.1rem 0.35rem',
+                          borderRadius: '3px',
+                          background: enc.defeated ? '#444' : enc.isBoss ? '#6a0dad' : '#c0392b',
+                          color: '#fff',
+                        }}
+                      >
+                        CR {enc.cr}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                    {enc.creatures || 'Unknown enemy'}
+                  </div>
+                  {!enc.defeated && isCurrentHex && (
+                    <div
+                      style={{
+                        marginTop: '0.3rem',
+                        fontSize: '0.7rem',
+                        color: 'var(--text-muted)',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      Walk adjacent to engage
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
           {/* Gate info */}
           {displayHex.terrain.key === 'gate' && (
             <div
@@ -288,21 +353,25 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }) {
         {renderHexPane(selectedHex, false)}
       </div>
 
-      {/* Exit Button */}
+      {/* Exit Button — towns exit freely; non-towns require standing on the entrance/exit tile */}
       <button
-        onClick={handleExitInterior}
+        onClick={isTown || onExitHex ? handleExitInterior : undefined}
+        title={isTown || onExitHex ? `Leave ${poi.name}` : 'Return to the entrance to leave'}
         style={{
           padding: '0.5rem',
           background: 'var(--primary-color)',
           border: '1px solid var(--accent-color)',
           borderRadius: '4px',
-          color: 'var(--text-color)',
+          color: isTown || onExitHex ? 'var(--text-color)' : 'var(--text-muted)',
           fontSize: '0.8rem',
           fontWeight: 'bold',
-          cursor: 'pointer',
+          cursor: isTown || onExitHex ? 'pointer' : 'not-allowed',
+          opacity: isTown || onExitHex ? 1 : 0.45,
         }}
       >
-        ← Exit {poi.type === 'town' ? 'Town' : 'Interior'}
+        {isTown || onExitHex
+          ? `← Exit ${isTown ? 'Town' : 'Interior'}`
+          : 'Return to entrance to exit'}
       </button>
     </div>
   );

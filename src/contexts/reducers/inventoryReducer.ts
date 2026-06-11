@@ -56,11 +56,23 @@ export function inventoryReducer(
     }
 
     case ACTIONS.EQUIP_ITEM: {
-      const { item } = action.payload;
+      // Payload may be { item } (full object) or { itemId, slot } (id + slot)
+      const { item: payloadItem, itemId, slot: payloadSlot } = action.payload;
 
       if (!state.playerCharacter) return state;
 
       const character = Character.fromJSON(state.playerCharacter.toJSON());
+
+      // Resolve the item — either passed directly or looked up by id
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const item: any = payloadItem || character.inventory.find((i: any) => i.id === itemId);
+
+      if (!item) {
+        logger.items.warn('EQUIP_ITEM: item not found', { itemId, payloadItem });
+        return state;
+      }
+
+      const slot = payloadSlot || item.slot;
 
       // Remove from inventory
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,8 +81,8 @@ export function inventoryReducer(
         character.inventory.splice(index, 1);
       }
 
-      // Add to equipped
-      character.equipped[item.slot] = item;
+      // Add to equipped slot
+      character.equipment[slot] = item;
 
       return {
         ...state,
@@ -84,9 +96,9 @@ export function inventoryReducer(
       if (!state.playerCharacter) return state;
 
       const character = Character.fromJSON(state.playerCharacter.toJSON());
-      const item = character.equipped[slot];
+      const item = character.equipment[slot];
       if (item) {
-        delete character.equipped[slot];
+        delete character.equipment[slot];
         character.inventory.push(item);
       }
 

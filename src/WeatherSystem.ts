@@ -226,12 +226,15 @@ class WeatherFront {
  * WeatherSystem - Manages regional weather patterns and fronts
  */
 export class WeatherSystem {
-  constructor(regions, seed) {
+  constructor(regions, seed, mapWidth = 50, mapHeight = 30) {
     this.regions = regions;
     this.seed = seed;
     this.seedCounter = seed;
+    this.mapWidth = mapWidth;
+    this.mapHeight = mapHeight;
     this.weatherFronts = [];
     this.lastUpdateTime = 0; // Game time in hours
+    this.lastEvolutionTime = 0; // Tracks when natural weather last evolved
   }
 
   /**
@@ -337,55 +340,97 @@ export class WeatherSystem {
     // Update regional weather based on fronts
     this.updateRegionalWeather();
 
-    // Natural weather evolution every 6 hours
-    if (this.lastUpdateTime % 6 === 0) {
-      this.evolveNaturalWeather();
-    }
-
+    // Natural weather evolution every 6 hours — compare elapsed time rather
+    // than using modulo on lastUpdateTime, which breaks for non-unit step sizes.
     this.lastUpdateTime += hours;
+    if (this.lastUpdateTime - this.lastEvolutionTime >= 6) {
+      this.evolveNaturalWeather();
+      this.lastEvolutionTime = this.lastUpdateTime;
+    }
   }
 
   /**
-   * Spawn a new weather front
+   * Pick a weather front type from a region's biome weather table.
+   * This ensures fronts feel climatically appropriate for their origin region —
+   * sandstorms only spawn near deserts, blizzards near arctic/alpine, etc.
    */
-  spawnWeatherFront() {
-    // Random front type (weighted toward common weather)
-    const frontTypes = [
-      { type: 'RAIN', weight: 30 },
-      { type: 'STORM', weight: 10 },
-      { type: 'FOG', weight: 20 },
-      { type: 'WIND', weight: 15 },
-      { type: 'SNOW', weight: 10 },
-      { type: 'BLIZZARD', weight: 5 },
-      { type: 'SANDSTORM', weight: 5 },
-      { type: 'LIGHT_RAIN', weight: 25 },
-    ];
+  pickFrontTypeFromRegion(region) {
+    const weatherTable = region.biome.weatherTable;
+    const roll = this.random();
+    let cumulative = 0;
 
-    const totalWeight = frontTypes.reduce((sum, ft) => sum + ft.weight, 0);
-    let roll = this.random() * totalWeight;
-    let selectedType = 'RAIN';
-
-    for (const ft of frontTypes) {
-      roll -= ft.weight;
-      if (roll <= 0) {
-        selectedType = ft.type;
-        break;
+    for (const [weatherKey, probability] of Object.entries(weatherTable)) {
+      cumulative += probability;
+      if (roll < cumulative) {
+        // Map the biome weather key to a WEATHER_TYPES key via the same alias
+        // lookup used by rollWeatherForRegion, then return the string key for
+        // WeatherFront construction (which expects the WEATHER_TYPES key name).
+        const aliases = {
+          clear: 'CLEAR',
+          rain: 'RAIN',
+          storm: 'STORM',
+          snow: 'SNOW',
+          blizzard: 'BLIZZARD',
+          fog: 'FOG',
+          mist: 'MIST',
+          wind: 'WIND',
+          sandstorm: 'SANDSTORM',
+          heatwave: 'HEATWAVE',
+          aurora: 'AURORA',
+        };
+        const resolved = aliases[weatherKey] || weatherKey.toUpperCase();
+        // Only use types that exist as WeatherFront-capable entries (skip CLEAR/AURORA
+        // as standalone fronts — they're cosmetic and don't need a moving mass).
+        if (resolved === 'CLEAR' || resolved === 'AURORA') return 'LIGHT_RAIN';
+        return resolved;
       }
     }
+    return 'RAIN';
+  }
 
-    // Random starting position (edge of map or random region)
+  /**
+   * Find the region whose center is nearest to a given position.
+   * Used to pick a biome-appropriate front type when spawning from a map edge.
+   */
+  nearestRegionTo(col, row) {
+    let nearest = this.regions[0];
+    let minDist = Infinity;
+    for (const region of this.regions) {
+      const dx = region.centerHex.col - col;
+      const dy = region.centerHex.row - row;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = region;
+      }
+    }
+    return nearest;
+  }
+
+  /**
+   * Spawn a new weather front.
+   * Front type is drawn from the biome weather table of the region nearest to
+   * the spawn point, so fronts are always climatically coherent with their origin.
+   */
+  spawnWeatherFront() {
+    // Random starting position (edge of map or random region center)
     let position;
+    let sourceRegion;
     const spawnAtEdge = this.random() < 0.5;
 
     if (spawnAtEdge) {
-      // Spawn at map edge
+      // Spawn at map edge, then find the nearest region to determine front type
       const edge = Math.floor(this.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
       position = this.getEdgePosition(edge);
+      sourceRegion = this.nearestRegionTo(position.col, position.row);
     } else {
-      // Spawn at random region center
-      const region = this.regions[Math.floor(this.random() * this.regions.length)];
-      position = { ...region.centerHex };
+      // Spawn at a random region center — that region defines the front type
+      sourceRegion = this.regions[Math.floor(this.random() * this.regions.length)];
+      position = { ...sourceRegion.centerHex };
     }
+
+    // Pick a front type that fits the source region's climate
+    const selectedType = this.pickFrontTypeFromRegion(sourceRegion);
 
     // Random movement direction
     const angle = this.random() * Math.PI * 2;
@@ -407,6 +452,7 @@ export class WeatherSystem {
 
     logger.general.debug('Weather front spawned', {
       type: selectedType,
+      sourceBiome: sourceRegion.biome.key,
       position,
       radius,
       duration,
@@ -418,8 +464,8 @@ export class WeatherSystem {
    * Get position at map edge
    */
   getEdgePosition(edge) {
-    const width = 50; // Assume map width (will be passed properly later)
-    const height = 30; // Assume map height
+    const width = this.mapWidth;
+    const height = this.mapHeight;
 
     switch (edge) {
       case 0: // top
@@ -498,6 +544,9 @@ export class WeatherSystem {
       seed: this.seed,
       seedCounter: this.seedCounter,
       lastUpdateTime: this.lastUpdateTime,
+      lastEvolutionTime: this.lastEvolutionTime,
+      mapWidth: this.mapWidth,
+      mapHeight: this.mapHeight,
       weatherFronts: this.weatherFronts.map(front => ({
         type: front.type,
         position: front.position,
@@ -516,9 +565,15 @@ export class WeatherSystem {
    * Deserialize weather state from save
    */
   static fromJSON(data, regions) {
-    const weather = new WeatherSystem(regions, data.seed);
+    const weather = new WeatherSystem(
+      regions,
+      data.seed,
+      data.mapWidth ?? 50,
+      data.mapHeight ?? 30
+    );
     weather.seedCounter = data.seedCounter;
     weather.lastUpdateTime = data.lastUpdateTime;
+    weather.lastEvolutionTime = data.lastEvolutionTime ?? data.lastUpdateTime;
 
     // Restore weather fronts
     weather.weatherFronts = data.weatherFronts.map(

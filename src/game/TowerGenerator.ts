@@ -1,8 +1,10 @@
 // @ts-nocheck
 // TODO: Add proper TypeScript types
 /**
- * TowerGenerator - Generates vertical tower structures with multi-floor layouts
- * Extends InteriorGenerator base class
+ * TowerGenerator - Generates vertical tower structures with true per-floor layouts.
+ * Each floor is a separate grid generated on demand.
+ * Floors are circular rooms with pillars, connected by stair tiles.
+ * Extends InteriorGenerator base class.
  */
 
 import { InteriorGenerator } from './InteriorGenerator';
@@ -16,7 +18,7 @@ export class TowerGenerator extends InteriorGenerator {
     this.lootGenerator = new LootGenerator();
     this.hazardGenerator = new HazardGenerator();
 
-    // Add staircase terrain for towers
+    // Staircase terrain types
     this.terrainTypes.stairsUp = {
       key: 'stairsUp',
       name: 'Stairs Up',
@@ -33,27 +35,25 @@ export class TowerGenerator extends InteriorGenerator {
   }
 
   /**
-   * Generate a tower interior map
-   * Towers are vertical structures with 3-5 floors connected by stairs
-   * @param {number} width - Map width (total width for all floors side-by-side)
-   * @param {number} height - Map height
+   * Generate the ground floor (floor 0) of the tower.
+   * Higher floors are generated on demand via generateFloor().
+   * @param {number} width - Grid width per floor
+   * @param {number} height - Grid height per floor
    * @param {number} cr - Challenge rating
-   * @returns {object} Interior map data
+   * @returns {object} Interior map for floor 0
    */
   generate(width, height, cr) {
-    // Determine floor count based on CR (3-5 floors)
-    const floorCount = Math.min(5, Math.max(3, 3 + Math.floor(cr / 3)));
+    // Determine floor count based on CR (3-6 floors)
+    const floorCount = Math.min(6, Math.max(3, 3 + Math.floor(cr / 2)));
 
-    // Generate tower layout (floors arranged horizontally for display)
-    const grid = this.generateTowerLayout(width, height, cr, floorCount);
+    // Generate ground floor
+    const { grid, stairsUpPos } = this.generateFloorGrid(width, height, cr, 0, floorCount);
 
-    // Place entrance on ground floor
-    const entrance = this.placeEntrance(grid, floorCount);
+    // Entrance = ground-floor exit (player returns here to leave)
+    const entrance = this.placeEntranceAndExit(grid, stairsUpPos);
 
-    // Convert grid to hex array
     const hexes = this.gridToHexes(grid);
 
-    // Return interior map data structure
     return {
       seed: this.seed,
       poiType: 'tower',
@@ -61,104 +61,233 @@ export class TowerGenerator extends InteriorGenerator {
       width,
       height,
       hexes,
-      encounters: [], // Will be populated later
-      loot: [], // Will be populated later
-      hazards: [], // Will be populated later
+      encounters: [],
+      loot: [],
+      hazards: [],
       entrance,
-      floorCount, // Track number of floors
-      bossFloor: floorCount - 1, // Boss is on top floor
+      floorCount,
+      currentFloor: 0,
+      bossFloor: floorCount - 1,
     };
   }
 
   /**
-   * Generate tower layout with multiple floors
-   * Each floor is a circular/octagonal room
-   * Floors are arranged horizontally in the grid for visualization
+   * Generate a specific floor of the tower.
+   * Called by the stair-transition logic to lazily create higher floors.
    * @param {number} width
    * @param {number} height
    * @param {number} cr
-   * @param {number} floorCount
-   * @returns {Array} 2D grid
+   * @param {number} floorIndex - 0 = ground, floorCount-1 = top
+   * @param {number} floorCount - total floors
+   * @returns {object} Interior map for this floor
    */
-  generateTowerLayout(width, height, cr, floorCount) {
-    // Initialize grid with walls
-    let grid = this.initializeGrid(width, height, this.terrainTypes.wall);
+  generateFloor(width, height, cr, floorIndex, floorCount) {
+    const { grid, stairsUpPos, stairsDownPos } = this.generateFloorGrid(
+      width,
+      height,
+      cr,
+      floorIndex,
+      floorCount
+    );
 
-    // Calculate floor width (divide total width by floor count)
-    const floorWidth = Math.floor(width / floorCount);
+    // Spawn point for this floor depends on direction of travel
+    // When going UP, spawn at the stairsDown tile of this floor
+    // When going DOWN, spawn at the stairsUp tile of the floor below
+    // We store both positions in the map so the caller can choose
+    const spawnUp = stairsDownPos; // arrived from below
+    const spawnDown = stairsUpPos; // arrived from above
 
-    // Generate each floor
-    for (let floor = 0; floor < floorCount; floor++) {
-      const offsetCol = floor * floorWidth;
+    const hexes = this.gridToHexes(grid);
+    const floorCR = cr + Math.floor(floorIndex * 1.5);
 
-      // Each floor is slightly smaller/larger based on position
-      // Ground floor is largest, top floor is smallest
-      const floorSizeModifier = 1 - floor * 0.1;
-      const floorRadius = Math.floor((Math.min(floorWidth, height) / 2) * floorSizeModifier);
+    const floorMap = {
+      seed: `${this.seed}:floor${floorIndex}`,
+      poiType: 'tower',
+      cr: floorCR,
+      width,
+      height,
+      hexes,
+      encounters: [],
+      loot: [],
+      hazards: [],
+      entrance: spawnUp || spawnDown || { col: Math.floor(width / 2), row: Math.floor(height / 2) },
+      spawnUp,
+      spawnDown,
+      floorIndex,
+      floorCount,
+      bossFloor: floorCount - 1,
+    };
 
-      // Center of this floor
-      const centerCol = offsetCol + Math.floor(floorWidth / 2);
-      const centerRow = Math.floor(height / 2);
+    // Place content scaled to this floor's CR
+    floorMap.encounters = this.placeEncountersForFloor(floorMap, floorIndex, floorCount);
+    floorMap.loot = this.placeLootForFloor(floorMap, floorIndex, floorCount);
+    floorMap.hazards = this.placeHazardsForFloor(floorMap);
 
-      // Create circular floor
-      for (let row = 0; row < height; row++) {
-        for (let col = offsetCol; col < offsetCol + floorWidth; col++) {
-          if (col >= width) continue;
-
-          // Calculate distance from floor center
-          const dx = col - centerCol;
-          const dy = row - centerRow;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          if (distance <= floorRadius) {
-            grid[row][col].terrain = this.terrainTypes.floor;
-          }
-        }
-      }
-
-      // Place stairs (except on top floor)
-      if (floor < floorCount - 1) {
-        // Stairs up on this floor
-        const stairCol = centerCol + Math.floor(floorRadius * 0.5);
-        const stairRow = centerRow;
-
-        if (stairCol >= 0 && stairCol < width && stairRow >= 0 && stairRow < height) {
-          grid[stairRow][stairCol].terrain = this.terrainTypes.stairsUp;
-          grid[stairRow][stairCol].content = 'stairsUp';
-          grid[stairRow][stairCol].connectedFloor = floor + 1;
-        }
-      }
-
-      // Place stairs down (except on ground floor)
-      if (floor > 0) {
-        const stairCol = centerCol - Math.floor(floorRadius * 0.5);
-        const stairRow = centerRow;
-
-        if (stairCol >= 0 && stairCol < width && stairRow >= 0 && stairRow < height) {
-          grid[stairRow][stairCol].terrain = this.terrainTypes.stairsDown;
-          grid[stairRow][stairCol].content = 'stairsDown';
-          grid[stairRow][stairCol].connectedFloor = floor - 1;
-        }
-      }
-
-      // Add some pillars/obstacles (20% chance per floor tile)
-      this.addPillars(grid, offsetCol, offsetCol + floorWidth, 0.15);
-    }
-
-    return grid;
+    return floorMap;
   }
 
   /**
-   * Add pillars to simulate tower architecture
-   * @param {Array} grid
-   * @param {number} minCol - Minimum column to add pillars
-   * @param {number} maxCol - Maximum column to add pillars
-   * @param {number} percentage - Percentage of floor tiles to convert
+   * Build the raw 2D grid for a single tower floor.
+   * Returns the grid and positions of stair tiles placed.
    */
-  addPillars(grid, minCol, maxCol, percentage) {
+  generateFloorGrid(width, height, cr, floorIndex, floorCount) {
+    const grid = this.initializeGrid(width, height, this.terrainTypes.wall);
+
+    // Circular room — radius shrinks slightly on upper floors
+    const sizeModifier = Math.max(0.6, 1 - floorIndex * 0.08);
+    const radius = Math.floor((Math.min(width, height) / 2 - 1) * sizeModifier);
+    const centerCol = Math.floor(width / 2);
+    const centerRow = Math.floor(height / 2);
+
+    // Carve circular floor
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        const dx = col - centerCol;
+        const dy = row - centerRow;
+        if (Math.sqrt(dx * dx + dy * dy) <= radius) {
+          grid[row][col].terrain = this.terrainTypes.floor;
+        }
+      }
+    }
+
+    // Pillars (15% of interior floor tiles)
+    this.addPillars(grid, 0.15);
+
+    let stairsUpPos = null;
+    let stairsDownPos = null;
+
+    // Stairs DOWN (back to previous floor) — west side of room
+    if (floorIndex > 0) {
+      const preferredCol = Math.max(1, centerCol - Math.floor(radius * 0.55));
+      stairsDownPos = this._placeStairTile(
+        grid,
+        width,
+        height,
+        preferredCol,
+        centerRow,
+        this.terrainTypes.stairsDown,
+        'stairsDown',
+        floorIndex - 1
+      );
+    }
+
+    // Stairs UP (advance to next floor) — east side of room
+    if (floorIndex < floorCount - 1) {
+      const preferredCol = Math.min(width - 2, centerCol + Math.floor(radius * 0.55));
+      stairsUpPos = this._placeStairTile(
+        grid,
+        width,
+        height,
+        preferredCol,
+        centerRow,
+        this.terrainTypes.stairsUp,
+        'stairsUp',
+        floorIndex + 1
+      );
+    }
+
+    return { grid, stairsUpPos, stairsDownPos };
+  }
+
+  /**
+   * Place a single stair tile at the preferred position, falling back to the
+   * nearest free floor tile (by Manhattan distance) if the preferred spot is
+   * occupied or is a wall.
+   *
+   * @param {Array}  grid
+   * @param {number} width
+   * @param {number} height
+   * @param {number} preferredCol
+   * @param {number} preferredRow
+   * @param {object} terrainType   - stairsUp or stairsDown terrain object
+   * @param {string} contentKey    - 'stairsUp' or 'stairsDown'
+   * @param {number} connectedFloor
+   * @returns {{ col, row } | null}
+   */
+  _placeStairTile(
+    grid,
+    width,
+    height,
+    preferredCol,
+    preferredRow,
+    terrainType,
+    contentKey,
+    connectedFloor
+  ) {
+    // Collect all free floor tiles on this grid, ordered by distance from preferred spot
+    const candidates = [];
+    for (let row = 1; row < height - 1; row++) {
+      for (let col = 1; col < width - 1; col++) {
+        if (grid[row][col].terrain.key === 'floor' && !grid[row][col].content) {
+          candidates.push({
+            col,
+            row,
+            d: Math.abs(col - preferredCol) + Math.abs(row - preferredRow),
+          });
+        }
+      }
+    }
+
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => a.d - b.d);
+
+    const { col, row } = candidates[0];
+    grid[row][col].terrain = terrainType;
+    grid[row][col].content = contentKey;
+    grid[row][col].connectedFloor = connectedFloor;
+    return { col, row };
+  }
+
+  /**
+   * Place entrance + exit on the ground floor.
+   * The entrance is on the opposite side from the stairs up.
+   * Returns the entrance position.
+   */
+  placeEntranceAndExit(grid, stairsUpPos) {
+    const height = grid.length;
+    const width = grid[0].length;
+
+    // Find walkable tiles that are not stairs and not the center
+    const candidates = [];
+    for (let row = 1; row < height - 1; row++) {
+      for (let col = 1; col < width - 1; col++) {
+        if (grid[row][col].terrain.key === 'floor' && !grid[row][col].content) {
+          // Prefer west half (far from stairsUp which is east)
+          if (!stairsUpPos || col <= Math.floor(width / 2)) {
+            candidates.push({ col, row });
+          }
+        }
+      }
+    }
+
+    // Fallback to any walkable tile
+    if (candidates.length === 0) {
+      for (let row = 1; row < height - 1; row++) {
+        for (let col = 1; col < width - 1; col++) {
+          if (grid[row][col].terrain.key === 'floor') candidates.push({ col, row });
+        }
+      }
+    }
+
+    const entrance =
+      candidates.length > 0
+        ? this.randomChoice(candidates)
+        : { col: Math.floor(width / 2), row: Math.floor(height / 2) };
+
+    // Mark as entrance AND exit — player returns here to leave the tower
+    grid[entrance.row][entrance.col].terrain = this.terrainTypes.entrance;
+    grid[entrance.row][entrance.col].content = 'exit';
+
+    return entrance;
+  }
+
+  /**
+   * Add pillars to a single floor grid.
+   */
+  addPillars(grid, percentage) {
     const floorTiles = [];
     for (let row = 0; row < grid.length; row++) {
-      for (let col = minCol; col < maxCol && col < grid[row].length; col++) {
+      for (let col = 0; col < grid[row].length; col++) {
         if (grid[row][col].terrain.key === 'floor' && !grid[row][col].content) {
           floorTiles.push({ col, row });
         }
@@ -166,184 +295,95 @@ export class TowerGenerator extends InteriorGenerator {
     }
 
     const pillarCount = Math.floor(floorTiles.length * percentage);
-
     for (let i = 0; i < pillarCount; i++) {
       const tile = this.randomChoice(floorTiles);
-      const index = floorTiles.indexOf(tile);
-      floorTiles.splice(index, 1);
-
+      if (!tile) break;
+      floorTiles.splice(floorTiles.indexOf(tile), 1);
       grid[tile.row][tile.col].terrain = this.terrainTypes.wall;
     }
   }
 
-  /**
-   * Place entrance on ground floor (floor 0)
-   * @param {Array} grid
-   * @param {number} floorCount
-   * @returns {object} {col, row, floor} of entrance
-   */
-  placeEntrance(grid, floorCount) {
-    const height = grid.length;
-    const width = grid[0].length;
+  // ── placeEncounters / placeLoot / placeHazards (whole-map versions) ────────
+  // Used for the ground floor via the standard pipeline in useHexInteraction
 
-    // Ground floor is floor 0
-    const floorWidth = Math.floor(width / floorCount);
-
-    // Find walkable tiles on ground floor (offsetCol 0 to floorWidth)
-    const candidates = [];
-
-    for (let row = 1; row < height - 1; row++) {
-      for (let col = 1; col < Math.min(floorWidth - 1, width); col++) {
-        if (grid[row][col].terrain.walkable && !grid[row][col].content) {
-          candidates.push({ col, row, floor: 0 });
-        }
-      }
-    }
-
-    // Pick random candidate
-    let entrance;
-    if (candidates.length > 0) {
-      entrance = this.randomChoice(candidates);
-    } else {
-      // Fallback
-      entrance = {
-        col: Math.floor(floorWidth / 2),
-        row: Math.floor(height / 2),
-        floor: 0,
-      };
-    }
-
-    // Mark as entrance
-    grid[entrance.row][entrance.col].terrain = this.terrainTypes.entrance;
-    grid[entrance.row][entrance.col].content = 'entrance';
-
-    return entrance;
+  placeEncounters(interiorMap, poiData) {
+    return this.placeEncountersForFloor(interiorMap, 0, interiorMap.floorCount, poiData);
   }
 
-  /**
-   * Place encounters in the tower (one per floor, boss on top)
-   * @param {object} interiorMap - Interior map data
-   * @param {object} poiData - Original POI data
-   * @returns {Array} Array of encounter objects
-   */
-  placeEncounters(interiorMap, poiData) {
-    const floorCount = interiorMap.floorCount;
-    const floorWidth = Math.floor(interiorMap.width / floorCount);
+  placeLoot(interiorMap, partySize = 4) {
+    return this.placeLootForFloor(interiorMap, 0, interiorMap.floorCount, partySize);
+  }
 
+  placeHazards(interiorMap) {
+    return this.placeHazardsForFloor(interiorMap);
+  }
+
+  // ── Per-floor content placement ────────────────────────────────────────────
+
+  placeEncountersForFloor(interiorMap, floorIndex, floorCount, poiData = {}) {
+    const floorTiles = interiorMap.hexes.filter(h => h.terrain.walkable && h.content === null);
+    const cr = interiorMap.cr;
+    const isBossFloor = floorIndex === floorCount - 1;
+    const encounterCount = isBossFloor ? 1 : cr >= 5 ? 2 : 1;
     const encounters = [];
 
-    // Place one encounter per floor
-    for (let floor = 0; floor < floorCount; floor++) {
-      const offsetCol = floor * floorWidth;
+    for (let i = 0; i < encounterCount && floorTiles.length > 0; i++) {
+      const entrance = interiorMap.entrance;
+      const farTiles = floorTiles.filter(
+        t => this.getHexDistance(t.col, t.row, entrance.col, entrance.row) >= 3
+      );
+      const tile =
+        farTiles.length > 0 ? this.randomChoice(farTiles) : this.randomChoice(floorTiles);
+      floorTiles.splice(floorTiles.indexOf(tile), 1);
 
-      // Get floor tiles for this floor
-      const floorTiles = interiorMap.hexes.filter(hex => {
-        return (
-          hex.col >= offsetCol &&
-          hex.col < offsetCol + floorWidth &&
-          hex.terrain.walkable &&
-          hex.content === null
-        );
-      });
+      const idx = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
+      if (idx !== -1) interiorMap.hexes[idx].content = 'encounter';
 
-      if (floorTiles.length === 0) continue;
-
-      const tile = this.randomChoice(floorTiles);
-
-      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
-      if (hexIndex !== -1) {
-        interiorMap.hexes[hexIndex].content = 'encounter';
-      }
-
-      // Top floor has boss encounter
-      const isBoss = floor === floorCount - 1;
-      const encounterCR = isBoss ? Math.ceil(interiorMap.cr * 1.5) : interiorMap.cr;
-
+      const encounterCR = isBossFloor ? Math.ceil(cr * 1.5) : cr;
       encounters.push({
         col: tile.col,
         row: tile.row,
-        floor: floor,
+        floor: floorIndex,
         cr: encounterCR,
-        creatures: isBoss
+        creatures: isBossFloor
           ? `Boss: CR ${encounterCR} ${poiData.creatures || 'guardian'}`
           : poiData.creatures || `CR ${encounterCR} enemies`,
         defeated: false,
         discovered: false,
-        isBoss: isBoss,
+        isBoss: isBossFloor,
       });
     }
-
     return encounters;
   }
 
-  /**
-   * Place loot in the tower (concentrated on upper floors)
-   * @param {object} interiorMap - Interior map data
-   * @param {number} partySize - Party size for treasure hoard generation
-   * @returns {Array} Array of loot objects
-   */
-  placeLoot(interiorMap, partySize = 4) {
+  placeLootForFloor(interiorMap, floorIndex, floorCount, partySize = 4) {
+    const floorTiles = interiorMap.hexes.filter(h => h.terrain.walkable && h.content === null);
     const cr = interiorMap.cr;
-    const floorCount = interiorMap.floorCount;
-    const floorWidth = Math.floor(interiorMap.width / floorCount);
-
     // More loot on higher floors
-    const lootCount = Math.max(3, Math.floor(2 + cr * 0.7));
-
+    const lootCount = Math.max(1, Math.floor(1 + cr * 0.5 + floorIndex * 0.5));
     const treasureGenerator = new TreasureGenerator();
     const loot = [];
 
-    for (let i = 0; i < lootCount; i++) {
-      // Bias towards upper floors (70% chance of upper half)
-      const targetFloor =
-        this.random() > 0.3
-          ? Math.floor(floorCount / 2) + this.randomInt(0, Math.floor(floorCount / 2))
-          : this.randomInt(0, Math.floor(floorCount / 2) - 1);
-
-      const offsetCol = targetFloor * floorWidth;
-
-      const floorTiles = interiorMap.hexes.filter(hex => {
-        return (
-          hex.col >= offsetCol &&
-          hex.col < offsetCol + floorWidth &&
-          hex.terrain.walkable &&
-          hex.content === null
-        );
-      });
-
-      if (floorTiles.length === 0) continue;
-
+    for (let i = 0; i < lootCount && floorTiles.length > 0; i++) {
       const tile = this.randomChoice(floorTiles);
+      floorTiles.splice(floorTiles.indexOf(tile), 1);
 
-      const index = floorTiles.indexOf(tile);
-      floorTiles.splice(index, 1);
-
-      // 25% chance of treasure chest, 75% regular loot
-      const isChest = this.random() < 0.25;
-
+      const isChest = this.random() < 0.3 || floorIndex === floorCount - 1;
       let lootData;
-      let contentType;
-
       if (isChest) {
-        // Generate DMG treasure hoard
         lootData = treasureGenerator.generateTreasureHoard(cr, partySize, () => this.random());
-        contentType = 'chest';
       } else {
-        // Generate regular loot
         lootData = this.lootGenerator.generateLoot(cr, () => this.random());
-        contentType = 'loot';
       }
 
-      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
-      if (hexIndex !== -1) {
-        interiorMap.hexes[hexIndex].content = contentType;
-      }
+      const idx = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
+      if (idx !== -1) interiorMap.hexes[idx].content = isChest ? 'chest' : 'loot';
 
       loot.push({
         col: tile.col,
         row: tile.row,
-        floor: targetFloor,
-        type: contentType,
+        floor: floorIndex,
+        type: isChest ? 'chest' : 'loot',
         gold: lootData.gold,
         items: lootData.items || [],
         consumables: lootData.consumables || [],
@@ -352,50 +392,31 @@ export class TowerGenerator extends InteriorGenerator {
         discovered: false,
       });
     }
-
     return loot;
   }
 
-  /**
-   * Place hazards in the tower
-   * @param {object} interiorMap - Interior map data
-   * @returns {Array} Array of hazard objects
-   */
-  placeHazards(interiorMap) {
-    const floorTiles = interiorMap.hexes.filter(
-      hex => hex.terrain.walkable && hex.content === null
-    );
-
+  placeHazardsForFloor(interiorMap) {
+    const floorTiles = interiorMap.hexes.filter(h => h.terrain.walkable && h.content === null);
     const cr = interiorMap.cr;
-
-    // Fewer hazards in towers (10-20%)
-    const hazardPercentage = 0.1 + this.random() * 0.1;
+    const hazardPercentage = 0.08 + this.random() * 0.1;
     const hazardCount = Math.floor(floorTiles.length * hazardPercentage);
-
     const hazards = [];
 
     for (let i = 0; i < hazardCount && floorTiles.length > 0; i++) {
       const tile = this.randomChoice(floorTiles);
+      floorTiles.splice(floorTiles.indexOf(tile), 1);
 
-      const index = floorTiles.indexOf(tile);
-      floorTiles.splice(index, 1);
-
-      const hexIndex = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
-      if (hexIndex !== -1) {
-        interiorMap.hexes[hexIndex].content = 'hazard';
-      }
-
-      const generatedHazard = this.hazardGenerator.generateHazard(cr, () => this.random());
+      const idx = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
+      if (idx !== -1) interiorMap.hexes[idx].content = 'hazard';
 
       hazards.push({
         col: tile.col,
         row: tile.row,
-        ...generatedHazard,
+        ...this.hazardGenerator.generateHazard(cr, () => this.random()),
         triggered: false,
         discovered: false,
       });
     }
-
     return hazards;
   }
 }

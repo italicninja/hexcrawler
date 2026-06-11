@@ -5,9 +5,11 @@
  * - SET_ACTIVE_EVENT
  * - SEARCH_POI
  * - SET_INTERIOR_MAP
+ * - SET_INTERIOR_FLOOR
  * - SET_INTERIOR_PLAYER_POSITION
  * - ENTER_EXPLORATION
  * - EXIT_EXPLORATION
+ * - CHANGE_FLOOR
  * - DEFEAT_ENCOUNTER
  * - COLLECT_LOOT
  * - TRIGGER_HAZARD
@@ -62,6 +64,29 @@ export function explorationReducer(
       };
     }
 
+    case ACTIONS.SET_INTERIOR_FLOOR: {
+      // Store a generated floor map under key "col,row:floorIndex"
+      const { key, map } = action.payload;
+      return {
+        ...state,
+        interiorFloors: {
+          ...state.interiorFloors,
+          [key]: map,
+        },
+      };
+    }
+
+    case ACTIONS.CHANGE_FLOOR: {
+      // Switch to a different floor within the current multi-level POI.
+      // payload: { floor: number, spawnPosition: { col, row } }
+      const { floor, spawnPosition } = action.payload;
+      return {
+        ...state,
+        currentFloor: floor,
+        interiorPlayerPosition: spawnPosition,
+      };
+    }
+
     case ACTIONS.ENTER_EXPLORATION: {
       const { col, row, poi } = action.payload;
 
@@ -74,6 +99,7 @@ export function explorationReducer(
         ...state,
         inInterior: true,
         currentPOI: { col, row, poi },
+        currentFloor: 0,
         interiorPlayerPosition: entrancePos,
       };
     }
@@ -83,6 +109,7 @@ export function explorationReducer(
         ...state,
         inInterior: false,
         currentPOI: null,
+        currentFloor: 0,
         interiorPlayerPosition: null,
       };
 
@@ -205,13 +232,13 @@ export function explorationReducer(
     }
 
     case ACTIONS.DISCOVER_LOOT: {
-      const { poiKey, lootKey } = action.payload;
+      const { poiKey, lootKey, collected } = action.payload;
       const interiorMap = state.interiorMaps[poiKey];
       if (!interiorMap) return state;
 
       const updatedLoot = interiorMap.loot.map(l => {
         if (`${l.col},${l.row}` === lootKey) {
-          return { ...l, discovered: true };
+          return { ...l, discovered: true, ...(collected ? { collected: true } : {}) };
         }
         return l;
       });
@@ -246,6 +273,7 @@ export function explorationReducer(
         ...state,
         inInterior: true,
         currentPOI: { col, row, poi },
+        currentFloor: 0,
         interiorPlayerPosition: entrancePos,
       };
     }
@@ -255,6 +283,7 @@ export function explorationReducer(
         ...state,
         inInterior: false,
         currentPOI: null,
+        currentFloor: 0,
         interiorPlayerPosition: null,
       };
 

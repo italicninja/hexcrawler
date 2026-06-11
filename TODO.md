@@ -1,6 +1,6 @@
 # Hexcrawler - Consolidated TODO
 
-**Last Updated:** February 20, 2026
+**Last Updated:** February 26, 2026
 **Current Completeness:** ~92% (Core gameplay complete, TypeScript migration done)
 **Focus:** Code quality + remaining polish
 
@@ -21,53 +21,12 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 - [x] **Full combat UI** - `src/components/ui/combat/` has 11 components; no auto-resolve
 - [x] **All 12 character classes** - Fighter, Wizard, Rogue, Cleric, Paladin, Barbarian, Bard, Druid, Monk, Ranger, Sorcerer, Warlock all in `Character.ts`
 - [x] **Combat.ts audit** - No `autoResolveCombat` or `processAutoTurn` found; fully turn-based
+- [x] **24. Fix hero attack roll modifier** - `DiceRoller.ts:138` reads `character.abilities?.[ability] ?? 10`; was reading `character[ability]` (always undefined). Fixed in v0.7.1.
+- [x] **25. Add starting equipment loadouts by class** - `Character.applyStartingLoadout(className)` assigns 2024 Basic Rules starting gear per class. Fixed in v0.7.1.
 
 ---
 
 ## CRITICAL
-
-### 24. Fix Hero Attack Roll Modifier (DiceRoller Bug)
-
-**Priority:** Critical | **Time:** 30 min | **Status:** FIXED in v0.7.1
-**Source:** [D&D Beyond Basic Rules 2024](https://www.dndbeyond.com/sources/dnd/br-2024)
-
-`DiceRoller.ts` line 138 read `character[ability]` (e.g. `character.strength`) which
-is always `undefined` since abilities live at `character.abilities.strength`.
-Result: all hero attack rolls used +0 STR/DEX modifier regardless of class stats.
-
-**Fix applied:** `character.abilities?.[ability] ?? 10` in `DiceRoller.ts:138`
-
----
-
-### 25. Add Starting Equipment Loadouts by Class
-
-**Priority:** High | **Time:** 2 hours | **Status:** FIXED in v0.7.1
-**Source:** [D&D Beyond Basic Rules 2024](https://www.dndbeyond.com/sources/dnd/br-2024)
-
-Every character started with `mainHand: null` and empty inventory — no weapon caused
-`_resolveAttack` to fall back to bare `1d6` with no modifier.
-
-**Fix applied:** `Character.applyStartingLoadout(className)` called from constructor
-after `applyClassModifiers`. Assigns 2024 Basic Rules starting gear per class:
-
-| Class     | Main Hand               | Off Hand | Armor      | Notes                                 |
-| --------- | ----------------------- | -------- | ---------- | ------------------------------------- |
-| Barbarian | Handaxe 1d6 slashing    | Handaxe  | —          | Two axes, unarmored                   |
-| Fighter   | Longsword 1d8 slashing  | Shield   | Chain Mail | AC 18                                 |
-| Paladin   | Longsword 1d8 slashing  | Shield   | Chain Mail | AC 18                                 |
-| Ranger    | Shortsword 1d6 piercing | —        | Leather    | Longbow (range 30) in inventory       |
-| Rogue     | Shortsword 1d6 piercing | Dagger   | Leather    | Extra dagger in inventory             |
-| Cleric    | Mace 1d6 bludgeoning    | Shield   | Scale Mail | AC 18                                 |
-| Druid     | Quarterstaff 1d6 bludg  | —        | Leather    | Versatile (1d8 two-handed)            |
-| Bard      | Rapier 1d8 piercing     | —        | Leather    | Finesse                               |
-| Monk      | Shortsword 1d6 piercing | —        | —          | Unarmored AC 14 (DEX+WIS)             |
-| Sorcerer  | Dagger 1d4 piercing     | —        | —          | Light Crossbow in inventory           |
-| Warlock   | Light Crossbow 1d8      | —        | Leather    | Range 16 hexes (80 ft), dagger backup |
-| Wizard    | Dagger 1d4 piercing     | —        | —          |                                       |
-
-**Files:** `src/game/Character.ts` — `applyStartingLoadout()` method (~130 lines)
-
----
 
 ### 1. Remove `// @ts-nocheck` Suppressions
 
@@ -700,12 +659,27 @@ The Barbarian serves as the reference implementation. All classes share the base
 
 ---
 
+## UNTRACKED IN-CODE TODOs
+
+The following `TODO` comments exist in source files but are not yet captured as formal backlog items. Resolve or promote to a numbered item when the relevant phase begins.
+
+| File                                         | Line               | Comment                                                           | Related Item                                                                                                                           |
+| -------------------------------------------- | ------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/scenes/ExplorationScene.tsx` | 124                | `TODO: Implement full combat system`                              | Combat is in OverworldScene — this stub may be dead code; confirm and remove or wire up during item #3                                 |
+| `src/components/ui/InteriorHexDetails.tsx`   | 50                 | `TODO: Real combat system`                                        | Same as above — review during item #3 split                                                                                            |
+| `src/components/ui/RestMenu.tsx`             | 103                | `TODO: Trigger random encounter here`                             | Not tracked — add random encounter on rest as a future feature item                                                                    |
+| `src/game/EnemyMovement.ts`                  | 219, 246, 274, 310 | Enemy movement activation, pathfinding wiring, patrol loop        | System is stubbed but entirely inactive; wire up to `Pathfinding.ts → findPath()` and `handleInteriorHexDoubleClick` when activating   |
+| `src/game/TreasureGenerator.ts`              | 41–174             | 8 stub TODOs for CR bracket lookup, coin/gem/art/magic item rolls | Full treasure generation is unimplemented; partially tracked via `GameTableData.ts:828` (`TODO: Implement full magic item generation`) |
+| `src/game/data/GameTableData.ts`             | 828                | `TODO: Implement full magic item generation`                      | Promote to a numbered item when spell/item system work begins                                                                          |
+
+**Note:** The ~25 `// TODO: Add proper TypeScript types` comments across `src/game/` and `src/utils/` are intentional migration markers for item #1 (Remove `@ts-nocheck`). Leave them in place — they guide the file-by-file type work.
+
+---
+
 ## EXECUTION CHECKLIST
 
 ### Now (High Priority)
 
-- [x] 24. Fix hero attack roll modifier (DiceRoller bug) — **DONE v0.7.1**
-- [x] 25. Add starting equipment loadouts by class — **DONE v0.7.1**
 - [ ] 1. Remove `// @ts-nocheck` suppressions (file by file)
 - [ ] 2. Test save/load system thoroughly
 - [ ] 3. Split OverworldScene.tsx (1,960 lines)

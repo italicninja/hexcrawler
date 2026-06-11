@@ -116,7 +116,8 @@ export type POIType =
   | 'ruins'
   | 'tower'
   | 'shrine'
-  | 'lair';
+  | 'lair'
+  | 'starting_cache';
 
 export type EventType = 'passive' | 'active' | 'ambush';
 

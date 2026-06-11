@@ -190,11 +190,19 @@ export function gameReducer(
         activeQuests,
         completedQuests,
         shopInventories,
+        // Always ensure playerPosition is valid — old saves may not have it
+        playerPosition:
+          loadedState.playerPosition ?? state.playerPosition ?? GAME_DEFAULTS.START_POSITION,
         // Don't restore combat state
         inCombat: false,
         combat: null,
         battlefield: null,
         combatPositions: null,
+        // Don't restore interior state — regenerate fresh on next play
+        inInterior: false,
+        currentPOI: null,
+        interiorPlayerPosition: null,
+        interiorMaps: {},
       };
     }
 

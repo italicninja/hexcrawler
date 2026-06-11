@@ -105,6 +105,17 @@ export function combinedReducer(
   for (const reducer of reducers) {
     const newState = reducer(state, action, ACTIONS);
     if (newState !== null) {
+      // Safety invariant: playerPosition must never be lost
+      if (!newState.playerPosition) {
+        logger.state.error('Reducer wiped playerPosition!', {
+          action: action.type,
+          reducer: reducer.name,
+          newPlayerPosition: newState.playerPosition,
+          prevPlayerPosition: state.playerPosition,
+        });
+        // Restore it from previous state so the app doesn't crash
+        return { ...newState, playerPosition: state.playerPosition };
+      }
       return newState;
     }
   }

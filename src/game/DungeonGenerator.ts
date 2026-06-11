@@ -15,26 +15,44 @@ export class DungeonGenerator extends InteriorGenerator {
     super();
     this.lootGenerator = new LootGenerator();
     this.hazardGenerator = new HazardGenerator();
+
+    // Stair terrain types for multi-level dungeons
+    this.terrainTypes.stairsDown = {
+      key: 'stairsDown',
+      name: 'Stairs Down',
+      color: '#5a4a2a',
+      walkable: true,
+    };
+    this.terrainTypes.stairsUp = {
+      key: 'stairsUp',
+      name: 'Stairs Up',
+      color: '#6a5a3a',
+      walkable: true,
+    };
   }
 
   /**
-   * Generate a dungeon interior map using BSP algorithm
+   * Generate a dungeon interior map using BSP algorithm.
+   * CR ≥ 3 dungeons get a second "boss floor" accessible via stairsDown
+   * in the deepest room.
    * @param {number} width - Map width
    * @param {number} height - Map height
    * @param {number} cr - Challenge rating
    * @returns {object} Interior map data
    */
   generate(width, height, cr) {
-    // Generate dungeon layout using BSP
     const { grid, rooms, bossRoom } = this.generateDungeonLayout(width, height, cr);
-
-    // Place entrance in first room
     const entrance = this.placeEntrance(grid, rooms[0]);
 
-    // Convert grid to hex array
+    // For CR ≥ 3, add stairs to a separate boss floor instead of a boss room
+    const hasSecondFloor = cr >= 3 && rooms.length >= 3;
+    let stairsPos = null;
+    if (hasSecondFloor) {
+      stairsPos = this.placeBossStairs(grid, bossRoom);
+    }
+
     const hexes = this.gridToHexes(grid);
 
-    // Return interior map data structure
     return {
       seed: this.seed,
       poiType: 'dungeon',
@@ -42,13 +60,162 @@ export class DungeonGenerator extends InteriorGenerator {
       width,
       height,
       hexes,
-      encounters: [], // Will be populated later
-      loot: [], // Will be populated later
-      hazards: [], // Will be populated later
+      encounters: [],
+      loot: [],
+      hazards: [],
       entrance,
-      rooms, // Track all rooms for encounter placement
-      bossRoom, // Track boss room location
+      rooms,
+      bossRoom,
+      floorCount: hasSecondFloor ? 2 : 1,
+      floorIndex: 0,
+      stairsPos, // position of the stairs to floor 1 (null if single-floor)
     };
+  }
+
+  /**
+   * Generate the boss floor (floor 1) for a multi-level dungeon.
+   * A single large chamber with the boss encounter and rich loot.
+   */
+  generateBossFloor(width, height, cr) {
+    const grid = this.initializeGrid(width, height, this.terrainTypes.wall);
+
+    // One large central boss chamber
+    const margin = 2;
+    const chamberW = width - margin * 2;
+    const chamberH = height - margin * 2;
+    for (let row = margin; row < margin + chamberH; row++) {
+      for (let col = margin; col < margin + chamberW; col++) {
+        if (row > 0 && row < height - 1 && col > 0 && col < width - 1) {
+          grid[row][col].terrain = this.terrainTypes.floor;
+        }
+      }
+    }
+
+    // Pillar ring inside the chamber (aesthetic)
+    const cx = Math.floor(width / 2);
+    const cy = Math.floor(height / 2);
+    const pillarRad = Math.floor(Math.min(chamberW, chamberH) / 3);
+    for (let angle = 0; angle < 360; angle += 45) {
+      const rad = (angle * Math.PI) / 180;
+      const pc = Math.round(cx + Math.cos(rad) * pillarRad);
+      const pr = Math.round(cy + Math.sin(rad) * pillarRad);
+      if (pr > 0 && pr < height - 1 && pc > 0 && pc < width - 1) {
+        grid[pr][pc].terrain = this.terrainTypes.wall;
+      }
+    }
+
+    // Stairs UP back to floor 0 — near north wall
+    const stairsUpRow = margin + 1;
+    const stairsUpCol = cx;
+    if (grid[stairsUpRow] && grid[stairsUpRow][stairsUpCol]) {
+      grid[stairsUpRow][stairsUpCol].terrain = this.terrainTypes.stairsUp;
+      grid[stairsUpRow][stairsUpCol].content = 'stairsUp';
+      grid[stairsUpRow][stairsUpCol].connectedFloor = 0;
+    }
+
+    // Boss encounter marker — center of chamber
+    if (grid[cy] && grid[cy][cx]) {
+      grid[cy][cx].content = 'encounter';
+    }
+
+    const hexes = this.gridToHexes(grid);
+    const bossFloorCR = Math.ceil(cr * 1.5);
+    const spawnUp = { col: stairsUpCol, row: stairsUpRow };
+
+    const floorMap = {
+      seed: `${this.seed}:boss`,
+      poiType: 'dungeon',
+      cr: bossFloorCR,
+      width,
+      height,
+      hexes,
+      encounters: [],
+      loot: [],
+      hazards: [],
+      entrance: spawnUp,
+      spawnUp,
+      floorIndex: 1,
+      floorCount: 2,
+    };
+
+    // Boss encounter
+    floorMap.encounters = [
+      {
+        col: cx,
+        row: cy,
+        floor: 1,
+        cr: bossFloorCR,
+        creatures: `Boss: CR ${bossFloorCR} dungeon lord`,
+        defeated: false,
+        discovered: false,
+        isBoss: true,
+      },
+    ];
+
+    // Rich loot around the chamber edges
+    const treasureGenerator = new TreasureGenerator();
+    const lootCount = Math.max(2, Math.floor(2 + cr * 0.5));
+    const lootTiles = hexes.filter(h => h.terrain.walkable && h.content === null);
+    const floorLoot = [];
+    for (let i = 0; i < lootCount && lootTiles.length > 0; i++) {
+      const tile = this.randomChoice(lootTiles);
+      lootTiles.splice(lootTiles.indexOf(tile), 1);
+      const lootData = treasureGenerator.generateTreasureHoard(bossFloorCR, 4, () => this.random());
+      const idx = hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
+      if (idx !== -1) hexes[idx].content = 'chest';
+      floorLoot.push({
+        col: tile.col,
+        row: tile.row,
+        floor: 1,
+        type: 'chest',
+        gold: lootData.gold,
+        items: lootData.items || [],
+        consumables: lootData.consumables || [],
+        rarity: lootData.rarity,
+        collected: false,
+        discovered: false,
+      });
+    }
+    floorMap.loot = floorLoot;
+
+    return floorMap;
+  }
+
+  /**
+   * Place a stairsDown tile in the boss room.
+   * Tries the center first, then spirals outward through all room tiles
+   * to find a free walkable tile. Returns null only if the room is fully occupied.
+   */
+  placeBossStairs(grid, bossRoom) {
+    const stairCol = Math.floor(bossRoom.x + bossRoom.width / 2);
+    const stairRow = Math.floor(bossRoom.y + bossRoom.height / 2);
+
+    // Collect all walkable, content-free tiles inside the boss room
+    const candidates = [];
+    for (let row = bossRoom.y; row < bossRoom.y + bossRoom.height; row++) {
+      for (let col = bossRoom.x; col < bossRoom.x + bossRoom.width; col++) {
+        if (
+          row > 0 &&
+          row < grid.length - 1 &&
+          col > 0 &&
+          col < grid[0].length - 1 &&
+          grid[row][col].terrain.walkable &&
+          !grid[row][col].content
+        ) {
+          // Sort center-first by squared distance
+          candidates.push({ col, row, d: (col - stairCol) ** 2 + (row - stairRow) ** 2 });
+        }
+      }
+    }
+
+    if (candidates.length === 0) return null;
+
+    candidates.sort((a, b) => a.d - b.d);
+    const { col, row } = candidates[0];
+    grid[row][col].terrain = this.terrainTypes.stairsDown;
+    grid[row][col].content = 'stairsDown';
+    grid[row][col].connectedFloor = 1;
+    return { col, row };
   }
 
   /**
@@ -324,19 +491,25 @@ export class DungeonGenerator extends InteriorGenerator {
   }
 
   /**
-   * Place entrance in first room
+   * Place entrance and exit hex in the first room.
+   *
+   * - Entrance (brown): center of first room — where the player spawns.
+   * - Exit (green):     one tile to the left of entrance — step on to leave.
+   *
+   * Towns use a button to exit freely; dungeons/caves/ruins/towers require
+   * the player to return to this Exit Hex before they can leave.
+   *
    * @param {Array} grid
    * @param {object} firstRoom - First room object
    * @returns {object} {col, row} of entrance
    */
   placeEntrance(grid, firstRoom) {
-    // Place entrance in center of first room
+    // Entrance — center of first room
     const entrance = {
       col: Math.floor(firstRoom.x + firstRoom.width / 2),
       row: Math.floor(firstRoom.y + firstRoom.height / 2),
     };
 
-    // Mark as entrance
     if (
       entrance.row >= 0 &&
       entrance.row < grid.length &&
@@ -345,6 +518,16 @@ export class DungeonGenerator extends InteriorGenerator {
     ) {
       grid[entrance.row][entrance.col].terrain = this.terrainTypes.entrance;
       grid[entrance.row][entrance.col].content = 'entrance';
+    }
+
+    // Exit Hex — placed at the left edge of the first room, away from entrance
+    // (entrance is at center, exit is at the far left, so the player must move to leave)
+    const exitCol = firstRoom.x + 1;
+    const exitRow = entrance.row;
+
+    if (exitRow >= 0 && exitRow < grid.length && exitCol >= 0 && exitCol < grid[0].length) {
+      grid[exitRow][exitCol].terrain = this.terrainTypes.exit;
+      grid[exitRow][exitCol].content = 'exit';
     }
 
     return entrance;
@@ -369,7 +552,8 @@ export class DungeonGenerator extends InteriorGenerator {
       const centerCol = Math.floor(room.x + room.width / 2);
       const centerRow = Math.floor(room.y + room.height / 2);
 
-      // Find a walkable tile near center
+      // Find a walkable tile near center (exclude stairsDown so boss encounter
+      // doesn't land on the staircase tile placed by placeBossStairs)
       const roomTiles = interiorMap.hexes.filter(hex => {
         return (
           hex.col >= room.x &&
@@ -377,7 +561,9 @@ export class DungeonGenerator extends InteriorGenerator {
           hex.row >= room.y &&
           hex.row < room.y + room.height &&
           hex.terrain.walkable &&
-          hex.content === null
+          hex.content === null &&
+          hex.terrain.key !== 'stairsDown' &&
+          hex.terrain.key !== 'stairsUp'
         );
       });
 
@@ -390,8 +576,8 @@ export class DungeonGenerator extends InteriorGenerator {
         interiorMap.hexes[hexIndex].content = 'encounter';
       }
 
-      // Last room has boss encounter
-      const isBoss = room === bossRoom;
+      // Last room has boss encounter (only when there's no second floor with a dedicated boss)
+      const isBoss = room === bossRoom && interiorMap.floorCount === 1;
       const encounterCR = isBoss ? Math.ceil(interiorMap.cr * 1.5) : interiorMap.cr;
 
       encounters.push({

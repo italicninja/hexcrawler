@@ -1008,7 +1008,33 @@ button:active {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 70px;
+  min-height: 88px;
+  color: var(--text-muted);
+}
+
+.class-button-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.3rem;
+  opacity: 0.7;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.class-button:hover:not(.disabled) .class-button-icon {
+  opacity: 1;
+  transform: scale(1.12);
+}
+
+.class-button.selected .class-button-icon {
+  opacity: 1;
+  color: var(--accent-color);
+}
+
+.class-button.disabled .class-button-icon {
+  opacity: 0.3;
 }
 
 .class-button:hover:not(.disabled) {

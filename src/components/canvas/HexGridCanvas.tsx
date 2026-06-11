@@ -13,6 +13,22 @@ import {
 } from '../../utils/hexRenderer';
 import { PerlinNoise } from '../../noise';
 
+// Emoji icons for each character class, used on the canvas player marker
+const CLASS_ICONS: Record<string, string> = {
+  fighter: '⚔️',
+  wizard: '✨',
+  cleric: '✝️',
+  rogue: '🗡️',
+  ranger: '🏹',
+  barbarian: '🪓',
+  paladin: '🛡️',
+  druid: '🌿',
+  bard: '🎵',
+  sorcerer: '🔥',
+  warlock: '👁️',
+  monk: '👊',
+};
+
 /**
  * HexGridCanvas component - renders hex grid on canvas
  */
@@ -159,7 +175,8 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
   // Draw player marker (now receives playerVisualPosRef from animation hook)
   const drawPlayerMarker = useCallback(
     (ctx, hexes, playerVisualPosRef) => {
-      const partySize = state.party?.getSize() || 1;
+      const playerClass = state.party?.player?.class;
+      const playerIcon = CLASS_ICONS[playerClass] ?? '🧍';
       let playerX, playerY;
 
       // ALWAYS use the visual position ref
@@ -185,12 +202,11 @@ function HexGridCanvas({ hexes, width, height, onHexClick, onHexDoubleClick }) {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Draw party size indicator
-      ctx.fillStyle = '#000';
-      ctx.font = `bold ${hexSize * 0.5}px Arial`;
+      // Draw player class icon
+      ctx.font = `${hexSize * 0.55}px serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(partySize.toString(), playerX, playerY);
+      ctx.fillText(playerIcon, playerX, playerY);
     },
     [hexSize, state.playerPosition, state.party]
   );

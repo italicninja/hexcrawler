@@ -51,18 +51,35 @@ import { AIEngine } from '../../game/ai/AIEngine';
 import AIInspector from '../debug/AIInspector';
 import DevTools from '../debug/DevTools';
 
+const CLASS_ICONS: Record<string, string> = {
+  fighter: '⚔️',
+  wizard: '✨',
+  cleric: '✝️',
+  rogue: '🗡️',
+  ranger: '🏹',
+  barbarian: '🪓',
+  paladin: '🛡️',
+  druid: '🌿',
+  bard: '🎵',
+  sorcerer: '🔥',
+  warlock: '👁️',
+  monk: '👊',
+};
+
 function OverworldScene() {
   const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } =
     useGameState();
   const { settings } = useSettings();
   const { addMessage } = useGameLog();
   // const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
-  const isBlockingMovement = false;
+  const isBlockingMovement = !!state.combatState?.active;
   const [openPanel, setOpenPanel] = useState(null);
   const [showSaveMenu, setShowSaveMenu] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState(state.playerCharacter);
   const [selectedHex, setSelectedHex] = useState(null);
   const [selectedInteriorHex, setSelectedInteriorHex] = useState(null);
+  // True once the player has stepped onto an Exit Hex inside a non-town POI
+  const [interiorExitReady, setInteriorExitReady] = useState(false);
   const [viewportSize, setViewportSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -761,21 +778,60 @@ function OverworldScene() {
           handleBuildingInteraction(currentHex);
         } else if (
           currentHex &&
-          (currentHex.content === 'entrance' || currentHex.terrain.key === 'gate')
+          (currentHex.content === 'exit' ||
+            currentHex.terrain?.key === 'exit' ||
+            currentHex.terrain?.key === 'gate')
         ) {
-          // Player is on entrance/gate - exit the interior
-          // Check if current POI is a settlement (town, camp, village, etc.)
+          // Player is on the exit tile — leave the interior
           const settlementTypes = ['camp', 'village', 'town', 'city', 'metropolis'];
           const isSettlement = settlementTypes.includes(state.currentPOI?.poi?.type);
-
           if (isSettlement) {
             dispatch({ type: actions.EXIT_TOWN });
           } else {
+            setInteriorExitReady(true);
             dispatch({ type: actions.EXIT_EXPLORATION });
           }
-        } else if (state.inInterior) {
-          // Player is inside but not on exit - provide helpful message
-          addMessage('You must stand on the exit to leave this location', 'warning');
+        } else if (
+          currentHex &&
+          currentHex.content === 'entrance' &&
+          ['camp', 'village', 'town', 'city', 'metropolis'].includes(state.currentPOI?.poi?.type)
+        ) {
+          // Entrance tile only exits for towns (legacy behaviour)
+          dispatch({ type: actions.EXIT_TOWN });
+        } else if (
+          currentHex &&
+          (currentHex.content === 'loot' || currentHex.content === 'chest')
+        ) {
+          // Space bar on a loot tile — same as double-clicking it
+          const poiKey = state.currentPOI
+            ? `${state.currentPOI.col},${state.currentPOI.row}`
+            : null;
+          const currentInteriorMap = poiKey ? state.interiorMaps[poiKey] : null;
+          const lootItem = currentInteriorMap?.loot?.find(
+            l => l.col === currentHex.col && l.row === currentHex.row
+          );
+          if (lootItem && !lootItem.collected) {
+            dispatch({
+              type: actions.COLLECT_LOOT,
+              payload: { items: lootItem.items || [], gold: lootItem.gold || 0 },
+            });
+            dispatch({
+              type: actions.DISCOVER_LOOT,
+              payload: { poiKey, lootKey: `${currentHex.col},${currentHex.row}`, collected: true },
+            });
+            const parts = [];
+            if (lootItem.gold > 0) parts.push(`${lootItem.gold} gold`);
+            if (lootItem.items?.length > 0) {
+              const itemNames = lootItem.items.map(it => it.name || it).join(', ');
+              parts.push(itemNames);
+            }
+            addMessage(
+              lootItem.label
+                ? `${lootItem.label}: ${lootItem.description || parts.join(' and ')}`
+                : `You find ${parts.join(' and ')}.`,
+              'info'
+            );
+          }
         }
       } else {
         const hex = getCurrentHex();
@@ -870,7 +926,7 @@ function OverworldScene() {
     setSelectedInteriorHex(hex);
   };
 
-  const handleInteriorHexDoubleClick = hex => {
+  const handleInteriorHexDoubleClick = async hex => {
     logger.movement.debug('Interior hex double click', {
       hex,
       playerPosition: state.interiorPlayerPosition,
@@ -920,6 +976,155 @@ function OverworldScene() {
         dispatch({ type: actions.EXIT_TOWN });
       }
     }
+
+    // Check for Exit Hex (non-town POIs) — unlock the exit button
+    if (hex.terrain?.key === 'exit' || hex.content === 'exit') {
+      setInteriorExitReady(true);
+      addMessage(
+        `You reach the entrance of ${state.currentPOI?.poi?.name || 'this location'}. Click "← Exit Interior" to leave.`,
+        'info'
+      );
+      return; // Don't process loot/other content on exit tile
+    }
+
+    // ── Stair transitions ────────────────────────────────────────────────────
+    if (hex.content === 'stairsUp' || hex.content === 'stairsDown') {
+      const targetFloor = hex.connectedFloor;
+      const poiKey = state.currentPOI ? `${state.currentPOI.col},${state.currentPOI.row}` : null;
+      if (poiKey == null || targetFloor == null) return;
+
+      // Use a consistent "floor{N}" key format for all floors, including floor 0
+      const floorKey = `${poiKey}:floor${targetFloor}`;
+      let targetMap = state.interiorFloors?.[floorKey];
+
+      // Before leaving the current floor, cache it if not already cached so we
+      // can return to it later without regenerating (floor 0 lives in interiorMaps[poiKey]
+      // initially, upper floors are generated lazily).
+      const currentFloorIndex = state.currentFloor ?? 0;
+      const currentFloorKey = `${poiKey}:floor${currentFloorIndex}`;
+      if (!state.interiorFloors?.[currentFloorKey]) {
+        const currentFloorMap = state.interiorMaps[poiKey];
+        if (currentFloorMap) {
+          dispatch({
+            type: actions.SET_INTERIOR_FLOOR,
+            payload: { key: currentFloorKey, map: currentFloorMap },
+          });
+        }
+      }
+
+      if (!targetMap) {
+        // Lazily generate this floor
+        const poi = state.currentPOI.poi;
+        const currentMap = state.interiorMaps[poiKey];
+        const cr = currentMap?.cr || poi?.cr || 1;
+        const width = currentMap?.width || 20;
+        const height = currentMap?.height || 15;
+
+        try {
+          if (poi.type === 'tower') {
+            const { TowerGenerator } = await import('../../game/TowerGenerator');
+            const gen = new TowerGenerator();
+            gen.setSeed(`${poiKey}:floor${targetFloor}-${state.mapSeed}`);
+            targetMap = gen.generateFloor(
+              width,
+              height,
+              cr,
+              targetFloor,
+              currentMap?.floorCount || 6
+            );
+          } else if (poi.type === 'dungeon') {
+            const { DungeonGenerator } = await import('../../game/DungeonGenerator');
+            const gen = new DungeonGenerator();
+            gen.setSeed(`${poiKey}:boss-${state.mapSeed}`);
+            targetMap = gen.generateBossFloor(width, height, cr);
+          }
+
+          if (targetMap) {
+            dispatch({
+              type: actions.SET_INTERIOR_FLOOR,
+              payload: { key: floorKey, map: targetMap },
+            });
+          }
+        } catch (err) {
+          addMessage('Could not generate next floor.', 'error');
+          return;
+        }
+      }
+
+      if (!targetMap) return;
+
+      // Determine spawn position on the target floor.
+      // Going UP   → player arrives at stairsDown (came from below).
+      // Going DOWN → player arrives at stairsUp   (came from above).
+      const goingUp = hex.content === 'stairsUp';
+      const spawnPos = goingUp
+        ? targetMap.spawnUp || targetMap.entrance
+        : targetMap.spawnDown || targetMap.entrance;
+
+      addMessage(
+        goingUp
+          ? `You ascend to floor ${targetFloor + 1}...`
+          : `You descend to floor ${targetFloor + 1}...`,
+        'info'
+      );
+
+      dispatch({
+        type: actions.CHANGE_FLOOR,
+        payload: { floor: targetFloor, spawnPosition: spawnPos },
+      });
+
+      // Swap which interior map is "active" so the canvas renders the new floor.
+      // interiorMaps[poiKey] is the "live" map the renderer reads from;
+      // we temporarily overwrite it with the target floor map.
+      dispatch({
+        type: actions.SET_INTERIOR_MAP,
+        payload: { key: poiKey, map: targetMap },
+      });
+
+      return;
+    }
+
+    // Check for loot / chest — collect it
+    if (hex.content === 'loot' || hex.content === 'chest') {
+      const poiKey = state.currentPOI ? `${state.currentPOI.col},${state.currentPOI.row}` : null;
+      const currentInteriorMap = poiKey ? state.interiorMaps[poiKey] : null;
+      const lootItem = currentInteriorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
+
+      if (lootItem && !lootItem.collected) {
+        // Collect the loot
+        dispatch({
+          type: actions.COLLECT_LOOT,
+          payload: {
+            items: lootItem.items || [],
+            gold: lootItem.gold || 0,
+          },
+        });
+
+        // Mark as collected in the interior map (grays out the chest icon)
+        dispatch({
+          type: actions.DISCOVER_LOOT,
+          payload: {
+            poiKey,
+            lootKey: `${hex.col},${hex.row}`,
+            collected: true,
+          },
+        });
+
+        // Feedback message
+        const parts = [];
+        if (lootItem.gold > 0) parts.push(`${lootItem.gold} gold`);
+        if (lootItem.items?.length > 0) {
+          const itemNames = lootItem.items.map(it => it.name || it).join(', ');
+          parts.push(itemNames);
+        }
+        addMessage(
+          lootItem.label
+            ? `${lootItem.label}: ${lootItem.description || parts.join(' and ')}`
+            : `You find ${parts.join(' and ')}.`,
+          'info'
+        );
+      }
+    }
   };
 
   // Handle building interactions in towns
@@ -944,10 +1149,11 @@ function OverworldScene() {
     }
   };
 
-  // Get interior map if in interior
+  // Get interior map if in interior — use optional chaining so undefined currentPOI
+  // never crashes during a React batch render where inInterior flips before currentPOI is set
   const interiorMap =
-    state.inInterior && state.currentPOI
-      ? state.interiorMaps[`${state.currentPOI.col},${state.currentPOI.row}`]
+    state.inInterior && state.currentPOI?.col !== undefined
+      ? (state.interiorMaps[`${state.currentPOI.col},${state.currentPOI.row}`] ?? null)
       : null;
 
   // Check foraging status for indicator
@@ -1602,6 +1808,27 @@ function OverworldScene() {
     return state.combatState.turnOrder[state.combatState.currentTurnIndex];
   };
 
+  // Guard: if we're transitioning into an interior but the position/map isn't
+  // ready yet (can happen on the first render after ENTER_EXPLORATION fires),
+  // show a brief loading state rather than crashing on null.col access.
+  if (state.inInterior && (!state.interiorPlayerPosition || !state.currentPOI)) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          backgroundColor: 'var(--color-bg)',
+          color: 'var(--color-text)',
+          fontSize: '1.2rem',
+        }}
+      >
+        Loading interior...
+      </div>
+    );
+  }
+
   return (
     <div
       className="game-container"
@@ -1688,7 +1915,7 @@ function OverworldScene() {
             </div>
           )}
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Position: ({state.playerPosition.col}, {state.playerPosition.row})
+            Position: ({state.playerPosition?.col ?? '?'}, {state.playerPosition?.row ?? '?'})
           </div>
         </div>
       </div>
@@ -1744,6 +1971,7 @@ function OverworldScene() {
             <InteriorHexCanvas
               interiorMap={interiorMap}
               playerPosition={state.interiorPlayerPosition}
+              playerIcon={CLASS_ICONS[state.party?.player?.class] ?? '🧍'}
               selectedHex={selectedInteriorHex}
               onHexClick={handleInteriorHexClick}
               onHexDoubleClick={handleInteriorHexDoubleClick}

@@ -168,9 +168,8 @@ export function drawPlayerMarker(
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Draw label text
-  ctx.fillStyle = '#000';
-  ctx.font = `bold ${hexSize * 0.5}px Arial`;
+  // Draw label (emoji or text) — serif renders emoji correctly on canvas
+  ctx.font = `${hexSize * 0.55}px serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, x, y);
