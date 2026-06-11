@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { getExhaustionEffects } from '../../game/SurvivalManager';
 import { useGameState, ACTIONS } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -9,15 +8,21 @@ import { FEATURES } from '../../constants/gameConstants';
  * CharacterStats component - displays character stats in D&D 5e format
  */
 
-function formatModifier(value) {
+function formatModifier(value: number): string {
   return value >= 0 ? `+${value}` : `${value}`;
 }
 
-function capitalize(str) {
+function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function AbilityScore({ label, score, modifier }) {
+interface AbilityScoreProps {
+  label: string;
+  score: number;
+  modifier: number;
+}
+
+function AbilityScore({ label, score, modifier }: AbilityScoreProps) {
   return (
     <div className="ability-score">
       <div className="ability-label">{label}</div>
@@ -27,7 +32,7 @@ function AbilityScore({ label, score, modifier }) {
   );
 }
 
-function CharacterStats({ character }) {
+function CharacterStats({ character }: { character: Character | null }) {
   const { dispatch } = useGameState();
   const { addMessage } = useGameLog();
 
@@ -66,7 +71,7 @@ function CharacterStats({ character }) {
     <div className="character-card">
       <div className="character-name">{character.name}</div>
       <div className="character-class">
-        Level {character.level} {capitalize(character.class)}
+        Level {character.level} {capitalize(character.class ?? '')}
       </div>
 
       <div className="ability-scores">
@@ -220,7 +225,7 @@ function CharacterStats({ character }) {
                 }}
               >
                 <span style={{ fontWeight: '500' }}>{ability.name}</span>
-                {ability.maxUses >= 0 && (
+                {(ability.maxUses ?? -1) >= 0 && (
                   <span style={{ color: 'var(--text-muted)' }}>
                     {ability.uses}/{ability.maxUses}
                   </span>
@@ -251,19 +256,23 @@ function CharacterStats({ character }) {
             Spells
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            {character.spells.map((spell, index) => (
-              <div
-                key={index}
-                style={{
-                  padding: '0.35rem 0.5rem',
-                  backgroundColor: 'var(--bg-light)',
-                  borderRadius: '4px',
-                  fontSize: '0.85rem',
-                }}
-              >
-                {spell.name || spell}
-              </div>
-            ))}
+            {character.spells.map((spell, index) => {
+              const label =
+                typeof spell === 'string' ? spell : ((spell as { name?: string }).name ?? '');
+              return (
+                <div
+                  key={index}
+                  style={{
+                    padding: '0.35rem 0.5rem',
+                    backgroundColor: 'var(--bg-light)',
+                    borderRadius: '4px',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  {label}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
