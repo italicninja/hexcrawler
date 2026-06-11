@@ -62,6 +62,11 @@ export class HazardGenerator extends BaseGenerator {
 
     // Get scaled trap data for this level
     const scaledTrap = getScaledTrap(trapName, level);
+    if (!scaledTrap) {
+      // _selectRandomTrap only emits keys present in SRD_TRAPS, so this is an
+      // invariant violation rather than an expected miss.
+      throw new Error(`getScaledTrap returned null for "${trapName}" (missing from SRD_TRAPS)`);
+    }
 
     // Calculate actual damage value
     const damage = this._calculateTrapDamage(scaledTrap, random);

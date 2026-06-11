@@ -1,7 +1,6 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * GameTableData.js
+ * GameTableData.ts
  *
  * Comprehensive data tables for D&D 5e treasure generation and traps.
  * Implements DMG Treasure Hoard Tables and SRD v5.2.1 trap data.
@@ -965,7 +964,7 @@ export const SRD_TRAPS = {
  * @param {number} cr - Challenge rating
  * @returns {string} CR bracket key for TREASURE_HOARD_TABLES
  */
-export function getCRBracket(cr) {
+export function getCRBracket(cr: number): string {
   if (cr <= 4) return 'CR_0_4';
   if (cr <= 10) return 'CR_5_10';
   if (cr <= 16) return 'CR_11_16';
@@ -978,15 +977,15 @@ export function getCRBracket(cr) {
  * @param {number} level - Character level (1-20)
  * @returns {object} Trap data with scaled damage/DC
  */
-export function getScaledTrap(trapName, level) {
-  const trap = SRD_TRAPS[trapName];
+export function getScaledTrap(trapName: string, level: number): Record<string, any> | null {
+  const trap = (SRD_TRAPS as Record<string, any>)[trapName];
   if (!trap) {
     logger.mapgen.error('Trap not found in SRD_TRAPS', { trapName });
     return null;
   }
 
   // Determine level bracket
-  let bracket;
+  let bracket: string;
   if (level <= 4) bracket = 'levels_1_4';
   else if (level <= 10) bracket = 'levels_5_10';
   else if (level <= 16) bracket = 'levels_11_16';
@@ -1039,8 +1038,8 @@ export function getScaledTrap(trapName, level) {
  * @param {number} value - Gemstone value (10, 50, 100, 500, 1000, 5000)
  * @returns {string} Gemstone description
  */
-export function getRandomGemstone(value) {
-  const gems = GEMSTONE_TABLES[value];
+export function getRandomGemstone(value: number): string {
+  const gems = (GEMSTONE_TABLES as Record<number, string[]>)[value];
   if (!gems) {
     logger.mapgen.error('No gemstone table for value', { value });
     return `Unknown gemstone (${value}gp)`;
@@ -1053,8 +1052,8 @@ export function getRandomGemstone(value) {
  * @param {number} value - Art object value (25, 250, 750, 2500, 7500)
  * @returns {string} Art object description
  */
-export function getRandomArtObject(value) {
-  const art = ART_OBJECT_TABLES[value];
+export function getRandomArtObject(value: number): string {
+  const art = (ART_OBJECT_TABLES as Record<number, string[]>)[value];
   if (!art) {
     logger.mapgen.error('No art object table for value', { value });
     return `Unknown art object (${value}gp)`;
