@@ -72,19 +72,27 @@ export interface ExplorationState {
 // Combat state (the new tactical system)
 // ---------------------------------------------------------------------------
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface CombatTurnEntry {
   id: string;
   name: string;
   currentHP: number;
   maxHP: number;
   isAlly: boolean;
-  position: HexCoordinates;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  isEnemy?: boolean;
+  position: HexCoordinates | null;
   character?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   enemy?: any;
+  characterClass?: string;
+  initiative?: number;
+  statusEffects?: any[];
+  aiConfig?: unknown;
+  attackRange?: number;
+  conditions?: any[];
+  hp?: number;
   [key: string]: unknown;
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export interface TurnState {
   actionUsed: boolean;
@@ -110,7 +118,7 @@ export interface CombatStateData {
   encounterType: string;
   waitingForPlayerAction: boolean;
   movementRemaining: number;
-  turnState?: TurnState;
+  turnState: TurnState;
   [key: string]: unknown;
 }
 
@@ -167,7 +175,7 @@ export interface GameState {
   explorationState: ExplorationState;
 
   // Combat state (new tactical system)
-  combatState: CombatStateData;
+  combatState: CombatStateData | null;
   combatLog: string[];
 
   // Legacy combat fields (kept for backward compat)

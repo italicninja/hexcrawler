@@ -18,7 +18,7 @@ import { Quest } from '../../game/Quest';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { Shop } from '../../game/Shop';
 import { createGameTime, advanceTime } from '../../game/TimeManager';
-import { GAME_DEFAULTS, COMBAT } from '../../constants/gameConstants';
+import { GAME_DEFAULTS } from '../../constants/gameConstants';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { WeatherSystem } from '../../WeatherSystem';
 import type { GameState, Action } from '../../types/state';
@@ -70,18 +70,7 @@ export function gameReducer(
         gameTime: createGameTime(),
         playtime: 0,
         combatLog: [],
-        combatState: {
-          active: false,
-          combat: null,
-          battlefield: null,
-          turnOrder: [],
-          currentTurnIndex: 0,
-          round: 1,
-          encounterName: '',
-          encounterType: 'standard',
-          waitingForPlayerAction: false,
-          movementRemaining: COMBAT.DEFAULT_MOVEMENT_FEET,
-        },
+        combatState: null,
         activeQuests: [],
         completedQuests: [],
         townQuests: {},

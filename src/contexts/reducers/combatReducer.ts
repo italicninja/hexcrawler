@@ -1,4 +1,3 @@
-// @ts-nocheck -- TODO: Remove after src/game/Combat.js is converted to TypeScript (Phase 3)
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Combat Reducer - Handles combat state, turns, and combat actions
@@ -33,11 +32,10 @@ import { CombatTerrainGenerator } from '../../game/CombatTerrainGenerator';
 import { EncounterPositions } from '../../game/EncounterPositions';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
-import { COMBAT } from '../../constants/gameConstants';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import logger from '../../utils/logger';
 import { Character } from '../../game/Character';
-import type { GameState, Action } from '../../types/state';
+import type { GameState, Action, CombatStateData } from '../../types/state';
 
 export function combatReducer(
   state: GameState,
@@ -146,9 +144,9 @@ export function combatReducer(
 
       const { allies: placedAllies, enemies: placedEnemies } = EncounterPositions.placeForEncounter(
         encounterType,
-        alliesToPlace,
-        enemiesToPlace,
-        battlefield
+        alliesToPlace as any,
+        enemiesToPlace as any,
+        battlefield as any
       );
 
       // Merge positions back into turnOrder
@@ -176,9 +174,9 @@ export function combatReducer(
       });
 
       // Update combat instance with positioned combatants
-      combat.turnOrder = updatedTurnOrder;
-      combat.allies = updatedTurnOrder.filter(c => !c.isEnemy);
-      combat.enemies = updatedTurnOrder.filter(c => c.isEnemy);
+      combat.turnOrder = updatedTurnOrder as any;
+      combat.allies = updatedTurnOrder.filter(c => !c.isEnemy) as any;
+      combat.enemies = updatedTurnOrder.filter(c => c.isEnemy) as any;
 
       // Get first combatant's movement distance
       const firstCombatant = updatedTurnOrder[0];
@@ -226,7 +224,7 @@ export function combatReducer(
 
       return {
         ...state,
-        combatState: newCombatState,
+        combatState: newCombatState as unknown as CombatStateData,
         // No scene transition - combat overlays on overworld
       };
     }
@@ -291,8 +289,9 @@ export function combatReducer(
         fullPath: path,
       });
 
+      const activeTurnIndex = state.combatState.currentTurnIndex;
       const updatedTurnOrder = state.combatState.turnOrder.map((combatant, idx) => {
-        if (idx === state.combatState.currentTurnIndex) {
+        if (idx === activeTurnIndex) {
           logger.combat.debug('[PROCESS_COMBAT_MOVEMENT] Updating combatant position', {
             name: combatant.name,
             from: combatant.position,
@@ -320,10 +319,10 @@ export function combatReducer(
       const fromHex = currentCombatant.position;
       const toHex = destination;
       const opportunityAttackers = OpportunityAttackSystem.checkOpportunityAttacks(
-        currentCombatant,
-        fromHex,
+        currentCombatant as any,
+        fromHex as any,
         toHex,
-        state.combatState.turnOrder
+        state.combatState.turnOrder as any
       );
 
       // Sync updated positions into the Combat instance so processAttack (called for OAs)
@@ -331,7 +330,7 @@ export function combatReducer(
       const combat = state.combatState.combat;
       if (combat) {
         updatedTurnOrder.forEach(c => {
-          const combatEntry = combat.turnOrder.find(ct => ct.id === c.id);
+          const combatEntry = combat.turnOrder.find((ct: any) => ct.id === c.id);
           if (combatEntry && c.position) {
             combatEntry.position = c.position;
             combatEntry.hp = c.currentHP;
@@ -356,7 +355,7 @@ export function combatReducer(
             // Sync HP after OA
             oaTurnOrder = oaTurnOrder.map(c => {
               if (c.id === oaAttacker.id || c.id === currentCombatant.id) {
-                const fromCombat = combat.turnOrder.find(ct => ct.id === c.id);
+                const fromCombat = combat.turnOrder.find((ct: any) => ct.id === c.id);
                 if (fromCombat) return { ...c, currentHP: fromCombat.hp };
               }
               return c;
@@ -426,7 +425,7 @@ export function combatReducer(
         // immutably but does not mutate the Combat instance, so positions would be stale
         // without this sync.
         state.combatState.turnOrder.forEach(c => {
-          const combatEntry = combat.turnOrder.find(ct => ct.id === c.id);
+          const combatEntry = combat.turnOrder.find((ct: any) => ct.id === c.id);
           if (combatEntry && c.position) {
             combatEntry.position = c.position;
             combatEntry.hp = c.currentHP;
@@ -450,7 +449,7 @@ export function combatReducer(
         const syncedTurnOrder = state.combatState.turnOrder.map(c => {
           if (c.id === attacker.id || c.id === target.id) {
             // Find matching combatant in combat.turnOrder
-            const combatantFromCombat = combat.turnOrder.find(ct => ct.id === c.id);
+            const combatantFromCombat = combat.turnOrder.find((ct: any) => ct.id === c.id);
             if (combatantFromCombat) {
               return { ...c, currentHP: combatantFromCombat.hp };
             }
@@ -525,7 +524,7 @@ export function combatReducer(
           // into Redux turnOrder so the UI reflects changes immediately.
           const syncedTurnOrder = state.combatState.turnOrder.map(c => {
             if (c.id === user.id && c.character) {
-              const combatEntry = combat.turnOrder.find(ct => ct.id === c.id);
+              const combatEntry = combat.turnOrder.find((ct: any) => ct.id === c.id);
               if (combatEntry) {
                 return {
                   ...c,
@@ -533,7 +532,9 @@ export function combatReducer(
                   character: combatEntry.character?.abilities_list
                     ? {
                         ...c.character,
-                        abilities_list: combatEntry.character.abilities_list.map(a => ({ ...a })),
+                        abilities_list: combatEntry.character.abilities_list.map((a: any) => ({
+                          ...a,
+                        })),
                       }
                     : c.character,
                 };
@@ -570,7 +571,7 @@ export function combatReducer(
         const combat = state.combatState.combat;
         if (!combat) return state;
 
-        const dodgerEntry = combat.turnOrder.find(c => c.id === attacker.id);
+        const dodgerEntry = combat.turnOrder.find((c: any) => c.id === attacker.id);
         if (!dodgerEntry) return state;
 
         // Call Combat.processDodge — adds the Dodge status effect to the combatant
@@ -588,7 +589,7 @@ export function combatReducer(
         // Sync the updated statusEffects back into the immutable Redux turnOrder
         const syncedTurnOrder = state.combatState.turnOrder.map(c => {
           if (c.id === attacker.id) {
-            const combatEntry = combat.turnOrder.find(ct => ct.id === c.id);
+            const combatEntry = combat.turnOrder.find((ct: any) => ct.id === c.id);
             return { ...c, statusEffects: [...(combatEntry?.statusEffects || [])] };
           }
           return c;
@@ -702,7 +703,7 @@ export function combatReducer(
       let updatedTurnOrder = state.combatState.turnOrder;
 
       if (combat && nextCombatant?.statusEffects?.length) {
-        const nextCombatantInCombat = combat.turnOrder.find(c => c.id === nextCombatant.id);
+        const nextCombatantInCombat = combat.turnOrder.find((c: any) => c.id === nextCombatant.id);
         if (nextCombatantInCombat) {
           // Tick Rage first (has its own extension logic)
           if (nextCombatant.isAlly && nextCombatant.statusEffects.some(e => e.name === 'Rage')) {
@@ -769,7 +770,7 @@ export function combatReducer(
     case ACTIONS.USE_COMBAT_ACTION: {
       if (!state.combatState) return state;
 
-      const { actionType, actionName, target, data } = action.payload;
+      const { actionType } = action.payload;
 
       return {
         ...state,

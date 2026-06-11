@@ -1497,9 +1497,9 @@ function OverworldScene() {
       let action: { type: string; [key: string]: unknown };
       try {
         action = AIEngine.decideAction(
-          combatant,
+          combatant as any,
           currentCombatState.battlefield,
-          currentCombatState.turnOrder,
+          currentCombatState.turnOrder as any,
           currentCombatState.movementRemaining
         );
       } catch (err: unknown) {
@@ -1683,7 +1683,7 @@ function OverworldScene() {
 
       // Check if hex is occupied by a combatant
       const targetCombatant = state.combatState.turnOrder.find(
-        c => c.position.col === hex.col && c.position.row === hex.row
+        c => c.position?.col === hex.col && c.position?.row === hex.row
       );
 
       logger.combat.debug('Hex click routing', {
@@ -1761,10 +1761,10 @@ function OverworldScene() {
         const weapon = currentCombatant.character?.equipment?.mainHand;
         const weaponRange = weapon?.range || 1;
         const attackDistance = getHexDistance(
-          currentCombatant.position.col,
-          currentCombatant.position.row,
-          targetCombatant.position.col,
-          targetCombatant.position.row
+          currentCombatant.position?.col ?? 0,
+          currentCombatant.position?.row ?? 0,
+          targetCombatant.position?.col ?? 0,
+          targetCombatant.position?.row ?? 0
         );
 
         if (attackDistance > weaponRange) {
@@ -2303,7 +2303,13 @@ function OverworldScene() {
       )}
 
       {/* AI Inspector (dev mode only) */}
-      {showAIInspector && <AIInspector combatState={state.combatState} />}
+      {showAIInspector && (
+        <AIInspector
+          combatState={
+            state.combatState as unknown as Parameters<typeof AIInspector>[0]['combatState']
+          }
+        />
+      )}
     </div>
   );
 }
