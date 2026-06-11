@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * AIInspector - Visual AI debugging tool
  * Shows behavior tree, target scoring, and last decisions
@@ -74,7 +73,7 @@ function AIInspector({ combatState }: AIInspectorProps) {
     const current = combatState.turnOrder[combatState.currentTurnIndex];
     if (current && current.isEnemy) {
       setSelectedCombatant(current);
-      setAiConfig(current.aiConfig);
+      setAiConfig(current.aiConfig ?? null);
     } else {
       setSelectedCombatant(null);
       setAiConfig(null);
@@ -87,7 +86,13 @@ function AIInspector({ combatState }: AIInspectorProps) {
 
     const enemy = selectedCombatant.enemy;
     if (!enemy) return;
-    const newConfig = await AIEngine.loadAI(enemy.family, enemy.variant, true); // force reload
+    // AIEngine is not yet typed; assert loadAI's intended signature at the boundary.
+    const loadAI = AIEngine.loadAI as (
+      family?: string,
+      variant?: string,
+      forceReload?: boolean
+    ) => Promise<AIConfig>;
+    const newConfig = await loadAI(enemy.family, enemy.variant, true); // force reload
     setAiConfig(newConfig);
     selectedCombatant.aiConfig = newConfig;
     enemy.aiConfig = newConfig;
