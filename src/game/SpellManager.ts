@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Add proper TypeScript types
 /**
  * SpellManager - Helper functions for D&D 5e spell management
  * Handles spell retrieval, slot tracking, and casting validation
@@ -8,12 +6,33 @@
 import { SPELL_LISTS } from './SpellList';
 import logger from '../utils/logger';
 
+type SpellcastingType = 'full' | 'half' | 'warlock' | 'none';
+
+interface SpellLike {
+  name: string;
+  level: number;
+  [key: string]: unknown;
+}
+
+/** A class's spells keyed by level: { "0": [...], "1": [...] } */
+type ClassSpellList = Record<string, SpellLike[]>;
+
+/** Loose shape for the spellcaster fields these helpers read/mutate. */
+interface SpellcasterCharacter {
+  class: string;
+  level: number;
+  spellSlotsUsed?: Record<number, number>;
+}
+
+// SPELL_LISTS comes from a still-untyped module; assert its structural shape here.
+const SPELL_LISTS_BY_CLASS = SPELL_LISTS as unknown as Record<string, ClassSpellList>;
+
 /**
  * D&D 5e Spell Slots per Level
  * Maps character level -> spell slots by level
  * Format: [level1, level2, level3, level4, level5, level6, level7, level8, level9]
  */
-const SPELL_SLOTS_BY_LEVEL = {
+const SPELL_SLOTS_BY_LEVEL: Record<string, Record<number, number[]>> = {
   // Full casters (Cleric, Druid, Wizard, Sorcerer, Bard)
   full: {
     1: [2, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -89,10 +108,8 @@ const SPELL_SLOTS_BY_LEVEL = {
 
 /**
  * Get spell casting type for a class
- * @param {string} className - Class name
- * @returns {string} 'full', 'half', 'warlock', or 'none'
  */
-function getSpellcastingType(className) {
+function getSpellcastingType(className: string): SpellcastingType {
   const classKey = className.toLowerCase();
   const fullCasters = ['wizard', 'sorcerer', 'cleric', 'druid', 'bard'];
   const halfCasters = ['paladin', 'ranger'];
@@ -104,11 +121,9 @@ function getSpellcastingType(className) {
 }
 
 /**
- * Get maximum spell slots for a character
- * @param {object} character - Character object
- * @returns {object} Spell slots by level {1: 2, 2: 0, ...}
+ * Get maximum spell slots for a character, keyed by spell level.
  */
-export function getMaxSpellSlots(character) {
+export function getMaxSpellSlots(character: SpellcasterCharacter): Record<number, number> {
   const spellcastingType = getSpellcastingType(character.class);
 
   if (spellcastingType === 'none') {
@@ -116,7 +131,7 @@ export function getMaxSpellSlots(character) {
   }
 
   const slotsArray = SPELL_SLOTS_BY_LEVEL[spellcastingType][character.level] || [];
-  const slots = {};
+  const slots: Record<number, number> = {};
 
   slotsArray.forEach((count, index) => {
     if (count > 0) {
@@ -128,17 +143,15 @@ export function getMaxSpellSlots(character) {
 }
 
 /**
- * Get current spell slots for a character
- * @param {object} character - Character object
- * @returns {object} Available spell slots by level {1: 2, 2: 1, ...}
+ * Get current (available) spell slots for a character, keyed by spell level.
  */
-export function getCurrentSpellSlots(character) {
+export function getCurrentSpellSlots(character: SpellcasterCharacter): Record<number, number> {
   const maxSlots = getMaxSpellSlots(character);
   const usedSlots = character.spellSlotsUsed || {};
-  const currentSlots = {};
+  const currentSlots: Record<number, number> = {};
 
   Object.keys(maxSlots).forEach(level => {
-    const levelNum = parseInt(level);
+    const levelNum = parseInt(level, 10);
     const max = maxSlots[levelNum];
     const used = usedSlots[levelNum] || 0;
     currentSlots[levelNum] = Math.max(0, max - used);
@@ -148,14 +161,11 @@ export function getCurrentSpellSlots(character) {
 }
 
 /**
- * Get a specific spell by class and name
- * @param {string} className - Class name
- * @param {string} spellName - Spell name
- * @returns {Spell|null} Spell object or null if not found
+ * Get a specific spell by class and name. Returns the spell or null if not found.
  */
-export function getSpell(className, spellName) {
+export function getSpell(className: string, spellName: string): SpellLike | null {
   const classKey = className.toLowerCase();
-  const classList = SPELL_LISTS[classKey];
+  const classList = SPELL_LISTS_BY_CLASS[classKey];
 
   if (!classList) {
     logger.combat.warn('No spell list found for class', { class: className });
@@ -180,19 +190,17 @@ export function getSpell(className, spellName) {
  * For now, returns all spells for the class up to character's max spell level
  * In future, this could filter by known/prepared spells
  *
- * @param {object} character - Character object
- * @returns {Array<Spell>} Array of available spells
  */
-export function getAvailableSpells(character) {
+export function getAvailableSpells(character: SpellcasterCharacter): SpellLike[] {
   const classKey = character.class.toLowerCase();
-  const classList = SPELL_LISTS[classKey];
+  const classList = SPELL_LISTS_BY_CLASS[classKey];
 
   if (!classList) {
     return [];
   }
 
   const maxSpellLevel = getMaxSpellLevel(character);
-  const availableSpells = [];
+  const availableSpells: SpellLike[] = [];
 
   // Collect all spells up to max spell level
   for (let level = 0; level <= maxSpellLevel; level++) {
@@ -205,11 +213,9 @@ export function getAvailableSpells(character) {
 }
 
 /**
- * Get maximum spell level a character can cast
- * @param {object} character - Character object
- * @returns {number} Max spell level (0-9)
+ * Get maximum spell level a character can cast (0-9)
  */
-export function getMaxSpellLevel(character) {
+export function getMaxSpellLevel(character: SpellcasterCharacter): number {
   const spellcastingType = getSpellcastingType(character.class);
 
   if (spellcastingType === 'none') return 0;
@@ -227,12 +233,9 @@ export function getMaxSpellLevel(character) {
 }
 
 /**
- * Check if character has a spell slot of a given level
- * @param {object} character - Character object
- * @param {number} level - Spell level (1-9, 0 for cantrip)
- * @returns {boolean} True if slot available
+ * Check if character has a spell slot of a given level (0 = cantrip, always true)
  */
-export function hasSpellSlot(character, level) {
+export function hasSpellSlot(character: SpellcasterCharacter, level: number): boolean {
   // Cantrips don't require slots
   if (level === 0) return true;
 
@@ -241,12 +244,9 @@ export function hasSpellSlot(character, level) {
 }
 
 /**
- * Use a spell slot of a given level
- * @param {object} character - Character object (will be mutated)
- * @param {number} level - Spell level (1-9)
- * @returns {boolean} True if slot was used successfully
+ * Use a spell slot of a given level (mutates character). Cantrips (0) are free.
  */
-export function useSpellSlot(character, level) {
+export function useSpellSlot(character: SpellcasterCharacter, level: number): boolean {
   // Cantrips don't consume slots
   if (level === 0) return true;
 
@@ -254,24 +254,17 @@ export function useSpellSlot(character, level) {
     return false;
   }
 
-  // Initialize spellSlotsUsed if needed
-  if (!character.spellSlotsUsed) {
-    character.spellSlotsUsed = {};
-  }
-
-  // Increment used slots
-  character.spellSlotsUsed[level] = (character.spellSlotsUsed[level] || 0) + 1;
+  // Initialize spellSlotsUsed if needed, then increment used slots
+  const used = character.spellSlotsUsed ?? (character.spellSlotsUsed = {});
+  used[level] = (used[level] || 0) + 1;
 
   return true;
 }
 
 /**
- * Restore a spell slot of a given level
- * @param {object} character - Character object (will be mutated)
- * @param {number} level - Spell level (1-9)
- * @returns {boolean} True if slot was restored successfully
+ * Restore a spell slot of a given level (mutates character).
  */
-export function restoreSpellSlot(character, level) {
+export function restoreSpellSlot(character: SpellcasterCharacter, level: number): boolean {
   if (!character.spellSlotsUsed || !character.spellSlotsUsed[level]) {
     return false; // No slots to restore
   }
@@ -281,36 +274,33 @@ export function restoreSpellSlot(character, level) {
 }
 
 /**
- * Restore all spell slots (for long rest)
- * @param {object} character - Character object (will be mutated)
+ * Restore all spell slots (for long rest, mutates character).
  */
-export function restoreAllSpellSlots(character) {
+export function restoreAllSpellSlots(character: SpellcasterCharacter): void {
   character.spellSlotsUsed = {};
 }
 
 /**
  * Get available spell slot levels (for UI display)
- * @param {object} character - Character object
- * @returns {Array<number>} Array of spell levels with available slots
  */
-export function getAvailableSpellSlots(character) {
+export function getAvailableSpellSlots(character: SpellcasterCharacter): number[] {
   const currentSlots = getCurrentSpellSlots(character);
   return Object.keys(currentSlots)
-    .map(level => parseInt(level))
+    .map(level => parseInt(level, 10))
     .filter(level => currentSlots[level] > 0)
     .sort((a, b) => a - b);
 }
 
 /**
- * Check if character can cast a specific spell
- * @param {object} character - Character object
- * @param {object} spell - Spell object
- * @returns {object} {canCast: boolean, reason: string}
+ * Check if character can cast a specific spell.
  */
-export function canCastSpell(character, spell) {
+export function canCastSpell(
+  character: SpellcasterCharacter,
+  spell: SpellLike
+): { canCast: boolean; reason: string } {
   // Check if character's class can cast this spell
   const classKey = character.class.toLowerCase();
-  const classList = SPELL_LISTS[classKey];
+  const classList = SPELL_LISTS_BY_CLASS[classKey];
 
   if (!classList) {
     return {
@@ -351,11 +341,9 @@ export function canCastSpell(character, spell) {
 }
 
 /**
- * Get spell slots summary for display
- * @param {object} character - Character object
- * @returns {string} Summary string (e.g., "1st: 2/4, 2nd: 1/3")
+ * Get spell slots summary for display (e.g., "1st: 2/4, 2nd: 1/3")
  */
-export function getSpellSlotsSummary(character) {
+export function getSpellSlotsSummary(character: SpellcasterCharacter): string {
   const maxSlots = getMaxSpellSlots(character);
   const currentSlots = getCurrentSpellSlots(character);
 
@@ -363,7 +351,7 @@ export function getSpellSlotsSummary(character) {
 
   const summary = Object.keys(maxSlots)
     .map(level => {
-      const levelNum = parseInt(level);
+      const levelNum = parseInt(level, 10);
       const current = currentSlots[levelNum] || 0;
       const max = maxSlots[levelNum];
       return `${levelNames[levelNum]}: ${current}/${max}`;
@@ -374,13 +362,11 @@ export function getSpellSlotsSummary(character) {
 }
 
 /**
- * Get spells organized by level for a character
- * @param {object} character - Character object
- * @returns {object} Spells organized by level {0: [...], 1: [...], ...}
+ * Get spells organized by level for a character: { 0: [...], 1: [...], ... }
  */
-export function getSpellsByLevel(character) {
+export function getSpellsByLevel(character: SpellcasterCharacter): Record<number, SpellLike[]> {
   const availableSpells = getAvailableSpells(character);
-  const spellsByLevel = {};
+  const spellsByLevel: Record<number, SpellLike[]> = {};
 
   availableSpells.forEach(spell => {
     if (!spellsByLevel[spell.level]) {
