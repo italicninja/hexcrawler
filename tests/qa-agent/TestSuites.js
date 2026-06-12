@@ -28,7 +28,7 @@ export const TEST_SUITES = [
         name: 'Create new character',
         async execute(driver, validators) {
           await driver.clearLocalStorage();
-          await driver.startNewGame('QA-Tester', 'Paladin');
+          await driver.startNewGame('QA-Tester', 'Barbarian');
           
           const scene = await driver.getCurrentScene();
           validators.validateScene(scene, 'overworld', 'Should load overworld scene');

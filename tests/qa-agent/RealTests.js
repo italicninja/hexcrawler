@@ -73,7 +73,7 @@ export const REAL_TESTS = [
           
           // Should see character creation or be in game
           const inCharCreation = await driver.page.getByText('Begin Adventure').count() > 0 ||
-                                  await driver.page.getByText('Paladin').count() > 0;
+                                  await driver.page.getByText('Barbarian').count() > 0;
           
           if (!inCharCreation) {
             throw new Error('Character creation screen not loaded');
@@ -91,11 +91,11 @@ export const REAL_TESTS = [
           await nameInput.fill('QA-Test-Character');
           await driver.wait(500);
           
-          // Click a class (try Paladin first, fallback to any class)
+          // Click a class (try Barbarian first — the only enabled class; others are in DISABLED_CLASSES)
           let classClicked = false;
           
-          // Try to find and click Paladin
-          const paladinButton = await driver.page.getByText('Paladin', { exact: false });
+          // Try to find and click Barbarian
+          const paladinButton = await driver.page.getByText('Barbarian', { exact: false });
           if (await paladinButton.count() > 0) {
             await paladinButton.first().click();
             classClicked = true;

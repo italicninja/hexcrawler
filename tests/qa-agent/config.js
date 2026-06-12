@@ -35,7 +35,7 @@ export const QA_CONFIG = {
   // Test data
   testData: {
     characterName: 'QA-Tester',
-    characterClass: 'Paladin',
+    characterClass: 'Barbarian',
     // Use MAP_SEED env var if set (for CI), otherwise use default
     mapSeed: process.env.MAP_SEED || 'qa-test-seed-12345',
     freshStart: true,                // Clear localStorage before test
