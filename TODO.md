@@ -51,7 +51,7 @@ Bugs surfaced and fixed along the way: `Character.gainXP()` → `awardXP()` (3 r
 
 **Type debt to reconcile:** `state.activeQuests`/`completedQuests`/etc. are typed with the lightweight `game/game.ts` `Quest` interface, but at runtime hold `game/Quest.ts` `Quest` **class** instances (methods + `QuestObjective[]`). `QuestLog` casts at the boundary (`as unknown as Quest[]`); reconcile by switching the state types to the class when the quest reducers are migrated.
 
-**Remaining (20):** canvas components (`HexGridCanvas`, `CombatCanvas`, `InteriorHexCanvas`), the scenes (`OverworldScene`, `TownScene`, `ExplorationScene`, `CharacterCreationScene`), the data-heavy `Combat.ts` (+ its gated `combatReducer`), `AbilityEffects`, `SpellList`, `GameTableData`, `CombatTerrainGenerator`, the `Dungeon`/`Cave`/`Tower`/`Ruins`/`Town`/`StartingCache` generators, and `DevTools.jsx`. All `game/ai/`, most `game/`, all `utils/`, all hooks, the top-level map/terrain modules, and the mid/interior UI components (`Equipment`, `SurvivalMenu`, `RestMenu`, `QuestLog`, `ShopUI`, `ClassIcon`, `HexDetails`, interior panels) are now typed.
+**Remaining:** none — the migration is complete across all 100 files.
 
 ---
 
@@ -669,6 +669,19 @@ The Barbarian serves as the reference implementation. All classes share the base
 
 ---
 
+## KNOWN COMBAT-LAYER BUGS (dormant, found while writing Combat.test.ts)
+
+These don't bite today because the live combat path goes through `combatReducer`'s
+turn-order shape and OverworldScene's XP path, but they will bite when enemy AI
+gains abilities/spells or when `Combat`'s own helpers are reused:
+
+- [ ] **Null-deref on enemy combatants** — reducer-built turn-order entries have `character: null` for enemies (`combatReducer.ts:131`), but `Combat.processAbility` (`Combat.ts:1088`, `1095`), `processSpell` (`Combat.ts:1144`), `processDodge` (`Combat.ts:1206`), and `processDash` (`Combat.ts:1227`) dereference `combatant.character.…` unguarded → TypeError if an enemy ever uses these actions.
+- [ ] **Constructor-built combatant shape mismatch** — `Combat`'s constructor stores the Enemy instance as `character` on enemy combatants (`Combat.ts:145-153`), but `processAttack` distinguishes enemies via `.enemy` (`Combat.ts:747`). Only works today because the reducer overwrites `combat.turnOrder` with its own shape.
+- [ ] **`combat.enemies` overwritten with non-Enemy objects** — `combatReducer.ts:179` replaces `combat.enemies` with turn-order entries lacking `.cr`, so `Combat._calculateXP()` and `getAverageCR()` silently return 0/NaN after combat starts (live XP path in OverworldScene uses `getXPForCR` instead, so no player impact yet).
+- [ ] **`Enemy.isDead` flag never set by `processAttack`** — it writes `currentHP` directly (`Combat.ts:799-803`) instead of calling `takeDamage()`; `checkIsDead()` still works via `currentHP <= 0`, but the persisted `isDead` flag stays false (affects `Enemy.toJSON()`/saves).
+
+---
+
 ## UNTRACKED IN-CODE TODOs
 
 The following `TODO` comments exist in source files but are not yet captured as formal backlog items. Resolve or promote to a numbered item when the relevant phase begins.
@@ -754,9 +767,7 @@ The following `TODO` comments exist in source files but are not yet captured as 
 
 - **No `CombatScene` file** — combat is an embedded rendering branch inside `OverworldScene.tsx` (triggered when `state.combatState?.battlefield` is truthy)
 - **Water survival removed** — `SurvivalManager.ts` notes water system was deprecated; only rations remain
-- **Playwright for E2E, nothing for unit tests** — `tests/qa-agent/` uses Playwright, not Vitest/Jest
-- **`src/scenes/` and `src/ui/` are empty** — scenes live in `src/components/scenes/`, UI in `src/components/ui/`
-- **AGENTS.md is outdated** — references `.jsx`/`.js` and `Character.js`, but codebase is fully `.ts`/`.tsx`
+- **Playwright for E2E (`tests/qa-agent/`), Vitest for unit tests (`tests/**/*.test.ts`)** — both run in CI (`qa-tests.yml`: `checks` job runs typecheck/lint/unit, then the browser matrix)
 
 ---
 
