@@ -589,6 +589,12 @@ gains abilities/spells or when `Combat`'s own helpers are reused:
 
 ---
 
+## OBSERVED BUGS (untriaged)
+
+- [ ] **Blank battlefield at map edge** — a random encounter triggered at overworld position (-3,-2) (infinite-terrain region) rendered an empty combat canvas: turn order and action panel worked, but no battlefield hexes drew and no console errors fired. Likely the current hex was missing/ungenerated so CombatTerrainGenerator received no usable hexContext. Reproduce by wandering into freshly expanded map area until ambushed. (Observed 2026-06-12 during the gfx re-skin; predates it — the re-skin only changed colors/sprites.)
+
+---
+
 ## UNTRACKED IN-CODE TODOs
 
 The following `TODO` comments exist in source files but are not yet captured as formal backlog items. Resolve or promote to a numbered item when the relevant phase begins.
