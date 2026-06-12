@@ -122,12 +122,13 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       const explored = isHexExplored(hex.col, hex.row);
 
       if (!explored) {
-        // Draw fog of war
-        drawHexShape(ctx, x, y, hexSize, '#1a1a1a', '#333', 1);
+        // Fog of war — flat black like the unmapped OSRS world map
+        drawHexShape(ctx, x, y, hexSize, '#0b0a08', 'rgba(0, 0, 0, 0.35)', 1);
         return;
       }
 
-      // Draw explored hex with textured pattern (pass col/row for per-hex variation)
+      // Draw explored hex with textured pattern (pass col/row for per-hex variation).
+      // Stroke is a barely-there dark line: OSRS ground has no visible grid.
       if (textureGenerator.current) {
         const pattern = textureGenerator.current.getPattern(
           ctx,
@@ -136,10 +137,10 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
           hex.col,
           hex.row
         );
-        drawHexShape(ctx, x, y, hexSize, pattern, '#333', 1);
+        drawHexShape(ctx, x, y, hexSize, pattern, 'rgba(15, 12, 6, 0.25)', 1);
       } else {
         // Fallback to solid color if texture generator not ready
-        drawHexShape(ctx, x, y, hexSize, hex.terrain.color, '#333', 1);
+        drawHexShape(ctx, x, y, hexSize, hex.terrain.color, 'rgba(15, 12, 6, 0.25)', 1);
       }
 
       // Draw POI icon if present AND visible (towns always, others only if discovered)
@@ -160,9 +161,9 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
           const starY = y - hexSize * 0.6;
           const starSize = hexSize * 0.15;
 
-          // Draw a 5-pointed star
-          ctx.fillStyle = '#FFD700'; // Gold color
-          ctx.strokeStyle = '#000';
+          // Draw a 5-pointed star — OSRS quest-icon gold
+          ctx.fillStyle = '#f8c243';
+          ctx.strokeStyle = '#3a2f15';
           ctx.lineWidth = 1;
 
           ctx.beginPath();
@@ -231,17 +232,17 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
         playerVisualPosRef.current = { x: playerX, y: playerY };
       }
 
-      // Draw player marker (yellow circle)
+      // Player marker — white dot with dark ring, like the OSRS minimap
       ctx.beginPath();
-      ctx.arc(playerX, playerY, hexSize * 0.4, 0, Math.PI * 2);
-      ctx.fillStyle = '#FFD700';
+      ctx.arc(playerX, playerY, hexSize * 0.38, 0, Math.PI * 2);
+      ctx.fillStyle = '#f4f1e8';
       ctx.fill();
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = '#1a150c';
       ctx.lineWidth = 2;
       ctx.stroke();
 
       // Draw player class icon
-      ctx.font = `${hexSize * 0.55}px serif`;
+      ctx.font = `${hexSize * 0.5}px serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(playerIcon, playerX, playerY);
