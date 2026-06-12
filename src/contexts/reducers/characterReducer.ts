@@ -16,8 +16,7 @@
 import { advanceTime } from '../../game/TimeManager';
 import { TIME, FEATURES } from '../../constants/gameConstants';
 import { applyStarvation } from '../../game/SurvivalManager';
-import { Character } from '../../game/Character';
-import type { GameState, Action, CharacterInstance } from '../../types/state';
+import type { GameState, Action } from '../../types/state';
 
 export function characterReducer(
   state: GameState,
@@ -92,7 +91,7 @@ export function characterReducer(
 
       if (!state.playerCharacter) return state;
 
-      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      const character = state.playerCharacter.clone();
       const oldLevel = character.level;
       character.awardXP(xp);
       const newLevel = character.level;
@@ -119,8 +118,8 @@ export function characterReducer(
 
       if (!state.playerCharacter) return state;
 
-      const character = Character.fromJSON(state.playerCharacter.toJSON()) as CharacterInstance;
-      character.exhaustion = Math.min(6, character.exhaustion + levels);
+      const character = state.playerCharacter.clone();
+      character.exhaustionLevel = Math.min(6, character.exhaustionLevel + levels);
 
       return {
         ...state,

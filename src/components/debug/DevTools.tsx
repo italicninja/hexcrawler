@@ -9,7 +9,6 @@ import { useState, type CSSProperties, type RefObject } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { Enemy } from '../../game/Enemy';
-import { Character } from '../../game/Character';
 import { AIEngine } from '../../game/ai/AIEngine';
 import { WEATHER_TYPES } from '../../WeatherSystem';
 import { POI_TYPES } from '../../poiSystem';
@@ -408,7 +407,7 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
   const handleRestoreHP = () => {
     const player = getPlayer();
     if (!player) return;
-    const updated = Character.fromJSON(player.toJSON());
+    const updated = player.clone();
     updated.currentHP = updated.maxHP;
     dispatch({ type: actions.UPDATE_CHARACTER, payload: updated });
     addMessage(`[DEV] HP restored to ${updated.maxHP}/${updated.maxHP}`, 'success');
@@ -424,7 +423,7 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
   const handleForceLevelUp = () => {
     const player = getPlayer();
     if (!player) return;
-    const updated = Character.fromJSON(player.toJSON());
+    const updated = player.clone();
     // Award enough XP to guarantee a level-up
     const xpNeeded = Math.max(0, updated.xpToNextLevel - updated.xp) + 1;
     updated.awardXP(xpNeeded);
@@ -437,7 +436,7 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
   const handleAddGold = (amount: number) => {
     const player = getPlayer();
     if (!player) return;
-    const updated = Character.fromJSON(player.toJSON());
+    const updated = player.clone();
     updated.gold = (updated.gold || 0) + amount;
     dispatch({ type: actions.UPDATE_CHARACTER, payload: updated });
     addMessage(`[DEV] +${amount}g added (total: ${updated.gold}g)`, 'success');

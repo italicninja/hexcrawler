@@ -8,7 +8,6 @@ import { getHexDistance } from '../../utils/hexMath';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import CharacterStats from '../ui/CharacterStats';
-import { Character } from '../../game/Character';
 import GameLog from '../ui/GameLog';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import InteriorHexDetails from '../ui/InteriorHexDetails';
@@ -153,7 +152,7 @@ function ExplorationScene() {
 
       // TODO: Implement full combat system
       const damageReceived = diceRoller.rollDice(1, 6);
-      const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+      const updatedCharacter = state.playerCharacter.clone();
       updatedCharacter.damage(damageReceived);
 
       const combatTime = getCombatDuration();
@@ -251,7 +250,7 @@ function ExplorationScene() {
       } else {
         // Failed save - take damage
         const damageDealt = hazard.damage;
-        const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+        const updatedCharacter = state.playerCharacter.clone();
         updatedCharacter.damage(damageDealt);
 
         addMessage(

@@ -2,6 +2,11 @@
 /**
  * SurvivalManager.ts
  * Manages food, water, and exhaustion mechanics for D&D 5e hexcrawl survival.
+ *
+ * MUTATION CONTRACT: functions in this module mutate the character they are
+ * given. Callers updating React state must pass a clone (character.clone())
+ * and put the clone back into state — never pass the instance that state
+ * currently references.
  */
 
 export interface ExhaustionEffect {

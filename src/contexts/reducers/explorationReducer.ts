@@ -21,7 +21,6 @@
  */
 
 import type { GameState, Action } from '../../types/state';
-import { Character } from '../../game/Character';
 import logger from '../../utils/logger';
 
 export function explorationReducer(
@@ -128,7 +127,7 @@ export function explorationReducer(
 
       // Award XP — immutably
       if (xp && state.playerCharacter) {
-        const character = Character.fromJSON(state.playerCharacter.toJSON());
+        const character = state.playerCharacter.clone();
         character.awardXP(xp);
         newState.playerCharacter = character;
       }
@@ -146,7 +145,7 @@ export function explorationReducer(
 
       if (!state.playerCharacter) return state;
 
-      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      const character = state.playerCharacter.clone();
 
       // Add items to inventory
       if (items) {
@@ -170,7 +169,7 @@ export function explorationReducer(
 
       if (!state.playerCharacter) return state;
 
-      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      const character = state.playerCharacter.clone();
 
       // Apply damage
       if (damage) {

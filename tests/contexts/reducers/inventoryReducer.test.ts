@@ -63,6 +63,9 @@ function makeCharacterStub(overrides: Record<string, unknown> = {}) {
     toJSON: function () {
       return { ...this };
     },
+    clone: function () {
+      return { ...this, inventory: [...this.inventory], equipment: { ...this.equipment } };
+    },
     ...overrides,
   };
 }

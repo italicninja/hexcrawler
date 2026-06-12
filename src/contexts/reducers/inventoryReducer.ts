@@ -10,7 +10,6 @@
  * - FORAGE
  */
 
-import { Character } from '../../game/Character';
 import { advanceTime } from '../../game/TimeManager';
 import { TIME } from '../../constants/gameConstants';
 import logger from '../../utils/logger';
@@ -27,7 +26,7 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
-      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      const character = state.playerCharacter.clone();
       character.inventory.push(item);
 
       return {
@@ -41,7 +40,7 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
-      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      const character = state.playerCharacter.clone();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const index = character.inventory.findIndex((i: any) => i.id === itemId);
       if (index >= 0) {
@@ -60,7 +59,7 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
-      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      const character = state.playerCharacter.clone();
 
       // Resolve the item — either passed directly or looked up by id
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,7 +93,7 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
-      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      const character = state.playerCharacter.clone();
       const equipSlot = slot as keyof typeof character.equipment;
       const item = character.equipment[equipSlot];
       if (item) {
@@ -113,7 +112,7 @@ export function inventoryReducer(
 
       if (!state.playerCharacter) return state;
 
-      const character = Character.fromJSON(state.playerCharacter.toJSON());
+      const character = state.playerCharacter.clone();
       character.rations = Math.max(0, character.rations - amount);
 
       return {

@@ -80,6 +80,9 @@ function makeCharacterStub(overrides: Record<string, unknown> = {}): Record<stri
     toJSON: vi.fn(function (this: Record<string, unknown>) {
       return { ...this };
     }),
+    clone: vi.fn(function (this: Record<string, unknown>) {
+      return { ...this };
+    }),
     awardXP: vi.fn(),
     shouldLevelUp: vi.fn(() => false),
     ...overrides,
@@ -217,6 +220,29 @@ describe('characterReducer — APPLY_EXHAUSTION', () => {
       ACTIONS
     );
     expect(result).toEqual(state);
+  });
+
+  it('adds exhaustion levels on a clone, leaving the original untouched', () => {
+    const character = makeCharacterStub({ exhaustionLevel: 1 });
+    const state = makeState({ playerCharacter: character });
+    const result = characterReducer(
+      state as any,
+      { type: ACTIONS.APPLY_EXHAUSTION, payload: { levels: 2 } } as any,
+      ACTIONS
+    ) as any;
+    expect(result.playerCharacter.exhaustionLevel).toBe(3);
+    expect(character.exhaustionLevel).toBe(1);
+  });
+
+  it('caps exhaustion at 6 (death in 5e terms)', () => {
+    const character = makeCharacterStub({ exhaustionLevel: 4 });
+    const state = makeState({ playerCharacter: character });
+    const result = characterReducer(
+      state as any,
+      { type: ACTIONS.APPLY_EXHAUSTION, payload: { levels: 9 } } as any,
+      ACTIONS
+    ) as any;
+    expect(result.playerCharacter.exhaustionLevel).toBe(6);
   });
 });
 

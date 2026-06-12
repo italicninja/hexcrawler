@@ -9,7 +9,6 @@
 
  
 import { Shop } from '../../game/Shop';
-import { Character } from '../../game/Character';
 import type { GameState, Action } from '../../types/state';
 
 export function shopReducer(
@@ -43,8 +42,8 @@ export function shopReducer(
       }
 
       // Clone character immutably before mutating
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const character = Character.fromJSON(state.playerCharacter.toJSON()) as any;
+       
+      const character = state.playerCharacter.clone();
       character.gold -= cost;
       character.inventory.push(item);
 
@@ -66,8 +65,8 @@ export function shopReducer(
       if (!state.playerCharacter || !state.currentShop) return state;
 
       // Clone character immutably before mutating
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const character = Character.fromJSON(state.playerCharacter.toJSON()) as any;
+       
+      const character = state.playerCharacter.clone();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invIndex = character.inventory.findIndex((i: any) => i.id === item.id);
       if (invIndex >= 0) {

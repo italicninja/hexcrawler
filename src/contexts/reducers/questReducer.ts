@@ -11,7 +11,6 @@
  */
 
 import type { GameState, Action } from '../../types/state';
-import { Character } from '../../game/Character';
 
 export function questReducer(
   state: GameState,
@@ -56,7 +55,7 @@ export function questReducer(
 
       // Apply rewards immutably
       if ((quest.rewards.gold || quest.rewards.xp) && state.playerCharacter) {
-        const character = Character.fromJSON(state.playerCharacter.toJSON());
+        const character = state.playerCharacter.clone();
         if (quest.rewards.gold) {
           character.gold += quest.rewards.gold;
         }

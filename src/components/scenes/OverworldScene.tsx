@@ -336,7 +336,7 @@ function OverworldScene() {
       const character = state.playerCharacter;
       if (character) {
         // Create immutable copy to avoid state mutation
-        const updatedCharacter = Character.fromJSON(character.toJSON());
+        const updatedCharacter = character.clone();
 
         if (updatedCharacter.rations > 0) {
           updatedCharacter.rations--;
@@ -580,7 +580,7 @@ function OverworldScene() {
     }
 
     // Create a proper copy of the character
-    const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+    const updatedCharacter = state.playerCharacter.clone();
 
     // Create dice roller with logger (no seed - we want random rolls, not deterministic)
     const diceRoller = new DiceRoller(null, addMessage);

@@ -1177,6 +1177,18 @@ export class Character {
     };
   }
 
+  /**
+   * Deep-copy this character via the JSON round-trip.
+   *
+   * House pattern for state updates: reducers and components must clone the
+   * character from state, mutate the clone (directly or via SurvivalManager/
+   * RestManager, which mutate their argument), and put the clone back into
+   * state. Never mutate a character that is still referenced by state.
+   */
+  clone(): Character {
+    return Character.fromJSON(this.toJSON());
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromJSON(data: any): Character {
     const char = new Character(data.name, null);

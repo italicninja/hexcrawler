@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { DiceRoller } from '../../game/DiceRoller';
-import { Character } from '../../game/Character';
 import SurvivalManager from '../../game/SurvivalManager';
 import { TIME_COSTS } from '../../game/TimeManager';
 import type { Hex } from '../../types/game';
@@ -105,7 +104,7 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
     setIsForaging(true);
 
     // Create a proper copy of the character
-    const updatedCharacter = Character.fromJSON(state.playerCharacter.toJSON());
+    const updatedCharacter = state.playerCharacter.clone();
 
     // Perform forage check
     const result = SurvivalManager.forage(updatedCharacter, allHexes, diceRoller, currentDay);

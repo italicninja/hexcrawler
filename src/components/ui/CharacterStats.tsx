@@ -52,7 +52,7 @@ function CharacterStats({ character }: { character: Character | null }) {
 
   const handleLevelUp = () => {
     // Clone immutably, apply level-up, dispatch updated character
-    const updatedCharacter = Character.fromJSON(character.toJSON());
+    const updatedCharacter = character.clone();
     const result = updatedCharacter.levelUp();
     if (!result) return;
 
