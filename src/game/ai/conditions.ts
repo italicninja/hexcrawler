@@ -3,7 +3,7 @@
  * Functions that return true/false for behavior tree conditions
  */
 
-import { getHexDistance } from '../../contexts/GameStateContext';
+import { getHexDistance } from '../../utils/hexMath';
 import { checkLineOfSight } from '../LineOfSight';
 import logger from '../../utils/logger';
 

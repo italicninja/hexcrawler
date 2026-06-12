@@ -7,7 +7,7 @@ import {
   type WheelEvent,
   type TouchEvent,
 } from 'react';
-import { getHexDistance } from '../../contexts/GameStateContext';
+import { getHexDistance } from '../../utils/hexMath';
 import { calculateReachableHexes } from '../../game/Pathfinding';
 import { checkLineOfSight } from '../../game/LineOfSight';
 import {
@@ -845,13 +845,13 @@ function CombatCanvas({
     }
 
     // Draw combatants (use animated pixel position if available)
-    let drawnCount = 0;
+    let _drawnCount = 0;
     combatants.forEach((combatant, index) => {
       const overridePixel = visualOverridesRef.current.get(combatant.id ?? '') || null;
       if (combatant.position || overridePixel) {
         const isCurrentTurn = index === currentTurnIndex;
         drawCombatant(ctx, combatant, isCurrentTurn, overridePixel);
-        drawnCount++;
+        _drawnCount++;
       } else {
         logger.combat.warn('[CombatCanvas] Combatant has no position:', combatant.name);
       }
@@ -992,7 +992,7 @@ function CombatCanvas({
       running = false;
       if (rafId) cancelAnimationFrame(rafId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [pendingAnimation]);
 
   /**
