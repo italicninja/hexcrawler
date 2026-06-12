@@ -143,14 +143,38 @@ function CombatCanvas({
   const drawTree = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
 
-    // Brown trunk
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(x - size * 0.15, y + size * 0.1, size * 0.3, size * 0.4);
+    // OSRS low-poly tree: brown trunk, faceted canopy with hard outline
+    ctx.fillStyle = '#5a3c20';
+    ctx.strokeStyle = '#2a1c0e';
+    ctx.lineWidth = 1;
+    ctx.fillRect(x - size * 0.12, y + size * 0.08, size * 0.24, size * 0.4);
+    ctx.strokeRect(x - size * 0.12, y + size * 0.08, size * 0.24, size * 0.4);
 
-    // Green foliage
+    // Canopy: chunky hexagonal crown
+    const r = size * 0.42;
+    const cy = y - size * 0.1;
+    ctx.fillStyle = '#2e4423';
+    ctx.strokeStyle = '#1d2d16';
     ctx.beginPath();
-    ctx.arc(x, y - size * 0.1, size * 0.4, 0, Math.PI * 2);
-    ctx.fillStyle = '#228B22';
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i - Math.PI / 6;
+      const px = x + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r * 0.9;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Lit facet, top-left
+    ctx.fillStyle = '#46663a';
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.5, cy - r * 0.15);
+    ctx.lineTo(x - r * 0.05, cy - r * 0.7);
+    ctx.lineTo(x + r * 0.35, cy - r * 0.25);
+    ctx.lineTo(x - r * 0.1, cy + r * 0.05);
+    ctx.closePath();
     ctx.fill();
 
     ctx.restore();
@@ -166,7 +190,7 @@ function CombatCanvas({
   const drawRock = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
 
-    // Irregular gray polygon
+    // Faceted grey rock: shadow body + lit face + hard outline
     ctx.beginPath();
     ctx.moveTo(x - size * 0.3, y + size * 0.2);
     ctx.lineTo(x - size * 0.1, y - size * 0.3);
@@ -174,11 +198,21 @@ function CombatCanvas({
     ctx.lineTo(x + size * 0.3, y + size * 0.1);
     ctx.lineTo(x + size * 0.1, y + size * 0.3);
     ctx.closePath();
-    ctx.fillStyle = '#808080';
+    ctx.fillStyle = '#6b675e';
     ctx.fill();
-    ctx.strokeStyle = '#404040';
+    ctx.strokeStyle = '#36332d';
     ctx.lineWidth = 1;
     ctx.stroke();
+
+    // Lit facet, upper-left
+    ctx.fillStyle = '#7d786c';
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.22, y + size * 0.08);
+    ctx.lineTo(x - size * 0.1, y - size * 0.26);
+    ctx.lineTo(x + size * 0.12, y - size * 0.16);
+    ctx.lineTo(x - size * 0.04, y + size * 0.02);
+    ctx.closePath();
+    ctx.fill();
 
     ctx.restore();
   }, []);
@@ -192,18 +226,29 @@ function CombatCanvas({
    */
   const drawWall = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
-    ctx.fillStyle = '#555555';
+    // Weathered stone wall, mortar lines offset like real coursing
+    ctx.fillStyle = '#6e6a60';
     ctx.fillRect(x - size * 0.45, y - size * 0.2, size * 0.9, size * 0.4);
-    ctx.strokeStyle = '#333333';
+    ctx.strokeStyle = '#36332d';
     ctx.lineWidth = 1;
     ctx.strokeRect(x - size * 0.45, y - size * 0.2, size * 0.9, size * 0.4);
-    // Stone block lines
+    // Mortar lines (staggered blocks)
+    ctx.strokeStyle = '#4a463e';
     ctx.beginPath();
-    ctx.moveTo(x, y - size * 0.2);
-    ctx.lineTo(x, y + size * 0.2);
     ctx.moveTo(x - size * 0.45, y);
     ctx.lineTo(x + size * 0.45, y);
-    ctx.strokeStyle = '#444444';
+    ctx.moveTo(x - size * 0.15, y - size * 0.2);
+    ctx.lineTo(x - size * 0.15, y);
+    ctx.moveTo(x + size * 0.15, y - size * 0.2);
+    ctx.lineTo(x + size * 0.15, y);
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y + size * 0.2);
+    ctx.stroke();
+    // Top highlight
+    ctx.strokeStyle = 'rgba(220, 214, 198, 0.35)';
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.43, y - size * 0.17);
+    ctx.lineTo(x + size * 0.43, y - size * 0.17);
     ctx.stroke();
     ctx.restore();
   }, []);
@@ -271,12 +316,15 @@ function CombatCanvas({
    */
   const drawDune = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
-    ctx.fillStyle = '#c8902a';
+    ctx.fillStyle = '#b8a070';
     ctx.beginPath();
     ctx.ellipse(x, y + size * 0.1, size * 0.45, size * 0.2, 0, Math.PI, 0);
     ctx.fill();
+    ctx.strokeStyle = '#8a7752';
+    ctx.lineWidth = 1;
+    ctx.stroke();
     // Crest line
-    ctx.strokeStyle = 'rgba(255, 220, 120, 0.5)';
+    ctx.strokeStyle = 'rgba(230, 212, 168, 0.6)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x - size * 0.4, y + size * 0.02);
@@ -294,17 +342,31 @@ function CombatCanvas({
    */
   const drawBoulder = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
-    ctx.fillStyle = '#9a8a78';
+    // Chunky boulder: faceted heptagon instead of a smooth circle
+    const r = size * 0.32;
+    ctx.fillStyle = '#857c6c';
     ctx.beginPath();
-    ctx.arc(x, y, size * 0.32, 0, Math.PI * 2);
+    for (let i = 0; i < 7; i++) {
+      const a = (Math.PI * 2 * i) / 7 - Math.PI / 2;
+      const wobble = i % 2 === 0 ? 1 : 0.85;
+      const px = x + Math.cos(a) * r * wobble;
+      const py = y + Math.sin(a) * r * wobble;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#6a5a48';
+    ctx.strokeStyle = '#4a4438';
     ctx.lineWidth = 1.5;
     ctx.stroke();
-    // Highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    // Lit facet
+    ctx.fillStyle = '#9a9180';
     ctx.beginPath();
-    ctx.arc(x - size * 0.1, y - size * 0.1, size * 0.12, 0, Math.PI * 2);
+    ctx.moveTo(x - r * 0.5, y - r * 0.1);
+    ctx.lineTo(x - r * 0.1, y - r * 0.7);
+    ctx.lineTo(x + r * 0.3, y - r * 0.3);
+    ctx.lineTo(x - r * 0.1, y + r * 0.05);
+    ctx.closePath();
     ctx.fill();
     ctx.restore();
   }, []);
