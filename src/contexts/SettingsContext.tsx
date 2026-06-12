@@ -39,7 +39,7 @@ interface SettingsContextValue {
 
 const defaultSettings: Settings = {
   doubleClickMove: true,
-  theme: 'midnight-gold', // midnight-gold, teal-dark, light, dark-blue, forest
+  theme: 'runescape', // runescape, midnight-gold, teal-dark, light, dark-blue, forest
   keybindings: {
     moveUp: 'w',
     moveDown: 's',
