@@ -16,10 +16,8 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
   const { addMessage } = useGameLog();
   const [isForaging, setIsForaging] = useState(false);
 
-  const character = state.playerCharacter;
-  if (!character) return null;
-
-  // Get current hex terrain (memoized, using HexGrid for O(1) lookup)
+  // Get current hex terrain (memoized, using HexGrid for O(1) lookup).
+  // Must run before the early return below — hooks may not be conditional.
   const currentHex = useMemo(() => {
     return state.hexGrid
       ? state.hexGrid.get(state.playerPosition.col, state.playerPosition.row)
@@ -27,6 +25,9 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
           hex => hex.col === state.playerPosition.col && hex.row === state.playerPosition.row
         );
   }, [state.hexGrid, state.mapData, state.playerPosition.col, state.playerPosition.row]);
+
+  const character = state.playerCharacter;
+  if (!character) return null;
 
   const terrainName = currentHex?.terrain?.name || 'Grassland';
 
