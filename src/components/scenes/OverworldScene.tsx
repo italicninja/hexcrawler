@@ -1084,7 +1084,7 @@ function OverworldScene() {
               payload: { key: floorKey, map: targetMap },
             });
           }
-        } catch (err) {
+        } catch (_err) {
           addMessage('Could not generate next floor.', 'error');
           return;
         }
@@ -1343,7 +1343,7 @@ function OverworldScene() {
     state.combatState?.round,
     // Re-run immediately when ally HP changes so defeat is caught as soon as
     // PROCESS_COMBAT_ACTION zeroes the last ally — not only after ADVANCE_COMBAT_TURN.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     state.combatState?.turnOrder?.filter(c => c.isAlly).reduce((sum, c) => sum + c.currentHP, 0),
     dispatch,
     actions,
@@ -1497,9 +1497,9 @@ function OverworldScene() {
       let action: { type: string; [key: string]: unknown };
       try {
         action = AIEngine.decideAction(
-          combatant as any,
+          combatant as unknown as Parameters<typeof AIEngine.decideAction>[0],
           currentCombatState.battlefield,
-          currentCombatState.turnOrder as any,
+          currentCombatState.turnOrder as unknown as Parameters<typeof AIEngine.decideAction>[2],
           currentCombatState.movementRemaining
         );
       } catch (err: unknown) {
@@ -2173,7 +2173,7 @@ function OverworldScene() {
                   }}
                 >
                   <h3 style={{ margin: '0 0 0.5rem 0', color: '#ff6b6b', fontSize: '1.2rem' }}>
-                    {getCurrentCombatant()?.name}'s Turn
+                    {getCurrentCombatant()?.name}&apos;s Turn
                   </h3>
                   <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                     Enemy is taking their turn...

@@ -116,7 +116,7 @@ export function explorationReducer(
     case ACTIONS.DEFEAT_ENCOUNTER: {
       const { encounterId, loot, xp } = action.payload;
 
-      let newState = { ...state };
+      const newState = { ...state };
 
       // Mark encounter as defeated — immutably
       if (state.interiorMap?.encounters) {

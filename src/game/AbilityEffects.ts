@@ -134,7 +134,7 @@ export class AbilityEffects {
    * Maximum 10 minutes (10 rounds in combat).
    * Uses: recover 1 on Short Rest, all on Long Rest.
    */
-  static rage(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
+  static rage(combatant: Combatant, _diceRoller: DiceRoller): AbilityResult {
     // combatant here is the turnOrder entry: { id, character, enemy, statusEffects, hp, ... }
     const character = combatant.character;
 
@@ -316,7 +316,7 @@ export class AbilityEffects {
   static layOnHands(
     combatant: Combatant,
     target: Combatant,
-    diceRoller: DiceRoller
+    _diceRoller: DiceRoller
   ): AbilityResult {
     // Initialize lay on hands pool if needed
     if (combatant.layOnHandsPool === undefined) {
@@ -382,7 +382,7 @@ export class AbilityEffects {
   static bardicInspiration(
     combatant: Combatant,
     target: Combatant,
-    diceRoller: DiceRoller
+    _diceRoller: DiceRoller
   ): AbilityResult {
     // Initialize statusEffects on target
     if (!target.statusEffects) {
@@ -474,7 +474,7 @@ export class AbilityEffects {
    * Transform into beast (CR ≤ level/3)
    * Separate HP pool
    */
-  static wildShape(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
+  static wildShape(combatant: Combatant, _diceRoller: DiceRoller): AbilityResult {
     // TODO: choose beast by CR (CR ≤ level/3); currently hardcoded to a Brown Bear.
 
     // Store original form
@@ -509,7 +509,7 @@ export class AbilityEffects {
    * Sorcerer - Sorcery Points
    * Metamagic: Quicken Spell (cast as bonus action)
    */
-  static sorceryPoints(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
+  static sorceryPoints(combatant: Combatant, _diceRoller: DiceRoller): AbilityResult {
     // Initialize statusEffects
     if (!combatant.statusEffects) {
       combatant.statusEffects = [];
@@ -538,7 +538,7 @@ export class AbilityEffects {
    * Warlock - Eldritch Invocations
    * Agonizing Blast: +CHA to Eldritch Blast damage
    */
-  static eldritchInvocations(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
+  static eldritchInvocations(combatant: Combatant, _diceRoller: DiceRoller): AbilityResult {
     // Passive ability - add CHA modifier to Eldritch Blast
     const chaBonus = combatant.getModifier('charisma');
 
@@ -557,7 +557,7 @@ export class AbilityEffects {
    * Wizard - Arcane Recovery
    * Recover spell slots = wizard level / 2 (rounded up)
    */
-  static arcaneRecovery(combatant: Combatant, diceRoller: DiceRoller): AbilityResult {
+  static arcaneRecovery(combatant: Combatant, _diceRoller: DiceRoller): AbilityResult {
     const slotsRecovered = Math.ceil(combatant.level / 2);
 
     // Initialize spell slots if needed

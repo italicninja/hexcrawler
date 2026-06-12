@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- loose boundary, see TODO.md */
 /**
  * EnemyMovement — Framework for interior dungeon enemy AI and movement.
  *
@@ -218,9 +219,9 @@ export interface TickContext {
  * TODO: Implement when enemy movement is activated.
  */
 export function hasLineOfSight(
-  hexes: any[],
-  from: { col: number; row: number },
-  to: { col: number; row: number }
+  _hexes: any[],
+  _from: { col: number; row: number },
+  _to: { col: number; row: number }
 ): boolean {
   // STUB — always true until implemented
   // Real implementation: walk the line from→to, check each cell for walls

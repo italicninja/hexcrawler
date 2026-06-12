@@ -209,7 +209,7 @@ export function targetIsSpellcaster(context: ScorerContext): number {
  * @param {ScorerContext} context
  * @returns {number} Score 0.0-1.0
  */
-export function random(context: ScorerContext): number {
+export function random(_context: ScorerContext): number {
   return Math.random();
 }
 

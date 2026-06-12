@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- loose boundary, see TODO.md */
 /**
  * RestManager - Handles D&D 5e rest mechanics
  */
@@ -5,7 +6,7 @@ export class RestManager {
   /**
    * Perform a short rest (1 hour)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   static shortRest(
     character: any,
     hitDiceToSpend = 0
@@ -64,7 +65,7 @@ export class RestManager {
   /**
    * Perform a long rest (8 hours)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   static longRest(
     character: any,
     currentGameTime = 0
@@ -103,12 +104,12 @@ export class RestManager {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   static canShortRest(character: any): boolean {
     return character.hitDiceRemaining > 0;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   static canLongRest(character: any, currentGameTime = 0): { allowed: boolean; reason: string } {
     if (character.lastLongRest === 0) {
       return { allowed: true, reason: 'Can long rest.' };
@@ -125,7 +126,7 @@ export class RestManager {
     return { allowed: true, reason: 'Can long rest.' };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   static recoverShortRestAbilities(character: any): void {
     if (!character.abilities_list || !Array.isArray(character.abilities_list)) return;
 
@@ -149,7 +150,7 @@ export class RestManager {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   static recoverLongRestAbilities(character: any): void {
     if (character.abilities_list && Array.isArray(character.abilities_list)) {
       character.abilities_list = character.abilities_list.map((ability: any) => ({
@@ -192,7 +193,7 @@ export class RestManager {
   /**
    * Perform an inn rest (guaranteed safe long rest)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   static innRest(
     character: any,
     party: any,

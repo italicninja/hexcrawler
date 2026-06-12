@@ -196,7 +196,7 @@ export function useMapGeneration(
     }
 
     addMessage(`Map generated with seed: ${state.mapSeed}`, 'system');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [state.mapSeed]);
   // NOTE: state.mapData excluded from deps - we check it in the guard clause but don't need to re-run when it changes
   // mapGeneratedSeedRef prevents duplicate generation for the same seed even if the effect re-runs,

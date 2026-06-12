@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- loose boundary, see TODO.md */
 /**
  * SurvivalManager.ts
  * Manages food, water, and exhaustion mechanics for D&D 5e hexcrawl survival.
@@ -47,7 +48,7 @@ export function getExhaustionEffects(level: number): ExhaustionEffect {
 /**
  * Consume 1 day's ration (called during long rest)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function consumeRations(character: any): {
   success: boolean;
   message: string;
@@ -79,7 +80,7 @@ export function consumeRations(character: any): {
 /**
  * Consume 1 day's water (DEPRECATED - water removed from survival system)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function consumeWater(_character: any): {
   success: boolean;
   message: string;
@@ -95,7 +96,7 @@ export function consumeWater(_character: any): {
 /**
  * Apply starvation exhaustion (3+ days without food)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function applyStarvation(character: any): {
   exhaustionGained: number;
   message: string;
@@ -130,7 +131,7 @@ export function applyStarvation(character: any): {
 /**
  * Apply dehydration exhaustion (DEPRECATED - water removed from survival system)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function applyDehydration(
   _character: any,
   _terrain = 'grassland'
@@ -141,7 +142,7 @@ export function applyDehydration(
 /**
  * Forage for food (Survival check - Wisdom based)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function forage(
   character: any,
   hexes: any[],
@@ -239,7 +240,7 @@ export function forage(
 /**
  * Find water source (DEPRECATED - water removed from survival system)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function findWater(
   _character: any,
   _terrainKey: string,
@@ -256,7 +257,7 @@ export function findWater(
 /**
  * Reduce exhaustion level (during long rest with food and water)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function reduceExhaustion(character: any): {
   reduced: boolean;
   message: string;
@@ -287,7 +288,7 @@ export function reduceExhaustion(character: any): {
 /**
  * Check if character is affected by exhaustion penalties
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function getActiveExhaustionPenalties(character: any): {
   level: number;
   penalties: string[];

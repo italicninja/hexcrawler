@@ -89,7 +89,7 @@ function TitleScene() {
           </div>
 
           <div className="title-footer">
-            <strong>Controls:</strong> Click hex to view details • Click "Move Here" or double-click
+            <strong>Controls:</strong> Click hex to view details • Click &quot;Move Here&quot; or double-click
             to travel
             <br />
             Game auto-saves on rest, combat victory, quest completion, and scene changes

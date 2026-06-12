@@ -7,7 +7,7 @@
  * - SELL_ITEM
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import { Shop } from '../../game/Shop';
 import { Character } from '../../game/Character';
 import type { GameState, Action } from '../../types/state';

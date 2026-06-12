@@ -50,6 +50,5 @@ export interface CharacterData {
   lastLongRest?: number; // Game time in hours
 }
 
-export interface CharacterJSON extends CharacterData {
-  // Serialized version for save/load
-}
+// Serialized version for save/load
+export type CharacterJSON = CharacterData;

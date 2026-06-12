@@ -75,7 +75,7 @@ export class EncounterPositions {
 
     // Place allies in bottom 2 rows (rows 18-19)
     let allyCol = Math.floor(width / 2) - Math.floor(allies.length / 2);
-    let allyRow = height - 2;
+    const allyRow = height - 2;
 
     for (const ally of allies) {
       const pos = this._findNearestFreeHex({ col: allyCol, row: allyRow }, battlefield, occupied);
@@ -86,7 +86,7 @@ export class EncounterPositions {
 
     // Place enemies in top 3 rows (rows 0-2)
     let enemyCol = Math.floor(width / 2) - Math.floor(enemies.length / 2);
-    let enemyRow = 1;
+    const enemyRow = 1;
 
     for (const enemy of enemies) {
       const pos = this._findNearestFreeHex({ col: enemyCol, row: enemyRow }, battlefield, occupied);
@@ -188,7 +188,7 @@ export class EncounterPositions {
 
     // Place allies in bottom row
     let allyCol = Math.floor(width / 2) - Math.floor(allies.length / 2);
-    let allyRow = height - 1;
+    const allyRow = height - 1;
 
     for (const ally of allies) {
       const pos = this._findNearestFreeHex({ col: allyCol, row: allyRow }, battlefield, occupied);

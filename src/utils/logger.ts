@@ -126,9 +126,9 @@ class CategoryLogger {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       fractionalSecondDigits: 3,
-    } as any);
+    } as Intl.DateTimeFormatOptions);
 
     const categoryStyle = `color: ${this.color}; font-weight: bold;`;
     const levelStyle = `color: ${LEVEL_COLORS[level]}; font-weight: normal;`;

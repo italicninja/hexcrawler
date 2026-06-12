@@ -159,7 +159,7 @@ export class StartingCacheGenerator extends InteriorGenerator {
   generate(
     width: number = STARTING_CACHE.WIDTH,
     height: number = STARTING_CACHE.HEIGHT,
-    cr = 0
+    _cr = 0
   ): CacheMap {
     const grid = this.initializeGrid(width, height, this.terrainTypes.wall);
 

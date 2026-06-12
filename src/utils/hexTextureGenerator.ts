@@ -396,7 +396,7 @@ export class HexTextureGenerator {
     }
   }
 
-  drawDefaultPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, seedOffset = 0): void {
+  drawDefaultPattern(ctx: CanvasRenderingContext2D, size: number, baseColor: string, _seedOffset = 0): void {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 

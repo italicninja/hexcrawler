@@ -170,7 +170,7 @@ export interface Item {
   weight: number;
   description?: string;
   slot?: ItemSlot;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -254,7 +254,7 @@ export interface SaveMetadata {
 
 export interface SaveSlot {
   metadata: SaveMetadata | null;
-  data: any | null; // Full game state
+  data: unknown | null; // Full game state
 }
 
 // ============================================================================

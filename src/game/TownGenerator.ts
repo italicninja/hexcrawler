@@ -221,7 +221,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - Camp metadata
    * @returns {object} Interior map data
    */
-  generateCampLayout(width: number, height: number, townData: TownData): TownMap {
+  generateCampLayout(width: number, height: number, _townData: TownData): TownMap {
     // Initialize grid with grass (no walls)
     const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
 
@@ -303,7 +303,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - Village metadata
    * @returns {object} Interior map data
    */
-  generateVillageLayout(width: number, height: number, townData: TownData): TownMap {
+  generateVillageLayout(width: number, height: number, _townData: TownData): TownMap {
     // Initialize grid with grass
     const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
 
@@ -654,7 +654,7 @@ export class TownGenerator extends InteriorGenerator {
    * @param {object} townData - Town metadata
    * @returns {Array} Array of placed buildings with metadata
    */
-  placeBuildings(grid: InteriorGrid, townData: TownData): Building[] {
+  placeBuildings(grid: InteriorGrid, _townData: TownData): Building[] {
     const buildings: Building[] = [];
     const height = grid.length;
     const width = grid[0].length;

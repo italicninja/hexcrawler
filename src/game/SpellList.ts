@@ -53,7 +53,7 @@ const clericCantrips = [
     targetType: 'self',
     description:
       'You touch one object that is no larger than 10 feet in any dimension. Until the spell ends, the object sheds bright light in a 20-foot radius.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} creates magical light for 1 hour`,
         effect: 'light',
@@ -73,7 +73,7 @@ const clericCantrips = [
     targetType: 'ally',
     description:
       'You touch one willing creature. Once before the spell ends, the target can roll a d4 and add the number rolled to one ability check of its choice.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} receives guidance (+1d4 to next ability check)`,
         effect: 'guidance',
@@ -91,7 +91,7 @@ const clericCantrips = [
     duration: 'Up to 1 minute',
     targetType: 'self',
     description: 'You manifest a minor wonder, a sign of supernatural power, within range.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} manifests a minor supernatural effect`,
         effect: 'thaumaturgy',
@@ -137,7 +137,7 @@ const clericLevel1 = [
     targetType: 'ally',
     description:
       'You bless up to three creatures. Whenever a target makes an attack roll or saving throw before the spell ends, the target can roll a d4 and add the number rolled.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} receives blessing (+1d4 to attacks and saves)`,
         effect: 'bless',
@@ -157,7 +157,7 @@ const clericLevel1 = [
     targetType: 'ally',
     description:
       'A shimmering field appears and surrounds a creature of your choice, granting it a +2 bonus to AC.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} gains +2 AC from Shield of Faith`,
         effect: 'shield_of_faith',
@@ -339,7 +339,7 @@ const clericLevel2 = [
     targetType: 'ally',
     description:
       'You touch a creature and can end either one disease or one condition affecting it (blinded, deafened, paralyzed, or poisoned).',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} is cured of one disease or condition`,
         effect: 'restoration',
@@ -411,7 +411,7 @@ const clericLevel3 = [
     targetType: 'ally',
     description:
       'You touch a creature that has died within the last minute. That creature returns to life with 1 hit point.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} is revived with 1 HP`,
         healing: 1,
@@ -431,7 +431,7 @@ const clericLevel3 = [
     targetType: 'enemy',
     description:
       'Choose one creature, object, or magical effect. Any spell of 3rd level or lower on the target ends.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `Dispel Magic removes magical effects from ${target.name}`,
         effect: 'dispel',
@@ -451,7 +451,7 @@ const clericLevel3 = [
     targetType: 'ally',
     description:
       'Choose any number of creatures. For the duration, each target has advantage on Wisdom saving throws and death saving throws, and regains the maximum number of hit points possible from healing.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} receives Beacon of Hope (advantage on WIS/death saves, max healing)`,
         effect: 'beacon_of_hope',
@@ -510,7 +510,7 @@ const wizardCantrips = [
     targetType: 'self',
     description:
       'A spectral, floating hand appears. You can use your action to control the hand to manipulate objects, open doors, or retrieve items.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} creates a spectral mage hand`,
         effect: 'mage_hand',
@@ -528,7 +528,7 @@ const wizardCantrips = [
     duration: 'Up to 1 hour',
     targetType: 'self',
     description: 'You create one of several minor magical effects.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} performs a minor magical trick`,
         effect: 'prestidigitation',
@@ -641,7 +641,7 @@ const wizardLevel1 = [
     targetType: 'self',
     description:
       'An invisible barrier of magical force appears and protects you, granting you a +5 bonus to AC.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} gains +5 AC until start of next turn`,
         effect: 'shield',
@@ -660,7 +660,7 @@ const wizardLevel1 = [
     targetType: 'ally',
     description:
       "You touch a willing creature who is not wearing armor. The target's base AC becomes 13 + Dexterity modifier.",
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       const dexMod = Math.floor(((target.abilities?.dexterity ?? 10) - 10) / 2);
       const newAC = 13 + dexMod;
       return {
@@ -729,7 +729,7 @@ const wizardLevel1 = [
     targetType: 'self',
     description:
       'For the duration, you sense the presence of magic within 30 feet and can determine its school.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} can detect magic for 10 minutes`,
         effect: 'detect_magic',
@@ -757,7 +757,7 @@ const wizardLevel2 = [
       const targetAC = target.armorClass || 10;
 
       let totalDamage = 0;
-      let hits = 0;
+      let _hits = 0;
       const results = [];
 
       for (let i = 1; i <= 3; i++) {
@@ -767,7 +767,7 @@ const wizardLevel2 = [
         if (roll === 20 || (roll !== 1 && total >= targetAC)) {
           const damage = roll === 20 ? diceRoller.rollDice(6, 4) : diceRoller.rollDice(6, 2);
           totalDamage += damage;
-          hits++;
+          _hits++;
           results.push(
             `Ray ${i}: ${roll}+${attackBonus}=${total} ${roll === 20 ? 'CRIT' : 'Hit'} (${damage})`
           );
@@ -794,7 +794,7 @@ const wizardLevel2 = [
     targetType: 'self',
     description:
       'Surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space you can see.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} teleports up to 30 feet`,
         effect: 'misty_step',
@@ -813,7 +813,7 @@ const wizardLevel2 = [
     targetType: 'self',
     description:
       'Three illusory duplicates of yourself appear. Each time a creature attacks you, roll a d20 to determine if the attack hits you or an image.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} creates 3 mirror images`,
         effect: 'mirror_image',
@@ -866,7 +866,7 @@ const wizardLevel2 = [
     targetType: 'ally',
     description:
       'A creature you touch becomes invisible until the spell ends. Anything the target is wearing or carrying is invisible.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} becomes invisible`,
         effect: 'invisible',
@@ -939,7 +939,7 @@ const wizardLevel3 = [
     targetType: 'enemy',
     description:
       'You attempt to interrupt a creature casting a spell. If the spell is 3rd level or lower, it fails.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${caster.name} counters ${target.name}'s spell`,
         effect: 'counterspell',
@@ -958,7 +958,7 @@ const wizardLevel3 = [
     concentration: true,
     targetType: 'ally',
     description: 'You touch a willing creature. The target gains a flying speed of 60 feet.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} gains flying speed of 60 feet`,
         effect: 'fly',
@@ -978,7 +978,7 @@ const wizardLevel3 = [
     targetType: 'ally',
     description:
       "Choose a willing creature. The target's speed is doubled, it gains a +2 bonus to AC, and it gains an additional action each turn.",
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} gains haste (double speed, +2 AC, extra action)`,
         effect: 'haste',
@@ -1037,7 +1037,7 @@ const druidCantrips = [
     targetType: 'self',
     description:
       'Your staff or club becomes magical. Use your spellcasting ability instead of Strength for attack and damage rolls, dealing 1d8 damage.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name}'s weapon becomes magical (1d8, uses WIS)`,
         effect: 'shillelagh',
@@ -1056,7 +1056,7 @@ const druidCantrips = [
     targetType: 'self',
     description:
       'You create a minor nature-based effect: predict weather, light/snuff a small flame, cause a plant to bloom, etc.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} creates a minor natural effect`,
         effect: 'druidcraft',
@@ -1109,7 +1109,7 @@ const druidLevel1 = [
     targetType: 'ally',
     description:
       'Up to ten berries appear. A creature can use its action to eat one berry, regaining 1 hit point and providing nourishment for one day.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} creates 10 goodberries (1 HP each, counts as food)`,
         effect: 'goodberry',
@@ -1211,7 +1211,7 @@ const druidLevel2 = [
     targetType: 'ally',
     description:
       'A veil of shadows and silence radiates from you. For the duration, each creature you choose gains a +10 bonus to Dexterity (Stealth) checks.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} gains +10 to Stealth checks`,
         effect: 'pass_without_trace',
@@ -1260,7 +1260,7 @@ const druidLevel3 = [
     targetType: 'area',
     description:
       'You summon fey spirits that take the form of beasts. The beasts obey your commands.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} summons spirit animals to aid in combat`,
         effect: 'conjure_animals',
@@ -1279,7 +1279,7 @@ const druidLevel3 = [
     targetType: 'area',
     description:
       'You can either enrich land to improve crops, or overgrow plants to make the area difficult terrain.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} causes rapid plant growth`,
         effect: 'plant_growth',
@@ -1335,7 +1335,7 @@ const bardCantrips = [
     duration: '1 minute',
     targetType: 'self',
     description: 'You create a sound or an image of an object that lasts for 1 minute.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} creates a minor illusion`,
         effect: 'minor_illusion',
@@ -1588,7 +1588,7 @@ const warlockLevel1 = [
     targetType: 'enemy',
     description:
       'You place a curse on a creature. You deal an extra 1d6 necrotic damage to the target whenever you hit it with an attack.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} is hexed (+1d6 damage on hits, disadvantage on chosen ability checks)`,
         effect: 'hex',
@@ -1607,7 +1607,7 @@ const warlockLevel1 = [
     targetType: 'self',
     description:
       'A protective magical force surrounds you. You gain 5 temporary hit points. If a creature hits you with a melee attack while you have these hit points, it takes 5 cold damage.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} gains 5 temporary HP and retaliatory cold damage`,
         effect: 'armor_of_agathys',
@@ -1672,7 +1672,7 @@ const paladinLevel1 = [
     targetType: 'self',
     description:
       'Your weapon glows with divine radiance. Until the spell ends, your weapon attacks deal an extra 1d4 radiant damage.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name}'s weapon deals +1d4 radiant damage`,
         effect: 'divine_favor',
@@ -1694,7 +1694,7 @@ const paladinLevel2 = [
     targetType: 'ally',
     description:
       "Your spell bolsters your allies. Choose up to three creatures. Each target's hit point maximum and current hit points increase by 5.",
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} gains +5 max HP and +5 current HP`,
         healing: 5,
@@ -1714,7 +1714,7 @@ const paladinLevel2 = [
     targetType: 'self',
     description:
       'You summon a spirit that assumes the form of a loyal steed (warhorse, pony, camel, elk, or mastiff).',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} summons a celestial steed`,
         effect: 'find_steed',
@@ -1766,7 +1766,7 @@ const rangerLevel1 = [
     targetType: 'enemy',
     description:
       'You choose a creature you can see and mystically mark it as your quarry. You deal an extra 1d6 damage to the target whenever you hit it with a weapon attack.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, target, _diceRoller) => {
       return {
         message: `${target.name} is marked (+1d6 damage on weapon attacks, advantage on tracking)`,
         effect: 'hunters_mark',
@@ -1785,7 +1785,7 @@ const rangerLevel1 = [
     concentration: true,
     targetType: 'area',
     description: 'You create a 20-foot-radius sphere of fog. The area is heavily obscured.',
-    effect: (caster, target, diceRoller) => {
+    effect: (caster, _target, _diceRoller) => {
       return {
         message: `${caster.name} creates a fog cloud (heavily obscured area)`,
         effect: 'fog_cloud',

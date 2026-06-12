@@ -126,7 +126,7 @@ export class RiverGenerator {
   ): void {
     const visited = new Set<string>();
     let current = source;
-    let maxSteps = width * height; // Prevent infinite loops
+    const maxSteps = width * height; // Prevent infinite loops
     let steps = 0;
 
     while (steps < maxSteps) {

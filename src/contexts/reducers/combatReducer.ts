@@ -24,15 +24,15 @@
  * - TRIGGER_READY_ACTION
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import { Combat } from '../../game/Combat';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import { CombatTerrainGenerator } from '../../game/CombatTerrainGenerator';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import { EncounterPositions } from '../../game/EncounterPositions';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import logger from '../../utils/logger';
 import { Character } from '../../game/Character';
 import type { GameState, Action, CombatStateData } from '../../types/state';
@@ -234,7 +234,7 @@ export function combatReducer(
 
       if (!state.combat) return state;
 
-      let updates = { ...state };
+      const updates = { ...state };
 
       if (victory && state.playerCharacter) {
         // Award XP immutably

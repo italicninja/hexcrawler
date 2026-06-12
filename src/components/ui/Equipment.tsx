@@ -391,7 +391,7 @@ function Equipment({ character }: EquipmentProps) {
   return (
     <div className="equipment-display">
       <div className="equipment-header">
-        <h3>{character.name}'s Equipment</h3>
+        <h3>{character.name}&apos;s Equipment</h3>
       </div>
 
       <div className="equipment-layout">
