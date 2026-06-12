@@ -604,7 +604,7 @@ export function useCombatOrchestration() {
         logger.combat.debug('No action taken for hex click');
       }
     },
-    [state.combatState, combatUIState.selectedAction, dispatch, actions, addMessage]
+    [state.combatState, combatUIState.selectedAction, dispatch, actions, addMessage, getHexDistance]
   );
 
   const handleCombatEndTurn = useCallback(() => {
