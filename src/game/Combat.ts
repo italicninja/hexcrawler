@@ -7,7 +7,7 @@ import { getHexDistance } from '../utils/hexMath';
 import { DND } from '../constants/gameConstants';
 import { checkLineOfSight } from './LineOfSight';
 import { AbilityEffects } from './AbilityEffects';
-import { getSpell, hasSpellSlot, useSpellSlot } from './SpellManager';
+import { getSpell, hasSpellSlot, spendSpellSlot } from './SpellManager';
 import { AIEngine } from './ai/AIEngine';
 import logger from '../utils/logger';
 import type { LogMessageType } from '../types/game';
@@ -1174,7 +1174,7 @@ export class Combat {
 
     // Use spell slot if not a cantrip and cast was successful
     if (result.success && !isCantrip) {
-      useSpellSlot(caster.character, spellLevel);
+      spendSpellSlot(caster.character, spellLevel);
     }
 
     return result;
@@ -1299,7 +1299,7 @@ export class Combat {
    */
   getRollTypeForAbilityCheck(combatant: Combatant, ability: string) {
     let hasAdvantage = false;
-    let hasDisadvantage = false;
+    const hasDisadvantage = false;
 
     // Rage: Advantage on STR checks and STR saving throws
     const rage = combatant.statusEffects?.find(

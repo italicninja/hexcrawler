@@ -244,9 +244,10 @@ export function hasSpellSlot(character: SpellcasterCharacter, level: number): bo
 }
 
 /**
- * Use a spell slot of a given level (mutates character). Cantrips (0) are free.
+ * Spend a spell slot of a given level (mutates character). Cantrips (0) are free.
+ * (Named spendSpellSlot rather than useSpellSlot so lint doesn't treat it as a React hook.)
  */
-export function useSpellSlot(character: SpellcasterCharacter, level: number): boolean {
+export function spendSpellSlot(character: SpellcasterCharacter, level: number): boolean {
   // Cantrips don't consume slots
   if (level === 0) return true;
 
@@ -385,7 +386,7 @@ export default {
   getMaxSpellSlots,
   getCurrentSpellSlots,
   hasSpellSlot,
-  useSpellSlot,
+  spendSpellSlot,
   restoreSpellSlot,
   restoreAllSpellSlots,
   getAvailableSpellSlots,
