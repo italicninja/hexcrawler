@@ -170,7 +170,7 @@
  *   1. Log: "The {creatures} attacks!"
  *   2. Build enemy combatants: Enemy.parseCreatureString(enc.creatures, enc.cr, diceRoller)
  *   3. Dispatch START_COMBAT with those combatants
- *   4. On combat resolution (RESOLVE_COMBAT):
+ *   4. On combat resolution (END_COMBAT with victory):
  *        - If player wins → dispatch DEFEAT_ENCOUNTER (mark enc.defeated = true)
  *        - The encounter token grays out on canvas
  *        - Encounter no longer ticks

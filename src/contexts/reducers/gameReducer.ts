@@ -183,10 +183,8 @@ export function gameReducer(
         playerPosition:
           loadedState.playerPosition ?? state.playerPosition ?? GAME_DEFAULTS.START_POSITION,
         // Don't restore combat state
-        inCombat: false,
-        combat: null,
-        battlefield: null,
-        combatPositions: null,
+        combatState: null,
+        combatLog: [],
         // Don't restore interior state — regenerate fresh on next play
         inInterior: false,
         currentPOI: null,

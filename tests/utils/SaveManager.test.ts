@@ -487,8 +487,8 @@ describe('gameReducer — LOAD_GAME reconstructs saved data', () => {
     const payload = SaveManager.loadFromSlot(SLOT_1);
 
     const dirtyState = makeReducerState({
-      inCombat: true,
-      combat: { round: 2 },
+      combatState: { active: true, round: 2, turnOrder: [] },
+      combatLog: ['Goblin attacks!'],
       inInterior: true,
       currentPOI: { name: 'Old Inn' },
       interiorMaps: { dungeon_1: [] },
@@ -499,8 +499,8 @@ describe('gameReducer — LOAD_GAME reconstructs saved data', () => {
       ACTIONS
     ) as any;
 
-    expect(result.inCombat).toBe(false);
-    expect(result.combat).toBeNull();
+    expect(result.combatState).toBeNull();
+    expect(result.combatLog).toEqual([]);
     expect(result.inInterior).toBe(false);
     expect(result.currentPOI).toBeNull();
     expect(result.interiorMaps).toEqual({});

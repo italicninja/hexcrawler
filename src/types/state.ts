@@ -178,12 +178,6 @@ export interface GameState {
   combatState: CombatStateData | null;
   combatLog: string[];
 
-  // Legacy combat fields (kept for backward compat)
-  inCombat: boolean;
-  combat: CombatInstance | null;
-  battlefield: CombatHex[][] | null;
-  combatPositions: Map<string, HexCoordinates> | null;
-
   // Quest state
   activeQuests: Quest[];
   completedQuests: Quest[];

@@ -4,7 +4,6 @@
  *
  * Actions handled:
  * - START_COMBAT
- * - RESOLVE_COMBAT
  * - PROCESS_COMBAT_MOVEMENT
  * - PROCESS_COMBAT_ACTION
  * - ADVANCE_COMBAT_TURN
@@ -34,7 +33,6 @@ import { EncounterPositions } from '../../game/EncounterPositions';
 import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
  
 import logger from '../../utils/logger';
-import { Character } from '../../game/Character';
 import type { GameState, Action, CombatStateData } from '../../types/state';
 
 export function combatReducer(
@@ -227,24 +225,6 @@ export function combatReducer(
         combatState: newCombatState as unknown as CombatStateData,
         // No scene transition - combat overlays on overworld
       };
-    }
-
-    case ACTIONS.RESOLVE_COMBAT: {
-      const { victory } = action.payload;
-
-      if (!state.combat) return state;
-
-      const updates = { ...state };
-
-      if (victory && state.playerCharacter) {
-        // Award XP immutably
-        const xp = state.combat.calculateXPReward();
-        const character = Character.fromJSON(state.playerCharacter.toJSON());
-        character.awardXP(xp);
-        updates.playerCharacter = character;
-      }
-
-      return updates;
     }
 
     case ACTIONS.PROCESS_COMBAT_MOVEMENT: {

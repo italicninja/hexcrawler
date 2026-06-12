@@ -61,7 +61,6 @@ export const ACTIONS = {
   APPLY_EXHAUSTION: 'APPLY_EXHAUSTION',
   // Combat actions
   START_COMBAT: 'START_COMBAT',
-  RESOLVE_COMBAT: 'RESOLVE_COMBAT',
   PROCESS_COMBAT_ACTION: 'PROCESS_COMBAT_ACTION',
   PROCESS_COMBAT_MOVEMENT: 'PROCESS_COMBAT_MOVEMENT',
   ADVANCE_COMBAT_TURN: 'ADVANCE_COMBAT_TURN',
@@ -174,11 +173,6 @@ const initialState: GameState = {
       readyAction: null,
     },
   },
-  // Legacy combat fields
-  inCombat: false,
-  combat: null,
-  battlefield: null,
-  combatPositions: null,
   // Quest state
   activeQuests: [],
   completedQuests: [],
