@@ -9,6 +9,7 @@ import { useInfiniteTerrainExpansion } from '../../hooks/useInfiniteTerrainExpan
 import { useKeyboardControls } from '../../hooks/useKeyboardControls';
 import { useHexInteraction } from '../../hooks/useHexInteraction';
 import { useCombatOrchestration } from '../../hooks/useCombatOrchestration';
+import { useInteriorNavigation } from '../../hooks/useInteriorNavigation';
 import { TerrainGenerator } from '../../terrainGenerator';
 import { TIME_COSTS, formatTime, getTimeOfDay } from '../../game/TimeManager';
 import { DiceRoller } from '../../game/DiceRoller';
@@ -44,7 +45,7 @@ import { AIEngine } from '../../game/ai/AIEngine';
 import AIInspector from '../debug/AIInspector';
 import DevTools from '../debug/DevTools';
 import type { Hex, LogMessageType } from '../../types/game';
-import type { SceneHex, ScenePoi, SceneInteriorMap } from '../../types/scene';
+import type { SceneHex, ScenePoi } from '../../types/scene';
 
 const CLASS_ICONS: Record<string, string> = {
   fighter: '⚔️',
@@ -62,8 +63,7 @@ const CLASS_ICONS: Record<string, string> = {
 };
 
 function OverworldScene() {
-  const { state, dispatch, actions, isHexReachable, isPoiDiscovered, getHexDistance } =
-    useGameState();
+  const { state, dispatch, actions, isHexReachable, isPoiDiscovered } = useGameState();
   const { settings } = useSettings();
   const { addMessage } = useGameLog();
   // const { showMessage, showEvent, dismissEvent, isBlockingMovement } = useEventInfoBox();
@@ -72,9 +72,6 @@ function OverworldScene() {
   const [showSaveMenu, setShowSaveMenu] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState(state.playerCharacter);
   const [selectedHex, setSelectedHex] = useState<SceneHex | null>(null);
-  const [selectedInteriorHex, setSelectedInteriorHex] = useState<SceneHex | null>(null);
-  // True once the player has stepped onto an Exit Hex inside a non-town POI
-  const [, setInteriorExitReady] = useState(false);
   const [viewportSize, setViewportSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -89,6 +86,10 @@ function OverworldScene() {
   // Combat behaviour: victory/defeat detection, initiative logging, AI turns,
   // and the player-facing combat handlers. Must stay mounted scene-wide.
   const combat = useCombatOrchestration();
+
+  // Interior exploration: active interior map, hex selection, movement
+  // (stairs, loot, lazy floor generation), and building interactions.
+  const interior = useInteriorNavigation({ openPanel: setOpenPanel });
 
   const terrainGeneratorRef = useRef<TerrainGenerator | null>(null);
 
@@ -693,9 +694,9 @@ function OverworldScene() {
   const keyboardCallbacks = {
     onMoveUp: () => {
       if (state.inInterior) {
-        const targetHex = getInteriorHexInDirection('up');
+        const targetHex = interior.getInteriorHexInDirection('up');
         if (targetHex && targetHex.terrain?.walkable) {
-          handleInteriorHexDoubleClick(targetHex);
+          interior.handleInteriorHexDoubleClick(targetHex);
         }
       } else {
         const targetHex = getHexInDirection('up');
@@ -706,9 +707,9 @@ function OverworldScene() {
     },
     onMoveDown: () => {
       if (state.inInterior) {
-        const targetHex = getInteriorHexInDirection('down');
+        const targetHex = interior.getInteriorHexInDirection('down');
         if (targetHex && targetHex.terrain?.walkable) {
-          handleInteriorHexDoubleClick(targetHex);
+          interior.handleInteriorHexDoubleClick(targetHex);
         }
       } else {
         const targetHex = getHexInDirection('down');
@@ -719,9 +720,9 @@ function OverworldScene() {
     },
     onMoveLeft: () => {
       if (state.inInterior) {
-        const targetHex = getInteriorHexInDirection('left');
+        const targetHex = interior.getInteriorHexInDirection('left');
         if (targetHex && targetHex.terrain?.walkable) {
-          handleInteriorHexDoubleClick(targetHex);
+          interior.handleInteriorHexDoubleClick(targetHex);
         }
       } else {
         const targetHex = getHexInDirection('left');
@@ -732,9 +733,9 @@ function OverworldScene() {
     },
     onMoveRight: () => {
       if (state.inInterior) {
-        const targetHex = getInteriorHexInDirection('right');
+        const targetHex = interior.getInteriorHexInDirection('right');
         if (targetHex && targetHex.terrain?.walkable) {
-          handleInteriorHexDoubleClick(targetHex);
+          interior.handleInteriorHexDoubleClick(targetHex);
         }
       } else {
         const targetHex = getHexInDirection('right');
@@ -745,13 +746,13 @@ function OverworldScene() {
     },
     onInteract: () => {
       if (state.inInterior) {
-        const currentHex = getInteriorHexAt(
+        const currentHex = interior.getInteriorHexAt(
           state.interiorPlayerPosition?.col ?? 0,
           state.interiorPlayerPosition?.row ?? 0
         );
 
         if (currentHex && currentHex.terrain?.isInteractive && currentHex.buildingType) {
-          handleBuildingInteraction(currentHex);
+          interior.handleBuildingInteraction(currentHex);
         } else if (
           currentHex &&
           (currentHex.content === 'exit' ||
@@ -764,7 +765,7 @@ function OverworldScene() {
           if (isSettlement) {
             dispatch({ type: actions.EXIT_TOWN });
           } else {
-            setInteriorExitReady(true);
+            interior.markExitReady();
             dispatch({ type: actions.EXIT_EXPLORATION });
           }
         } else if (
@@ -866,280 +867,6 @@ function OverworldScene() {
 
   // Enable keyboard controls (works for both overworld and interior)
   useKeyboardControls(keyboardCallbacks, !isBlockingMovement);
-
-  // Helper to get interior hex at position
-  const getInteriorHexAt = (col: number, row: number): SceneHex | null => {
-    if (!interiorMap) return null;
-    return interiorMap.hexes.find(h => h.col === col && h.row === row) ?? null;
-  };
-
-  // Helper to get interior hex in direction
-  const getInteriorHexInDirection = (direction: string): SceneHex | null => {
-    if (!state.interiorPlayerPosition || !interiorMap) return null;
-
-    const { col, row } = state.interiorPlayerPosition;
-    let targetCol = col;
-    let targetRow = row;
-
-    switch (direction) {
-      case 'up':
-        targetRow = row - 1;
-        break;
-      case 'down':
-        targetRow = row + 1;
-        break;
-      case 'left':
-        targetCol = col - 1;
-        break;
-      case 'right':
-        targetCol = col + 1;
-        break;
-      default:
-        return null;
-    }
-
-    return getInteriorHexAt(targetCol, targetRow);
-  };
-
-  // Interior handlers
-  const handleInteriorHexClick = (hex: SceneHex) => {
-    setSelectedInteriorHex(hex);
-  };
-
-  const handleInteriorHexDoubleClick = async (hex: SceneHex) => {
-    logger.movement.debug('Interior hex double click', {
-      hex,
-      playerPosition: state.interiorPlayerPosition,
-    });
-
-    if (!hex.terrain?.walkable) {
-      addMessage('Cannot move to unwalkable terrain', 'warning');
-      return;
-    }
-
-    if (!state.interiorPlayerPosition) {
-      logger.movement.error('No interior player position set!');
-      return;
-    }
-
-    // Check distance (1 hex move at a time)
-    const distance = getHexDistance(
-      state.interiorPlayerPosition.col,
-      state.interiorPlayerPosition.row,
-      hex.col,
-      hex.row
-    );
-
-    logger.movement.debug('Distance check', { distance });
-
-    if (distance > 1) {
-      addMessage('Too far to move in one turn', 'warning');
-      return;
-    }
-
-    // Update interior player position
-    dispatch({
-      type: actions.SET_INTERIOR_PLAYER_POSITION,
-      payload: { col: hex.col, row: hex.row },
-    });
-
-    setSelectedInteriorHex(hex);
-
-    // Check for building interactions (towns)
-    if (hex.terrain?.isInteractive && hex.buildingType) {
-      handleBuildingInteraction(hex);
-    }
-
-    // Check for town gate exit
-    if (hex.terrain?.key === 'gate') {
-      if (state.currentPOI?.poi.type === 'town') {
-        dispatch({ type: actions.EXIT_TOWN });
-      }
-    }
-
-    // Check for Exit Hex (non-town POIs) — unlock the exit button
-    if (hex.terrain?.key === 'exit' || hex.content === 'exit') {
-      setInteriorExitReady(true);
-      addMessage(
-        `You reach the entrance of ${state.currentPOI?.poi?.name || 'this location'}. Click "← Exit Interior" to leave.`,
-        'info'
-      );
-      return; // Don't process loot/other content on exit tile
-    }
-
-    // ── Stair transitions ────────────────────────────────────────────────────
-    if (hex.content === 'stairsUp' || hex.content === 'stairsDown') {
-      const targetFloor = hex.connectedFloor;
-      const poiKey = state.currentPOI ? `${state.currentPOI.col},${state.currentPOI.row}` : null;
-      if (poiKey == null || targetFloor == null) return;
-
-      // Use a consistent "floor{N}" key format for all floors, including floor 0
-      const floorKey = `${poiKey}:floor${targetFloor}`;
-      let targetMap = state.interiorFloors?.[floorKey];
-
-      // Before leaving the current floor, cache it if not already cached so we
-      // can return to it later without regenerating (floor 0 lives in interiorMaps[poiKey]
-      // initially, upper floors are generated lazily).
-      const currentFloorIndex = state.currentFloor ?? 0;
-      const currentFloorKey = `${poiKey}:floor${currentFloorIndex}`;
-      if (!state.interiorFloors?.[currentFloorKey]) {
-        const currentFloorMap = state.interiorMaps[poiKey];
-        if (currentFloorMap) {
-          dispatch({
-            type: actions.SET_INTERIOR_FLOOR,
-            payload: { key: currentFloorKey, map: currentFloorMap },
-          });
-        }
-      }
-
-      if (!targetMap) {
-        // Lazily generate this floor
-        const poi = state.currentPOI?.poi;
-        const currentMap = state.interiorMaps[poiKey] as
-          | { cr?: number; width?: number; height?: number; floorCount?: number }
-          | undefined;
-        const cr = currentMap?.cr || poi?.cr || 1;
-        const width = currentMap?.width || 20;
-        const height = currentMap?.height || 15;
-
-        try {
-          if (poi?.type === 'tower') {
-            const { TowerGenerator } = await import('../../game/TowerGenerator');
-            const gen = new TowerGenerator();
-            gen.setSeed(`${poiKey}:floor${targetFloor}-${state.mapSeed}`);
-            targetMap = gen.generateFloor(
-              width,
-              height,
-              cr,
-              targetFloor,
-              currentMap?.floorCount || 6
-            );
-          } else if (poi?.type === 'dungeon') {
-            const { DungeonGenerator } = await import('../../game/DungeonGenerator');
-            const gen = new DungeonGenerator();
-            gen.setSeed(`${poiKey}:boss-${state.mapSeed}`);
-            targetMap = gen.generateBossFloor(width, height, cr);
-          }
-
-          if (targetMap) {
-            dispatch({
-              type: actions.SET_INTERIOR_FLOOR,
-              payload: { key: floorKey, map: targetMap },
-            });
-          }
-        } catch (_err) {
-          addMessage('Could not generate next floor.', 'error');
-          return;
-        }
-      }
-
-      if (!targetMap) return;
-
-      // Determine spawn position on the target floor.
-      // Going UP   → player arrives at stairsDown (came from below).
-      // Going DOWN → player arrives at stairsUp   (came from above).
-      const goingUp = hex.content === 'stairsUp';
-      const spawnPos = goingUp
-        ? targetMap.spawnUp || targetMap.entrance
-        : targetMap.spawnDown || targetMap.entrance;
-
-      addMessage(
-        goingUp
-          ? `You ascend to floor ${targetFloor + 1}...`
-          : `You descend to floor ${targetFloor + 1}...`,
-        'info'
-      );
-
-      dispatch({
-        type: actions.CHANGE_FLOOR,
-        payload: { floor: targetFloor, spawnPosition: spawnPos },
-      });
-
-      // Swap which interior map is "active" so the canvas renders the new floor.
-      // interiorMaps[poiKey] is the "live" map the renderer reads from;
-      // we temporarily overwrite it with the target floor map.
-      dispatch({
-        type: actions.SET_INTERIOR_MAP,
-        payload: { key: poiKey, map: targetMap },
-      });
-
-      return;
-    }
-
-    // Check for loot / chest — collect it
-    if (hex.content === 'loot' || hex.content === 'chest') {
-      const poiKey = state.currentPOI ? `${state.currentPOI.col},${state.currentPOI.row}` : null;
-      const currentInteriorMap = poiKey ? state.interiorMaps[poiKey] : null;
-      const lootItem = currentInteriorMap?.loot?.find(l => l.col === hex.col && l.row === hex.row);
-
-      if (lootItem && !lootItem.collected) {
-        // Collect the loot
-        dispatch({
-          type: actions.COLLECT_LOOT,
-          payload: {
-            items: lootItem.items || [],
-            gold: lootItem.gold || 0,
-          },
-        });
-
-        // Mark as collected in the interior map (grays out the chest icon)
-        dispatch({
-          type: actions.DISCOVER_LOOT,
-          payload: {
-            poiKey,
-            lootKey: `${hex.col},${hex.row}`,
-            collected: true,
-          },
-        });
-
-        // Feedback message
-        const parts = [];
-        if (lootItem.gold > 0) parts.push(`${lootItem.gold} gold`);
-        if (lootItem.items?.length > 0) {
-          const itemNames = lootItem.items
-            .map((it: { name?: string }) => it.name || it)
-            .join(', ');
-          parts.push(itemNames);
-        }
-        addMessage(
-          lootItem.label
-            ? `${lootItem.label}: ${lootItem.description || parts.join(' and ')}`
-            : `You find ${parts.join(' and ')}.`,
-          'info'
-        );
-      }
-    }
-  };
-
-  // Handle building interactions in towns
-  const handleBuildingInteraction = (hex: SceneHex) => {
-    const buildingType = hex.buildingType;
-
-    switch (buildingType) {
-      case 'inn':
-        setOpenPanel('rest');
-        break;
-      case 'shop':
-        addMessage('Shop interface coming soon!', 'info');
-        break;
-      case 'questBoard':
-        setOpenPanel('quests');
-        break;
-      case 'blacksmith':
-      case 'temple':
-      case 'house':
-        addMessage(`${buildingType} services coming soon!`, 'info');
-        break;
-    }
-  };
-
-  // Get interior map if in interior — use optional chaining so undefined currentPOI
-  // never crashes during a React batch render where inInterior flips before currentPOI is set
-  const interiorMap = (
-    state.inInterior && state.currentPOI?.col !== undefined
-      ? (state.interiorMaps[`${state.currentPOI.col},${state.currentPOI.row}`] ?? null)
-      : null
-  ) as SceneInteriorMap | null;
 
   // Check foraging status for indicator
   const getForageStatus = () => {
@@ -1328,17 +1055,17 @@ function OverworldScene() {
           {state.combatState?.battlefield ? (
             /* Combat Mode - Show battlefield fullscreen */
             <CombatCanvasPane combat={combat} />
-          ) : state.inInterior && interiorMap ? (
+          ) : state.inInterior && interior.interiorMap ? (
             /* Interior Mode */
             <InteriorHexCanvas
               interiorMap={
-                interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']
+                interior.interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']
               }
               playerPosition={state.interiorPlayerPosition}
               playerIcon={CLASS_ICONS[state.party?.player?.class ?? ''] ?? '🧍'}
-              selectedHex={selectedInteriorHex}
-              onHexClick={handleInteriorHexClick}
-              onHexDoubleClick={handleInteriorHexDoubleClick}
+              selectedHex={interior.selectedInteriorHex}
+              onHexClick={interior.handleInteriorHexClick}
+              onHexDoubleClick={interior.handleInteriorHexDoubleClick}
             />
           ) : state.mapData && state.mapData.length > 0 ? (
             /* Overworld Mode */
@@ -1382,15 +1109,15 @@ function OverworldScene() {
           {state.combatState?.battlefield ? (
             /* Combat Actions Panel */
             <CombatActionPane combat={combat} />
-          ) : state.inInterior && interiorMap ? (
+          ) : state.inInterior && interior.interiorMap ? (
             /* Interior Info */
             <InteriorInfoPane
               selectedHex={
-                selectedInteriorHex as unknown as Parameters<typeof InteriorInfoPane>[0]['selectedHex']
+                interior.selectedInteriorHex as unknown as Parameters<typeof InteriorInfoPane>[0]['selectedHex']
               }
               playerPosition={state.interiorPlayerPosition}
               interiorMap={
-                interiorMap as unknown as Parameters<typeof InteriorInfoPane>[0]['interiorMap']
+                interior.interiorMap as unknown as Parameters<typeof InteriorInfoPane>[0]['interiorMap']
               }
             />
           ) : (
