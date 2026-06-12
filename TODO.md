@@ -1,8 +1,8 @@
 # Hexcrawler - Consolidated TODO
 
-**Last Updated:** June 10, 2026
-**Current Completeness:** ~92% (Core gameplay complete, TypeScript migration done)
-**Focus:** Code quality + remaining polish
+**Last Updated:** June 12, 2026
+**Current Completeness:** ~93% (Core gameplay complete, quality infrastructure done)
+**Focus:** Class implementations (#13-23) + remaining polish
 
 ---
 
@@ -57,26 +57,9 @@ Bugs surfaced and fixed along the way: `Character.gainXP()` → `awardXP()` (3 r
 
 ### 2. Test Save/Load System
 
-**Priority:** High | **Time:** 2 hours
+**Priority:** High | **Time:** 2 hours | **Status:** ✅ COMPLETE — `tests/utils/SaveManager.test.ts` (32 tests) covers slot round-trips, slot independence/deletion, version mismatch, corrupt JSON, QuotaExceededError, metadata, quicksave rotation, and the full save→load→`LOAD_GAME` reconstruction pipeline (Sets/Maps/Character/Party/Quest/Shop instances, combat/interior reset on load).
 
-**Why:** Recent commits show save/load bug fixes (quest/shop/explorationState reconstruction) — regression risk is real.
-
-**Test Cases:**
-
-- [ ] Save to slots 1-3
-- [ ] Load from each slot
-- [ ] Auto-save triggers on scene change
-- [ ] Save metadata displays correctly (playtime, character name, level)
-- [ ] Delete save slot
-- [ ] Version mismatch handling
-- [ ] Set reconstruction (exploredHexes, discoveredPOIs)
-
-**Edge Cases:**
-
-- Save during combat
-- Save in interior/dungeon
-- Save with full inventory
-- Character with exhaustion levels
+Found & fixed along the way: `LOAD_GAME`'s "don't restore combat" comment only nulled the (dead) legacy combat fields — loading a save mid-combat kept the stale combat overlay. It now resets `combatState`/`combatLog` like `NEW_GAME` does.
 
 ---
 
@@ -84,101 +67,25 @@ Bugs surfaced and fixed along the way: `Character.gainXP()` → `awardXP()` (3 r
 
 ### 3. Split OverworldScene.tsx
 
-**Priority:** High | **Time:** 12-16 hours
+**Priority:** High | **Time:** 12-16 hours | **Status:** ✅ COMPLETE — `OverworldScene.tsx` went from 2,317 to **553 lines** across four verified steps:
 
-`OverworldScene.tsx` is **1,960 lines** — the largest file and the primary maintainability problem. It currently handles overworld movement, interior exploration, combat rendering, all UI panel rendering, and survival/AI logic. This grew from the estimated 1,648 lines in the previous TODO.
+| Extracted | File |
+| --- | --- |
+| Combat orchestration (victory/defeat, initiative log, AI turn system, combat handlers) | `hooks/useCombatOrchestration.ts` |
+| Combat render branches (battlefield canvas + action/turn-order panel) | `components/scenes/CombatSceneWrapper.tsx` (`CombatCanvasPane`/`CombatActionPane`) |
+| Interior navigation (map resolution, stairs/loot/lazy floors, buildings) | `hooks/useInteriorNavigation.ts` |
+| Overworld movement, foraging, POI combat engagement | `hooks/useOverworldActions.ts` |
+| Keyboard routing + F5 quicksave | `hooks/useOverworldInput.ts` |
 
-**Current responsibilities to extract:**
-
-| Responsibility                                        | Target File                        | Estimated Lines |
-| ----------------------------------------------------- | ---------------------------------- | --------------- |
-| Interior exploration logic + rendering                | `InteriorScene.tsx`                | ~400            |
-| Combat orchestration (AI turns, action handlers)      | `CombatSceneWrapper.tsx`           | ~300            |
-| Overworld movement + keyboard controls                | `useOverworldInput.ts` (hook)      | ~200            |
-| Combat state management                               | `useCombatOrchestration.ts` (hook) | ~200            |
-| Core OverworldScene (hex grid, fog of war, UI panels) | `OverworldScene.tsx`               | ~600            |
-
-**Steps:**
-
-1. Extract `InteriorScene.tsx` (interior canvas + related state)
-2. Extract `CombatSceneWrapper.tsx` (combatState rendering branch + AI useEffects)
-3. Extract `useCombatOrchestration.ts` hook (AI turn processing logic)
-4. Extract `useOverworldInput.ts` hook (keyboard handling)
-5. Clean up remaining `OverworldScene.tsx`
-
-**Commits:**
-
-- `refactor: Extract InteriorScene from OverworldScene`
-- `refactor: Extract CombatSceneWrapper from OverworldScene`
-- `refactor: Extract combat hooks from OverworldScene`
-- `refactor: Cleanup OverworldScene (1960 → ~600 lines)`
+Deviation from the original plan: no separate `InteriorScene.tsx` — interior logic went to a hook and the two small interior render branches stayed inline; the orchestration hook is instantiated once in OverworldScene so its effects stay mounted scene-wide (zero behavior change). Shared scene types live in `types/scene.ts`.
 
 ---
 
 ### 4. Add Vitest Unit Testing
 
-**Priority:** High | **Time:** 6-8 hours
+**Priority:** High | **Time:** 6-8 hours | **Status:** ✅ Framework + core suites COMPLETE — 12 test files, 368 tests, all green and gating CI: DiceRoller, Character, SurvivalManager, hexMath, HexGrid, **Combat (65 tests)**, **SaveManager (32 tests)**, character/inventory reducers, and three combat UI components.
 
-**Current state:** Playwright E2E tests exist (`.github/workflows/qa-tests.yml`), but there is no unit test framework. Game logic has no coverage at the unit level.
-
-**Install:**
-
-```bash
-npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom
-```
-
-**Create `vitest.config.ts`:**
-
-```typescript
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-
-export default defineConfig({
-  plugins: [react()],
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './tests/setup.ts',
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'tests/', '*.config.ts', 'src/main.tsx'],
-    },
-  },
-});
-```
-
-**Create `tests/setup.ts`:**
-
-```typescript
-import { expect, afterEach } from 'vitest';
-import { cleanup } from '@testing-library/react';
-import * as matchers from '@testing-library/jest-dom/matchers';
-
-expect.extend(matchers);
-afterEach(() => cleanup());
-```
-
-**Priority test files:**
-
-1. `tests/game/DiceRoller.test.ts`
-2. `tests/game/Character.test.ts`
-3. `tests/utils/hexMath.test.ts`
-4. `tests/utils/HexGrid.test.ts`
-5. `tests/game/SurvivalManager.test.ts`
-6. `tests/contexts/reducers/combatReducer.test.ts`
-
-**Add to `package.json` scripts:**
-
-```json
-"test:unit": "vitest",
-"test:unit:ui": "vitest --ui",
-"test:unit:coverage": "vitest --coverage"
-```
-
-**Goal:** 60%+ coverage on `src/game/` and `src/utils/`
-
-**Commit:** `test: Add Vitest unit testing framework and initial tests`
+**Remaining (open):** the 60%+ coverage goal on `src/game/`/`src/utils/` is not met yet. Untested high-value targets, roughly in priority order: `Enemy.ts`, `Quest.ts`/`QuestGenerator`, `Pathfinding.ts`, `LineOfSight.ts`, `OpportunityAttack.ts`, the terrain/interior generators, `combatReducer` direct cases beyond action economy.
 
 ---
 
@@ -186,9 +93,9 @@ afterEach(() => cleanup());
 
 **Priority:** Low | **Time:** 1 hour
 
-**BLOCKER:** `npm run lint` is currently broken project-wide — ESLint v9 is installed but the repo only has a legacy `.eslintrc.cjs` (ESLint v9 requires flat config `eslint.config.js`). Migrate the config to flat format before wiring lint into pre-commit hooks, otherwise the hook will fail on every commit. Note: item #1 is now complete (0 `@ts-nocheck`), but several files carry scoped `eslint-disable @typescript-eslint/no-explicit-any` at genuinely loose boundaries (combat, generators, save serialization) — expect those `any` usages in the lint baseline.
+**Blocker resolved:** ESLint has been migrated to v9 flat config (`eslint.config.js`, typescript-eslint installed) and `npm run lint` passes with `--max-warnings 0`. Lint also runs in CI's `checks` job. Baseline notes: the React-Compiler-era react-hooks rules (`static-components`, `immutability`, `purity`, `set-state-in-effect`) and `exhaustive-deps` are OFF with documented rationale in the config — re-enable them incrementally as components are refactored. Loose-`any` boundaries use file-level disables (SurvivalManager, RestManager, EnemyMovement, Combat, combatReducer, SaveManager, generators).
 
-ESLint and Prettier are installed but not enforced at commit time.
+ESLint and Prettier are installed and CI-enforced, but not enforced at commit time.
 
 **Install:**
 
@@ -704,9 +611,9 @@ The following `TODO` comments exist in source files but are not yet captured as 
 ### Now (High Priority)
 
 - [x] 1. Remove `// @ts-nocheck` suppressions (file by file) — DONE, 0 remain
-- [ ] 2. Test save/load system thoroughly
-- [ ] 3. Split OverworldScene.tsx (1,960 lines)
-- [ ] 4. Add Vitest unit testing
+- [x] 2. Test save/load system thoroughly — DONE, 32 unit tests
+- [x] 3. Split OverworldScene.tsx — DONE, 2,317 → 553 lines
+- [x] 4. Add Vitest unit testing — DONE (368 tests in CI; 60% coverage goal still open)
 - [ ] 13. Fighter — implement & re-enable
 - [ ] 14. Rogue — implement & re-enable
 - [ ] 15. Ranger — implement & re-enable
@@ -740,11 +647,11 @@ The following `TODO` comments exist in source files but are not yet captured as 
 **Technical Health:**
 
 - [x] Zero `// @ts-nocheck` suppressions
-- [ ] All files <600 lines (OverworldScene.tsx is 1,960 — primary blocker)
-- [x] ESLint/Prettier configured
-- [ ] 60%+ unit test coverage on game logic
+- [ ] All files <600 lines (OverworldScene done at 553; remaining >1,000: SpellList 1,899, Combat 1,366, CombatCanvas 1,312, Character 1,239, combatReducer 1,076, GameTableData 1,062 — mostly data-heavy, lower priority)
+- [x] ESLint/Prettier configured — flat config, `npm run lint` passes, CI-enforced
+- [ ] 60%+ unit test coverage on game logic (368 tests; core systems covered, generators/Enemy/Quest still open)
 - [x] TypeScript strict mode configured (`tsconfig.json`)
-- [x] CI/CD pipeline (Playwright E2E on push/PR)
+- [x] CI/CD pipeline (typecheck + lint + unit tests gate the Playwright E2E matrix)
 
 **Gameplay Completeness:**
 
@@ -765,7 +672,8 @@ The following `TODO` comments exist in source files but are not yet captured as 
 
 ## KNOWN ARCHITECTURE NOTES
 
-- **No `CombatScene` file** — combat is an embedded rendering branch inside `OverworldScene.tsx` (triggered when `state.combatState?.battlefield` is truthy)
+- **Combat is an overlay, not a route** — triggered when `state.combatState?.battlefield` is truthy; rendered via `CombatSceneWrapper.tsx` panes, orchestrated by `hooks/useCombatOrchestration.ts` (instantiated once in `OverworldScene`)
+- **QA agent creates a Barbarian** — the only enabled class (`DISABLED_CLASSES` gates the rest); update `tests/qa-agent/config.js` when more classes ship
 - **Water survival removed** — `SurvivalManager.ts` notes water system was deprecated; only rations remain
 - **Playwright for E2E (`tests/qa-agent/`), Vitest for unit tests (`tests/**/*.test.ts`)** — both run in CI (`qa-tests.yml`: `checks` job runs typecheck/lint/unit, then the browser matrix)
 

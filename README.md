@@ -62,16 +62,19 @@ A web-based hexcrawl RPG for D&D 5e. Explore procedurally generated hex maps wit
 - ✅ Seeded map generation for reproducible worlds
 
 ### Code Architecture
+- ✅ **TypeScript strict mode**: 100% of source type-checked, zero `@ts-nocheck`
 - ✅ **React Components**: Functional components with hooks
-- ✅ **Context API**: GameStateContext & SettingsContext for state management
-- ✅ **Custom Hooks**: useGameState, useSettings, useGameLoop, useEventListener
+- ✅ **Context API**: GameStateContext (8 composed domain reducers), GameLogContext, SettingsContext
+- ✅ **Scene hooks**: useCombatOrchestration, useInteriorNavigation, useOverworldActions, useOverworldInput
 - ✅ **Component Structure**:
-  - `src/contexts/` - State management contexts
+  - `src/game/` - Pure game logic, decoupled from React (Combat, Character, AI, generators)
+  - `src/contexts/` + `src/contexts/reducers/` - State management
   - `src/hooks/` - Reusable custom hooks
-  - `src/components/scenes/` - TitleScene, OverworldScene
-  - `src/components/ui/` - UI components (GameLog, CharacterStats, PartyList, etc.)
-  - `src/components/canvas/` - HexGridCanvas component
-  - `src/` - Game logic modules (terrainGenerator, encounters, etc.)
+  - `src/components/scenes/` - Title, CharacterCreation, Overworld, Town, Exploration scenes
+  - `src/components/ui/` - UI components (combat UI lives in `ui/combat/`)
+  - `src/components/canvas/` - HexGridCanvas, InteriorHexCanvas, CombatCanvas
+
+👉 **See [CLAUDE.md](./CLAUDE.md) for the full architecture and development guide**
 
 ## Getting Started
 
@@ -112,39 +115,38 @@ A web-based hexcrawl RPG for D&D 5e. Explore procedurally generated hex maps wit
 ## Tech Stack
 
 - **React 19.0** - UI library with hooks
+- **TypeScript (strict)** - Full type coverage, zero suppressions
 - **Vite 5.0** - Build tool and dev server
 - **Context API + useReducer** - State management
 - **HTML5 Canvas** - Hex rendering with React integration
+- **Vitest + Playwright** - Unit and E2E testing (both run in CI)
 - **CSS3** - Dark theme inspired by Kobold+ Fight Club
 - **localStorage** - Game persistence
 
 ## Project Status & Roadmap
 
-**Current Completeness:** ~85% (Core gameplay functional)  
-**Focus:** Technical debt cleanup + remaining features
+**Current Completeness:** ~92% (Core gameplay complete; class implementations are the main feature track)  
+**Focus:** D&D 5e class mechanics (Barbarian is the reference implementation)
 
 👉 **See [TODO.md](./TODO.md) for detailed task list**
 
 ### Recently Completed ✅
-- ✅ Full D&D 5e combat system with action economy
-- ✅ Item & Inventory system with equipment slots
-- ✅ Quest system with quest givers in towns
-- ✅ Shop system with buying/selling
-- ✅ Region-based biome generation with weather
-- ✅ TypeScript infrastructure (40% coverage)
-- ✅ Modular reducer architecture
+- ✅ Full D&D 5e combat system with action economy and behavior-tree enemy AI
+- ✅ TypeScript migration complete — strict mode, zero `@ts-nocheck`
+- ✅ ESLint v9 flat config + Prettier; lint/typecheck/unit tests all gate CI
+- ✅ Unit test suite (Vitest): Character, DiceRoller, Combat, SaveManager, Survival, reducers
+- ✅ OverworldScene split into focused scene hooks (2,317 → ~550 lines)
+- ✅ Item/Inventory, Quest, Shop, Survival (rations/foraging/exhaustion) systems
 
 ### Next Up (Priority Order)
-1. 🔴 **Critical Cleanup** - Delete 1,120 lines of dead code
-2. 🔴 **Code Quality** - Add ESLint, Prettier, and unit tests
-3. 🔴 **Refactoring** - Split large files (3 files >1,000 lines)
-4. 🟡 **Features** - Rations/Water system, Party AI, Full Combat UI
-5. ⚡ **Performance** - Code splitting, canvas optimization
+1. 🔴 **Classes** - Fighter, Rogue, Ranger, Paladin mechanics (then the rest)
+2. 🟡 **Status effects** - General D&D 5e condition system
+3. 🟡 **Performance** - Canvas dirty-flag rendering
+4. ⚡ **Polish** - Weather gameplay effects, terrain movement costs, minimap
 
 ### Documentation
 - **[TODO.md](./TODO.md)** - Consolidated task list with priorities and estimates
 - **[CLAUDE.md](./CLAUDE.md)** - Architecture overview and development guide
-- **[AGENTS.md](./AGENTS.md)** - Agent-focused development patterns
 - **[GAME_GUIDE.md](./GAME_GUIDE.md)** - Player guide and gameplay mechanics
 
 ## Contributing
