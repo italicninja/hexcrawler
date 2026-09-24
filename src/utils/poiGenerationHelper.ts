@@ -25,6 +25,7 @@ interface POISystemLike {
 
 interface TerrainGeneratorLike {
   random(): number;
+  streamFor(purpose: string, col?: number, row?: number): () => number;
   poiSystem: POISystemLike;
   generateTerrain(
     col: number,
@@ -52,7 +53,8 @@ export function generatePOIForHex(
   terrainType: TerrainType | null,
   col: number,
   row: number,
-  chance = 0.2
+  chance = 0.2,
+  random: () => number = () => terrainGenerator!.random()
 ): unknown {
   if (!terrainGenerator || !terrainType) {
     return null;
@@ -64,7 +66,7 @@ export function generatePOIForHex(
   }
 
   // Check if POI should be generated based on chance
-  if (terrainGenerator.random() >= chance) {
+  if (random() >= chance) {
     return null;
   }
 
@@ -76,7 +78,7 @@ export function generatePOIForHex(
   }
 
   // Select random POI type from suitable types
-  const poiType = suitableTypes[Math.floor(terrainGenerator.random() * suitableTypes.length)];
+  const poiType = suitableTypes[Math.floor(random() * suitableTypes.length)];
 
   // Generate POI using terrain generator's POI system
   const poi = terrainGenerator.poiSystem.generatePOI(
@@ -86,7 +88,7 @@ export function generatePOIForHex(
     terrainType,
     10, // playerLevel
     7, // partySize
-    () => terrainGenerator.random()
+    random
   );
 
   return poi;
@@ -117,8 +119,16 @@ export function generateHex(
     terrainVariety
   );
 
-  // Generate POI (if applicable)
-  const poi = generatePOIForHex(terrainGenerator, terrainType, col, row, poiChance);
+  // Generate POI (if applicable). Per-hex stream: the result depends only on seed + coords,
+  // not on which chunk/order the hex was generated in.
+  const poi = generatePOIForHex(
+    terrainGenerator,
+    terrainType,
+    col,
+    row,
+    poiChance,
+    terrainGenerator.streamFor('poi', col, row)
+  );
 
   // Generate weather from the regional weather system for biome coherence
   const weather = terrainGenerator.getWeatherForHex(col, row);

@@ -77,17 +77,23 @@ export function combatReducer(
         return state;
       }
 
+      // Seed per location + encounter so different fights don't share one battlefield
+      const where = state.inInterior
+        ? `${state.currentPOI?.col},${state.currentPOI?.row}/${state.interiorPlayerPosition?.col},${state.interiorPlayerPosition?.row}`
+        : `${state.playerPosition.col},${state.playerPosition.row}`;
+      const battlefieldSeed = `${state.mapSeed}:battle:${where}:${encounterName ?? encounterType}`;
+
       logger.combat.info('[START_COMBAT] Generating battlefield...', {
         encounterType,
         terrainType,
-        seed: state.mapSeed,
+        seed: battlefieldSeed,
       });
 
       // Generate battlefield
       const battlefield = CombatTerrainGenerator.generate(
         encounterType,
         terrainType,
-        state.mapSeed,
+        battlefieldSeed,
         hexContext
       );
 

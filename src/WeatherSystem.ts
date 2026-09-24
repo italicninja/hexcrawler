@@ -586,11 +586,12 @@ export class WeatherSystem {
    */
   getWeatherForHex(col: number, row: number, hexToRegion: Map<string, number>): WeatherType {
     const regionId = hexToRegion.get(`${col},${row}`);
-    if (regionId === undefined || !this.regions[regionId]) {
-      return WEATHER_TYPES.CLEAR;
-    }
-
-    return this.regions[regionId].weatherPattern || WEATHER_TYPES.CLEAR;
+    // Hexes added by infinite expansion aren't in hexToRegion: use the nearest region's weather
+    const region =
+      regionId !== undefined && this.regions[regionId]
+        ? this.regions[regionId]
+        : this.nearestRegionTo(col, row);
+    return region?.weatherPattern || WEATHER_TYPES.CLEAR;
   }
 
   /**

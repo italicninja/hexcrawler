@@ -7,6 +7,7 @@ import { WeatherSystem, type WeatherType } from './WeatherSystem';
 import logger from './utils/logger';
 import { getHexDistance } from './utils/hexMath';
 import { GAME_DEFAULTS } from './constants/gameConstants';
+import { createSeededRNG, hashSeed, seedToNumber } from './utils/seededRandom';
 
 interface TerrainType {
   key: string;
@@ -56,6 +57,7 @@ export class TerrainGenerator {
   terrainTypes: Record<string, TerrainType>;
   poiTypes: POITypeWeight[];
   seed: number;
+  rng: () => number;
   noise: PerlinNoise;
   terrainAlgorithms: TerrainAlgorithms;
   riverGenerator: RiverGenerator;
@@ -95,6 +97,7 @@ export class TerrainGenerator {
     // applyRegionalWeather(), keeping weather consistent and biome-aware.
 
     this.seed = Date.now();
+    this.rng = createSeededRNG(`${this.seed}:terrain`);
     this.noise = new PerlinNoise(this.seed);
     this.terrainAlgorithms = new TerrainAlgorithms(this.noise);
     this.riverGenerator = new RiverGenerator(this.noise);
@@ -109,8 +112,18 @@ export class TerrainGenerator {
   }
 
   setSeed(seed: string | number | null): void {
-    this.seed = seed ? parseInt(String(seed), 10) : Date.now();
+    this.seed = seed ? seedToNumber(seed) : Date.now();
+    this.rng = createSeededRNG(`${this.seed}:terrain`);
     this.noise.setSeed(this.seed);
+  }
+
+  /**
+   * Independent RNG for one purpose (and optionally one hex), so streams never overlap
+   * and a hex's content doesn't depend on generation order or map bounds.
+   */
+  streamFor(purpose: string, col?: number, row?: number): () => number {
+    const where = col === undefined ? '' : `:${col},${row}`;
+    return createSeededRNG(`${this.seed}:${purpose}${where}`);
   }
 
   initializeRegions(width: number, height: number): void {
@@ -126,7 +139,7 @@ export class TerrainGenerator {
     this.startCol = startCol;
     this.startRow = startRow;
 
-    this.regionGenerator = new RegionGenerator(this.seed, width, height);
+    this.regionGenerator = new RegionGenerator(hashSeed(`${this.seed}:region`), width, height);
     // Pass start position so region 0 is pinned there and forced to Temperate Forest
     const { regions, hexToRegion } = this.regionGenerator.generate(null, startCol, startRow);
     this.regions = regions;
@@ -137,7 +150,7 @@ export class TerrainGenerator {
     // WeatherType — same runtime objects, so cast through the boundary.
     this.weatherSystem = new WeatherSystem(
       this.regions as unknown as ConstructorParameters<typeof WeatherSystem>[0],
-      this.seed + 1000,
+      hashSeed(`${this.seed}:weather`),
       width,
       height
     );
@@ -153,10 +166,9 @@ export class TerrainGenerator {
     this.algorithm = algorithm;
   }
 
-  // Simple seeded random number generator
+  // Seeded terrain stream (reset by setSeed)
   random(): number {
-    const x = Math.sin(this.seed++) * 10000;
-    return x - Math.floor(x);
+    return this.rng();
   }
 
   generate(

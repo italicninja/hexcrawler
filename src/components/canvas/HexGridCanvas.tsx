@@ -19,6 +19,7 @@ import {
   findHexAtPoint,
 } from '../../utils/hexRenderer';
 import { PerlinNoise } from '../../noise';
+import { seedToNumber } from '../../utils/seededRandom';
 import type { POI } from '../../types/game';
 
 interface CanvasHex {
@@ -86,7 +87,7 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
   // Initialize texture generator once
   useEffect(() => {
     if (!textureGenerator.current) {
-      const noise = new PerlinNoise(Number(state.mapSeed) || Date.now());
+      const noise = new PerlinNoise(state.mapSeed ? seedToNumber(state.mapSeed) : Date.now());
       textureGenerator.current = new HexTextureGenerator(noise);
     }
   }, [state.mapSeed]);
