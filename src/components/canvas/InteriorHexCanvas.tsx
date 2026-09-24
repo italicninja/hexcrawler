@@ -391,7 +391,7 @@ function InteriorHexCanvas({
           ctx.fill();
           ctx.stroke();
           ctx.fillStyle = '#fff';
-          ctx.font = `bold ${Math.max(7, iconSize * 0.22)}px Arial`;
+          ctx.font = `bold ${Math.max(11, iconSize * 0.22)}px Arial`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(crLabel, badgeX, badgeY);
