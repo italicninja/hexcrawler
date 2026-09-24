@@ -3,9 +3,19 @@
  * Simplified version of HexGridCanvas adapted for interior exploration
  */
 
-import { useRef, useEffect, useCallback, useState, type MouseEvent } from 'react';
+import {
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+  useState,
+  type MouseEvent,
+  type MutableRefObject,
+} from 'react';
+import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
 import {
   calculateHexPosition,
+  sizeCanvasForDpr,
   drawHexShape,
   drawHexOutline as renderHexOutline,
   findHexAtPoint,
@@ -58,12 +68,7 @@ interface VisualPos {
   y: number;
 }
 
-interface PlayerAnim {
-  startPos: VisualPos;
-  endPos: VisualPos;
-  startTime: number;
-  duration: number;
-}
+const NO_POSITION: Coord = { col: 0, row: 0 };
 
 interface InteriorHexCanvasProps {
   interiorMap?: InteriorMapView | null;
@@ -86,13 +91,10 @@ function InteriorHexCanvas({
   const [hexSize] = useState(30);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
-  const [targetOffsetX, setTargetOffsetX] = useState(0);
-  const [targetOffsetY, setTargetOffsetY] = useState(0);
   const [hoveredHex, setHoveredHex] = useState<PositionedHex | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const playerAnimationRef = useRef<PlayerAnim | null>(null);
-  const playerVisualPosRef = useRef<VisualPos | null>(null);
-  const previousPlayerPosRef = useRef<Coord | null>(playerPosition ?? null);
+  // CSS-pixel size of the canvas; the backing store is this x devicePixelRatio.
+  const canvasSizeRef = useRef({ width: 0, height: 0 });
+  const hasCenteredRef = useRef(false);
   const textureGenerator = useRef<HexTextureGenerator | null>(null);
 
   // Initialize texture generator once
@@ -104,7 +106,7 @@ function InteriorHexCanvas({
   }, []);
 
   // Convert grid to positioned hexes (using utility function)
-  const positionedHexes = useCallback((): PositionedHex[] => {
+  const positionedHexes = useMemo((): PositionedHex[] => {
     if (!interiorMap?.hexes) return [];
 
     return interiorMap.hexes.map(hex => {
@@ -112,6 +114,12 @@ function InteriorHexCanvas({
       return { ...hex, x, y };
     });
   }, [interiorMap, hexSize]);
+
+  const getHexX = useCallback(
+    (col: number, row: number) => calculateHexPosition(col, row, hexSize).x,
+    [hexSize]
+  );
+  const getHexY = useCallback((row: number) => calculateHexPosition(0, row, hexSize).y, [hexSize]);
 
   // Check if content should be visible
   const shouldRenderEncounter = useCallback((encounter: ContentEntry) => {
@@ -511,7 +519,11 @@ function InteriorHexCanvas({
 
   // Draw player marker (using utility function with smooth animation)
   const drawPlayer = useCallback(
-    (ctx: CanvasRenderingContext2D, hexArray: PositionedHex[]) => {
+    (
+      ctx: CanvasRenderingContext2D,
+      hexArray: PositionedHex[],
+      playerVisualPosRef: MutableRefObject<VisualPos | null>
+    ) => {
       if (!playerPosition) return;
 
       // Use animated position if available, otherwise actual position
@@ -530,203 +542,154 @@ function InteriorHexCanvas({
 
       drawPlayerMarker(ctx, x, y, hexSize, playerIcon);
     },
-    [hexSize, playerPosition]
+    [hexSize, playerPosition, playerIcon]
   );
 
-  // Main draw function
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Main draw function (called by the animation hook only when something changed)
+  const draw = useCallback(
+    (playerVisualPosRef: MutableRefObject<VisualPos | null>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const hexArray = positionedHexes();
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const hexArray = positionedHexes;
 
-    // Clear canvas with dark background
-    ctx.fillStyle = '#0d0d0d';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Clear canvas with dark background
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#0d0d0d';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Apply transformations
-    ctx.save();
-    ctx.translate(offsetX, offsetY);
+      // Apply transformations (drawing happens in CSS pixels)
+      const dpr = window.devicePixelRatio || 1;
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.translate(offsetX, offsetY);
 
-    // Draw all hexes
-    hexArray.forEach(hex => drawHex(ctx, hex));
-
-    // Draw selected hex outline (blue)
-    if (selectedHex) {
-      const selectedHexData = hexArray.find(
-        h => h.col === selectedHex.col && h.row === selectedHex.row
-      );
-      if (selectedHexData) {
-        drawHexOutline(ctx, selectedHexData, '#3498db', 3);
+      // Draw only hexes inside the viewport (plus a margin)
+      const { width, height } = canvasSizeRef.current;
+      const margin = hexSize * 2;
+      for (const hex of hexArray) {
+        const sx = hex.x + offsetX;
+        const sy = hex.y + offsetY;
+        if (sx < -margin || sy < -margin || sx > width + margin || sy > height + margin) continue;
+        drawHex(ctx, hex);
       }
-    }
 
-    // Draw hovered hex outline — color by content type
-    if (hoveredHex) {
-      const hoveredHexData = hexArray.find(
-        h => h.col === hoveredHex.col && h.row === hoveredHex.row
-      );
-      if (hoveredHexData) {
-        if (hoveredHex.content === 'loot' || hoveredHex.content === 'chest') {
-          drawHexOutline(ctx, hoveredHexData, '#f39c12', 3); // Gold for loot
-        } else if (hoveredHex.content === 'exit') {
-          drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.35)', 2);
-        } else if (hoveredHex.content === 'encounter') {
-          const enc = interiorMap?.encounters?.find(
-            e => e.col === hoveredHex.col && e.row === hoveredHex.row
-          );
-          if (!enc?.defeated) {
-            drawHexOutline(ctx, hoveredHexData, '#e74c3c', 3); // Red for active enemy
-          } else {
-            drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.2)', 2);
-          }
-        } else if (hoveredHex.terrain?.walkable) {
-          drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.35)', 2);
+      // Draw selected hex outline (blue)
+      if (selectedHex) {
+        const selectedHexData = hexArray.find(
+          h => h.col === selectedHex.col && h.row === selectedHex.row
+        );
+        if (selectedHexData) {
+          drawHexOutline(ctx, selectedHexData, '#3498db', 3);
         }
       }
-    }
 
-    // Draw player marker
-    drawPlayer(ctx, hexArray);
+      // Draw hovered hex outline — color by content type
+      if (hoveredHex) {
+        const hoveredHexData = hexArray.find(
+          h => h.col === hoveredHex.col && h.row === hoveredHex.row
+        );
+        if (hoveredHexData) {
+          // Read content from the current map data, not the (possibly stale) hover snapshot
+          if (hoveredHexData.content === 'loot' || hoveredHexData.content === 'chest') {
+            drawHexOutline(ctx, hoveredHexData, '#f39c12', 3); // Gold for loot
+          } else if (hoveredHexData.content === 'exit') {
+            drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.35)', 2);
+          } else if (hoveredHexData.content === 'encounter') {
+            const enc = interiorMap?.encounters?.find(
+              e => e.col === hoveredHex.col && e.row === hoveredHex.row
+            );
+            if (!enc?.defeated) {
+              drawHexOutline(ctx, hoveredHexData, '#e74c3c', 3); // Red for active enemy
+            } else {
+              drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.2)', 2);
+            }
+          } else if (hoveredHexData.terrain?.walkable) {
+            drawHexOutline(ctx, hoveredHexData, 'rgba(255,255,255,0.35)', 2);
+          }
+        }
+      }
 
-    ctx.restore();
-  }, [
-    positionedHexes,
-    offsetX,
-    offsetY,
-    selectedHex,
-    hoveredHex,
-    drawHex,
-    drawHexOutline,
-    drawPlayer,
-  ]);
+      // Draw player marker
+      drawPlayer(ctx, hexArray, playerVisualPosRef);
 
-  // Setup canvas and handle resize
+      ctx.restore();
+    },
+    [
+      positionedHexes,
+      offsetX,
+      offsetY,
+      hexSize,
+      selectedHex,
+      hoveredHex,
+      interiorMap,
+      drawHex,
+      drawHexOutline,
+      drawPlayer,
+    ]
+  );
+
+  // Shared overworld animation loop: camera lerp, player slide, redraw only when dirty
+  const { playerVisualPosRef, centerCameraOnHex, invalidate } = useCanvasAnimation({
+    drawCallback: () => draw(playerVisualPosRef),
+    getHexX,
+    getHexY,
+    setOffsetX,
+    setOffsetY,
+    playerPosition: playerPosition ?? NO_POSITION,
+    hexes: interiorMap?.hexes ?? [],
+    moveDuration: 150,
+  });
+
+  // Size the canvas to its container (DPR-aware), and again whenever the container resizes.
+  // Declared before the camera effect so the first centering sees the real size.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = canvas?.parentElement;
+    if (!canvas || !container) return;
 
     const resizeCanvas = () => {
-      const container = canvas.parentElement;
-      if (container) {
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight - 60; // Account for header
-      }
+      const width = container.clientWidth;
+      const height = container.clientHeight - 60; // Account for header
+      const prev = canvasSizeRef.current;
+      if (prev.width === width && prev.height === height) return;
+      canvasSizeRef.current = { width, height };
+      sizeCanvasForDpr(canvas, width, height);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      // Setting canvas.width clears it; repaint next frame.
+      invalidate();
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    return () => window.removeEventListener('resize', resizeCanvas);
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(container);
+    return () => observer.disconnect();
   }, []);
 
-  // Set target camera position and animate player when position changes
+  // Keep the camera centered on the player: snap on first view, glide afterwards
   useEffect(() => {
     if (!interiorMap || !playerPosition) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const hexArray = positionedHexes();
-    const playerHex = hexArray.find(
-      h => h.col === playerPosition.col && h.row === playerPosition.row
+    const { width, height } = canvasSizeRef.current;
+    centerCameraOnHex(
+      playerPosition.col,
+      playerPosition.row,
+      width,
+      height,
+      hasCenteredRef.current
     );
-    if (!playerHex) return;
-
-    // Start player movement animation if position changed
-    const prev = previousPlayerPosRef.current;
-    if (prev && (prev.col !== playerPosition.col || prev.row !== playerPosition.row)) {
-      const prevHex = hexArray.find(h => h.col === prev.col && h.row === prev.row);
-
-      if (prevHex) {
-        playerAnimationRef.current = {
-          startPos: { x: prevHex.x, y: prevHex.y },
-          endPos: { x: playerHex.x, y: playerHex.y },
-          startTime: performance.now(),
-          duration: 150, // milliseconds
-        };
-      }
-    }
-
-    previousPlayerPosRef.current = playerPosition;
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-
-    setTargetOffsetX(centerX - playerHex.x);
-    setTargetOffsetY(centerY - playerHex.y);
-  }, [interiorMap, playerPosition, positionedHexes]);
-
-  // Smooth camera and player animation with lerp
-  useEffect(() => {
-    let running = true;
-    const lerpSpeed = 0.1; // Match the overworld smoothness
-
-    const animate = () => {
-      if (!running) return;
-
-      // Update player animation
-      if (playerAnimationRef.current) {
-        const { startPos, endPos, startTime, duration } = playerAnimationRef.current;
-        const elapsed = performance.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-
-        // Easing function (ease-out cubic for smooth deceleration)
-        const eased = 1 - Math.pow(1 - progress, 3);
-
-        playerVisualPosRef.current = {
-          x: startPos.x + (endPos.x - startPos.x) * eased,
-          y: startPos.y + (endPos.y - startPos.y) * eased,
-        };
-
-        // Animation complete
-        if (progress >= 1) {
-          playerVisualPosRef.current = endPos;
-          playerAnimationRef.current = null;
-        }
-      }
-
-      // Smooth camera lerp
-      setOffsetX(prev => {
-        const diff = targetOffsetX - prev;
-        if (Math.abs(diff) < 0.1) return targetOffsetX;
-        return prev + diff * lerpSpeed;
-      });
-
-      setOffsetY(prev => {
-        const diff = targetOffsetY - prev;
-        if (Math.abs(diff) < 0.1) return targetOffsetY;
-        return prev + diff * lerpSpeed;
-      });
-
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      running = false;
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [targetOffsetX, targetOffsetY]);
-
-  // Redraw when dependencies change
-  useEffect(() => {
-    draw();
-  }, [draw]);
+    hasCenteredRef.current = true;
+  }, [interiorMap, playerPosition]);
 
   // Get hex at point (using utility function)
   const getHexAtPoint = useCallback(
     (x: number, y: number): PositionedHex | null => {
       const worldX = x - offsetX;
       const worldY = y - offsetY;
-      const hexArray = positionedHexes();
 
-      return findHexAtPoint(worldX, worldY, hexArray, hexSize) as PositionedHex | null;
+      return findHexAtPoint(worldX, worldY, positionedHexes, hexSize) as PositionedHex | null;
     },
     [hexSize, offsetX, offsetY, positionedHexes]
   );
@@ -775,7 +738,10 @@ function InteriorHexCanvas({
       const y = e.clientY - rect.top;
 
       const hex = getHexAtPoint(x, y);
-      setHoveredHex(hex || null);
+      // Only re-render (and redraw) when the hovered hex actually changes
+      if (hex?.col !== hoveredHex?.col || hex?.row !== hoveredHex?.row) {
+        setHoveredHex(hex);
+      }
 
       // Change cursor based on content
       if (hex) {
@@ -792,7 +758,7 @@ function InteriorHexCanvas({
         canvas.style.cursor = 'default';
       }
     },
-    [getHexAtPoint]
+    [getHexAtPoint, hoveredHex]
   );
 
   return (

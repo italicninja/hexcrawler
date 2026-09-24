@@ -31,6 +31,17 @@ export function calculateHexPosition(col: number, row: number, hexSize: number):
 }
 
 /**
+ * Size a canvas backing store for crisp rendering on HiDPI screens.
+ * Draw code should then `ctx.setTransform(dpr, 0, 0, dpr, 0, 0)` and work in CSS pixels.
+ * Setting canvas.width clears the canvas, so callers must redraw afterwards.
+ */
+export function sizeCanvasForDpr(canvas: HTMLCanvasElement, cssWidth: number, cssHeight: number): void {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(cssWidth * dpr);
+  canvas.height = Math.round(cssHeight * dpr);
+}
+
+/**
  * Draw a hexagon shape at the specified position
  */
 export function drawHexShape(
