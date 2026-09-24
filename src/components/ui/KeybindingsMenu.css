@@ -45,7 +45,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: var(--bg-dark);
+  background: var(--bg-color);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   transition: all 0.2s ease;
@@ -109,7 +109,7 @@
 .keybindings-note {
   margin-top: 1.5rem;
   padding: 0.75rem;
-  background: var(--bg-darker);
+  background: var(--input-bg);
   border-left: 3px solid var(--accent-color);
   border-radius: 4px;
 }
@@ -119,14 +119,4 @@
   color: var(--text-muted);
   font-size: 0.85rem;
   line-height: 1.5;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
 }
