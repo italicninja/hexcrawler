@@ -374,16 +374,16 @@ describe('Combat — processAttack(): enemy attacker', () => {
     expect(ally.hp).toBe(20);
   });
 
-  it('enemy natural 20 doubles weapon dice', () => {
+  it('enemy natural 20 doubles weapon dice but not the flat bonus', () => {
     const hero = makeHero();
     const { combat, ally } = makeHexCombat(hero);
     vi.spyOn(combat.diceRoller, 'rollD20').mockReturnValue(20);
-    vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(3); // (1d6+2 → 5) + (1d6+2 → 5)
+    vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(3); // (1d6+2 → 5) + (1d6 → 3)
 
     const result = combat.processAttack('enemy-0', 'ally-0');
     expect(result.critical).toBe(true);
-    expect(result.damage).toBe(10);
-    expect(ally.hp).toBe(10);
+    expect(result.damage).toBe(8);
+    expect(ally.hp).toBe(12);
   });
 
   it('attacks against a dodging target are rolled with disadvantage', () => {

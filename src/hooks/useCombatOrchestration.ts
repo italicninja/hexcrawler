@@ -121,27 +121,29 @@ export function useCombatOrchestration() {
         aiTimeoutRefs.current.defeat = null;
       }, 2000);
     }
-
-    return () => {
-      if (aiTimeoutRefs.current.victory) {
-        clearTimeout(aiTimeoutRefs.current.victory);
-        aiTimeoutRefs.current.victory = null;
-      }
-      if (aiTimeoutRefs.current.defeat) {
-        clearTimeout(aiTimeoutRefs.current.defeat);
-        aiTimeoutRefs.current.defeat = null;
-      }
-    };
+    // No cleanup here: once combat end is handled this effect early-returns, so
+    // clearing the timer on a later dep change (e.g. the AI advancing the turn)
+    // would cancel victory/defeat forever. Timers are cleared on unmount below.
   }, [
     state.combatState?.currentTurnIndex,
     state.combatState?.round,
-    // Re-run immediately when ally HP changes so defeat is caught as soon as
-    // PROCESS_COMBAT_ACTION zeroes the last ally — not only after ADVANCE_COMBAT_TURN.
+    // Re-run immediately when any HP changes so victory/defeat is caught as soon
+    // as PROCESS_COMBAT_ACTION zeroes the last combatant on either side.
     state.combatState?.turnOrder?.filter(c => c.isAlly).reduce((sum, c) => sum + c.currentHP, 0),
+    state.combatState?.turnOrder?.filter(c => c.isEnemy).reduce((sum, c) => sum + c.currentHP, 0),
     dispatch,
     actions,
     addMessage,
   ]);
+
+  useEffect(() => {
+    const timers = aiTimeoutRefs.current;
+    return () => {
+      if (timers.victory) clearTimeout(timers.victory);
+      if (timers.defeat) clearTimeout(timers.defeat);
+      if (timers.turnTimeout) clearTimeout(timers.turnTimeout);
+    };
+  }, []);
 
   // Log initiative rolls when combat starts
   const initiativeLoggedRef = useRef(false);

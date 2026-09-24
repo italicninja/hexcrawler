@@ -1033,7 +1033,8 @@ export class Combat {
         const baseDamage = this.diceRoller.damageRoll(weaponDamage, damageType);
         damage = baseDamage;
         if (critical) {
-          damage += this.diceRoller.damageRoll(weaponDamage, damageType);
+          // Crits double the dice, not the flat bonus (enemy strings like '1d6+2')
+          damage += this.diceRoller.damageRoll(weaponDamage.replace(/[+-]\d+$/, ''), damageType);
         }
 
         // --- Rage resistance (PHB'24): target with Rage takes half BPS damage ---
