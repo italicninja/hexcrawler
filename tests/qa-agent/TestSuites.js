@@ -39,7 +39,7 @@ export const TEST_SUITES = [
         name: 'Verify welcome message in log',
         async execute(driver, validators) {
           const logs = await driver.getGameLog();
-          validators.validateLogMessage(logs, 'Welcome', 'Should show welcome message');
+          validators.validateLogMessage(logs, 'You begin your journey', 'Should show welcome message');
         }
       },
       {
@@ -50,7 +50,10 @@ export const TEST_SUITES = [
           const rations = await driver.getRations();
           
           validators.validateGreaterThan(gold, 0, 'Gold');
-          validators.validateGreaterThan(rations, 0, 'Rations');
+          // Rations HUD only exists when FEATURES.SURVIVAL_ENABLED
+          if (await driver.page.locator('text=/Rations:/').count()) {
+            validators.validateGreaterThan(rations, 0, 'Rations');
+          }
         }
       },
       {
@@ -77,20 +80,25 @@ export const TEST_SUITES = [
         id: 'keyboard-movement',
         name: 'Test keyboard movement (WASD)',
         async execute(driver, validators) {
-          const initialGold = await driver.getGold();
           const initialRations = await driver.getRations();
-          
-          // Move up
-          await driver.moveKeyboard('up');
-          await driver.wait(1000);
-          
-          // Verify rations consumed
-          const newRations = await driver.getRations();
-          validators.validateLessThan(newRations, initialRations, 'Rations after movement');
-          
-          // Verify movement logged
-          const logs = await driver.getGameLog();
-          validators.validateLogMessage(logs, 'Moved', 'Should log movement');
+          const snap = () => driver.page.locator('canvas').first().screenshot();
+
+          // The game starts inside an interior, where moving doesn't advance the clock,
+          // so check that the view changes. Walls can block a direction; try each.
+          let moved = false;
+          for (const dir of ['up', 'right', 'down', 'left']) {
+            const before = await snap();
+            await driver.moveKeyboard(dir);
+            await driver.wait(1000);
+            if (!before.equals(await snap())) { moved = true; break; }
+          }
+          if (!moved) throw new Error('WASD movement should change the map view');
+
+          // Verify rations consumed (HUD only exists when FEATURES.SURVIVAL_ENABLED)
+          if (initialRations > 0) {
+            const newRations = await driver.getRations();
+            validators.validateLessThan(newRations, initialRations, 'Rations after movement');
+          }
         }
       },
       {
