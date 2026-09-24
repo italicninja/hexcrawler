@@ -78,6 +78,8 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
   const [zoom] = useState(1.0);
   const [selectedHex, setSelectedHex] = useState<PositionedHex | null>(null);
 
+  // CSS-pixel size of the canvas; the backing store is this × devicePixelRatio.
+  const canvasSizeRef = useRef({ width: 0, height: 0 });
   const poiRenderer = useRef(new POIRenderer());
   const textureGenerator = useRef<HexTextureGenerator | null>(null);
 
@@ -258,15 +260,25 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Apply transformations
+      // Apply transformations (drawing happens in CSS pixels)
       ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.translate(offsetX, offsetY);
       ctx.scale(zoom, zoom);
 
-      // Draw all hexes
-      positionedHexes.forEach(hex => drawHex(ctx, hex));
+      // Draw only hexes inside the viewport (plus a one-hex margin)
+      const { width, height } = canvasSizeRef.current;
+      const margin = hexSize * 2;
+      for (const hex of positionedHexes) {
+        const sx = hex.x * zoom + offsetX;
+        const sy = hex.y * zoom + offsetY;
+        if (sx < -margin || sy < -margin || sx > width + margin || sy > height + margin) continue;
+        drawHex(ctx, hex);
+      }
 
       // Draw selected hex outline
       if (selectedHex) {
@@ -284,6 +296,7 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       ctx.restore();
     },
     [
+      hexSize,
       positionedHexes,
       offsetX,
       offsetY,
@@ -296,7 +309,7 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
   );
 
   // Use animation hook for smooth camera and player movement
-  const { playerVisualPosRef, centerCameraOnHex, currentCameraRef } = useCanvasAnimation({
+  const { playerVisualPosRef, centerCameraOnHex, currentCameraRef, invalidate } = useCanvasAnimation({
     drawCallback: () => draw(playerVisualPosRef),
     getHexX,
     getHexY,
@@ -314,8 +327,16 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
     const resizeCanvas = () => {
       const container = canvas.parentElement;
       if (container) {
-        canvas.width = container.clientWidth - 48;
-        canvas.height = container.clientHeight - 48;
+        const width = container.clientWidth - 48;
+        const height = container.clientHeight - 48;
+        const dpr = window.devicePixelRatio || 1;
+        canvasSizeRef.current = { width, height };
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        // Setting canvas.width clears it; repaint next frame.
+        invalidate();
       }
     };
 
@@ -343,8 +364,8 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
     centerCameraOnHex(
       state.playerPosition.col,
       state.playerPosition.row,
-      canvas.width,
-      canvas.height,
+      canvasSizeRef.current.width,
+      canvasSizeRef.current.height,
       false
     );
   }, [
@@ -363,8 +384,8 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
     centerCameraOnHex(
       state.playerPosition.col,
       state.playerPosition.row,
-      canvas.width,
-      canvas.height,
+      canvasSizeRef.current.width,
+      canvasSizeRef.current.height,
       true
     );
   }, [state.playerPosition, hexes, centerCameraOnHex]);
