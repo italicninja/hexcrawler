@@ -139,9 +139,13 @@ export function useCombatOrchestration() {
   useEffect(() => {
     const timers = aiTimeoutRefs.current;
     return () => {
+      // If an end-of-combat timer is cancelled (unmount, or StrictMode's simulated
+      // unmount/remount), let the victory effect re-detect instead of staying "handled".
+      if (timers.victory || timers.defeat) combatEndHandledRef.current = false;
       if (timers.victory) clearTimeout(timers.victory);
       if (timers.defeat) clearTimeout(timers.defeat);
       if (timers.turnTimeout) clearTimeout(timers.turnTimeout);
+      timers.victory = timers.defeat = timers.turnTimeout = null;
     };
   }, []);
 
