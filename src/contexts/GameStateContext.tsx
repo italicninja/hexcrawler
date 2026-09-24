@@ -1,9 +1,9 @@
 import { createContext, useContext, useReducer, useEffect, useRef, useMemo } from 'react';
-import { createGameTime } from '../game/TimeManager';
 import { SaveManager } from '../utils/SaveManager';
 import { getHexDistance } from '../utils/hexMath';
-import { GAME_DEFAULTS, COMBAT, SAVE } from '../constants/gameConstants';
+import { SAVE } from '../constants/gameConstants';
 import { combinedReducer } from './reducers/index';
+import { createInitialState } from './initialState';
 import logger from '../utils/logger';
 import type { GameState, Action, GameStateContextValue } from '../types/state';
 import type { POI } from '../types/game';
@@ -113,82 +113,6 @@ interface ExtendedContextValue extends GameStateContextValue {
 }
 
 // ---------------------------------------------------------------------------
-// Initial state
-// ---------------------------------------------------------------------------
-
-const initialState: GameState = {
-  playerPosition: GAME_DEFAULTS.START_POSITION,
-  playerCharacter: null,
-  party: null,
-  mapData: null,
-  mapSeed: '',
-  hexGrid: null,
-  regions: [],
-  hexToRegion: null,
-  weatherSystem: null,
-  exploredHexes: new Set<string>(),
-  discoveredPOIs: new Set<string>(),
-  currentScene: 'title',
-  newGameSeed: null,
-  characterCreationSeed: null,
-  hasActiveEvent: false,
-  // Interior/exploration state
-  interiorMaps: {},
-  interiorFloors: {},
-  currentFloor: 0,
-  interiorMap: null,
-  currentPOI: null,
-  interiorPlayerPosition: null,
-  inInterior: false,
-  explorationState: {
-    searchedPOIs: new Set<string>(),
-    clearedEncounters: {},
-    collectedLoot: {},
-    triggeredHazards: {},
-  },
-  // Time tracking
-  gameTime: createGameTime(),
-  playtime: 0,
-  // Combat state
-  combatLog: [],
-  combatState: {
-    active: false,
-    combat: null,
-    battlefield: null,
-    turnOrder: [],
-    currentTurnIndex: 0,
-    round: 1,
-    encounterName: '',
-    encounterType: 'standard',
-    waitingForPlayerAction: false,
-    movementRemaining: COMBAT.DEFAULT_MOVEMENT_FEET,
-    turnState: {
-      actionUsed: false,
-      bonusActionUsed: false,
-      reactionUsed: false,
-      movementUsed: 0,
-      freeObjectUsed: false,
-      attacksMade: 0,
-      conditions: [],
-      readyAction: null,
-    },
-  },
-  // Quest state
-  activeQuests: [],
-  completedQuests: [],
-  failedQuests: [],
-  availableQuests: [],
-  townQuests: {},
-  // Shop state
-  currentShop: null,
-  shopInventories: {},
-  // Misc
-  activeEvent: null,
-  pendingLoot: null,
-  leveledUp: false,
-};
-
-// ---------------------------------------------------------------------------
 // Context
 // ---------------------------------------------------------------------------
 
@@ -215,7 +139,7 @@ export { getHexDistance, isHexReachable } from '../utils/hexMath';
 // ---------------------------------------------------------------------------
 
 export function GameStateProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(gameStateReducer, initialState);
+  const [state, dispatch] = useReducer(gameStateReducer, undefined, createInitialState);
   const playtimeStartRef = useRef<number>(Date.now());
   const playtimeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 

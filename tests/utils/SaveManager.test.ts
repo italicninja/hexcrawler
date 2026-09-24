@@ -379,6 +379,62 @@ describe('SaveManager — getSlotMetadata / getAllSlots / hasSaveData', () => {
     SaveManager.saveToSlot(QUICKSAVE_B, makeGameState());
     expect(SaveManager.hasSaveData()).toBe(true);
   });
+
+  it('reads the lightweight sidecar instead of parsing the full save', () => {
+    SaveManager.saveToSlot(SLOT_1, makeGameState());
+    const parse = vi.spyOn(JSON, 'parse');
+    expect(SaveManager.getSlotMetadata(SLOT_1).characterName).toBe('Saver');
+    expect(parse.mock.calls.every(([s]) => String(s).length < 500)).toBe(true);
+  });
+
+  it('backfills the sidecar for saves written before it existed', () => {
+    SaveManager.saveToSlot(SLOT_1, makeGameState());
+    localStorage.removeItem(SaveManager.metaKey(SLOT_1));
+    expect(SaveManager.getSlotMetadata(SLOT_1).characterName).toBe('Saver');
+    expect(localStorage.getItem(SaveManager.metaKey(SLOT_1))).not.toBeNull();
+  });
+
+  it('deleteSlot removes the sidecar too', () => {
+    SaveManager.saveToSlot(SLOT_1, makeGameState());
+    SaveManager.deleteSlot(SLOT_1);
+    expect(SaveManager.hasSaveData()).toBe(false);
+  });
+});
+
+// ─── gameReducer NEW_GAME ────────────────────────────────────────────────────
+
+describe('gameReducer — NEW_GAME', () => {
+  it('resets every game field from the previous run, not just a hand-picked list', () => {
+    const dirty = makeReducerState({
+      currentScene: 'overworld',
+      interiorFloors: { '1,1:2': {} },
+      currentFloor: 2,
+      failedQuests: ['q'],
+      availableQuests: ['q'],
+      currentShop: { id: 'shop' },
+      pendingLoot: [{ id: 'x' }],
+      leveledUp: true,
+      activeQuests: ['q'],
+    });
+    const result = gameReducer(
+      dirty,
+      { type: ACTIONS.NEW_GAME, payload: 'dragon' } as any,
+      ACTIONS
+    ) as any;
+
+    expect(result.mapSeed).toBe('dragon');
+    expect(result.characterCreationSeed).toBe('dragon');
+    expect(result.currentScene).toBe('characterCreation');
+    expect(result.interiorFloors).toEqual({});
+    expect(result.currentFloor).toBe(0);
+    expect(result.failedQuests).toEqual([]);
+    expect(result.availableQuests).toEqual([]);
+    expect(result.activeQuests).toEqual([]);
+    expect(result.currentShop).toBeNull();
+    expect(result.pendingLoot).toBeNull();
+    expect(result.leveledUp).toBe(false);
+    expect(result.combatState).toBeNull();
+  });
 });
 
 // ─── gameReducer LOAD_GAME — Set/Map/class reconstruction ────────────────────

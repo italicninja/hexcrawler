@@ -373,3 +373,29 @@ describe('Character — proficiency bonus', () => {
     expect((c as any).proficiencyBonus).toBeGreaterThanOrEqual(lvl1Prof);
   });
 });
+
+describe('Character — toJSON/fromJSON round-trip', () => {
+  it('preserves initiativeBonus, knownSpells and preparedSpells', () => {
+    const c = new Character('Round', 'wizard');
+    c.initiativeBonus = 3;
+    c.knownSpells = ['fire_bolt', 'shield'];
+    c.preparedSpells = ['magic_missile'];
+
+    const restored = Character.fromJSON(JSON.parse(JSON.stringify(c.toJSON())));
+    expect(restored.initiativeBonus).toBe(3);
+    expect(restored.knownSpells).toEqual(['fire_bolt', 'shield']);
+    expect(restored.preparedSpells).toEqual(['magic_missile']);
+    expect(c.clone().knownSpells).not.toBe(c.knownSpells);
+  });
+
+  it('defaults the new fields for old saves that lack them', () => {
+    const data: Record<string, unknown> = new Character('Old', 'fighter').toJSON();
+    delete data.initiativeBonus;
+    delete data.knownSpells;
+    delete data.preparedSpells;
+    const restored = Character.fromJSON(data);
+    expect(restored.initiativeBonus).toBe(0);
+    expect(restored.knownSpells).toEqual([]);
+    expect(restored.preparedSpells).toEqual([]);
+  });
+});

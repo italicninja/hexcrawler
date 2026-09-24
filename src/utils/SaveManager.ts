@@ -120,7 +120,14 @@ export class SaveManager {
         },
       };
 
+      // Drop the old sidecar first so a failed write below can't leave it describing a different save
+      localStorage.removeItem(this.metaKey(slotKey));
       localStorage.setItem(slotKey, JSON.stringify(saveData));
+      // Small sidecar so slot lists / "Continue" don't parse the whole map
+      localStorage.setItem(
+        this.metaKey(slotKey),
+        JSON.stringify({ ...metadata, timestamp: saveData.timestamp, version: saveData.version })
+      );
 
       if (
         slotKey === this.SAVE_SLOTS.QUICKSAVE_A ||
@@ -182,19 +189,29 @@ export class SaveManager {
     }
   }
 
+  static metaKey(slotKey: string): string {
+    return `${slotKey}_meta`;
+  }
+
   static getSlotMetadata(slotKey: string): any {
     try {
+      const metaStr = localStorage.getItem(this.metaKey(slotKey));
+      if (metaStr) return JSON.parse(metaStr);
+
+      // Saves written before the sidecar existed: parse once and backfill
       const saveDataStr = localStorage.getItem(slotKey);
       if (!saveDataStr) {
         return null;
       }
 
       const saveData = JSON.parse(saveDataStr);
-      return {
+      const meta = {
         ...saveData.metadata,
         timestamp: saveData.timestamp,
         version: saveData.version,
       };
+      localStorage.setItem(this.metaKey(slotKey), JSON.stringify(meta));
+      return meta;
     } catch (error) {
       logger.storage.error('Failed to read slot metadata', { error, slotKey });
       return null;
@@ -204,6 +221,7 @@ export class SaveManager {
   static deleteSlot(slotKey: string): void {
     try {
       localStorage.removeItem(slotKey);
+      localStorage.removeItem(this.metaKey(slotKey));
 
       if (this.getActiveSlot() === slotKey) {
         localStorage.removeItem(this.ACTIVE_SLOT_KEY);

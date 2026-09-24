@@ -7,7 +7,7 @@
 import logger from '../utils/logger';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
-import { TIME_COSTS, getTimeOfDay } from '../game/TimeManager';
+import { TIME_COSTS, getTimeOfDay, advanceTime } from '../game/TimeManager';
 import { DiceRoller } from '../game/DiceRoller';
 import {
   generateHexEntryFlavor,
@@ -295,7 +295,8 @@ export function useOverworldActions() {
     });
 
     // Build and log consolidated hex entry message
-    const newTime = state.gameTime; // This will be updated after ADVANCE_TIME dispatch
+    // state.gameTime is still the pre-move value here; compute what ADVANCE_TIME produces
+    const newTime = advanceTime(state.gameTime, TIME_COSTS.MOVEMENT);
     const oldTimeOfDay = getTimeOfDay(oldTime.hour);
     const newTimeOfDay = getTimeOfDay(newTime.hour);
 

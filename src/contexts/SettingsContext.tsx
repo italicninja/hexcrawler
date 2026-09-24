@@ -56,6 +56,24 @@ const defaultSettings: Settings = {
   },
 };
 
+function loadSettings(): Settings {
+  try {
+    const saved = localStorage.getItem('hexcrawl_settings');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        ...defaultSettings,
+        ...parsed,
+        // keep defaults for keybindings added after the settings were stored
+        keybindings: { ...defaultSettings.keybindings, ...parsed.keybindings },
+      };
+    }
+  } catch (error) {
+    logger.general.error('Failed to load settings:', { error });
+  }
+  return defaultSettings;
+}
+
 // -------------------------------------------------------------------------
 // Context
 // -------------------------------------------------------------------------
@@ -67,19 +85,9 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 // -------------------------------------------------------------------------
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
-
-  // Load settings from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('hexcrawl_settings');
-      if (saved) {
-        setSettings({ ...defaultSettings, ...JSON.parse(saved) });
-      }
-    } catch (error) {
-      logger.general.error('Failed to load settings:', { error });
-    }
-  }, []);
+  // Read stored settings synchronously in the initializer: loading in an effect let the
+  // save effect below write the defaults over the stored settings on first render.
+  const [settings, setSettings] = useState<Settings>(loadSettings);
 
   // Save to localStorage whenever settings change
   useEffect(() => {
