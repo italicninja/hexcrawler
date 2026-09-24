@@ -111,13 +111,6 @@
   margin: 10px 0;
 }
 
-.status-warning {
-  color: #f39c12;
-  font-style: italic;
-  font-size: 0.9em;
-  margin: 10px 0;
-}
-
 /* Buttons */
 .content-section button {
   width: 100%;
@@ -128,18 +121,6 @@
   font-size: 1em;
   cursor: pointer;
   transition: all 0.2s;
-}
-
-.btn-danger {
-  background: #e74c3c;
-  border: 2px solid #c0392b;
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #c0392b;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .btn-primary {
@@ -154,7 +135,6 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-.btn-danger:active,
 .btn-primary:active {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);

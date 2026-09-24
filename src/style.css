@@ -47,6 +47,28 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 172.4 66.1% 50.4%;
     --radius: 0.5rem;
+
+    /* Semantic status colors (theme-independent) */
+    --color-success: #15803d; /* white text on it: 5.0:1 */
+    --color-warning: #f59e0b;
+    --color-error: #f87171;
+
+    /* Text on filled primary/accent/secondary buttons (>= 4.5:1 across themes) */
+    --on-primary: #111111;
+    --on-accent: #111111;
+    --on-secondary: #ffffff;
+
+    /* Aliases used by inline styles; resolve against the active theme on <html> */
+    --color-bg: var(--bg-color);
+    --color-text: var(--text-color);
+    --control-bg: var(--bg-light);
+
+    /* z-index scale */
+    --z-overlay: 1000;
+    --z-menu: 2000;
+    --z-screen: 9999;
+    --z-modal: 10000;
+    --z-modal-content: 10001;
   }
 
   /* Midnight Gold Theme - Dark with Gold Accents */
@@ -174,6 +196,7 @@
     --primary-color: #22c55e;
     --secondary-color: #16a34a;
     --accent-color: #4ade80;
+    --on-secondary: #111111; /* white only reaches 3.3:1 on this green */
     --bg-color: #14532d;
     --bg-light: #166534;
     --bg-lighter: #15803d;
@@ -222,6 +245,7 @@
     --primary-color: #dc2626;
     --secondary-color: #b91c1c;
     --accent-color: #ef4444;
+    --on-primary: #ffffff; /* dark text only reaches 3.9:1 on this red */
     --bg-color: #1f1315;
     --bg-light: #2d1519;
     --bg-lighter: #3f1e22;
@@ -473,24 +497,13 @@ button:active {
   margin-top: 1rem;
   font-size: 1rem;
   border: 1px solid var(--primary-color);
-  color: white;
+  color: var(--on-primary);
 }
 
 .btn-primary:hover {
   background: var(--secondary-color);
+  color: var(--on-secondary);
   border-color: var(--secondary-color);
-}
-
-.action-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
-  margin-top: 1.5rem;
-}
-
-.action-buttons button {
-  padding: 0.6rem;
-  font-size: 0.875rem;
 }
 
 #export {
@@ -518,69 +531,6 @@ button:active {
   color: var(--text-muted);
 }
 
-.hex-detail-display {
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.hex-detail-header {
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.75rem;
-}
-
-.hex-detail-header h3 {
-  margin: 0 0 0.5rem 0;
-  color: var(--text-color);
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.hex-terrain-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.hex-detail-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.detail-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.detail-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-weight: 500;
-}
-
-.detail-value {
-  color: var(--text-color);
-  font-size: 0.9rem;
-}
-
-.detail-value.highlight {
-  color: var(--accent-color);
-  font-weight: 600;
-}
-
-.detail-value.detail-muted {
-  color: var(--text-light);
-  font-size: 0.85rem;
-}
-
 .control-group label {
   cursor: pointer;
 }
@@ -590,41 +540,6 @@ button:active {
   margin-right: 0.5rem;
   cursor: pointer;
   accent-color: var(--accent-color);
-}
-
-.hex-info-panel {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 1rem;
-  min-width: 200px;
-  max-width: 250px;
-  box-shadow: 0 4px 12px var(--shadow);
-  z-index: 100;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
-.hex-info-panel.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.hex-info-panel.popup {
-  position: fixed;
-  top: auto;
-  right: auto;
-  transform: translate(10px, 10px);
-}
-
-.hex-info-panel.pinned {
-  border-color: var(--accent-color);
-  box-shadow:
-    0 4px 12px var(--shadow),
-    0 0 0 2px rgba(20, 184, 166, 0.3);
 }
 
 #hexDetails {
@@ -680,7 +595,7 @@ button:active {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  z-index: 9999;
+  z-index: var(--z-screen);
   margin: 0;
   padding: 2rem 0;
   overflow-y: auto;
@@ -787,7 +702,7 @@ button:active {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  z-index: 9999;
+  z-index: var(--z-screen);
   margin: 0;
   padding: 2rem 0;
   overflow-y: auto;
@@ -878,7 +793,7 @@ button:active {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  z-index: 9999;
+  z-index: var(--z-screen);
   margin: 0;
   padding: 2rem 0;
   overflow-y: auto;
@@ -1100,35 +1015,11 @@ button:active {
   color: var(--text-light);
 }
 
-.class-info {
-  background: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.5rem;
-  text-align: left;
-}
-
-.class-info h3 {
-  color: var(--accent-color);
-  margin: 0 0 0.75rem 0;
-  font-size: 1.5rem;
-}
-
 .class-description {
   color: var(--text-light);
   margin: 0 0 1rem 0;
   font-size: 1rem;
   line-height: 1.5;
-}
-
-.class-stats {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.class-stats strong {
-  color: var(--text-light);
 }
 
 .class-info-compact {
@@ -1198,20 +1089,6 @@ button:active {
   background: rgba(0, 0, 0, 0.15);
   border-radius: 4px;
   border-left: 2px solid var(--accent-color);
-}
-
-.ability-scores-preview {
-  background: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-
-.ability-scores-preview h4 {
-  color: var(--text-light);
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  text-align: left;
 }
 
 .ability-scores-preview-compact {
@@ -1310,7 +1187,7 @@ button:active {
   }
 
   .title-logo {
-    font-size: 2.5rem !important;
+    font-size: 2.5rem;
     margin-bottom: 1rem;
   }
 
@@ -1340,7 +1217,7 @@ button:active {
   }
 
   .title-logo {
-    font-size: 2rem !important;
+    font-size: 2rem;
     margin-bottom: 0.75rem;
   }
 
@@ -1636,7 +1513,7 @@ button:active {
 .mini-stat {
   font-size: 0.65rem;
   color: var(--accent-color);
-  background: rgba(var(--accent-rgb, 100, 160, 255), 0.08);
+  background: color-mix(in srgb, var(--accent-color) 8%, transparent);
   border-radius: 2px;
   padding: 0 0.25rem;
 }
@@ -1692,7 +1569,7 @@ button:active {
 .filter-btn.active {
   background: var(--primary-color);
   border-color: var(--accent-color);
-  color: white;
+  color: var(--on-primary);
 }
 
 .inventory-empty {
@@ -1905,11 +1782,12 @@ button:active {
 .detail-action-btn.equip {
   background: var(--primary-color);
   border-color: var(--accent-color);
-  color: white;
+  color: var(--on-primary);
 }
 
 .detail-action-btn.equip:hover {
   background: var(--accent-color);
+  color: var(--on-accent);
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
@@ -1927,10 +1805,6 @@ button:active {
 }
 
 /* Shared item-stat (kept for any other users) */
-.item-stat {
-  color: var(--accent-color);
-  font-size: 0.75rem;
-}
 
 /* ===== Game Log ===== */
 .game-log-container {
@@ -2033,21 +1907,6 @@ button:active {
   font-style: italic;
   text-align: center;
   padding: 1rem;
-}
-
-.btn-small {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  background: var(--bg-lighter);
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-small:hover {
-  background: var(--bg-light);
 }
 
 /* ===== Config Panel ===== */
@@ -2243,7 +2102,7 @@ button:active {
   padding: 0 1rem;
   font-size: 0.75rem;
   color: var(--text-muted);
-  z-index: 1000;
+  z-index: var(--z-overlay);
   font-family: 'Courier New', monospace;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -2274,7 +2133,7 @@ button:active {
 .toolbar-action-btn:hover {
   background: var(--primary-color);
   border-color: var(--accent-color);
-  color: white;
+  color: var(--on-primary);
   transform: translateY(-1px);
 }
 
@@ -2306,13 +2165,13 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: var(--z-modal);
   backdrop-filter: blur(4px);
 }
 
 .modal-content {
   position: relative;
-  z-index: 10001;
+  z-index: var(--z-modal-content);
   animation: modalFadeIn 0.2s ease-out;
 }
 
@@ -2324,6 +2183,48 @@ button:active {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Shared modal close (x) button */
+.close-button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.close-button:hover {
+  background: var(--bg-lighter);
+  color: var(--text-color);
+}
+
+/* Keyboard focus ring (mouse clicks don't trigger :focus-visible) */
+:where(button, a, input, select, textarea, summary, [tabindex], [role='button']):focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -2381,7 +2282,7 @@ button:active {
 @media (max-width: 768px) {
   /* Stack layout vertically */
   .container {
-    flex-direction: column !important;
+    flex-direction: column;
     gap: 0.5rem;
     padding: 0.5rem;
   }
@@ -2418,7 +2319,7 @@ button:active {
 
   /* Hex detail panel full width */
   .hex-detail-panel {
-    width: 100% !important;
+    width: 100%;
     max-height: 40vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
@@ -2532,20 +2433,6 @@ button:active {
   /* Hex detail panel compact */
   .hex-detail-panel {
     max-height: 35vh;
-  }
-
-  .hex-detail-display {
-    padding: 0.75rem !important;
-    gap: 0.5rem !important;
-  }
-
-  .hex-detail-display h2 {
-    font-size: 1rem !important;
-  }
-
-  .hex-detail-display p,
-  .hex-detail-display div {
-    font-size: 0.8rem !important;
   }
 
   /* Buttons more touch-friendly */

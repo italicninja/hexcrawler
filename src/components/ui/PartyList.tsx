@@ -56,6 +56,15 @@ function PartyMember({ member, index, isSelected, onClick }: PartyMemberProps) {
     <div
       className={`party-member ${isSelected ? 'selected' : ''}`}
       onClick={() => onClick(member, index)}
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick(member, index);
+        }
+      }}
       style={{ cursor: 'pointer' }}
     >
       <div className="party-icon">{initial}</div>

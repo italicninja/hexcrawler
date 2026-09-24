@@ -302,7 +302,7 @@ function HexDetails({ hex }: HexDetailsProps) {
                   style={{
                     background: 'var(--primary-color)',
                     borderColor: 'var(--accent-color)',
-                    color: 'var(--text-color)',
+                    color: 'var(--on-primary)',
                     padding: '0.4rem 0.6rem',
                     fontSize: '0.75rem',
                     borderRadius: '3px',
@@ -326,7 +326,7 @@ function HexDetails({ hex }: HexDetailsProps) {
                   style={{
                     background: 'var(--primary-color)',
                     borderColor: 'var(--accent-color)',
-                    color: 'var(--text-color)',
+                    color: 'var(--on-primary)',
                     padding: '0.4rem 0.6rem',
                     fontSize: '0.75rem',
                     borderRadius: '3px',
@@ -350,7 +350,7 @@ function HexDetails({ hex }: HexDetailsProps) {
                   style={{
                     background: 'var(--primary-color)',
                     borderColor: 'var(--accent-color)',
-                    color: 'var(--text-color)',
+                    color: 'var(--on-primary)',
                     padding: '0.4rem 0.6rem',
                     fontSize: '0.75rem',
                     borderRadius: '3px',
@@ -374,7 +374,7 @@ function HexDetails({ hex }: HexDetailsProps) {
                   style={{
                     background: 'var(--primary-color)',
                     borderColor: 'var(--accent-color)',
-                    color: 'var(--text-color)',
+                    color: 'var(--on-primary)',
                     padding: '0.4rem 0.6rem',
                     fontSize: '0.75rem',
                     borderRadius: '3px',
@@ -398,7 +398,7 @@ function HexDetails({ hex }: HexDetailsProps) {
                     style={{
                       background: 'var(--primary-color)',
                       borderColor: 'var(--accent-color)',
-                      color: 'var(--text-color)',
+                      color: 'var(--on-primary)',
                       padding: '0.4rem 0.6rem',
                       fontSize: '0.75rem',
                       borderRadius: '3px',
@@ -414,7 +414,7 @@ function HexDetails({ hex }: HexDetailsProps) {
                     style={{
                       background: 'var(--primary-color)',
                       borderColor: 'var(--accent-color)',
-                      color: 'var(--text-color)',
+                      color: 'var(--on-primary)',
                       padding: '0.4rem 0.6rem',
                       fontSize: '0.75rem',
                       borderRadius: '3px',

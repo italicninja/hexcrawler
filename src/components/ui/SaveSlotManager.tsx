@@ -6,6 +6,7 @@ import { useGameLog } from '../../contexts/GameLogContext';
 import { useConfirm } from '../../hooks/useConfirm';
 import { ConfirmDialog } from '../shadcn/ConfirmDialog';
 import SaveSlot from './SaveSlot';
+import { ModalTitle } from './Modal';
 import './SaveSlotManager.css';
 
 /**
@@ -115,9 +116,9 @@ function SaveSlotManager({ mode, onClose }: SaveSlotManagerProps) {
     <>
       <div className="save-slot-manager">
         <div className="save-slot-manager-header">
-          <h2>{mode === 'load' ? 'Load Game' : 'Save Game'}</h2>
+          <ModalTitle>{mode === 'load' ? 'Load Game' : 'Save Game'}</ModalTitle>
           {onClose && (
-            <button className="close-button" onClick={onClose}>
+            <button className="close-button" onClick={onClose} aria-label="Close">
               ×
             </button>
           )}

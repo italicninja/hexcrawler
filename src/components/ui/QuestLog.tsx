@@ -193,6 +193,15 @@ export default function QuestLog() {
                 key={quest.id}
                 className={`quest-list-item ${selectedQuestId === quest.id ? 'selected' : ''}`}
                 onClick={() => setSelectedQuestId(quest.id)}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedQuestId === quest.id}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedQuestId(quest.id);
+                  }
+                }}
               >
                 <div className="quest-list-title">{quest.title}</div>
                 <div className="quest-list-meta">
@@ -247,7 +256,7 @@ export default function QuestLog() {
         .filter-button.active {
           background: var(--primary-color);
           border-color: var(--accent-color);
-          color: var(--text-color);
+          color: var(--on-primary);
         }
 
         .quest-log-body {
@@ -508,7 +517,7 @@ export default function QuestLog() {
         .complete-quest-button {
           width: 100%;
           padding: 0.75rem;
-          background: linear-gradient(135deg, #4CAF50, #45a049);
+          background: linear-gradient(135deg, #2e7d32, #256b29);
           border: none;
           color: white;
           font-size: 1rem;

@@ -1,4 +1,5 @@
-import type { ReactNode, MouseEvent } from 'react';
+import type { ReactNode } from 'react';
+import Modal, { ModalTitle } from './Modal';
 
 /**
  * MenuPanel - Reusable popup panel for menus
@@ -21,19 +22,12 @@ function MenuPanel({
   width = '600px',
   maxWidth = '90vw',
 }: MenuPanelProps) {
-  if (!isOpen) return null;
-
-  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   return (
-    <div
-      className="menu-panel-backdrop"
-      onClick={handleBackdropClick}
-      style={{
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      overlayClassName="menu-panel-backdrop"
+      overlayStyle={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -43,78 +37,76 @@ function MenuPanel({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2000,
+        zIndex: 'var(--z-menu)',
         padding: '1rem',
       }}
+      className="menu-panel menu-panel-container"
+      style={{
+        backgroundColor: 'var(--panel-bg)',
+        border: '2px solid var(--border-color)',
+        borderRadius: '8px',
+        width: width,
+        maxWidth: maxWidth,
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+      }}
     >
+      {/* Header */}
       <div
-        className="menu-panel menu-panel-container"
+        className="menu-panel-header"
         style={{
-          backgroundColor: 'var(--panel-bg)',
-          border: '2px solid var(--border-color)',
-          borderRadius: '8px',
-          width: width,
-          maxWidth: maxWidth,
-          maxHeight: '90vh',
+          padding: '1rem 1.5rem',
+          borderBottom: '1px solid var(--border-color)',
           display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: 'var(--bg-color)',
         }}
       >
-        {/* Header */}
-        <div
-          className="menu-panel-header"
+        <ModalTitle
           style={{
-            padding: '1rem 1.5rem',
-            borderBottom: '1px solid var(--border-color)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            backgroundColor: 'var(--bg-color)',
+            margin: 0,
+            color: 'var(--accent-color)',
+            fontSize: '1.5rem',
+            fontWeight: 600,
           }}
         >
-          <h2
-            style={{
-              margin: 0,
-              color: 'var(--accent-color)',
-              fontSize: '1.5rem',
-              fontWeight: 600,
-            }}
-          >
-            {title}
-          </h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              padding: '0.25rem 0.5rem',
-              lineHeight: 1,
-              transition: 'color 0.2s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-color)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Content */}
-        <div
-          className="menu-panel-content"
+          {title}
+        </ModalTitle>
+        <button
+          onClick={onClose}
+          aria-label="Close"
           style={{
-            padding: '1.5rem',
-            overflowY: 'auto',
-            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--text-muted)',
+            fontSize: '1.5rem',
+            cursor: 'pointer',
+            padding: '0.25rem 0.5rem',
+            lineHeight: 1,
+            transition: 'color 0.2s',
           }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-color)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
         >
-          {children}
-        </div>
+          ✕
+        </button>
       </div>
-    </div>
+
+      {/* Content */}
+      <div
+        className="menu-panel-content"
+        style={{
+          padding: '1.5rem',
+          overflowY: 'auto',
+          flex: 1,
+        }}
+      >
+        {children}
+      </div>
+    </Modal>
   );
 }
 
