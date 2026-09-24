@@ -1,10 +1,12 @@
+import type { ReactNode } from 'react';
+
 /**
  * MenuSidebar - Vertical list of clickable menu items
  */
 interface MenuItem {
   id: string;
   label: string;
-  icon?: string;
+  icon?: ReactNode;
   disabled?: boolean;
   disabledReason?: string;
   isDev?: boolean;
@@ -91,7 +93,9 @@ function MenuSidebar({ items, onItemClick, selectedItem }: MenuSidebarProps) {
             }
           }}
         >
-          <span style={{ fontSize: '1.5rem' }}>{item.icon}</span>
+          <span style={{ fontSize: '1.5rem', display: 'flex', color: 'var(--accent-color)' }}>
+            {item.icon}
+          </span>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: '600', color: 'var(--text-color)' }}>{item.label}</div>
           </div>

@@ -13,6 +13,16 @@ import { TerrainGenerator } from '../../terrainGenerator';
 import { formatTime } from '../../game/TimeManager';
 import { Character } from '../../game/Character';
 import { FEATURES } from '../../constants/gameConstants';
+import {
+  User,
+  Users,
+  Swords,
+  Tent,
+  Trees,
+  ScrollText,
+  Save,
+  Settings as SettingsIcon,
+} from 'lucide-react';
 import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
 import PartyList from '../ui/PartyList';
@@ -48,6 +58,9 @@ const CLASS_ICONS: Record<string, string> = {
   warlock: '👁️',
   monk: '👊',
 };
+
+// Sidebar menu icons: inline SVG so they render the same on every OS (emoji don't)
+const MENU_ICON = { size: 22, strokeWidth: 1.75, 'aria-hidden': true } as const;
 
 function OverworldScene() {
   const { state, isHexReachable } = useGameState();
@@ -124,26 +137,26 @@ function OverworldScene() {
       {
         id: 'character',
         label: 'Character',
-        icon: '👤',
+        icon: <User {...MENU_ICON} />,
         description: 'View character stats',
       },
       {
         id: 'party',
         label: 'Party',
-        icon: '👥',
+        icon: <Users {...MENU_ICON} />,
         description: 'Manage party members',
         badge: state.party?.npcs?.filter((npc: unknown) => npc).length || 0,
       },
       {
         id: 'equipment',
         label: 'Equipment',
-        icon: '⚔️',
+        icon: <Swords {...MENU_ICON} />,
         description: 'Manage inventory & gear',
       },
       {
         id: 'rest',
         label: 'Rest',
-        icon: '🏕️',
+        icon: <Tent {...MENU_ICON} />,
         description: 'Rest and recover',
       },
       ...(FEATURES.SURVIVAL_ENABLED
@@ -151,7 +164,7 @@ function OverworldScene() {
             {
               id: 'survival',
               label: 'Survival',
-              icon: '🌲',
+              icon: <Trees {...MENU_ICON} />,
               description: 'Forage and hunt',
               disabled: !!state.combatState?.active,
               disabledReason: 'Cannot forage during combat',
@@ -161,20 +174,20 @@ function OverworldScene() {
       {
         id: 'quests',
         label: 'Quests',
-        icon: '📜',
+        icon: <ScrollText {...MENU_ICON} />,
         description: 'Track your quests',
         badge: state.activeQuests?.length || 0,
       },
       {
         id: 'save',
         label: 'Save',
-        icon: '💾',
+        icon: <Save {...MENU_ICON} />,
         description: 'Save your game',
       },
       {
         id: 'config',
         label: 'Config',
-        icon: '⚙️',
+        icon: <SettingsIcon {...MENU_ICON} />,
         description: 'Game settings',
       },
     ];
