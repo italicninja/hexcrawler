@@ -1,13 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { useGameLog } from '../../contexts/GameLogContext';
-import { submitBugReport } from '../../utils/githubApi';
+import { openBugReport } from '../../utils/githubApi';
 import { useEventListener } from '../../hooks/useEventListener';
 import './BugReportModal.css';
 
 /**
  * BugReportModal Component
- * Modal for submitting bug reports to GitHub issues
- * Automatically attaches game log to the issue
+ * Opens a prefilled GitHub new-issue form (in a new tab) with the game log attached
  */
 interface BugReportModalProps {
   isOpen: boolean;
@@ -16,7 +15,6 @@ interface BugReportModalProps {
 
 function BugReportModal({ isOpen, onClose }: BugReportModalProps) {
   const [description, setDescription] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { messages, addMessage } = useGameLog();
 
@@ -27,7 +25,7 @@ function BugReportModal({ isOpen, onClose }: BugReportModalProps) {
     }
   });
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!description.trim()) {
@@ -35,28 +33,17 @@ function BugReportModal({ isOpen, onClose }: BugReportModalProps) {
       return;
     }
 
-    setIsSubmitting(true);
-    setError(null);
+    const gameLog = messages
+      .map(msg => `[${msg.timestamp}] [${msg.type}] ${msg.text}`)
+      .join('\n');
 
-    try {
-      // Format game log for attachment
-      const gameLog = messages
-        .map(msg => `[${msg.timestamp}] [${msg.type}] ${msg.text}`)
-        .join('\n');
-
-      const result = await submitBugReport(description, gameLog);
-
-      if (result.success) {
-        addMessage(`Bug report submitted successfully! Issue #${result.issueNumber}`, 'success');
-        setDescription('');
-        onClose();
-      } else {
-        setError(result.error || 'Failed to submit bug report');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-    } finally {
-      setIsSubmitting(false);
+    if (openBugReport(description, gameLog)) {
+      addMessage('Bug report opened on GitHub in a new tab.', 'success');
+      setDescription('');
+      setError(null);
+      onClose();
+    } else {
+      setError('Could not open a new tab. Please allow popups for this site and try again.');
     }
   };
 
@@ -90,7 +77,6 @@ function BugReportModal({ isOpen, onClose }: BugReportModalProps) {
               onChange={e => setDescription(e.target.value)}
               placeholder="What happened? What did you expect to happen? Steps to reproduce..."
               rows={8}
-              disabled={isSubmitting}
               className="bug-description-input"
             />
           </div>
@@ -98,7 +84,10 @@ function BugReportModal({ isOpen, onClose }: BugReportModalProps) {
           {error && <div className="error-message">{error}</div>}
 
           <div className="bug-report-info">
-            <p>The current game log will be automatically attached to help with debugging.</p>
+            <p>
+              This opens a prefilled GitHub issue in a new tab (a GitHub account is required).
+              The recent game log is attached to help with debugging.
+            </p>
             <p className="log-count">
               {messages.length} log {messages.length === 1 ? 'entry' : 'entries'} will be included
             </p>
@@ -108,17 +97,16 @@ function BugReportModal({ isOpen, onClose }: BugReportModalProps) {
             <button
               type="button"
               onClick={handleCancel}
-              disabled={isSubmitting}
               className="btn-cancel"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !description.trim()}
+              disabled={!description.trim()}
               className="btn-submit"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Bug Report'}
+              Open on GitHub
             </button>
           </div>
         </form>
