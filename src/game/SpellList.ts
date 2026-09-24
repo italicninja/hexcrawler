@@ -182,7 +182,7 @@ const clericLevel1 = [
       const attackBonus = spell.getSpellAttackBonus(caster);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       if (roll === 20 || (roll !== 1 && total >= targetAC)) {
         const damage = roll === 20 ? diceRoller.rollDice(6, 8) : diceRoller.rollDice(6, 4);
@@ -239,7 +239,7 @@ const clericLevel1 = [
       const attackBonus = spell.getSpellAttackBonus(caster);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       if (roll === 20 || (roll !== 1 && total >= targetAC)) {
         const damage = roll === 20 ? diceRoller.rollDice(10, 6) : diceRoller.rollDice(10, 3);
@@ -278,7 +278,7 @@ const clericLevel2 = [
       const abilityMod = spell._getAbilityModifier(caster.abilities?.[spellcastingAbility] ?? 10);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       if (roll === 20 || (roll !== 1 && total >= targetAC)) {
         const baseDamage = roll === 20 ? diceRoller.rollDice(8, 2) : diceRoller.rollDice(8, 1);
@@ -482,7 +482,7 @@ const wizardCantrips = [
       const attackBonus = spell.getSpellAttackBonus(caster);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       if (roll === 20 || (roll !== 1 && total >= targetAC)) {
         const damage = roll === 20 ? diceRoller.rollDice(10, 2) : diceRoller.rollDice(10, 1);
@@ -553,7 +553,7 @@ const wizardCantrips = [
       const attackBonus = spell.getSpellAttackBonus(caster);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       if (roll === 20 || (roll !== 1 && total >= targetAC)) {
         const damage = roll === 20 ? diceRoller.rollDice(8, 2) : diceRoller.rollDice(8, 1);
@@ -587,7 +587,7 @@ const wizardCantrips = [
       const attackBonus = spell.getSpellAttackBonus(caster);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       if (roll === 20 || (roll !== 1 && total >= targetAC)) {
         const damage = roll === 20 ? diceRoller.rollDice(8, 2) : diceRoller.rollDice(8, 1);
@@ -754,7 +754,7 @@ const wizardLevel2 = [
     effect: (caster, target, diceRoller) => {
       const spell = new Spell({ name: 'Scorching Ray' });
       const attackBonus = spell.getSpellAttackBonus(caster);
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       let totalDamage = 0;
       let _hits = 0;
@@ -1009,7 +1009,7 @@ const druidCantrips = [
       const attackBonus = spell.getSpellAttackBonus(caster);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       if (roll === 20 || (roll !== 1 && total >= targetAC)) {
         const damage = roll === 20 ? diceRoller.rollDice(8, 2) : diceRoller.rollDice(8, 1);
@@ -1503,7 +1503,7 @@ const sorcererLevel1 = [
       const attackBonus = spell.getSpellAttackBonus(caster);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       if (roll === 20 || (roll !== 1 && total >= targetAC)) {
         const damage = roll === 20 ? diceRoller.rollDice(8, 6) : diceRoller.rollDice(8, 3);
@@ -1556,7 +1556,7 @@ const warlockCantrips = [
       const attackBonus = spell.getSpellAttackBonus(caster);
       const roll = diceRoller.rollD20();
       const total = roll + attackBonus;
-      const targetAC = target.armorClass || 10;
+      const targetAC = Number(target.armorClass ?? target.ac ?? 10);
 
       if (roll === 20 || (roll !== 1 && total >= targetAC)) {
         const damage = roll === 20 ? diceRoller.rollDice(10, 2) : diceRoller.rollDice(10, 1);

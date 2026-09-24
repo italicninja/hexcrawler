@@ -678,6 +678,7 @@ const ACTION_NAMES = [
   'INCREMENT_ATTACK_COUNT',
   'ADVANCE_COMBAT_TURN',
   'END_COMBAT',
+  'PROCESS_COMBAT_ACTION',
 ] as const;
 
 const ACTIONS: Record<string, string> = Object.fromEntries(ACTION_NAMES.map(n => [n, n]));
@@ -1036,5 +1037,47 @@ describe('Combat — misc public API', () => {
     const result = combat.processSpell('ally-0', 'Definitely Not A Spell');
     expect(result.success).toBe(false);
     expect(result.message).toMatch(/Spell not found/);
+  });
+});
+
+// ─── Spells in hex combat ─────────────────────────────────────────────────────
+
+describe('combatReducer — spell casting', () => {
+  function spellSetup() {
+    const wizard = makeHero('Wiz', { class: 'wizard' });
+    wizard.abilities.intelligence = 16; // +3 → spell attack +5
+    const { combat, enemy, foe } = makeHexCombat(wizard, makeGoblin()); // AC 15, HP 10
+    combat.logger = vi.fn();
+    const state = makeReducerState([...combat.turnOrder].map(c => ({ ...c })), { combat });
+    return { state, combat, enemy, foe };
+  }
+  const castFireBolt = (target: unknown) => ({
+    type: 'PROCESS_COMBAT_ACTION',
+    payload: {
+      actionType: 'spell',
+      attacker: { id: 'ally-0', character: { name: 'Wiz' } },
+      target,
+      spell: { name: 'Fire Bolt', level: 0, castingTime: '1 action' },
+    },
+  });
+
+  it('a damaging spell hits against the enemy .ac and reduces its HP', () => {
+    const { state, combat, enemy, foe } = spellSetup();
+    vi.spyOn(combat.diceRoller, 'rollD20').mockReturnValue(10); // 10 + 5 = 15 vs AC 15 → hit
+    vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(7);
+
+    const next = combatReducer(state, castFireBolt({ id: 'enemy-0' }) as any, ACTIONS)!;
+
+    expect(foe.hp).toBe(3);
+    expect(enemy.currentHP).toBe(3);
+    expect(next.combatState!.turnOrder[1].currentHP).toBe(3);
+    expect(next.combatState!.turnState.actionUsed).toBe(true);
+  });
+
+  it('a cast with no target fails and does not consume the action', () => {
+    const { state } = spellSetup();
+    const next = combatReducer(state, castFireBolt(null) as any, ACTIONS)!;
+    expect(next).toBe(state);
+    expect(next.combatState!.turnState.actionUsed).toBe(false);
   });
 });

@@ -601,6 +601,12 @@ export function combatReducer(
         // Use Combat.processSpell() to execute spell
         const combat = state.combatState.combat;
         if (combat && combat.processSpell) {
+          // Sync HP from Redux into the Combat instance before resolving (same as attacks)
+          state.combatState.turnOrder.forEach(c => {
+            const combatEntry = combat.turnOrder.find((ct: any) => ct.id === c.id);
+            if (combatEntry) combatEntry.hp = c.currentHP;
+          });
+
           const result = combat.processSpell(
             caster.id,
             spell.name,
@@ -616,13 +622,35 @@ export function combatReducer(
             message: result.message,
           });
 
+          if (result.message && combat.logger) {
+            combat.logger(
+              result.success
+                ? `${casterChar.name} casts ${spell.name}: ${result.message}`
+                : result.message,
+              result.success ? 'action' : 'warning'
+            );
+          }
+
+          // Invalid cast (no target, no slot, ...) consumes nothing
+          if (!result.success) return state;
+
           // Spells use Action unless specified otherwise
-          const spellActionType = spell.castingTime === 'bonus action' ? 'bonusAction' : 'action';
+          const spellActionType = String(spell.castingTime || '').includes('bonus action')
+            ? 'bonusAction'
+            : 'action';
+
+          const syncedTurnOrder = state.combatState.turnOrder.map(c => {
+            const combatEntry = combat.turnOrder.find((ct: any) => ct.id === c.id);
+            return combatEntry && combatEntry.hp !== c.currentHP
+              ? { ...c, currentHP: combatEntry.hp }
+              : c;
+          });
 
           return {
             ...state,
             combatState: {
               ...state.combatState,
+              turnOrder: syncedTurnOrder,
               turnState: {
                 ...state.combatState.turnState,
                 actionUsed:

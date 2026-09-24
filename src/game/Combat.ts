@@ -1124,7 +1124,9 @@ export class Combat {
       };
     }
 
-    const target = targetId ? this.getCombatantById(targetId) : null;
+    if (!caster.character) {
+      return { success: false, message: 'Only characters can cast spells' };
+    }
 
     // Get spell - need to check caster's class
     const className = caster.character.class || caster.character.className;
@@ -1135,6 +1137,14 @@ export class Combat {
         success: false,
         message: `Spell not found: ${spellName}`,
       };
+    }
+
+    // Self spells target the caster; everything else needs a living target.
+    const target =
+      spell.targetType === 'self' ? caster : targetId ? this.getCombatantById(targetId) : null;
+    const targetStats = target ? target.character || target.enemy : null;
+    if (!target || !targetStats) {
+      return { success: false, message: `${spell.name} needs a target` };
     }
 
     // Check if caster has spell slots (unless it's a cantrip)
@@ -1154,13 +1164,25 @@ export class Combat {
     // Cast spell
     const result = (spell.cast as (...args: any[]) => any)(
       caster.character,
-      target?.character || null,
+      targetStats,
       this.diceRoller
     );
 
-    // Use spell slot if not a cantrip and cast was successful
-    if (result.success && !isCantrip) {
+    if (!result.success) return result;
+
+    // Use spell slot if not a cantrip
+    if (!isCantrip) {
       spendSpellSlot(caster.character, spellLevel);
+    }
+
+    // Apply damage / healing to the target combatant and its underlying Character/Enemy
+    const damage = Number(result.damage) || 0;
+    const healing = Number(result.healing) || 0;
+    if (damage || healing) {
+      const maxHp = target.maxHp ?? target.maxHP ?? targetStats.maxHP ?? Infinity;
+      const hp = target.hp ?? target.currentHP ?? targetStats.currentHP ?? 0;
+      target.hp = Math.max(0, Math.min(maxHp, hp - damage + healing));
+      targetStats.currentHP = target.hp;
     }
 
     return result;
