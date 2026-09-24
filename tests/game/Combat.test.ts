@@ -324,23 +324,19 @@ describe('Combat — processAttack(): hero attacker', () => {
     expect(enemy.checkIsDead()).toBe(true);
   });
 
-  it('Rage on the attacker grants advantage and bonus melee damage', () => {
+  it('Rage on the attacker adds bonus melee damage but no attack advantage (PHB 2024)', () => {
     const { combat, ally, foe } = makeHexCombat();
     ally.statusEffects.push({
       name: 'Rage',
       effects: { strengthAdvantage: true, rageDamageBonus: 2, physicalResistance: true },
     });
-    // Advantage → two d20 rolls, keep highest
-    const d20 = vi
-      .spyOn(combat.diceRoller, 'rollD20')
-      .mockReturnValueOnce(10)
-      .mockReturnValueOnce(3);
+    const d20 = vi.spyOn(combat.diceRoller, 'rollD20').mockReturnValue(10);
     vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(5);
 
     const result = combat.processAttack('ally-0', 'enemy-0');
 
-    expect(d20).toHaveBeenCalledTimes(2); // advantage pair
-    expect(result.hit).toBe(true); // kept 10 → 15 vs AC 15
+    expect(d20).toHaveBeenCalledTimes(1); // straight roll, no advantage
+    expect(result.hit).toBe(true); // 10 + 5 = 15 vs AC 15
     expect(result.damage).toBe(10); // 1d8(5) + STR(3) + rage(2)
     expect(foe.hp).toBe(0);
     expect(ally.statusEffects[0].extendedThisTurn).toBe(true);

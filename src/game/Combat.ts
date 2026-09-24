@@ -876,16 +876,7 @@ export class Combat {
     let hasAdvantage = false;
     let hasDisadvantage = false;
 
-    // Attacker: Rage grants Advantage on STR melee attacks
-    if (attacker.character) {
-      const attackerRage = attacker.statusEffects?.find(
-        e => e.name === 'Rage' && e.effects?.strengthAdvantage
-      );
-      if (attackerRage && attackType === 'melee') {
-        hasAdvantage = true;
-      }
-    }
-
+    // Rage (PHB'24) grants no attack advantage either way — that's Reckless Attack's job.
     // Attacker: Reckless Attack grants Advantage on STR melee attacks
     const attackerReckless = attacker.statusEffects?.find(
       e => e.name === 'Reckless Attack' && e.effects?.advantageOnStrAttacks
@@ -899,12 +890,6 @@ export class Combat {
       e => e.name === 'Reckless Attack' && e.effects?.vulnerableToAdvantage
     );
     if (targetReckless) {
-      hasAdvantage = true;
-    }
-
-    // Defender: Rage — attackers gain Advantage against a raging combatant (PHB'24 p51)
-    const targetRaging = target.statusEffects?.find(e => e.name === 'Rage');
-    if (targetRaging) {
       hasAdvantage = true;
     }
 
