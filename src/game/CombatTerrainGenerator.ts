@@ -4,6 +4,7 @@
  * Now accepts HexContext from the overworld hex to reflect the current location.
  */
 
+import { createSeededRNG } from '../utils/seededRandom';
 import type { HexContext } from '../types/game';
 
 // ============================================================================
@@ -273,16 +274,7 @@ export class CombatTerrainGenerator {
    * @returns {Function} RNG function
    */
   createSeededRNG(seed: string): () => number {
-    let seedValue = 0;
-    for (let i = 0; i < seed.length; i++) {
-      seedValue = (seedValue << 5) - seedValue + seed.charCodeAt(i);
-      seedValue = seedValue & seedValue;
-    }
-
-    return () => {
-      seedValue = (seedValue * 9301 + 49297) % 233280;
-      return seedValue / 233280;
-    };
+    return createSeededRNG(seed);
   }
 
   /** Get random number (0-1) */

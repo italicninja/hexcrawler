@@ -3,6 +3,7 @@
  * Provides common functionality for caves, dungeons, ruins, towers
  */
 
+import { createSeededRNG } from '../utils/seededRandom';
 import { getHexDistance } from '../utils/hexMath';
 
 export interface TerrainType {
@@ -101,16 +102,7 @@ export class InteriorGenerator {
    * Create a seeded random number generator
    */
   createSeededRNG(seed: string): () => number {
-    let seedValue = 0;
-    for (let i = 0; i < seed.length; i++) {
-      seedValue = (seedValue << 5) - seedValue + seed.charCodeAt(i);
-      seedValue = seedValue & seedValue; // Convert to 32bit integer
-    }
-
-    return () => {
-      seedValue = (seedValue * 9301 + 49297) % 233280;
-      return seedValue / 233280;
-    };
+    return createSeededRNG(seed);
   }
 
   /**
