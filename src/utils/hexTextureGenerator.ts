@@ -10,6 +10,8 @@ interface TextureTerrain {
   [key: string]: unknown;
 }
 
+const PATTERN_VARIANTS = 4;
+
 /**
  * Hex Texture Generator
  *
@@ -33,10 +35,13 @@ export class HexTextureGenerator {
     col = 0,
     row = 0
   ): CanvasPattern | null | undefined {
-    const key = `${terrainType.key}_${hexSize}_${col}_${row}`;
+    // A few variants per terrain give visual variety while keeping the cache bounded
+    // (terrains x sizes x PATTERN_VARIANTS) instead of one pattern per hex.
+    const variant = Math.abs((col * 73856093) ^ (row * 19349663)) % PATTERN_VARIANTS;
+    const key = `${terrainType.key}_${hexSize}_${variant}`;
 
     if (!this.patternCache.has(key)) {
-      const seedOffset = col * 7919 + row * 6871;
+      const seedOffset = variant * 7919;
       const pattern = this.createPattern(ctx, terrainType, hexSize, seedOffset);
       this.patternCache.set(key, pattern);
     }

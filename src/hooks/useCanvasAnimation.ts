@@ -22,6 +22,8 @@ interface UseCanvasAnimationParams {
   playerPosition: HexCoordinates;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   hexes: any[];
+  /** Player slide duration in ms (default 300). */
+  moveDuration?: number;
 }
 
 interface UseCanvasAnimationReturn {
@@ -55,6 +57,7 @@ export function useCanvasAnimation({
   setOffsetY,
   playerPosition,
   hexes,
+  moveDuration = 300,
 }: UseCanvasAnimationParams): UseCanvasAnimationReturn {
   const animationFrameRef = useRef<number | null>(null);
   const targetCameraRef = useRef<VisualPosition>({ x: 0, y: 0 });
@@ -185,7 +188,7 @@ export function useCanvasAnimation({
       startPos,
       endPos,
       startTime: performance.now(),
-      duration: 300,
+      duration: moveDuration,
     };
 
     previousPlayerPosRef.current = currentPos;
