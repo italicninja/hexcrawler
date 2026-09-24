@@ -113,7 +113,7 @@ class CategoryLogger {
    * Check if log level should be displayed
    */
   _shouldLog(level: LogLevel): boolean {
-    if (!IS_DEV) return false;
+    if (!IS_DEV) return level === 'error'; // production: errors only
     return LOG_LEVELS[level] >= LOG_LEVELS[CURRENT_LOG_LEVEL];
   }
 

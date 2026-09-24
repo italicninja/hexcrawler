@@ -66,7 +66,7 @@ function OverworldScene() {
   // AI Inspector toggle (via URL param)
   const [showAIInspector] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('aiInspector') === 'true';
+    return import.meta.env.DEV && params.get('aiInspector') === 'true';
   });
 
   // Combat behaviour: victory/defeat detection, initiative logging, AI turns,
@@ -281,7 +281,7 @@ function OverworldScene() {
           <h2 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.25rem' }}>hexcrawler</h2>
 
           {/* Dev Tools */}
-          <DevTools terrainGeneratorRef={terrainGeneratorRef} />
+          {import.meta.env.DEV && <DevTools terrainGeneratorRef={terrainGeneratorRef} />}
         </div>
 
         <div
@@ -438,7 +438,6 @@ function OverworldScene() {
             /* Hex Details */
             <HexDetails
               hex={selectedHex as unknown as Parameters<typeof HexDetails>[0]['hex']}
-              terrainGenerator={terrainGeneratorRef.current}
               onMoveClick={overworld.handleMoveToHex as unknown as Parameters<typeof HexDetails>[0]['onMoveClick']}
             />
           )}

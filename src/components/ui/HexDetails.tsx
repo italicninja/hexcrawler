@@ -29,11 +29,10 @@ interface DetailsHex {
 
 interface HexDetailsProps {
   hex?: DetailsHex | null;
-  terrainGenerator?: { poiSystem?: unknown } | null;
   onMoveClick?: (hex: DetailsHex) => void;
 }
 
-function HexDetails({ hex, terrainGenerator }: HexDetailsProps) {
+function HexDetails({ hex }: HexDetailsProps) {
   const { state, isHexReachable, isPoiDiscovered, isPoiSearched, getHexDistance } = useGameState();
 
   // Current hex the player is standing on
@@ -65,16 +64,11 @@ function HexDetails({ hex, terrainGenerator }: HexDetailsProps) {
     }
 
     // Calculate difficulty
-    let totalDifficulty = displayHex.terrain.difficulty || 1;
-    let diffDesc = 'Easy';
-
-    if (terrainGenerator && terrainGenerator.poiSystem) {
-      totalDifficulty = displayHex.terrain.difficulty || 1;
-      if (totalDifficulty <= 1) diffDesc = 'Easy';
-      else if (totalDifficulty <= 2) diffDesc = 'Moderate';
-      else if (totalDifficulty <= 3) diffDesc = 'Difficult';
-      else diffDesc = 'Very Difficult';
-    }
+    const totalDifficulty = displayHex.terrain.difficulty || 1;
+    let diffDesc = 'Very Difficult';
+    if (totalDifficulty <= 1) diffDesc = 'Easy';
+    else if (totalDifficulty <= 2) diffDesc = 'Moderate';
+    else if (totalDifficulty <= 3) diffDesc = 'Difficult';
 
     // Check if hex is reachable (for selected hex)
     const reachable = !isCurrentHex && isHexReachable(displayHex.col, displayHex.row);
