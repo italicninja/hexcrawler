@@ -5,15 +5,17 @@
  * Provides common geometry calculations, drawing functions, and hit detection.
  */
 
+import { cubeToOffset } from './hexMath';
+import type { HexCoordinates } from '../types/game';
+
 interface HexPosition {
   x: number;
   y: number;
 }
 
 interface HexObject {
-  x: number;
-  y: number;
-  [key: string]: unknown;
+  col: number;
+  row: number;
 }
 
 /**
@@ -144,20 +146,45 @@ export function isPointInHex(
 }
 
 /**
- * Find a hex at a specific screen point from an array of positioned hexes
+ * Inverse of calculateHexPosition: the offset (col, row) of the hex containing a
+ * world-space point. Pointy-top, odd rows shifted right (odd-r).
  */
-export function findHexAtPoint(
+export function pixelToOffset(pointX: number, pointY: number, hexSize: number): HexCoordinates {
+  const px = pointX - hexSize * 1.5;
+  const py = pointY - hexSize * 1.5;
+  // Fractional axial coords, then cube-round to the nearest hex
+  const q = ((Math.sqrt(3) / 3) * px - py / 3) / hexSize;
+  const r = ((2 / 3) * py) / hexSize;
+  let rx = Math.round(q);
+  let rz = Math.round(r);
+  const ry = Math.round(-q - r);
+  const dx = Math.abs(rx - q);
+  const dy = Math.abs(ry - (-q - r));
+  const dz = Math.abs(rz - r);
+  if (dx > dy && dx > dz) rx = -ry - rz;
+  else if (dy <= dz) rz = -rx - ry;
+  return cubeToOffset(rx, -rx - rz, rz);
+}
+
+// Per-array col,row index, built lazily; callers pass memoized arrays.
+const hexIndexCache = new WeakMap<readonly HexObject[], Map<string, HexObject>>();
+
+/**
+ * Find the hex at a world-space point: O(1) hex math + index lookup.
+ */
+export function findHexAtPoint<T extends HexObject>(
   pointX: number,
   pointY: number,
-  hexes: HexObject[],
+  hexes: readonly T[],
   hexSize: number
-): HexObject | null {
-  for (const hex of hexes) {
-    if (isPointInHex(pointX, pointY, hex.x, hex.y, hexSize)) {
-      return hex;
-    }
+): T | null {
+  let index = hexIndexCache.get(hexes);
+  if (!index) {
+    index = new Map(hexes.map(h => [`${h.col},${h.row}`, h]));
+    hexIndexCache.set(hexes, index);
   }
-  return null;
+  const { col, row } = pixelToOffset(pointX, pointY, hexSize);
+  return (index.get(`${col},${row}`) as T | undefined) ?? null;
 }
 
 /**
