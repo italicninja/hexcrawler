@@ -50,6 +50,30 @@
   }
 
   /* Midnight Gold Theme - Dark with Gold Accents */
+  /* RuneScape Theme - Old School stone, parchment text, gold accents */
+  [data-theme='runescape'] {
+    --primary-color: #8f7a3f;
+    --secondary-color: #6f5f33;
+    --accent-color: #f8c243;
+    --bg-color: #28231d;
+    --bg-light: #3e362b;
+    --bg-lighter: #4a4133;
+    --text-color: #efe5cd;
+    --text-light: #e0d3b4;
+    --text-muted: #a89a7e;
+    --border-color: #5c5040;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --input-bg: #211d17;
+    --panel-bg: #352e24;
+
+    /* GameLog message type colors — OSRS chat-inspired */
+    --log-discovery: #f8c243;
+    --log-encounter: #ff6b5e;
+    --log-action: #7fb8e8;
+    --log-system: #b3a685;
+    --log-poi-interaction: #d9a7ff;
+  }
+
   [data-theme='midnight-gold'] {
     --primary-color: #b8860b;
     --secondary-color: #9a7209;

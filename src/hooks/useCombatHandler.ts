@@ -64,7 +64,7 @@ export function useCombatHandler() {
       ? {
           terrainKey: currentHex.terrain?.key || 'grassland',
           terrainName: currentHex.terrain?.name || 'Grassland',
-          terrainColor: currentHex.terrain?.color || '#90EE90',
+          terrainColor: currentHex.terrain?.color || '#56793f',
           elevation: currentHex.elevation ?? 5,
           weather: currentHex.weather?.condition || 'Clear',
           poiType: poi?.type || undefined,

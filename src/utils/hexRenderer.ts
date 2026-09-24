@@ -197,17 +197,17 @@ export function drawPlayerMarker(
   hexSize: number,
   label: string = 'P'
 ): void {
-  // Draw yellow circle
+  // White dot with dark ring, like the OSRS minimap player marker
   ctx.beginPath();
-  ctx.arc(x, y, hexSize * 0.4, 0, Math.PI * 2);
-  ctx.fillStyle = '#FFD700';
+  ctx.arc(x, y, hexSize * 0.38, 0, Math.PI * 2);
+  ctx.fillStyle = '#f4f1e8';
   ctx.fill();
-  ctx.strokeStyle = '#000';
+  ctx.strokeStyle = '#1a150c';
   ctx.lineWidth = 2;
   ctx.stroke();
 
   // Draw label (emoji or text) — serif renders emoji correctly on canvas
-  ctx.font = `${hexSize * 0.55}px serif`;
+  ctx.font = `${hexSize * 0.5}px serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, x, y);
