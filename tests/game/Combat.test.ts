@@ -1074,6 +1074,20 @@ describe('combatReducer — spell casting', () => {
     expect(next.combatState!.turnState.actionUsed).toBe(true);
   });
 
+  it('replaying the same (state, action) — as StrictMode does — resolves the cast once', () => {
+    const { state, combat, foe } = spellSetup();
+    const d20 = vi.spyOn(combat.diceRoller, 'rollD20').mockReturnValue(10);
+    vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(7);
+    const action = castFireBolt({ id: 'enemy-0' }) as any;
+
+    const first = combatReducer(state, action, ACTIONS);
+    const second = combatReducer(state, action, ACTIONS);
+
+    expect(second).toBe(first);
+    expect(d20).toHaveBeenCalledTimes(1);
+    expect(foe.hp).toBe(3); // damage applied once, not twice
+  });
+
   it('a cast with no target fails and does not consume the action', () => {
     const { state } = spellSetup();
     const next = combatReducer(state, castFireBolt(null) as any, ACTIONS)!;

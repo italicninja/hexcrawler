@@ -35,7 +35,29 @@ import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
 import logger from '../../utils/logger';
 import type { GameState, Action, CombatStateData } from '../../types/state';
 
+// StrictMode (and React's render replays) call a reducer more than once with the same
+// (state, action). This reducer drives the mutable Combat instance — dice rolls, HP,
+// Rage/Dodge ticks, ability uses, spell slots, GameLog messages — so a replay would
+// re-roll and double-apply. Memoising on the action object makes replays return the
+// first result instead of re-running the side effects.
+// ponytail: replay-safe, not pure. The Combat instance is still mutated in place and dice
+// are rolled inside the reducer. Full purity = roll at the dispatch site (results in the
+// payload), clone the Combat/turnOrder per action, and move GameLog calls out of here.
+const replayCache = new WeakMap<object, { state: GameState; result: GameState | null }>();
+
 export function combatReducer(
+  state: GameState,
+  action: Action,
+  ACTIONS: Record<string, string>
+): GameState | null {
+  const cached = replayCache.get(action);
+  if (cached && cached.state === state) return cached.result;
+  const result = reduceCombat(state, action, ACTIONS);
+  replayCache.set(action, { state, result });
+  return result;
+}
+
+function reduceCombat(
   state: GameState,
   action: Action,
   ACTIONS: Record<string, string>

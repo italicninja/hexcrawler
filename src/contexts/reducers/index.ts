@@ -33,6 +33,7 @@ import logger from '../../utils/logger';
  * @returns New state
  */
 const dispatchHistory: Array<{ action: string; timestamp: number }> = [];
+const countedActions = new WeakSet<object>();
 const DISPATCH_WINDOW_MS = 1000; // 1 second
 const MAX_DISPATCHES_PER_WINDOW = 200; // Increased - movement dispatches 5+ actions per hex
 
@@ -41,9 +42,13 @@ export function combinedReducer(
   action: Action,
   ACTIONS: Record<string, string>
 ): GameState {
-  // Debug: Track dispatches in a time window to detect infinite loops
+  // Debug: Track dispatches in a time window to detect infinite loops.
+  // Count each action object once — StrictMode replays the reducer with the same action.
   const now = Date.now();
-  dispatchHistory.push({ action: action.type, timestamp: now });
+  if (!countedActions.has(action)) {
+    countedActions.add(action);
+    dispatchHistory.push({ action: action.type, timestamp: now });
+  }
 
   // Remove old entries outside the time window
   while (dispatchHistory.length > 0 && dispatchHistory[0].timestamp < now - DISPATCH_WINDOW_MS) {
