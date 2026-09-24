@@ -2,7 +2,7 @@ import { createContext, useContext, useReducer, useEffect, useRef, useMemo } fro
 import { createGameTime } from '../game/TimeManager';
 import { SaveManager } from '../utils/SaveManager';
 import { getHexDistance } from '../utils/hexMath';
-import { GAME_DEFAULTS, COMBAT } from '../constants/gameConstants';
+import { GAME_DEFAULTS, COMBAT, SAVE } from '../constants/gameConstants';
 import { combinedReducer } from './reducers/index';
 import logger from '../utils/logger';
 import type { GameState, Action, GameStateContextValue } from '../types/state';
@@ -192,6 +192,8 @@ const initialState: GameState = {
 // Context
 // ---------------------------------------------------------------------------
 
+const AUTOSAVE_SCENES = new Set(['overworld', 'exploration', 'town']);
+
 const GameStateContext = createContext<ExtendedContextValue | null>(null);
 
 // ---------------------------------------------------------------------------
@@ -239,30 +241,49 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     return undefined;
   }, [state.currentScene, state.playerCharacter]);
 
-  // Event-based auto-save
+  // Auto-save. A save serializes the whole map, so it is throttled:
+  //  - milestones (scene change, quest completion, combat start/end) save after a short debounce
+  //  - movement/time/character changes save at most every AUTO_SAVE_INTERVAL_MS (trailing)
+  //  - tab hide / page unload flush immediately so progress isn't lost
+  const stateRef = useRef(state);
+  const lastAutoSaveRef = useRef(0);
   useEffect(() => {
-    if (!state.playerCharacter || state.currentScene === 'title') {
-      return undefined;
-    }
+    stateRef.current = state;
+  });
 
-    const scene = state.currentScene as string;
-    const shouldAutoSave = scene === 'overworld' || scene === 'exploration' || scene === 'town';
+  const writeAutosave = () => {
+    const s = stateRef.current;
+    if (!s.playerCharacter || !AUTOSAVE_SCENES.has(s.currentScene as string)) return;
+    SaveManager.saveToSlot(SaveManager.SAVE_SLOTS.AUTOSAVE, s);
+    lastAutoSaveRef.current = Date.now();
+  };
 
-    if (shouldAutoSave) {
-      const timeoutId = setTimeout(() => {
-        SaveManager.saveToSlot(SaveManager.SAVE_SLOTS.AUTOSAVE, state);
-      }, 500);
+  useEffect(() => {
+    const timeoutId = setTimeout(writeAutosave, SAVE.AUTO_SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timeoutId);
+  }, [state.currentScene, state.completedQuests.length, state.combatState?.active]);
 
-      return () => clearTimeout(timeoutId);
-    }
-    return undefined;
-  }, [
-    state.currentScene,
-    state.playerCharacter,
-    state.gameTime,
-    state.completedQuests.length,
-    state.combatState?.active,
-  ]);
+  useEffect(() => {
+    // Deadline stays fixed at lastSave + interval, so rescheduling on every move doesn't postpone it
+    const wait = Math.max(
+      SAVE.AUTO_SAVE_DEBOUNCE_MS,
+      lastAutoSaveRef.current + SAVE.AUTO_SAVE_INTERVAL_MS - Date.now()
+    );
+    const timeoutId = setTimeout(writeAutosave, wait);
+    return () => clearTimeout(timeoutId);
+  }, [state.gameTime, state.playerCharacter, state.playerPosition]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') writeAutosave();
+    };
+    window.addEventListener('beforeunload', writeAutosave);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('beforeunload', writeAutosave);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
   // Helper functions - memoized to prevent recreating on every render
   const helpers = useMemo(

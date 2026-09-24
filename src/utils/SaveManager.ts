@@ -104,7 +104,8 @@ export class SaveManager {
           regions: serializeRegions(),
           hexToRegion: serializeHexToRegion(),
           weatherSystem: serializeWeatherSystem(),
-          interiorMaps: gameState.interiorMaps,
+          // interiorMaps/interiorFloors are not saved: LOAD_GAME resets interior state and
+          // interiors regenerate on entry, so persisting them only bloated the save.
           explorationState: serializeExplorationState(),
           gameTime: gameState.gameTime,
           playtime: gameState.playtime || 0,
@@ -142,7 +143,9 @@ export class SaveManager {
     } catch (error) {
       logger.storage.error('Failed to save game', { error, slotKey });
 
-      if (error instanceof Error && error.name === 'QuotaExceededError') {
+      const name = (error as { name?: string } | null)?.name;
+      // Chrome/Safari: QuotaExceededError; Firefox: NS_ERROR_DOM_QUOTA_REACHED
+      if (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED') {
         logger.storage.error('Save Failed: Storage Quota Exceeded', { slotKey });
       }
 

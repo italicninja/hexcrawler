@@ -164,9 +164,18 @@ describe('SaveManager — save/load round-trip', () => {
 
 describe('SaveManager — slot independence and deleteSlot', () => {
   it('keeps manual slots 1-3 independent', () => {
-    SaveManager.saveToSlot(SLOT_1, makeGameState({ playerCharacter: new Character('One', 'fighter') }));
-    SaveManager.saveToSlot(SLOT_2, makeGameState({ playerCharacter: new Character('Two', 'wizard') }));
-    SaveManager.saveToSlot(SLOT_3, makeGameState({ playerCharacter: new Character('Three', 'rogue') }));
+    SaveManager.saveToSlot(
+      SLOT_1,
+      makeGameState({ playerCharacter: new Character('One', 'fighter') })
+    );
+    SaveManager.saveToSlot(
+      SLOT_2,
+      makeGameState({ playerCharacter: new Character('Two', 'wizard') })
+    );
+    SaveManager.saveToSlot(
+      SLOT_3,
+      makeGameState({ playerCharacter: new Character('Three', 'rogue') })
+    );
 
     expect(SaveManager.loadFromSlot(SLOT_1).playerCharacter.name).toBe('One');
     expect(SaveManager.loadFromSlot(SLOT_2).playerCharacter.name).toBe('Two');
@@ -295,26 +304,34 @@ describe('SaveManager — corrupt save data', () => {
 // ─── Quota exceeded ──────────────────────────────────────────────────────────
 
 describe('SaveManager — QuotaExceededError', () => {
-  it('returns false and logs the quota-specific error when setItem throws', () => {
-    const quotaError = new Error('quota exceeded');
-    quotaError.name = 'QuotaExceededError';
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw quotaError;
-    });
+  it.each(['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'])(
+    'returns false and logs the quota-specific error when setItem throws %s',
+    name => {
+      const quotaError = new Error('quota exceeded');
+      quotaError.name = name;
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw quotaError;
+      });
 
-    let result: boolean | undefined;
-    expect(() => {
-      result = SaveManager.saveToSlot(SLOT_1, makeGameState());
-    }).not.toThrow();
+      let result: boolean | undefined;
+      expect(() => {
+        result = SaveManager.saveToSlot(SLOT_1, makeGameState());
+      }).not.toThrow();
 
-    expect(result).toBe(false);
-    expect(logger.storage.error).toHaveBeenCalledWith('Failed to save game', {
-      error: quotaError,
-      slotKey: SLOT_1,
-    });
-    expect(logger.storage.error).toHaveBeenCalledWith('Save Failed: Storage Quota Exceeded', {
-      slotKey: SLOT_1,
-    });
+      expect(result).toBe(false);
+      expect(logger.storage.error).toHaveBeenCalledWith('Failed to save game', {
+        error: quotaError,
+        slotKey: SLOT_1,
+      });
+      expect(logger.storage.error).toHaveBeenCalledWith('Save Failed: Storage Quota Exceeded', {
+        slotKey: SLOT_1,
+      });
+    }
+  );
+
+  it('does not persist interiorMaps (LOAD_GAME resets interiors anyway)', () => {
+    SaveManager.saveToSlot(SLOT_1, makeGameState({ interiorMaps: { '1,1': { big: true } } }));
+    expect(SaveManager.loadFromSlot(SLOT_1)).not.toHaveProperty('interiorMaps');
   });
 });
 
@@ -420,9 +437,7 @@ describe('gameReducer — LOAD_GAME reconstructs saved data', () => {
 
   it('reconstructs regions (boundaries as Sets) and hexToRegion as a Map', () => {
     const result = saveAndReduce({
-      regions: [
-        { id: 0, name: 'Heartlands', boundaries: new Set(['0,0', '1,0']) },
-      ],
+      regions: [{ id: 0, name: 'Heartlands', boundaries: new Set(['0,0', '1,0']) }],
       hexToRegion: new Map([
         ['3,4', 0],
         ['4,4', 0],

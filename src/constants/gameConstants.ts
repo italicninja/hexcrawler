@@ -482,6 +482,8 @@ export const QUEST = {
 export const SAVE = {
   VERSION: '5.0',
   AUTO_SAVE_DEBOUNCE_MS: 500,
+  // Minimum gap between autosaves triggered by overworld movement/time passing
+  AUTO_SAVE_INTERVAL_MS: 30000,
   MAX_SAVE_SLOTS: 3,
   PLAYTIME_UPDATE_INTERVAL_MS: 1000,
 };
