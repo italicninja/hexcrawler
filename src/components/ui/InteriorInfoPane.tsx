@@ -396,7 +396,7 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }: Interior
           background: 'var(--primary-color)',
           border: '1px solid var(--accent-color)',
           borderRadius: '4px',
-          color: isTown || onExitHex ? 'var(--text-color)' : 'var(--text-muted)',
+          color: 'var(--on-primary)',
           fontSize: '0.8rem',
           fontWeight: 'bold',
           cursor: isTown || onExitHex ? 'pointer' : 'not-allowed',

@@ -6,6 +6,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import { ConfirmDialog } from '../shadcn/ConfirmDialog';
 import { SaveManager } from '../../utils/SaveManager';
 import SaveSlotManager from '../ui/SaveSlotManager';
+import Modal from '../ui/Modal';
 
 function TitleScene() {
   const { dispatch, actions } = useGameState();
@@ -33,13 +34,14 @@ function TitleScene() {
 
   return (
     <>
-      {showLoadMenu && (
-        <div className="modal-overlay" onClick={() => setShowLoadMenu(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <SaveSlotManager mode="load" onClose={() => setShowLoadMenu(false)} />
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={showLoadMenu}
+        onClose={() => setShowLoadMenu(false)}
+        overlayClassName="modal-overlay"
+        className="modal-content"
+      >
+        <SaveSlotManager mode="load" onClose={() => setShowLoadMenu(false)} />
+      </Modal>
 
       <div className="title-screen">
         <div className="title-content">

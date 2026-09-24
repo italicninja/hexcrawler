@@ -307,7 +307,7 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
             padding: '0.5rem',
             backgroundColor:
               isForaging || isAreaFullyForaged ? 'var(--bg-lighter)' : 'var(--primary-color)',
-            color: 'white',
+            color: isForaging || isAreaFullyForaged ? 'var(--text-muted)' : 'var(--on-primary)',
             border: 'none',
             borderRadius: '0.25rem',
             cursor: isForaging || isAreaFullyForaged ? 'not-allowed' : 'pointer',

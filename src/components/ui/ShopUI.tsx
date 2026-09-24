@@ -75,7 +75,7 @@ function ShopUI({ poiKey, shopType, onClose }: ShopUIProps) {
         {/* Header */}
         <div className="shop-header">
           <h2>{shop.name}</h2>
-          <button className="shop-close-btn" onClick={onClose}>
+          <button className="shop-close-btn" onClick={onClose} aria-label="Close shop">
             ×
           </button>
         </div>

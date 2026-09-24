@@ -29,6 +29,7 @@ import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import { CombatCanvasPane, CombatActionPane } from './CombatSceneWrapper';
 import MenuSidebar from '../ui/MenuSidebar';
 import MenuPanel from '../ui/MenuPanel';
+import Modal from '../ui/Modal';
 import AIInspector from '../debug/AIInspector';
 import DevTools from '../debug/DevTools';
 import type { SceneHex } from '../../types/scene';
@@ -530,13 +531,14 @@ function OverworldScene() {
       </div>
 
       {/* Save Menu Modal */}
-      {showSaveMenu && (
-        <div className="modal-overlay" onClick={() => setShowSaveMenu(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <SaveSlotManager mode="save" onClose={() => setShowSaveMenu(false)} />
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={showSaveMenu}
+        onClose={() => setShowSaveMenu(false)}
+        overlayClassName="modal-overlay"
+        className="modal-content"
+      >
+        <SaveSlotManager mode="save" onClose={() => setShowSaveMenu(false)} />
+      </Modal>
 
       {/* AI Inspector (dev mode only) */}
       {showAIInspector && (

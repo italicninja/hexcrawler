@@ -265,7 +265,7 @@ function RestMenu({ onClose }: RestMenuProps) {
             padding: '0.5rem',
             backgroundColor:
               canShortRest && hitDiceToSpend > 0 ? 'var(--primary-color)' : 'var(--bg-lighter)',
-            color: 'white',
+            color: canShortRest && hitDiceToSpend > 0 ? 'var(--on-primary)' : 'var(--text-muted)',
             border: 'none',
             borderRadius: '0.25rem',
             cursor: canShortRest && hitDiceToSpend > 0 ? 'pointer' : 'not-allowed',
@@ -314,7 +314,7 @@ function RestMenu({ onClose }: RestMenuProps) {
             backgroundColor: canLongRestCheck.allowed
               ? 'var(--color-success)'
               : 'var(--bg-lighter)',
-            color: 'white',
+            color: canLongRestCheck.allowed ? '#fff' : 'var(--text-muted)',
             border: 'none',
             borderRadius: '0.25rem',
             cursor: canLongRestCheck.allowed ? 'pointer' : 'not-allowed',
@@ -387,7 +387,7 @@ function RestMenu({ onClose }: RestMenuProps) {
               padding: '0.5rem',
               backgroundColor:
                 canAffordInn && !isFullHP ? 'var(--primary-color)' : 'var(--bg-lighter)',
-              color: 'white',
+              color: canAffordInn && !isFullHP ? 'var(--on-primary)' : 'var(--text-muted)',
               border: 'none',
               borderRadius: '0.25rem',
               cursor: canAffordInn && !isFullHP ? 'pointer' : 'not-allowed',

@@ -100,7 +100,7 @@ function MenuSidebar({ items, onItemClick, selectedItem }: MenuSidebarProps) {
               style={{
                 padding: '0.25rem 0.5rem',
                 backgroundColor: 'var(--accent-color)',
-                color: 'var(--bg-color)',
+                color: 'var(--on-accent)',
                 borderRadius: '12px',
                 fontSize: '0.75rem',
                 fontWeight: '700',

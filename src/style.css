@@ -49,9 +49,14 @@
     --radius: 0.5rem;
 
     /* Semantic status colors (theme-independent) */
-    --color-success: #16a34a;
+    --color-success: #15803d; /* white text on it: 5.0:1 */
     --color-warning: #f59e0b;
     --color-error: #f87171;
+
+    /* Text on filled primary/accent/secondary buttons (>= 4.5:1 across themes) */
+    --on-primary: #111111;
+    --on-accent: #111111;
+    --on-secondary: #ffffff;
 
     /* Aliases used by inline styles; resolve against the active theme on <html> */
     --color-bg: var(--bg-color);
@@ -191,6 +196,7 @@
     --primary-color: #22c55e;
     --secondary-color: #16a34a;
     --accent-color: #4ade80;
+    --on-secondary: #111111; /* white only reaches 3.3:1 on this green */
     --bg-color: #14532d;
     --bg-light: #166534;
     --bg-lighter: #15803d;
@@ -239,6 +245,7 @@
     --primary-color: #dc2626;
     --secondary-color: #b91c1c;
     --accent-color: #ef4444;
+    --on-primary: #ffffff; /* dark text only reaches 3.9:1 on this red */
     --bg-color: #1f1315;
     --bg-light: #2d1519;
     --bg-lighter: #3f1e22;
@@ -490,11 +497,12 @@ button:active {
   margin-top: 1rem;
   font-size: 1rem;
   border: 1px solid var(--primary-color);
-  color: white;
+  color: var(--on-primary);
 }
 
 .btn-primary:hover {
   background: var(--secondary-color);
+  color: var(--on-secondary);
   border-color: var(--secondary-color);
 }
 
@@ -1561,7 +1569,7 @@ button:active {
 .filter-btn.active {
   background: var(--primary-color);
   border-color: var(--accent-color);
-  color: white;
+  color: var(--on-primary);
 }
 
 .inventory-empty {
@@ -1774,11 +1782,12 @@ button:active {
 .detail-action-btn.equip {
   background: var(--primary-color);
   border-color: var(--accent-color);
-  color: white;
+  color: var(--on-primary);
 }
 
 .detail-action-btn.equip:hover {
   background: var(--accent-color);
+  color: var(--on-accent);
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
@@ -2124,7 +2133,7 @@ button:active {
 .toolbar-action-btn:hover {
   background: var(--primary-color);
   border-color: var(--accent-color);
-  color: white;
+  color: var(--on-primary);
   transform: translateY(-1px);
 }
 
@@ -2200,6 +2209,23 @@ button:active {
 .close-button:hover {
   background: var(--bg-lighter);
   color: var(--text-color);
+}
+
+/* Keyboard focus ring (mouse clicks don't trigger :focus-visible) */
+:where(button, a, input, select, textarea, summary, [tabindex], [role='button']):focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ========================================
