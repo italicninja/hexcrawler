@@ -21,6 +21,7 @@ import { createGameTime, advanceTime } from '../../game/TimeManager';
 import { GAME_DEFAULTS } from '../../constants/gameConstants';
  
 import { WeatherSystem } from '../../WeatherSystem';
+import { HexGrid } from '../../utils/HexGrid';
 import type { GameState, Action } from '../../types/state';
 import logger from '../../utils/logger';
 
@@ -190,6 +191,10 @@ export function gameReducer(
         currentPOI: null,
         interiorPlayerPosition: null,
         interiorMaps: {},
+        interiorFloors: {},
+        currentFloor: 0,
+        // hexGrid isn't serialized; rebuild it or movement reads the previous game's map
+        hexGrid: loadedState.mapData ? new HexGrid(loadedState.mapData) : null,
       };
     }
 
