@@ -111,3 +111,18 @@ a separate route.
   flags like `FEATURES.SURVIVAL_ENABLED`).
 - See [TODO.md](./TODO.md) for the prioritized backlog (class implementations are the
   main feature track; Barbarian is the reference implementation).
+
+## Development log (DEVLOG.md)
+
+[DEVLOG.md](./DEVLOG.md) records how the project progresses over time. Keep it current:
+
+- **After every commit**, append a new section: date + short title, then **What** changed,
+  **Why** we did it, and the **Route** taken (approaches tried, what was rejected and why).
+  Newest entry at the bottom.
+- If the why or the route is unclear from the conversation, **ask the user** before writing
+  the entry. Don't guess at intent.
+- When a change produces images (texture previews, screenshots, UI mockups), save them to
+  `docs/devlog/<YYYY-MM-DD>-<slug>/` and embed them in the entry. Keep the version we settled on
+  **plus a couple of rejected ones** to show how we got there.
+- Commit the DEVLOG update in the same commit as the change it describes (or a follow-up
+  `docs:` commit if the change already landed).
