@@ -71,8 +71,8 @@ export class TerrainGenerator {
   startRow?: number;
 
   constructor() {
-    // Muted, earthy OSRS world-map palette (kept in sync with the tone ramps
-    // in utils/hexTextureGenerator.ts — these are the middle "base" tones)
+    // Muted, earthy base colours. Pixel tiles (utils/pixelArt/terrainTiles.ts) use
+    // their own 4-tone ramps; these are the flat fallback and minimap colours.
     this.terrainTypes = {
       water: { key: 'water', name: 'Water', color: '#4a698c', difficulty: 4 },
       river: { key: 'river', name: 'River', color: '#5a7da3', difficulty: 2 },

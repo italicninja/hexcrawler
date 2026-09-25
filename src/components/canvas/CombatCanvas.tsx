@@ -18,8 +18,7 @@ import {
   findHexAtPoint,
   sizeCanvasForDpr,
 } from '../../utils/hexRenderer';
-import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
-import { PerlinNoise } from '../../noise';
+import { PixelTerrainRenderer } from '../../utils/pixelArt/terrainTiles';
 import logger from '../../utils/logger';
 import { drawPoiAmbient } from '../../utils/combatPoiRenderer';
 import { drawWeatherOverlay } from '../../utils/combatWeatherRenderer';
@@ -120,7 +119,7 @@ function CombatCanvas({
     offset: cameraOffset,
     zoom: FIXED_ZOOM,
   });
-  const textureGenerator = useRef<HexTextureGenerator | null>(null);
+  const terrainRenderer = useRef(new PixelTerrainRenderer());
   // CSS-pixel size of the canvas; the backing store is this x devicePixelRatio.
   const canvasSizeRef = useRef({ width: 0, height: 0 });
 
@@ -128,14 +127,6 @@ function CombatCanvas({
   const movementAnimRef = useRef<MovementAnim | null>(null);
   // Visual override positions: Map<combatantId, {x, y}> pixel coords
   const visualOverridesRef = useRef<Map<string | number, Pixel>>(new Map());
-
-  // Initialize texture generator once
-  useEffect(() => {
-    if (!textureGenerator.current) {
-      const noise = new PerlinNoise(Date.now());
-      textureGenerator.current = new HexTextureGenerator(noise);
-    }
-  }, []);
 
   /**
    * Draw a tree obstacle
@@ -799,6 +790,13 @@ function CombatCanvas({
     [battlefield]
   );
 
+  // Terrain lookup so pixel tiles can react to their neighbours
+  const terrainAt = useMemo(() => {
+    const byCoord = new Map<string, string>();
+    for (const hex of battlefield?.hexes ?? []) byCoord.set(`${hex.col},${hex.row}`, hex.terrain?.key ?? '');
+    return (col: number, row: number) => byCoord.get(`${col},${row}`);
+  }, [battlefield]);
+
   // Pathfinding / LoS are computed when the relevant state changes, not every frame
   const reachableHexes = useMemo(() => {
     const current = combatants[currentTurnIndex];
@@ -866,21 +864,15 @@ function CombatCanvas({
       const sy = y + cameraOffset.y;
       if (sx < -margin || sy < -margin || sx > width + margin || sy > height + margin) return;
 
-      // Draw terrain with procedural texture
-      if (textureGenerator.current && hex.terrain) {
-        const pattern = textureGenerator.current.getPattern(
-          ctx,
-          hex.terrain as Parameters<HexTextureGenerator['getPattern']>[1],
-          HEX_SIZE,
-          hex.col,
-          hex.row
-        );
-        drawHexShape(ctx, x, y, HEX_SIZE, pattern, '#444', 1);
-      } else {
-        // Fallback to solid color
-        const terrainColor = hex.terrain?.color || '#6B8E23';
-        drawHexShape(ctx, x, y, HEX_SIZE, terrainColor, '#444', 1);
-      }
+      // Pixel-art ground (no big sprites: obstacles and units own the tactical grid)
+      const drawn =
+        !!hex.terrain &&
+        terrainRenderer.current.drawHex(ctx, hex.col, hex.row, hex.terrain.key ?? 'grassland', x, y, HEX_SIZE, terrainAt, {
+          decor: false,
+          color: hex.terrain.color,
+        });
+      if (drawn) drawHexShape(ctx, x, y, HEX_SIZE, null, 'rgba(0, 0, 0, 0.25)', 1);
+      else drawHexShape(ctx, x, y, HEX_SIZE, hex.terrain?.color || '#6B8E23', '#444', 1);
 
       // Difficult terrain overlay
       if (hex.difficultTerrain) {
@@ -965,6 +957,7 @@ function CombatCanvas({
   }, [
     battlefield,
     positionedHexes,
+    terrainAt,
     reachableHexes,
     attackTargets,
     combatants,

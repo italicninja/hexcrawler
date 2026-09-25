@@ -22,7 +22,7 @@ Git history covers the details before this point.
 
 ## 2026-09-25: Terrain texture overhaul, exploration
 
-**What:** a standalone preview harness (`texture-previews/`) that renders the
+**What:** a standalone preview harness (`texture-previews/`, since removed) that renders the
 current `HexTextureGenerator` next to four replacement art directions. The
 previews use the same sample map, plus real layouts from the game's interior
 generators.
@@ -73,3 +73,43 @@ generators.
 Interiors will need an offscreen canvas per floor because wall faces depend on
 neighbouring hexes. Once the style is final, trim the rejected images here to a
 representative few.
+
+---
+
+## 2026-09-25: Pixel-art terrain, shipped everywhere
+
+**What:** style C from the exploration is now the game's only terrain renderer:
+- `src/utils/pixelArt/` holds the shared core (noise, dithering, sprites), per-hex
+  tiles for the overworld and combat (`terrainTiles.ts`), and a whole-map interior
+  renderer (`interiorArt.ts`).
+- `HexTextureGenerator` is deleted. The preview harness is removed; its images stay
+  in the entry above.
+
+**Why:** we picked C after the exploration. It is the cheapest style to render,
+reads well at the game's 30px hex size, and extends naturally to dungeons and towns.
+
+**Route:**
+- **Overworld:** each tile is rendered once at 10 art pixels per hex radius and
+  cached by its own and its neighbours' terrain, then drawn at any hex size with
+  smoothing off. Tiles share one global art-pixel grid, so they meet without seams.
+  Big sprites are skipped under a visible POI icon.
+- **Interiors:** the whole map is rendered once per terrain signature. The signature
+  ignores loot and encounter updates, so those don't trigger a re-render. Gameplay
+  markers stay in `InteriorHexCanvas`, because they depend on discovery state.
+- **Combat:** ground-only tiles with a faint grid. Obstacles and units stay readable.
+- **Starting cache:** first mapped to the cave theme, but that made the very first
+  screen of a new game too dark. Switched to the torch-lit dungeon theme.
+- **Verification:** checked in the real app via Playwright (new game, starting cache,
+  overworld, forest and dungeon combat) with no console errors. Typecheck, lint,
+  unit tests and the production build all pass.
+
+| Overworld | Starting cache (dungeon theme) |
+| --- | --- |
+| ![overworld](docs/devlog/2026-09-25-pixel-terrain-live/overworld.png) | ![cache](docs/devlog/2026-09-25-pixel-terrain-live/starting-cache.png) |
+| **Combat: forest** | **Combat: dungeon** |
+| ![forest](docs/devlog/2026-09-25-pixel-terrain-live/combat-forest.png) | ![dungeon](docs/devlog/2026-09-25-pixel-terrain-live/combat-dungeon.png) |
+
+**Open:** combat obstacles, landmarks and overworld POI icons are still vector
+drawings. Porting them to pixel sprites would finish the look. Torch light also
+ignores walls; add line of sight if light bleeding into neighbouring rooms becomes
+noticeable.

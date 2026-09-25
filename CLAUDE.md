@@ -35,6 +35,7 @@ src/
     ui/          Panels and widgets (combat/ holds the combat UI)
   types/         state.ts (GameState, CombatStateData), game.ts, scene.ts
   utils/         hexMath, HexGrid, SaveManager, logger, renderers
+    pixelArt/    16-bit terrain: per-hex tiles (overworld/combat) + interior renderer
 tests/           Vitest unit tests (mirrors src/), qa-agent/ (Playwright), smoke-test.js
 ```
 

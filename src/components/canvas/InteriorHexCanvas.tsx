@@ -21,8 +21,7 @@ import {
   findHexAtPoint,
   drawPlayerMarker,
 } from '../../utils/hexRenderer';
-import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
-import { PerlinNoise } from '../../noise';
+import { renderInteriorArt } from '../../utils/pixelArt/interiorArt';
 
 interface Coord {
   col: number;
@@ -95,15 +94,28 @@ function InteriorHexCanvas({
   // CSS-pixel size of the canvas; the backing store is this x devicePixelRatio.
   const canvasSizeRef = useRef({ width: 0, height: 0 });
   const hasCenteredRef = useRef(false);
-  const textureGenerator = useRef<HexTextureGenerator | null>(null);
-
-  // Initialize texture generator once
-  useEffect(() => {
-    if (!textureGenerator.current) {
-      const noise = new PerlinNoise(Date.now());
-      textureGenerator.current = new HexTextureGenerator(noise);
-    }
-  }, []);
+  // Whole-map pixel art, re-rendered only when terrain changes (not on loot/encounter
+  // updates, which replace the map object but keep the same tiles).
+  const terrainSignature = useMemo(
+    () =>
+      (interiorMap?.hexes ?? [])
+        .map(
+          h =>
+            `${h.col},${h.row},${h.terrain.key},${h.buildingType ?? ''},${h.content === 'exit' ? 1 : 0}`
+        )
+        .join(';') + `|${String(interiorMap?.poiType ?? '')}`,
+    [interiorMap]
+  );
+  const interiorArt = useMemo(
+    () =>
+      interiorMap?.hexes
+        ? renderInteriorArt(
+            interiorMap.hexes as Parameters<typeof renderInteriorArt>[0],
+            interiorMap.poiType
+          )
+        : null,
+    [terrainSignature]
+  );
 
   // Convert grid to positioned hexes (using utility function)
   const positionedHexes = useMemo((): PositionedHex[] => {
@@ -169,22 +181,13 @@ function InteriorHexCanvas({
     (ctx: CanvasRenderingContext2D, hex: PositionedHex) => {
       const { x, y, terrain, content } = hex;
 
-      // Draw hex shape with procedural texture or solid color fallback
-      const strokeColor = terrain.walkable ? '#555' : '#111';
-      const lineWidth = terrain.walkable ? 1 : 2;
-
-      if (textureGenerator.current) {
-        const pattern = textureGenerator.current.getPattern(
-          ctx,
-          terrain,
-          hexSize,
-          hex.col,
-          hex.row
-        );
-        drawHexShape(ctx, x, y, hexSize, pattern, strokeColor, lineWidth);
+      if (interiorArt) {
+        // Terrain comes from the whole-map pixel art; keep a faint movement grid on floor
+        if (terrain.walkable) drawHexShape(ctx, x, y, hexSize, null, 'rgba(0, 0, 0, 0.22)', 1);
       } else {
-        // Fallback to solid color if texture generator not ready
-        drawHexShape(ctx, x, y, hexSize, terrain.color, strokeColor, lineWidth);
+        // No 2D canvas for the art (e.g. tests): flat colour fallback
+        const strokeColor = terrain.walkable ? '#555' : '#111';
+        drawHexShape(ctx, x, y, hexSize, terrain.color, strokeColor, terrain.walkable ? 1 : 2);
       }
 
       // Draw content markers (only if discovered)
@@ -216,6 +219,7 @@ function InteriorHexCanvas({
     },
     [
       hexSize,
+      interiorArt,
       isContentCollected,
       interiorMap,
       shouldRenderEncounter,
@@ -566,6 +570,18 @@ function InteriorHexCanvas({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.translate(offsetX, offsetY);
 
+      if (interiorArt) {
+        const s = interiorArt.scaleFor(hexSize);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(
+          interiorArt.canvas,
+          0,
+          0,
+          interiorArt.canvas.width * s,
+          interiorArt.canvas.height * s
+        );
+      }
+
       // Draw only hexes inside the viewport (plus a margin)
       const { width, height } = canvasSizeRef.current;
       const margin = hexSize * 2;
@@ -625,6 +641,7 @@ function InteriorHexCanvas({
       selectedHex,
       hoveredHex,
       interiorMap,
+      interiorArt,
       drawHex,
       drawHexOutline,
       drawPlayer,
