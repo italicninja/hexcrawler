@@ -321,7 +321,11 @@ export class POISystem {
     return preferences[terrainName] || [POI_TYPES.CAMP, POI_TYPES.ENCOUNTER];
   }
 
-  getEncounterForTerrain(terrain: TerrainLike, cr: number, random: RandomFn = Math.random): EncounterEntry {
+  getEncounterForTerrain(
+    terrain: TerrainLike,
+    cr: number,
+    random: RandomFn = Math.random
+  ): EncounterEntry {
     const terrainKey = terrain.name.toLowerCase();
     const encounters = this.encounterTables[terrainKey] || this.encounterTables.grassland;
 

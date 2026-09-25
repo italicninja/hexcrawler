@@ -2,7 +2,8 @@
 // Combat.ts is intentionally loosely typed (file-level no-explicit-any) — these tests
 // exercise the public API as it actually behaves, mirroring how combatReducer drives it.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { Combat, getXPForCR, CR_TO_XP } from '../../src/game/Combat';
+import { Combat, getXPForCR } from '../../src/game/Combat';
+import { CR_TO_XP } from '../../src/constants/gameConstants';
 import { Character } from '../../src/game/Character';
 import { Enemy } from '../../src/game/Enemy';
 import { DiceRoller } from '../../src/game/DiceRoller';

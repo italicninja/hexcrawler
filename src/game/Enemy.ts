@@ -1,5 +1,10 @@
 // Enemy — D&D 5e monster model
 import { DiceRoller } from './DiceRoller';
+import {
+  CR_TO_XP,
+  ENCOUNTER_DIFFICULTY_BY_LEVEL,
+  ENCOUNTER_XP_BUDGET,
+} from '../constants/gameConstants';
 
 interface Attack {
   name: string;
@@ -877,28 +882,36 @@ export class Enemy {
     return enemy;
   }
 
+  /**
+   * Build enemies from a string like "2d4 Wolves". `cr` is the CR of one creature.
+   * With `partyLevels`, a dice count is replaced by as many creatures as fit the
+   * party's XP budget (capped by the dice max and by level + 1 per member, since
+   * big groups outclass their XP against few heroes). Without it, the dice are rolled.
+   */
   static parseCreatureString(
     creatureString: string,
     cr: number,
     diceRoller: DiceRoller,
-    family: string | null = null,
-    variant: string | null = null
+    partyLevels: number[] = []
   ): Enemy[] {
     const match = creatureString.match(/^(\d+d\d+|\d+)\s+(.+)$/i);
 
     if (!match) {
-      return [new Enemy(creatureString, cr, 'generic', family, variant)];
+      return [new Enemy(creatureString, cr, 'generic')];
     }
 
     const countPart = match[1];
     const namePart = match[2];
 
     let count: number;
-    if (countPart.includes('d')) {
-      const [numDice, diceSize] = countPart.split('d').map(Number);
-      count = diceRoller.rollDice(diceSize, numDice);
-    } else {
+    if (!countPart.includes('d')) {
       count = parseInt(countPart, 10);
+    } else {
+      const [numDice, diceSize] = countPart.split('d').map(Number);
+      count =
+        partyLevels.length > 0
+          ? Enemy.groupSizeForBudget(cr, numDice * diceSize, partyLevels)
+          : diceRoller.rollDice(diceSize, numDice);
     }
 
     const inferredType = this._inferTypeFromName(namePart);
@@ -906,10 +919,22 @@ export class Enemy {
     const enemies: Enemy[] = [];
     for (let i = 0; i < count; i++) {
       const enemyName = count > 1 ? `${namePart} #${i + 1}` : namePart;
-      enemies.push(new Enemy(enemyName, cr, inferredType, family, variant));
+      enemies.push(new Enemy(enemyName, cr, inferredType));
     }
 
     return enemies;
+  }
+
+  static groupSizeForBudget(cr: number, maxCount: number, partyLevels: number[]): number {
+    let budget = 0;
+    let sizeCap = 0;
+    for (const level of partyLevels) {
+      const i = Math.min(Math.max(level, 1), ENCOUNTER_XP_BUDGET.length) - 1;
+      budget += ENCOUNTER_XP_BUDGET[i][ENCOUNTER_DIFFICULTY_BY_LEVEL[i]];
+      sizeCap += level + 1;
+    }
+    const xpEach = CR_TO_XP[cr] || 1;
+    return Math.max(1, Math.min(Math.floor(budget / xpEach), maxCount, sizeCap));
   }
 
   static _inferTypeFromName(name: string): string {
