@@ -13,16 +13,6 @@ import { TerrainGenerator } from '../../terrainGenerator';
 import { formatTime } from '../../game/TimeManager';
 import { Character } from '../../game/Character';
 import { FEATURES } from '../../constants/gameConstants';
-import {
-  User,
-  Users,
-  Swords,
-  Tent,
-  Trees,
-  ScrollText,
-  Save,
-  Settings as SettingsIcon,
-} from 'lucide-react';
 import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
 import PartyList from '../ui/PartyList';
@@ -43,24 +33,9 @@ import Modal from '../ui/Modal';
 import AIInspector from '../debug/AIInspector';
 import DevTools from '../debug/DevTools';
 import type { SceneHex } from '../../types/scene';
-
-const CLASS_ICONS: Record<string, string> = {
-  fighter: '⚔️',
-  wizard: '✨',
-  cleric: '✝️',
-  rogue: '🗡️',
-  ranger: '🏹',
-  barbarian: '🪓',
-  paladin: '🛡️',
-  druid: '🌿',
-  bard: '🎵',
-  sorcerer: '🔥',
-  warlock: '👁️',
-  monk: '👊',
-};
+import PixelIcon from '../ui/PixelIcon';
 
 // Sidebar menu icons: inline SVG so they render the same on every OS (emoji don't)
-const MENU_ICON = { size: 22, strokeWidth: 1.75, 'aria-hidden': true } as const;
 
 function OverworldScene() {
   const { state, isHexReachable } = useGameState();
@@ -137,26 +112,26 @@ function OverworldScene() {
       {
         id: 'character',
         label: 'Character',
-        icon: <User {...MENU_ICON} />,
+        icon: <PixelIcon name="character" scale={3} />,
         description: 'View character stats',
       },
       {
         id: 'party',
         label: 'Party',
-        icon: <Users {...MENU_ICON} />,
+        icon: <PixelIcon name="party" scale={3} />,
         description: 'Manage party members',
         badge: state.party?.npcs?.filter((npc: unknown) => npc).length || 0,
       },
       {
         id: 'equipment',
         label: 'Equipment',
-        icon: <Swords {...MENU_ICON} />,
+        icon: <PixelIcon name="equipment" scale={3} />,
         description: 'Manage inventory & gear',
       },
       {
         id: 'rest',
         label: 'Rest',
-        icon: <Tent {...MENU_ICON} />,
+        icon: <PixelIcon name="tent" scale={3} />,
         description: 'Rest and recover',
       },
       ...(FEATURES.SURVIVAL_ENABLED
@@ -164,7 +139,7 @@ function OverworldScene() {
             {
               id: 'survival',
               label: 'Survival',
-              icon: <Trees {...MENU_ICON} />,
+              icon: <PixelIcon name="forage" scale={3} />,
               description: 'Forage and hunt',
               disabled: !!state.combatState?.active,
               disabledReason: 'Cannot forage during combat',
@@ -174,20 +149,20 @@ function OverworldScene() {
       {
         id: 'quests',
         label: 'Quests',
-        icon: <ScrollText {...MENU_ICON} />,
+        icon: <PixelIcon name="scroll" scale={3} />,
         description: 'Track your quests',
         badge: state.activeQuests?.length || 0,
       },
       {
         id: 'save',
         label: 'Save',
-        icon: <Save {...MENU_ICON} />,
+        icon: <PixelIcon name="disk" scale={3} />,
         description: 'Save your game',
       },
       {
         id: 'config',
         label: 'Config',
-        icon: <SettingsIcon {...MENU_ICON} />,
+        icon: <PixelIcon name="gear" scale={3} />,
         description: 'Game settings',
       },
     ];
@@ -387,10 +362,12 @@ function OverworldScene() {
             /* Interior Mode */
             <InteriorHexCanvas
               interiorMap={
-                interior.interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']
+                interior.interiorMap as unknown as Parameters<
+                  typeof InteriorHexCanvas
+                >[0]['interiorMap']
               }
               playerPosition={state.interiorPlayerPosition}
-              playerIcon={CLASS_ICONS[state.party?.player?.class ?? ''] ?? '🧍'}
+              playerClass={state.party?.player?.class}
               selectedHex={interior.selectedInteriorHex}
               onHexClick={interior.handleInteriorHexClick}
               onHexDoubleClick={interior.handleInteriorHexDoubleClick}
@@ -441,18 +418,26 @@ function OverworldScene() {
             /* Interior Info */
             <InteriorInfoPane
               selectedHex={
-                interior.selectedInteriorHex as unknown as Parameters<typeof InteriorInfoPane>[0]['selectedHex']
+                interior.selectedInteriorHex as unknown as Parameters<
+                  typeof InteriorInfoPane
+                >[0]['selectedHex']
               }
               playerPosition={state.interiorPlayerPosition}
               interiorMap={
-                interior.interiorMap as unknown as Parameters<typeof InteriorInfoPane>[0]['interiorMap']
+                interior.interiorMap as unknown as Parameters<
+                  typeof InteriorInfoPane
+                >[0]['interiorMap']
               }
             />
           ) : (
             /* Hex Details */
             <HexDetails
               hex={selectedHex as unknown as Parameters<typeof HexDetails>[0]['hex']}
-              onMoveClick={overworld.handleMoveToHex as unknown as Parameters<typeof HexDetails>[0]['onMoveClick']}
+              onMoveClick={
+                overworld.handleMoveToHex as unknown as Parameters<
+                  typeof HexDetails
+                >[0]['onMoveClick']
+              }
             />
           )}
         </aside>

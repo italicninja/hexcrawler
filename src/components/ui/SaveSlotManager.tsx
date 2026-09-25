@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../shadcn/ConfirmDialog';
 import SaveSlot from './SaveSlot';
 import { ModalTitle } from './Modal';
 import './SaveSlotManager.css';
+import PixelIcon from './PixelIcon';
 
 /**
  * SaveSlotManager - Main UI for managing save slots
@@ -119,7 +120,7 @@ function SaveSlotManager({ mode, onClose }: SaveSlotManagerProps) {
           <ModalTitle>{mode === 'load' ? 'Load Game' : 'Save Game'}</ModalTitle>
           {onClose && (
             <button className="close-button" onClick={onClose} aria-label="Close">
-              ×
+              <PixelIcon name="close" label="Close" />
             </button>
           )}
         </div>
@@ -199,8 +200,8 @@ function SaveSlotManager({ mode, onClose }: SaveSlotManagerProps) {
         {mode === 'load' && (
           <div className="save-slot-manager-footer">
             <p className="save-notice">
-              💡 <strong>Save version:</strong> {SaveManager.SAVE_VERSION} - Older saves are not
-              compatible
+              <PixelIcon name="bulb" /> <strong>Save version:</strong> {SaveManager.SAVE_VERSION} -
+              Older saves are not compatible
             </p>
           </div>
         )}

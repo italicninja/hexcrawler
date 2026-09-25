@@ -1,5 +1,6 @@
 import { useState, type MouseEvent } from 'react';
 import { useEventListener } from '../../../hooks/useEventListener';
+import PixelIcon from '../PixelIcon';
 
 /**
  * SpellMenu - Modal overlay for selecting spell to cast
@@ -153,7 +154,7 @@ function SpellMenu({ character, onSelect, onClose }: SpellMenuProps) {
             onClick={onClose}
             aria-label="Close spell menu"
           >
-            ×
+            <PixelIcon name="close" label="Close" />
           </button>
         </div>
 

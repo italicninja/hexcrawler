@@ -15,6 +15,7 @@ import { POI_TYPES } from '../../poiSystem';
 import { SaveManager } from '../../utils/SaveManager';
 import logger from '../../utils/logger';
 import type { TerrainGenerator } from '../../terrainGenerator';
+import PixelIcon from '../ui/PixelIcon';
 
 /** A selectable option in a DevSelectRow dropdown. */
 interface DevOption {
@@ -179,7 +180,7 @@ function DevButton({
       onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-lighter)')}
       onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
     >
-      <span>{icon}</span>
+      <PixelIcon name={icon} />
       <span>{label}</span>
     </button>
   );
@@ -210,10 +211,10 @@ function DevSelectRow<T extends DevOption>({
         onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span>{icon}</span>
+          <PixelIcon name={icon} />
           <span>{label}</span>
         </span>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{open ? '▲' : '▶'}</span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}><PixelIcon name={open ? 'chevronUp' : 'chevronRight'} /></span>
       </button>
 
       {open && (
@@ -271,7 +272,7 @@ function TeleportRow({ onTeleport }: { onTeleport: (col: number, row: number) =>
         padding: '0.4rem 0.75rem',
       }}
     >
-      <span style={{ fontSize: '0.85rem' }}>📍</span>
+      <PixelIcon name="pin" />
       <input
         type="number"
         placeholder="Col"
@@ -612,7 +613,7 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
           {/* ── COMBAT ── */}
           <DevSection title="Combat" />
           <DevSelectRow
-            icon="⚔️"
+            icon="action"
             label="Force Combat..."
             options={ENEMY_PRESETS.map((p, i) => ({ ...p, key: i }))}
             onSelect={opt => {
@@ -623,28 +624,28 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
 
           {/* ── CHARACTER ── */}
           <DevSection title="Character" />
-          <DevButton icon="💊" label="Restore Full HP" onClick={closeAfter(handleRestoreHP)} />
-          <DevButton icon="✨" label="+500 XP" onClick={closeAfter(() => handleAddXP(500))} />
-          <DevButton icon="✨" label="+2000 XP" onClick={closeAfter(() => handleAddXP(2000))} />
-          <DevButton icon="⬆️" label="Force Level Up" onClick={closeAfter(handleForceLevelUp)} />
-          <DevButton icon="💰" label="+100 Gold" onClick={closeAfter(() => handleAddGold(100))} />
-          <DevButton icon="💰" label="+1000 Gold" onClick={closeAfter(() => handleAddGold(1000))} />
+          <DevButton icon="object" label="Restore Full HP" onClick={closeAfter(handleRestoreHP)} />
+          <DevButton icon="bonus" label="+500 XP" onClick={closeAfter(() => handleAddXP(500))} />
+          <DevButton icon="bonus" label="+2000 XP" onClick={closeAfter(() => handleAddXP(2000))} />
+          <DevButton icon="arrowUp" label="Force Level Up" onClick={closeAfter(handleForceLevelUp)} />
+          <DevButton icon="coins" label="+100 Gold" onClick={closeAfter(() => handleAddGold(100))} />
+          <DevButton icon="coins" label="+1000 Gold" onClick={closeAfter(() => handleAddGold(1000))} />
 
           {/* ── TIME ── */}
           <DevSection title="Time" />
-          <DevButton icon="⏰" label="+1 Hour" onClick={closeAfter(() => handleAdvanceTime(60))} />
+          <DevButton icon="clock" label="+1 Hour" onClick={closeAfter(() => handleAdvanceTime(60))} />
           <DevButton
-            icon="⏰"
+            icon="clock"
             label="+8 Hours (Long Rest)"
             onClick={closeAfter(() => handleAdvanceTime(480))}
           />
-          <DevButton icon="⏰" label="+1 Day" onClick={closeAfter(() => handleAdvanceTime(1440))} />
+          <DevButton icon="clock" label="+1 Day" onClick={closeAfter(() => handleAdvanceTime(1440))} />
 
           {/* ── MAP ── */}
           <DevSection title="Map" />
-          <DevButton icon="🗺️" label="Reveal All Map" onClick={closeAfter(handleRevealAll)} />
+          <DevButton icon="map" label="Reveal All Map" onClick={closeAfter(handleRevealAll)} />
           <DevSelectRow
-            icon="☀️"
+            icon="sun"
             label="Force Weather..."
             options={WEATHER_OPTIONS}
             onSelect={opt => {
@@ -653,7 +654,7 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
             }}
           />
           <DevSelectRow
-            icon="🎲"
+            icon="die"
             label="Spawn POI Here..."
             options={POI_OPTIONS}
             onSelect={opt => {
@@ -671,12 +672,12 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
           {/* ── DEBUG ── */}
           <DevSection title="Debug" />
           <DevButton
-            icon="📋"
+            icon="scroll"
             label="Dump State to Console"
             onClick={closeAfter(handleDumpState)}
           />
           <DevButton
-            icon="💾"
+            icon="disk"
             label="Wipe All Saves"
             onClick={closeAfter(handleWipeSaves)}
             danger

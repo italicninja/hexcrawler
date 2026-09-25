@@ -7,6 +7,7 @@ import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { TIME_COSTS } from '../../game/TimeManager';
 import './InteriorHexDetails.css';
+import PixelIcon from './PixelIcon';
 
 interface HexLike {
   col: number;
@@ -70,12 +71,7 @@ interface InteriorHexDetailsProps {
   onMoveToHex?: (hex: HexLike) => void;
 }
 
-function InteriorHexDetails({
-  hex,
-  playerPosition,
-  interiorMap,
-  poiKey,
-}: InteriorHexDetailsProps) {
+function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }: InteriorHexDetailsProps) {
   const { actions, dispatch } = useGameState();
   const { addMessage } = useGameLog();
 
@@ -170,7 +166,15 @@ function InteriorHexDetails({
 
     return (
       <div className={`content-section ${isChest ? 'chest-section' : 'loot-section'}`}>
-        <h4>{isChest ? '💰 Treasure Chest' : 'Loot'}</h4>
+        <h4>
+          {isChest ? (
+            <>
+              <PixelIcon name="chest" /> Treasure Chest
+            </>
+          ) : (
+            'Loot'
+          )}
+        </h4>
         <p>
           <strong>Gold:</strong> {loot.gold} gp
         </p>

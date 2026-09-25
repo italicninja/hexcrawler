@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PixelIcon from './PixelIcon';
 
 /**
  * PartyList component - displays the party composition
@@ -72,8 +73,11 @@ function PartyMember({ member, index, isSelected, onClick }: PartyMemberProps) {
         <div className="party-name">
           {member.name}
           {member.gender && (
-            <span style={{ fontSize: '0.7rem', marginLeft: '0.3rem', opacity: 0.6 }}>
-              ({member.gender === 'male' ? '♂' : '♀'})
+            <span style={{ marginLeft: '0.3rem' }}>
+              <PixelIcon
+                name={member.gender === 'male' ? 'male' : 'female'}
+                label={member.gender}
+              />
             </span>
           )}
         </div>

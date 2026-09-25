@@ -14,6 +14,7 @@ import GameLog from '../ui/GameLog';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import { formatTime } from '../../game/TimeManager';
 import './TownScene.css';
+import PixelIcon from '../ui/PixelIcon';
 
 interface Coord {
   col: number;
@@ -34,20 +35,21 @@ interface TownMapLocal {
   [key: string]: unknown;
 }
 
-const CLASS_ICONS: Record<string, string> = {
-  fighter: '⚔️',
-  wizard: '✨',
-  cleric: '✝️',
-  rogue: '🗡️',
-  ranger: '🏹',
-  barbarian: '🪓',
-  paladin: '🛡️',
-  druid: '🌿',
-  bard: '🎵',
-  sorcerer: '🔥',
-  warlock: '👁️',
-  monk: '👊',
-};
+/** A square legend chip with a dark pixel border. */
+function Swatch({ color }: { color: string }) {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: 10,
+        height: 10,
+        background: color,
+        border: '2px solid #1a150c',
+        verticalAlign: 'middle',
+      }}
+    />
+  );
+}
 
 function TownScene() {
   const { state, actions, dispatch } = useGameState();
@@ -267,16 +269,16 @@ function TownScene() {
             <h4>Legend:</h4>
             <ul>
               <li>
-                <span style={{ color: '#a89968' }}>■</span> Town Square
+                <Swatch color="#a89968" /> Town Square
               </li>
               <li>
-                <span style={{ color: '#8B7355' }}>■</span> Road
+                <Swatch color="#8B7355" /> Road
               </li>
               <li>
-                <span style={{ color: '#654321' }}>■</span> Building Entrance
+                <Swatch color="#654321" /> Building Entrance
               </li>
               <li>
-                <span style={{ color: '#5C4033' }}>■</span> Town Gate (Exit)
+                <Swatch color="#5C4033" /> Town Gate (Exit)
               </li>
             </ul>
           </div>
@@ -355,13 +357,15 @@ function TownScene() {
             </div>
           </div>
           <button className="exit-button" onClick={handleExitTown}>
-            ← Leave Town
+            <PixelIcon name="arrowLeft" /> Leave Town
           </button>
         </div>
         <InteriorHexCanvas
-          interiorMap={interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']}
+          interiorMap={
+            interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']
+          }
           playerPosition={playerPosition}
-          playerIcon={CLASS_ICONS[state.party?.player?.class ?? ''] ?? '🧍'}
+          playerClass={state.party?.player?.class}
           selectedHex={selectedHex}
           onHexClick={handleHexClick}
           onHexDoubleClick={handleHexDoubleClick}

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import logger from '../utils/logger';
+import PixelIcon from './ui/PixelIcon';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -28,7 +29,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       return (
         <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',background:'#1a1a1a',color:'#e0e0e0',padding:'20px',textAlign:'center' }}>
           <div style={{ maxWidth:'600px',background:'#2a2a2a',border:'2px solid #e74c3c',borderRadius:'8px',padding:'30px',boxShadow:'0 4px 12px rgba(0,0,0,0.5)' }}>
-            <h1 style={{ color:'#e74c3c',marginTop:0 }}>⚠️ Something went wrong</h1>
+            <h1 style={{ color:'#e74c3c',marginTop:0 }}><PixelIcon name="warning" scale={3} /> Something went wrong</h1>
             <p style={{ fontSize:'1.1em',marginBottom:'20px' }}>The application encountered an unexpected error.</p>
             {this.state.error && (
               <details style={{ background:'#1a1a1a',border:'1px solid #555',borderRadius:'4px',padding:'15px',marginBottom:'20px',textAlign:'left' }}>

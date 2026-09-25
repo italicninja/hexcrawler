@@ -12,18 +12,18 @@ import { getHexDistance } from '../../utils/hexMath';
 import { calculateReachableHexes } from '../../game/Pathfinding';
 import { checkLineOfSight } from '../../game/LineOfSight';
 import {
+  ART_PX,
   calculateHexPosition,
-  drawHexShape,
   drawHexOutline,
+  fillPixelHex,
   findHexAtPoint,
   sizeCanvasForDpr,
 } from '../../utils/hexRenderer';
-import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
-import { PerlinNoise } from '../../noise';
 import logger from '../../utils/logger';
 import { drawPoiAmbient } from '../../utils/combatPoiRenderer';
 import { drawWeatherOverlay } from '../../utils/combatWeatherRenderer';
-import { drawLandmark } from '../../utils/combatLandmarkRenderer';
+import { renderBattlefield } from '../../utils/pixelBattlefieldRenderer';
+import { drawPixelBar, drawPixelIcon, drawPixelPlayer, drawPixelRing } from '../../utils/pixelIcons';
 
 const HEX_SIZE = 25;
 const FIXED_ZOOM = 1.0; // Zoom is disabled - always use 1.0
@@ -120,7 +120,6 @@ function CombatCanvas({
     offset: cameraOffset,
     zoom: FIXED_ZOOM,
   });
-  const textureGenerator = useRef<HexTextureGenerator | null>(null);
   // CSS-pixel size of the canvas; the backing store is this x devicePixelRatio.
   const canvasSizeRef = useRef({ width: 0, height: 0 });
 
@@ -129,573 +128,18 @@ function CombatCanvas({
   // Visual override positions: Map<combatantId, {x, y}> pixel coords
   const visualOverridesRef = useRef<Map<string | number, Pixel>>(new Map());
 
-  // Initialize texture generator once
-  useEffect(() => {
-    if (!textureGenerator.current) {
-      const noise = new PerlinNoise(Date.now());
-      textureGenerator.current = new HexTextureGenerator(noise);
-    }
-  }, []);
+  // Pixel-art ground, obstacles and landmark, baked once per battlefield
+  const ground = useMemo(
+    () =>
+      battlefield?.hexes?.length
+        ? renderBattlefield(battlefield.hexes, HEX_SIZE, battlefield.hexContext?.terrainKey)
+        : null,
+    [battlefield]
+  );
 
   /**
-   * Draw a tree obstacle
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {number} x - Center X position
-   * @param {number} y - Center Y position
-   * @param {number} size - Size scale factor
-   */
-  const drawTree = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.save();
-
-    // OSRS low-poly tree: brown trunk, faceted canopy with hard outline
-    ctx.fillStyle = '#5a3c20';
-    ctx.strokeStyle = '#2a1c0e';
-    ctx.lineWidth = 1;
-    ctx.fillRect(x - size * 0.12, y + size * 0.08, size * 0.24, size * 0.4);
-    ctx.strokeRect(x - size * 0.12, y + size * 0.08, size * 0.24, size * 0.4);
-
-    // Canopy: chunky hexagonal crown
-    const r = size * 0.42;
-    const cy = y - size * 0.1;
-    ctx.fillStyle = '#2e4423';
-    ctx.strokeStyle = '#1d2d16';
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = (Math.PI / 3) * i - Math.PI / 6;
-      const px = x + Math.cos(a) * r;
-      const py = cy + Math.sin(a) * r * 0.9;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Lit facet, top-left
-    ctx.fillStyle = '#46663a';
-    ctx.beginPath();
-    ctx.moveTo(x - r * 0.5, cy - r * 0.15);
-    ctx.lineTo(x - r * 0.05, cy - r * 0.7);
-    ctx.lineTo(x + r * 0.35, cy - r * 0.25);
-    ctx.lineTo(x - r * 0.1, cy + r * 0.05);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.restore();
-  }, []);
-
-  /**
-   * Draw a rock obstacle
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {number} x - Center X position
-   * @param {number} y - Center Y position
-   * @param {number} size - Size scale factor
-   */
-  const drawRock = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.save();
-
-    // Faceted grey rock: shadow body + lit face + hard outline
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.3, y + size * 0.2);
-    ctx.lineTo(x - size * 0.1, y - size * 0.3);
-    ctx.lineTo(x + size * 0.2, y - size * 0.2);
-    ctx.lineTo(x + size * 0.3, y + size * 0.1);
-    ctx.lineTo(x + size * 0.1, y + size * 0.3);
-    ctx.closePath();
-    ctx.fillStyle = '#6b675e';
-    ctx.fill();
-    ctx.strokeStyle = '#36332d';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    // Lit facet, upper-left
-    ctx.fillStyle = '#7d786c';
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.22, y + size * 0.08);
-    ctx.lineTo(x - size * 0.1, y - size * 0.26);
-    ctx.lineTo(x + size * 0.12, y - size * 0.16);
-    ctx.lineTo(x - size * 0.04, y + size * 0.02);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.restore();
-  }, []);
-
-  /**
-   * Draw a wall obstacle (for dungeon/ruins/temple)
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {number} x - Center X position
-   * @param {number} y - Center Y position
-   * @param {number} size - Size scale factor
-   */
-  const drawWall = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.save();
-    // Weathered stone wall, mortar lines offset like real coursing
-    ctx.fillStyle = '#6e6a60';
-    ctx.fillRect(x - size * 0.45, y - size * 0.2, size * 0.9, size * 0.4);
-    ctx.strokeStyle = '#36332d';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x - size * 0.45, y - size * 0.2, size * 0.9, size * 0.4);
-    // Mortar lines (staggered blocks)
-    ctx.strokeStyle = '#4a463e';
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.45, y);
-    ctx.lineTo(x + size * 0.45, y);
-    ctx.moveTo(x - size * 0.15, y - size * 0.2);
-    ctx.lineTo(x - size * 0.15, y);
-    ctx.moveTo(x + size * 0.15, y - size * 0.2);
-    ctx.lineTo(x + size * 0.15, y);
-    ctx.moveTo(x, y);
-    ctx.lineTo(x, y + size * 0.2);
-    ctx.stroke();
-    // Top highlight
-    ctx.strokeStyle = 'rgba(220, 214, 198, 0.35)';
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.43, y - size * 0.17);
-    ctx.lineTo(x + size * 0.43, y - size * 0.17);
-    ctx.stroke();
-    ctx.restore();
-  }, []);
-
-  /**
-   * Draw a reed/marsh plant (for swamp/river/water)
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {number} x - Center X position
-   * @param {number} y - Center Y position
-   * @param {number} size - Size scale factor
-   */
-  const drawReed = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.save();
-    ctx.strokeStyle = '#4a6030';
-    ctx.lineWidth = 1.5;
-    // Three reed stalks
-    for (let i = -1; i <= 1; i++) {
-      const rx = x + i * size * 0.18;
-      ctx.beginPath();
-      ctx.moveTo(rx, y + size * 0.3);
-      ctx.lineTo(rx, y - size * 0.3);
-      ctx.stroke();
-      // Seed head
-      ctx.fillStyle = '#7a5030';
-      ctx.beginPath();
-      ctx.ellipse(rx, y - size * 0.3, size * 0.05, size * 0.12, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }, []);
-
-  /**
-   * Draw a snow/ice mound (for tundra)
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {number} x - Center X position
-   * @param {number} y - Center Y position
-   * @param {number} size - Size scale factor
-   */
-  const drawIceMound = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.save();
-    ctx.fillStyle = '#d0e8f0';
-    ctx.beginPath();
-    ctx.ellipse(x, y + size * 0.1, size * 0.4, size * 0.25, 0, Math.PI, 0);
-    ctx.fill();
-    ctx.strokeStyle = '#a0c8e0';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // Ice glint
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.15, y - size * 0.05);
-    ctx.lineTo(x, y - size * 0.2);
-    ctx.lineTo(x + size * 0.12, y - size * 0.08);
-    ctx.stroke();
-    ctx.restore();
-  }, []);
-
-  /**
-   * Draw a sand dune (for desert)
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {number} x - Center X position
-   * @param {number} y - Center Y position
-   * @param {number} size - Size scale factor
-   */
-  const drawDune = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.save();
-    ctx.fillStyle = '#b8a070';
-    ctx.beginPath();
-    ctx.ellipse(x, y + size * 0.1, size * 0.45, size * 0.2, 0, Math.PI, 0);
-    ctx.fill();
-    ctx.strokeStyle = '#8a7752';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // Crest line
-    ctx.strokeStyle = 'rgba(230, 212, 168, 0.6)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.4, y + size * 0.02);
-    ctx.quadraticCurveTo(x, y - size * 0.12, x + size * 0.4, y + size * 0.02);
-    ctx.stroke();
-    ctx.restore();
-  }, []);
-
-  /**
-   * Draw a boulder (for plains/hills/grassland)
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {number} x - Center X position
-   * @param {number} y - Center Y position
-   * @param {number} size - Size scale factor
-   */
-  const drawBoulder = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.save();
-    // Chunky boulder: faceted heptagon instead of a smooth circle
-    const r = size * 0.32;
-    ctx.fillStyle = '#857c6c';
-    ctx.beginPath();
-    for (let i = 0; i < 7; i++) {
-      const a = (Math.PI * 2 * i) / 7 - Math.PI / 2;
-      const wobble = i % 2 === 0 ? 1 : 0.85;
-      const px = x + Math.cos(a) * r * wobble;
-      const py = y + Math.sin(a) * r * wobble;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = '#4a4438';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    // Lit facet
-    ctx.fillStyle = '#9a9180';
-    ctx.beginPath();
-    ctx.moveTo(x - r * 0.5, y - r * 0.1);
-    ctx.lineTo(x - r * 0.1, y - r * 0.7);
-    ctx.lineTo(x + r * 0.3, y - r * 0.3);
-    ctx.lineTo(x - r * 0.1, y + r * 0.05);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }, []);
-
-  /**
-   * Draw a class icon inside combatant circle
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {number} x - Center X position
-   * @param {number} y - Center Y position
-   * @param {string} className - Character class name
-   * @param {number} size - Size scale factor
-   */
-  const drawClassIcon = useCallback(
-    (ctx: CanvasRenderingContext2D, x: number, y: number, className: string, size: number) => {
-    ctx.save();
-    ctx.lineWidth = 1.8;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-
-    const classLower = (className || 'fighter').toLowerCase();
-
-    if (classLower === 'barbarian') {
-      // Greataxe: vertical haft + broad crescent blade
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.35);
-      ctx.lineTo(x, y + size * 0.35);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.35);
-      ctx.bezierCurveTo(
-        x - size * 0.3,
-        y - size * 0.2,
-        x - size * 0.3,
-        y + size * 0.1,
-        x,
-        y + size * 0.1
-      );
-      ctx.bezierCurveTo(
-        x + size * 0.3,
-        y + size * 0.1,
-        x + size * 0.3,
-        y - size * 0.2,
-        x,
-        y - size * 0.35
-      );
-      ctx.fill();
-      ctx.stroke();
-    } else if (classLower === 'bard') {
-      // Musical note: filled note head + stem + flag
-      ctx.beginPath();
-      ctx.ellipse(x - size * 0.1, y + size * 0.2, size * 0.12, size * 0.09, -0.4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(x + size * 0.02, y + size * 0.2);
-      ctx.lineTo(x + size * 0.02, y - size * 0.2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x + size * 0.02, y - size * 0.2);
-      ctx.quadraticCurveTo(x + size * 0.22, y - size * 0.1, x + size * 0.18, y + size * 0.0);
-      ctx.stroke();
-    } else if (classLower === 'cleric') {
-      // Radiant cross with glow dots at tips
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.35);
-      ctx.lineTo(x, y + size * 0.35);
-      ctx.moveTo(x - size * 0.35, y - size * 0.08);
-      ctx.lineTo(x + size * 0.35, y - size * 0.08);
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      ctx.lineWidth = 1.8;
-      // glow dot at top
-      ctx.beginPath();
-      ctx.arc(x, y - size * 0.35, size * 0.07, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (classLower === 'druid') {
-      // Leaf: teardrop shape with center vein
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.35);
-      ctx.bezierCurveTo(
-        x + size * 0.3,
-        y - size * 0.15,
-        x + size * 0.3,
-        y + size * 0.2,
-        x,
-        y + size * 0.35
-      );
-      ctx.bezierCurveTo(
-        x - size * 0.3,
-        y + size * 0.2,
-        x - size * 0.3,
-        y - size * 0.15,
-        x,
-        y - size * 0.35
-      );
-      ctx.fill();
-      ctx.stroke();
-      // center vein
-      ctx.save();
-      ctx.globalAlpha = 0.4;
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.3);
-      ctx.lineTo(x, y + size * 0.3);
-      ctx.stroke();
-      ctx.restore();
-    } else if (classLower === 'fighter') {
-      // Sword + shield: sword diagonal, small shield behind
-      // shield
-      ctx.save();
-      ctx.globalAlpha = 0.45;
-      ctx.beginPath();
-      ctx.moveTo(x - size * 0.22, y - size * 0.3);
-      ctx.lineTo(x + size * 0.05, y - size * 0.3);
-      ctx.lineTo(x + size * 0.05, y + size * 0.1);
-      ctx.quadraticCurveTo(x - size * 0.08, y + size * 0.35, x - size * 0.22, y + size * 0.1);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-      ctx.stroke();
-      // sword blade
-      ctx.beginPath();
-      ctx.moveTo(x + size * 0.25, y - size * 0.3);
-      ctx.lineTo(x - size * 0.1, y + size * 0.3);
-      ctx.lineWidth = 2.2;
-      ctx.stroke();
-      // crossguard
-      ctx.beginPath();
-      ctx.moveTo(x + size * 0.08, y - size * 0.05);
-      ctx.lineTo(x + size * 0.3, y + size * 0.1);
-      ctx.lineWidth = 1.8;
-      ctx.stroke();
-    } else if (classLower === 'monk') {
-      // Yin-yang circle
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.3, 0, Math.PI * 2);
-      ctx.stroke();
-      // top half filled
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.3, Math.PI, 0);
-      ctx.fill();
-      // small circles
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath();
-      ctx.arc(x, y - size * 0.15, size * 0.09, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      ctx.beginPath();
-      ctx.arc(x, y - size * 0.15, size * 0.09, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x, y + size * 0.15, size * 0.09, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    } else if (classLower === 'paladin') {
-      // Kite shield with cross
-      ctx.beginPath();
-      ctx.moveTo(x - size * 0.25, y - size * 0.32);
-      ctx.lineTo(x + size * 0.25, y - size * 0.32);
-      ctx.lineTo(x + size * 0.25, y + size * 0.1);
-      ctx.quadraticCurveTo(x, y + size * 0.38, x - size * 0.25, y + size * 0.1);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // cross cutout
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillRect(x - size * 0.04, y - size * 0.28, size * 0.08, size * 0.36);
-      ctx.fillRect(x - size * 0.2, y - size * 0.12, size * 0.4, size * 0.08);
-      ctx.restore();
-    } else if (classLower === 'ranger') {
-      // Bow + nocked arrow
-      ctx.beginPath();
-      ctx.arc(x - size * 0.08, y, size * 0.28, -Math.PI * 0.55, Math.PI * 0.55);
-      ctx.stroke();
-      // bowstring
-      ctx.beginPath();
-      ctx.moveTo(x - size * 0.08, y - size * 0.28);
-      ctx.lineTo(x - size * 0.08, y + size * 0.28);
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-      ctx.lineWidth = 1.8;
-      // arrow
-      ctx.beginPath();
-      ctx.moveTo(x - size * 0.08, y);
-      ctx.lineTo(x + size * 0.32, y);
-      ctx.stroke();
-      // arrowhead
-      ctx.beginPath();
-      ctx.moveTo(x + size * 0.32, y);
-      ctx.lineTo(x + size * 0.2, y - size * 0.08);
-      ctx.lineTo(x + size * 0.2, y + size * 0.08);
-      ctx.closePath();
-      ctx.fill();
-    } else if (classLower === 'rogue') {
-      // Angled dagger
-      ctx.beginPath();
-      ctx.moveTo(x - size * 0.25, y + size * 0.28);
-      ctx.lineTo(x + size * 0.22, y - size * 0.28);
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      // crossguard perpendicular
-      ctx.beginPath();
-      ctx.moveTo(x + size * 0.05, y - size * 0.05);
-      ctx.lineTo(x + size * 0.28, y + size * 0.12);
-      ctx.lineWidth = 1.8;
-      ctx.stroke();
-      // pommel
-      ctx.beginPath();
-      ctx.arc(x - size * 0.25, y + size * 0.28, size * 0.07, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (classLower === 'sorcerer') {
-      // 6-pointed arcane star / snowflake burst
-      for (let i = 0; i < 6; i++) {
-        const angle = (i * Math.PI) / 3;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + Math.cos(angle) * size * 0.32, y + Math.sin(angle) * size * 0.32);
-        ctx.stroke();
-      }
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.1, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (classLower === 'warlock') {
-      // Eldritch eye: almond + slit pupil + arcane marks
-      ctx.beginPath();
-      ctx.moveTo(x - size * 0.3, y);
-      ctx.quadraticCurveTo(x, y - size * 0.22, x + size * 0.3, y);
-      ctx.quadraticCurveTo(x, y + size * 0.22, x - size * 0.3, y);
-      ctx.fill();
-      ctx.stroke();
-      // pupil slit (destination-out style via lighter fill)
-      ctx.save();
-      ctx.globalAlpha = 0.5;
-      ctx.beginPath();
-      ctx.ellipse(x, y, size * 0.06, size * 0.16, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#000';
-      ctx.fill();
-      ctx.restore();
-      // top arcane mark
-      ctx.beginPath();
-      ctx.moveTo(x - size * 0.08, y - size * 0.28);
-      ctx.lineTo(x, y - size * 0.38);
-      ctx.lineTo(x + size * 0.08, y - size * 0.28);
-      ctx.stroke();
-    } else if (classLower === 'wizard') {
-      // Staff + 8-point star at top
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.1);
-      ctx.lineTo(x, y + size * 0.35);
-      ctx.lineWidth = 2.2;
-      ctx.stroke();
-      ctx.lineWidth = 1.8;
-      // 4-axis star
-      const starY = y - size * 0.22;
-      for (let i = 0; i < 4; i++) {
-        const angle = (i * Math.PI) / 4;
-        ctx.beginPath();
-        ctx.moveTo(x + Math.cos(angle) * size * 0.25, starY + Math.sin(angle) * size * 0.25);
-        ctx.lineTo(x - Math.cos(angle) * size * 0.25, starY - Math.sin(angle) * size * 0.25);
-        ctx.stroke();
-      }
-      ctx.beginPath();
-      ctx.arc(x, starY, size * 0.1, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      // Fallback: diamond
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.28);
-      ctx.lineTo(x + size * 0.2, y);
-      ctx.lineTo(x, y + size * 0.28);
-      ctx.lineTo(x - size * 0.2, y);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    ctx.restore();
-  }, []);
-
-  /**
-   * Draw HP bar below combatant
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {number} x - Center X position
-   * @param {number} y - Center Y position
-   * @param {number} width - Bar width
-   * @param {number} hpPercent - HP percentage (0-1)
-   */
-  const drawHPBar = useCallback(
-    (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, hpPercent: number) => {
-    ctx.save();
-
-    const barHeight = 4;
-    const barY = y;
-
-    // Background (black)
-    ctx.fillStyle = '#000';
-    ctx.fillRect(x - width / 2, barY, width, barHeight);
-
-    // HP bar color based on percentage
-    let barColor = '#00ff00'; // Green > 60%
-    if (hpPercent < 0.3) {
-      barColor = '#ff0000'; // Red < 30%
-    } else if (hpPercent < 0.6) {
-      barColor = '#ffff00'; // Yellow 30-60%
-    }
-
-    ctx.fillStyle = barColor;
-    ctx.fillRect(x - width / 2, barY, width * hpPercent, barHeight);
-
-    // Border
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x - width / 2, barY, width, barHeight);
-
-    ctx.restore();
-  }, []);
-
-  /**
-   * Draw a combatant on the battlefield
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
-   * @param {Object} combatant - Combatant object
-   * @param {boolean} isCurrentTurn - Whether it's this combatant's turn
-   * @param {{x:number,y:number}|null} overridePixel - Optional pixel position override for animation
+   * Draw a combatant: class sprite for allies, monster sprite for enemies, a pixel ring
+   * under the feet on their turn (orange while raging), then HP bar and name.
    */
   const drawCombatant = useCallback(
     (
@@ -711,82 +155,35 @@ function CombatCanvas({
         x = overridePixel.x;
         y = overridePixel.y;
       } else {
-        const cpos = combatant.position!;
-        const pos = calculateHexPosition(cpos.col, cpos.row, HEX_SIZE);
+        const pos = calculateHexPosition(combatant.position!.col, combatant.position!.row, HEX_SIZE);
         x = pos.x;
         y = pos.y;
       }
-      const radius = HEX_SIZE * 0.4;
 
       const isRaging = combatant.statusEffects?.some(e => e.name === 'Rage');
-
-      ctx.save();
-
-      // Glow halo — rage takes priority over turn indicator colour. A translucent
-      // ring instead of shadowBlur, which is expensive and only pulsed when some
-      // other effect happened to force a redraw.
-      const glowColor = isRaging
-        ? '#ff6b35'
-        : isCurrentTurn
-          ? combatant.isAlly
-            ? '#FFD700'
-            : '#FF0000'
-          : null;
-      if (glowColor) {
-        ctx.beginPath();
-        ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
-        ctx.strokeStyle = glowColor;
-        ctx.globalAlpha = 0.45;
-        ctx.lineWidth = isRaging && isCurrentTurn ? 7 : 5;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+      if (isRaging || isCurrentTurn) {
+        drawPixelRing(ctx, x, y, isRaging ? '#ff6b35' : combatant.isAlly ? '#FFD700' : '#FF3030');
       }
 
-      // Calculate HP percentage
-      const hpPercent = combatant.currentHP / combatant.maxHP;
+      if (combatant.isAlly) drawPixelPlayer(ctx, x, y, combatant.characterClass);
+      else drawPixelIcon(ctx, combatant.isBoss ? 'enemyBoss' : 'enemy', x, y);
 
-      // Circle fill color based on HP
-      let fillColor = '#00ff00'; // Green > 60%
-      if (hpPercent < 0.3) {
-        fillColor = '#ff0000'; // Red < 30%
-      } else if (hpPercent < 0.6) {
-        fillColor = '#ffff00'; // Yellow 30-60%
-      }
+      const barY = y + HEX_SIZE * 0.55;
+      drawPixelBar(ctx, x, barY, combatant.currentHP / combatant.maxHP);
 
-      // Draw circle
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = fillColor;
-      ctx.fill();
-
-      // Border: orange when raging, gold for ally, red for enemy
-      ctx.strokeStyle = isRaging ? '#ff6b35' : combatant.isAlly ? '#FFD700' : '#FF0000';
-      ctx.lineWidth = isRaging ? 4 : 3;
-      ctx.stroke();
-
-      ctx.restore();
-
-      // Draw class icon
-      drawClassIcon(ctx, x, y, combatant.characterClass ?? 'fighter', HEX_SIZE * 0.3);
-
-      // Draw HP bar below circle
-      const barY = y + radius + 6;
-      drawHPBar(ctx, x, barY, HEX_SIZE * 1.2, hpPercent);
-
-      // Draw name label below HP bar
       ctx.save();
       ctx.fillStyle = '#fff';
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = '#1a150c';
       ctx.lineWidth = 3;
-      ctx.font = `bold ${HEX_SIZE * 0.4}px Arial`;
+      ctx.font = 'bold 10px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      const nameY = barY + 6;
+      const nameY = barY + 8;
       ctx.strokeText(combatant.name ?? '', x, nameY);
       ctx.fillText(combatant.name ?? '', x, nameY);
       ctx.restore();
     },
-    [drawClassIcon, drawHPBar]
+    []
   );
 
   // Hex pixel positions only change with the battlefield
@@ -858,70 +255,15 @@ function CombatCanvas({
     ctx.translate(cameraOffset.x, cameraOffset.y);
     ctx.scale(FIXED_ZOOM, FIXED_ZOOM);
 
-    // Draw hexes inside the viewport (plus a margin)
-    const margin = HEX_SIZE * 2;
-    positionedHexes.forEach(hex => {
-      const { x, y } = hex;
-      const sx = x + cameraOffset.x;
-      const sy = y + cameraOffset.y;
-      if (sx < -margin || sy < -margin || sx > width + margin || sy > height + margin) return;
-
-      // Draw terrain with procedural texture
-      if (textureGenerator.current && hex.terrain) {
-        const pattern = textureGenerator.current.getPattern(
-          ctx,
-          hex.terrain as Parameters<HexTextureGenerator['getPattern']>[1],
-          HEX_SIZE,
-          hex.col,
-          hex.row
-        );
-        drawHexShape(ctx, x, y, HEX_SIZE, pattern, '#444', 1);
-      } else {
-        // Fallback to solid color
-        const terrainColor = hex.terrain?.color || '#6B8E23';
-        drawHexShape(ctx, x, y, HEX_SIZE, terrainColor, '#444', 1);
-      }
-
-      // Difficult terrain overlay
-      if (hex.difficultTerrain) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.1)';
-        drawHexShape(ctx, x, y, HEX_SIZE, 'rgba(255, 255, 0, 0.1)', null, 0);
-        ctx.restore();
-      }
-
-      // Draw obstacles — terrain-specific
-      if (hex.blocked) {
-        const obstacleType = hex.obstacleType || hex.terrain?.type || 'rock';
-        if (obstacleType === 'tree') {
-          drawTree(ctx, x, y, HEX_SIZE * 0.5);
-        } else if (obstacleType === 'wall') {
-          drawWall(ctx, x, y, HEX_SIZE * 0.5);
-        } else if (obstacleType === 'reed') {
-          drawReed(ctx, x, y, HEX_SIZE * 0.5);
-        } else if (obstacleType === 'ice') {
-          drawIceMound(ctx, x, y, HEX_SIZE * 0.5);
-        } else if (obstacleType === 'dune') {
-          drawDune(ctx, x, y, HEX_SIZE * 0.5);
-        } else if (obstacleType === 'boulder') {
-          drawBoulder(ctx, x, y, HEX_SIZE * 0.5);
-        } else {
-          drawRock(ctx, x, y, HEX_SIZE * 0.5);
-        }
-      }
-    });
-
-    // Draw terrain landmark centerpiece in world space (inside camera transform)
-    const landmarkTerrainKey = battlefield.hexContext?.terrainKey;
-    if (landmarkTerrainKey) {
-      const centerPos = calculateHexPosition(9, 9, HEX_SIZE);
-      drawLandmark(ctx, centerPos.x, centerPos.y, HEX_SIZE * 2.5, landmarkTerrainKey);
+    if (ground) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(ground.canvas, ground.x, ground.y, ground.canvas.width * ART_PX, ground.canvas.height * ART_PX);
     }
 
     // Draw movement range overlay (reachable set is memoized above)
     reachableHexes.forEach(reachable => {
       const pos = calculateHexPosition(reachable.col, reachable.row, HEX_SIZE);
-      drawHexShape(ctx, pos.x, pos.y, HEX_SIZE, 'rgba(0, 255, 0, 0.2)', null, 0);
+      fillPixelHex(ctx, pos.x, pos.y, HEX_SIZE, 'rgba(0, 255, 0, 0.2)');
     });
 
     // Draw attack range overlay (targets + line of sight memoized above)
@@ -972,13 +314,7 @@ function CombatCanvas({
     hoveredHex,
     cameraOffset,
     cameraZoom,
-    drawTree,
-    drawRock,
-    drawWall,
-    drawReed,
-    drawIceMound,
-    drawDune,
-    drawBoulder,
+    ground,
     drawCombatant,
   ]);
 

@@ -4,7 +4,7 @@ import { useGameLog } from '../../contexts/GameLogContext';
 import { Character } from '../../game/Character';
 import { Party } from '../../game/Party';
 import { generateCharacterWelcome } from '../../utils/flavorTextGenerator';
-import { ClassIcon } from '../ui/ClassIcon';
+import PixelIcon from '../ui/PixelIcon';
 
 interface ClassData {
   name: string;
@@ -464,7 +464,7 @@ function CharacterCreationScene() {
                     title={isDisabled ? `${data.name} - Coming soon` : data.name}
                   >
                     <div className="class-button-icon">
-                      <ClassIcon className={key} size={28} color="currentColor" />
+                      <PixelIcon name={`player:${key}`} />
                     </div>
                     <div className="class-button-name">{data.name}</div>
                     <div className="class-button-hitdie">{isDisabled ? 'soon' : data.hitDie}</div>

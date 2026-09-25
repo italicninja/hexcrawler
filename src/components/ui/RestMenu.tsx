@@ -4,6 +4,7 @@ import { useGameLog } from '../../contexts/GameLogContext';
 import { RestManager } from '../../game/RestManager';
 import { applyStarvation } from '../../game/SurvivalManager';
 import { generateRestFlavor } from '../../utils/flavorTextGenerator';
+import PixelIcon from './PixelIcon';
 
 interface RestMenuProps {
   onClose?: () => void;
@@ -359,10 +360,18 @@ function RestMenu({ onClose }: RestMenuProps) {
           </div>
 
           <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            <p style={{ margin: '0.25rem 0' }}>✓ Guaranteed safe rest (no interruption)</p>
-            <p style={{ margin: '0.25rem 0' }}>✓ Recover all HP and hit dice</p>
-            <p style={{ margin: '0.25rem 0' }}>✓ Includes meal and water for all party members</p>
-            <p style={{ margin: '0.25rem 0' }}>✓ Recover all class abilities</p>
+            <p style={{ margin: '0.25rem 0' }}>
+              <PixelIcon name="check" /> Guaranteed safe rest (no interruption)
+            </p>
+            <p style={{ margin: '0.25rem 0' }}>
+              <PixelIcon name="check" /> Recover all HP and hit dice
+            </p>
+            <p style={{ margin: '0.25rem 0' }}>
+              <PixelIcon name="check" /> Includes meal and water for all party members
+            </p>
+            <p style={{ margin: '0.25rem 0' }}>
+              <PixelIcon name="check" /> Recover all class abilities
+            </p>
           </div>
 
           {!canAffordInn && (
