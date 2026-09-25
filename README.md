@@ -93,6 +93,11 @@ A web-based hexcrawl RPG for D&D 5e. Explore procedurally generated hex maps wit
    npm run build
    ```
 
+### Deployment
+
+Hosted on [Railway](https://hexcrawler-production.up.railway.app). Pushes to `main` auto-deploy;
+`railway.json` pins the Railpack builder, which serves `dist/` as a static site via Caddy.
+
 ## Usage
 
 ### Starting a New Game

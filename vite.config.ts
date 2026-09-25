@@ -14,6 +14,16 @@ function getGitInfo(): { commit: string; branch: string; gitLog: string } {
 
     return { commit, branch, gitLog };
   } catch (error) {
+    // Railway builds from a source snapshot with no .git; it exposes commit/branch as env vars.
+    // ponytail: no git log on Railway, so the changelog modal is empty there.
+    const { RAILWAY_GIT_COMMIT_SHA, RAILWAY_GIT_BRANCH } = process.env;
+    if (RAILWAY_GIT_COMMIT_SHA) {
+      return {
+        commit: RAILWAY_GIT_COMMIT_SHA.slice(0, 7),
+        branch: RAILWAY_GIT_BRANCH || 'unknown',
+        gitLog: '',
+      };
+    }
     const err = error as Error;
     console.warn('Failed to get git info:', err.message);
     return { commit: 'unknown', branch: 'unknown', gitLog: '' };
