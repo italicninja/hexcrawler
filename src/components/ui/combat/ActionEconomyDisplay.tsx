@@ -2,6 +2,8 @@
  * ActionEconomyDisplay - Visual tracker for D&D 5e action economy
  * Shows Action, Bonus Action, Movement, and Free Object Interaction status
  */
+import PixelIcon from '../PixelIcon';
+
 interface TurnStateLike {
   movementUsed?: number;
   actionUsed?: boolean;
@@ -15,7 +17,7 @@ interface ActionEconomyDisplayProps {
 }
 
 interface EconomyItemProps {
-  icon: string;
+  icon: string; // PixelIcon sprite name
   label: string;
   isUsed?: boolean;
   showMovement?: boolean;
@@ -38,9 +40,7 @@ function ActionEconomyDisplay({ turnState, character }: ActionEconomyDisplayProp
         border: '1px solid var(--border-color)',
       }}
     >
-      <span className="text-xl" role="img" aria-label={label}>
-        {icon}
-      </span>
+      <PixelIcon name={icon} />
       <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
         {label}
       </span>
@@ -77,15 +77,15 @@ function ActionEconomyDisplay({ turnState, character }: ActionEconomyDisplayProp
         borderBottom: '2px solid var(--border-color)',
       }}
     >
-      <EconomyItem icon="⚔️" label="Action" isUsed={actionUsed} />
-      <EconomyItem icon="✨" label="Bonus Action" isUsed={bonusActionUsed} />
+      <EconomyItem icon="action" label="Action" isUsed={actionUsed} />
+      <EconomyItem icon="bonus" label="Bonus Action" isUsed={bonusActionUsed} />
       <EconomyItem
-        icon="🚶"
+        icon="move"
         label="Movement"
         showMovement={true}
         movementData={{ used: movementUsed, total: movementTotal }}
       />
-      <EconomyItem icon="🔧" label="Object" isUsed={objectInteractionUsed} />
+      <EconomyItem icon="object" label="Object" isUsed={objectInteractionUsed} />
     </div>
   );
 }

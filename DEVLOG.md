@@ -178,3 +178,28 @@ the old style.
 Battlefields shown at 1 CSS px per art px (dungeon, cave, ruins, town, desert, swamp):
 
 ![battlefields](docs/devlog/2026-09-25-pixel-everything/battlefields.png)
+
+## 2026-09-25: Pixel icons in the HTML UI
+
+**What:** a `<PixelIcon name>` component (`components/ui/PixelIcon.tsx`) shows any
+sprite from `utils/pixelIcons` as a pixelated `<img>`. `pixelIconImage` bakes the sprite to
+a data URL. It gets 11 new UI sprites: action, bonus, move, object, lock, coins, gift,
+bolt, disk, pin and bulb. They replace the emoji in:
+- the combat action-economy bar
+- the opportunity-attack prompt
+- the exploration "Find the Exit Hex" lock
+- the treasure-chest heading
+- quest rewards
+- save slot titles and locations
+- the save-version tip
+
+**Why:** the user pointed out that the Action / Bonus Action / Movement tracker was
+still emoji next to the pixel-art map.
+
+**Route:** the UI reuses the canvas sprite pipeline (ASCII art, auto outline, one bake
+per sprite) instead of separate image files, so HTML and canvas icons look identical.
+Typographic marks (✓ ○ ⚠ ✕ ♂/♀) and the dev-only DevTools panel keep their characters.
+
+![ui icons](docs/devlog/2026-09-25-ui-pixel-icons/ui-icons.png)
+
+![combat panel](docs/devlog/2026-09-25-ui-pixel-icons/combat-ui.png)

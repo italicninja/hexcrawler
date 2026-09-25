@@ -194,6 +194,21 @@ const ICONS: Record<string, Art> = {
   },
 };
 
+// ── UI icons (HTML, via <PixelIcon>) ────────────────────────────────────────
+Object.assign(ICONS, {
+  action: { rows: ['ee.....ee', 'eee...eee', '.eee.eee.', '..eeeee..', '...eee...', '..yeeey..', '.yb...by.', 'bb.....bb', 'b.......b'] },
+  bonus: { rows: ['....Y....', '....y....', '...yYy...', '.yyYYYyy.', 'YyYYYYYyY', '.yyYYYyy.', '...yYy...', '....y....', '....Y....'] },
+  move: { rows: ['..bbb...', '..bbb...', '..bbb...', '..bbB...', '..bbbbb.', '.bbbbbbb', 'BBBBBBBB'] },
+  object: { rows: ['...bb...', '...ee...', '..e..e..', '.exxxxe.', '.exXxxe.', '.exxxxe.', '..eeee..'] },
+  lock: { rows: ['..mmm..', '.m...m.', '.m...m.', 'yyyyyyy', 'yyykyyy', 'yyykyyy', 'yyyyyyy'] },
+  coins: { rows: ['..yyy..', '.yYyyT.', '.yyyyT.', 'yyyTTT.', 'yYyyT..', 'yyyyT..', '.TTT...'] },
+  gift: { rows: ['.x...x.', '..x.x..', '...y...', 'xxxyxxx', 'xxxyxxx', 'XXXyXXX', 'XXXyXXX'] },
+  bolt: { rows: ['....yy', '...yy.', '..yy..', '.yyyyy', '...yy.', '..yy..', '.yy...', 'yy....'] },
+  disk: { rows: ['uuuuuu.', 'uhhhhuu', 'uhhhhuu', 'uuuuuuu', 'uueeeuu', 'uuekeuu', 'uueeeuu'] },
+  pin: { rows: ['.xxx.', 'xxhxx', 'xxxxx', '.xxx.', '.xxx.', '..x..'] },
+  bulb: { rows: ['.yyy.', 'yYYyy', 'yYyyy', 'yyyyy', '.yyy.', '.mmm.', '..m..'] },
+});
+
 const ENEMY = [
   '.x.....x.',
   '.xx...xx.',
@@ -330,6 +345,12 @@ function getSprite(name: string): HTMLCanvasElement | null {
     baked.set(name, art ? bake(art) : null);
   }
   return baked.get(name) ?? null;
+}
+
+/** A baked sprite as an image URL plus its art-pixel size, for HTML UI (see PixelIcon). */
+export function pixelIconImage(name: string): { url: string; w: number; h: number } | null {
+  const img = getSprite(name);
+  return img ? { url: img.toDataURL(), w: img.width, h: img.height } : null;
 }
 
 /** Draw a named icon centred on (x, y), snapped to the world art-pixel grid. Returns false if unknown. */

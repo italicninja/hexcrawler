@@ -1,4 +1,5 @@
 import './SaveSlot.css';
+import PixelIcon from './PixelIcon';
 
 /**
  * Individual save slot display component
@@ -72,17 +73,18 @@ function SaveSlot({
     return `${minutes}m`;
   };
 
+  const slotTitle = (
+    <>
+      <PixelIcon name={isAutosave || isQuicksave ? 'bolt' : 'disk'} />{' '}
+      {isAutosave ? 'Auto-save' : isQuicksave ? `Quick Save ${slotLetter}` : `Slot ${slotNumber}`}
+    </>
+  );
+
   // Empty slot
   if (!metadata) {
     return (
       <div className="save-slot empty-slot">
-        <div className="slot-header">
-          {isAutosave
-            ? '⚡ Auto-save'
-            : isQuicksave
-              ? `⚡ Quick Save ${slotLetter}`
-              : `💾 Slot ${slotNumber}`}
-        </div>
+        <div className="slot-header">{slotTitle}</div>
         <div className="slot-content">
           <div className="empty-slot-message">Empty Slot</div>
         </div>
@@ -100,13 +102,7 @@ function SaveSlot({
   // Filled slot
   return (
     <div className="save-slot filled-slot">
-      <div className="slot-header">
-        {isAutosave
-          ? '⚡ Auto-save'
-          : isQuicksave
-            ? `⚡ Quick Save ${slotLetter}`
-            : `💾 Slot ${slotNumber}`}
-      </div>
+      <div className="slot-header">{slotTitle}</div>
       <div className="slot-content">
         <div className="character-info">
           <strong className="character-name">{metadata.characterName}</strong>
@@ -114,7 +110,9 @@ function SaveSlot({
             Level {metadata.level} {metadata.class}
           </span>
         </div>
-        <div className="location-info">📍 {metadata.location}</div>
+        <div className="location-info">
+          <PixelIcon name="pin" /> {metadata.location}
+        </div>
         <div className="progress-info">
           <span>Day {metadata.day}</span>
           {metadata.playtime > 0 && (

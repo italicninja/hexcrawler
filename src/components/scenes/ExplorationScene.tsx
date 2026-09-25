@@ -14,6 +14,7 @@ import InteriorHexDetails from '../ui/InteriorHexDetails';
 import { DiceRoller } from '../../game/DiceRoller';
 import { formatTime, getCombatDuration } from '../../game/TimeManager';
 import './ExplorationScene.css';
+import PixelIcon from '../ui/PixelIcon';
 
 interface Coord {
   col: number;
@@ -338,11 +339,19 @@ function ExplorationScene() {
               cursor: canExitFreely || exitReady ? 'pointer' : 'not-allowed',
             }}
           >
-            {canExitFreely || exitReady ? '← Exit to Overworld' : '🔒 Find the Exit Hex'}
+            {canExitFreely || exitReady ? (
+              '← Exit to Overworld'
+            ) : (
+              <>
+                <PixelIcon name="lock" /> Find the Exit Hex
+              </>
+            )}
           </button>
         </div>
         <InteriorHexCanvas
-          interiorMap={interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']}
+          interiorMap={
+            interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']
+          }
           playerPosition={playerPosition}
           playerClass={state.party?.player?.class}
           selectedHex={selectedHex}

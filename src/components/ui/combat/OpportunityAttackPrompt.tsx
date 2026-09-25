@@ -2,6 +2,7 @@
  * OpportunityAttackPrompt - Modal prompt for D&D 5e Opportunity Attacks
  * Shows when enemy movement triggers an opportunity attack
  */
+import PixelIcon from '../PixelIcon';
 interface OAName {
   name: string;
   [key: string]: unknown;
@@ -33,7 +34,7 @@ function OpportunityAttackPrompt({
         }}
       >
         <h2 className="text-2xl font-bold mb-4" style={{ color: '#e74c3c' }}>
-          ⚔️ Opportunity Attack!
+          <PixelIcon name="action" scale={3} /> Opportunity Attack!
         </h2>
 
         <div className="mb-6">
