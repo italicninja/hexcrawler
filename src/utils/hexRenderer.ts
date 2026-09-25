@@ -186,29 +186,3 @@ export function findHexAtPoint<T extends HexObject>(
   const { col, row } = pixelToOffset(pointX, pointY, hexSize);
   return (index.get(`${col},${row}`) as T | undefined) ?? null;
 }
-
-/**
- * Draw a player marker at a hex position
- */
-export function drawPlayerMarker(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  hexSize: number,
-  label: string = 'P'
-): void {
-  // White dot with dark ring, like the OSRS minimap player marker
-  ctx.beginPath();
-  ctx.arc(x, y, hexSize * 0.38, 0, Math.PI * 2);
-  ctx.fillStyle = '#f4f1e8';
-  ctx.fill();
-  ctx.strokeStyle = '#1a150c';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Draw label (emoji or text) — serif renders emoji correctly on canvas
-  ctx.font = `${hexSize * 0.5}px serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, x, y);
-}

@@ -10,7 +10,7 @@ import {
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
-import { POIRenderer } from '../../poiRenderer';
+import { drawPixelIcon, drawPixelPlayer } from '../../utils/pixelIcons';
 import { PixelTerrainRenderer, ART_PX } from '../../utils/pixelTerrainRenderer';
 import {
   calculateHexPosition,
@@ -46,22 +46,6 @@ interface HexGridCanvasProps {
   onHexDoubleClick?: (hex: PositionedHex) => void;
 }
 
-// Emoji icons for each character class, used on the canvas player marker
-const CLASS_ICONS: Record<string, string> = {
-  fighter: '⚔️',
-  wizard: '✨',
-  cleric: '✝️',
-  rogue: '🗡️',
-  ranger: '🏹',
-  barbarian: '🪓',
-  paladin: '🛡️',
-  druid: '🌿',
-  bard: '🎵',
-  sorcerer: '🔥',
-  warlock: '👁️',
-  monk: '👊',
-};
-
 /**
  * HexGridCanvas component - renders hex grid on canvas
  */
@@ -79,7 +63,6 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
 
   // CSS-pixel size of the canvas; the backing store is this × devicePixelRatio.
   const canvasSizeRef = useRef({ width: 0, height: 0 });
-  const poiRenderer = useRef(new POIRenderer());
   // Per-hex pixel-art tiles, rendered lazily and cached for the current map
   const terrainRenderer = useMemo(() => new PixelTerrainRenderer(hexes ?? [], hexSize), [hexes, hexSize]);
 
@@ -131,54 +114,11 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
 
       // Draw POI icon if present AND visible (towns always, others only if discovered)
       if (hex.poi && shouldShowPOI(hex.poi, hex.col, hex.row)) {
-        // Save context before drawing POI
-        ctx.save();
+        drawPixelIcon(ctx, hex.poi.icon || hex.poi.name, x, y);
 
-        poiRenderer.current.draw(ctx, x, y, hexSize, hex.poi);
-
-        ctx.restore();
-
-        // Draw discovered marker for discovered POIs (not towns, they're always visible)
+        // Gold star in the top-right corner for discovered POIs (towns are always visible)
         if (isPoiDiscovered(hex.col, hex.row) && !hex.poi.visibleWithoutDiscovery) {
-          ctx.save();
-
-          // Draw a small star marker in the top-right corner of the hex
-          const starX = x + hexSize * 0.6;
-          const starY = y - hexSize * 0.6;
-          const starSize = hexSize * 0.15;
-
-          // Draw a 5-pointed star — OSRS quest-icon gold
-          ctx.fillStyle = '#f8c243';
-          ctx.strokeStyle = '#3a2f15';
-          ctx.lineWidth = 1;
-
-          ctx.beginPath();
-          for (let i = 0; i < 5; i++) {
-            const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
-            const outerRadius = starSize;
-            const innerRadius = starSize * 0.4;
-
-            // Outer point
-            const outerX = starX + Math.cos(angle) * outerRadius;
-            const outerY = starY + Math.sin(angle) * outerRadius;
-
-            if (i === 0) {
-              ctx.moveTo(outerX, outerY);
-            } else {
-              ctx.lineTo(outerX, outerY);
-            }
-
-            // Inner point
-            const innerAngle = angle + Math.PI / 5;
-            const innerX = starX + Math.cos(innerAngle) * innerRadius;
-            const innerY = starY + Math.sin(innerAngle) * innerRadius;
-            ctx.lineTo(innerX, innerY);
-          }
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.restore();
+          drawPixelIcon(ctx, 'star', x + hexSize * 0.6, y - hexSize * 0.6);
         }
       }
     },
@@ -200,8 +140,6 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       hexes: PositionedHex[],
       playerVisualPosRef: MutableRefObject<VisualPos | null>
     ) => {
-      const playerClass = state.party?.player?.class;
-      const playerIcon = (playerClass ? CLASS_ICONS[playerClass] : undefined) ?? '🧍';
       let playerX: number, playerY: number;
 
       // ALWAYS use the visual position ref
@@ -218,22 +156,9 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
         playerVisualPosRef.current = { x: playerX, y: playerY };
       }
 
-      // Player marker — white dot with dark ring, like the OSRS minimap
-      ctx.beginPath();
-      ctx.arc(playerX, playerY, hexSize * 0.38, 0, Math.PI * 2);
-      ctx.fillStyle = '#f4f1e8';
-      ctx.fill();
-      ctx.strokeStyle = '#1a150c';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Draw player class icon
-      ctx.font = `${hexSize * 0.5}px serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(playerIcon, playerX, playerY);
+      drawPixelPlayer(ctx, playerX, playerY, state.party?.player?.class);
     },
-    [hexSize, state.playerPosition, state.party]
+    [state.playerPosition, state.party]
   );
 
   // Main draw function (will be called by animation hook)

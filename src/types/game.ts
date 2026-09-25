@@ -131,6 +131,7 @@ export interface POI {
   visibleWithoutDiscovery: boolean;
   terrainType?: string;
   description?: string;
+  icon?: string; // map icon key (pixelIcons), e.g. "Cave"
 }
 
 // ============================================================================

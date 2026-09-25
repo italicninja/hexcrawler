@@ -44,21 +44,6 @@ import AIInspector from '../debug/AIInspector';
 import DevTools from '../debug/DevTools';
 import type { SceneHex } from '../../types/scene';
 
-const CLASS_ICONS: Record<string, string> = {
-  fighter: '⚔️',
-  wizard: '✨',
-  cleric: '✝️',
-  rogue: '🗡️',
-  ranger: '🏹',
-  barbarian: '🪓',
-  paladin: '🛡️',
-  druid: '🌿',
-  bard: '🎵',
-  sorcerer: '🔥',
-  warlock: '👁️',
-  monk: '👊',
-};
-
 // Sidebar menu icons: inline SVG so they render the same on every OS (emoji don't)
 const MENU_ICON = { size: 22, strokeWidth: 1.75, 'aria-hidden': true } as const;
 
@@ -390,7 +375,7 @@ function OverworldScene() {
                 interior.interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']
               }
               playerPosition={state.interiorPlayerPosition}
-              playerIcon={CLASS_ICONS[state.party?.player?.class ?? ''] ?? '🧍'}
+              playerClass={state.party?.player?.class}
               selectedHex={interior.selectedInteriorHex}
               onHexClick={interior.handleInteriorHexClick}
               onHexDoubleClick={interior.handleInteriorHexDoubleClick}

@@ -100,3 +100,35 @@ preview harness and was never wired into the game.
   water.
 
 ![overworld 2x](docs/devlog/2026-09-25-overworld-pixel-port/overworld-2x.png)
+
+## 2026-09-25: Pixel-art player and map icons
+
+**What:** new `src/utils/pixelIcons.ts` holds every map icon as ASCII pixel art:
+- a player sprite for each of the 12 classes (outfit colours plus a class item: sword,
+  staff, bow, lute, ...)
+- all 11 POI types, plus `Cache`, which had no icon before
+- the discovered-POI star
+- the interior markers: door, ladder, stairs, chests, hazards, and enemy/boss/defeated tokens
+
+The overworld and the interior canvas both use them. `poiRenderer.ts`, the shared
+emoji `drawPlayerMarker`, and the three copies of `CLASS_ICONS` are gone.
+`InteriorHexCanvas` now takes `playerClass` instead of an emoji.
+
+**Why:** the vector and emoji icons clashed with the new pixel terrain.
+
+**Route:**
+- Sprites are strings with a shared palette. The dark outline is generated
+  automatically. The player gets a second pale ring so it stays visible on any terrain,
+  and unopened chests get a gold ring in place of the old blurred glow. Each sprite is
+  baked once to a canvas and drawn at `ART_PX`, snapped to the terrain's art grid.
+- The player is built from parts (head variant + body + items), so 12 classes need
+  12 short kit entries instead of 12 hand-drawn sprites.
+- Rejected on the first pass: white stair arrows were too faint and a village of
+  two 3px huts was hard to read. The arrows are now gold and larger, and the huts bigger.
+- Interior floors still use the old texture generator. Only the markers changed.
+
+![sheet](docs/devlog/2026-09-25-pixel-icons/sheet.png)
+
+| Overworld | Interior |
+| --- | --- |
+| ![overworld](docs/devlog/2026-09-25-pixel-icons/overworld.png) | ![interior](docs/devlog/2026-09-25-pixel-icons/interior.png) |
