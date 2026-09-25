@@ -16,13 +16,12 @@ import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
 import {
   calculateHexPosition,
   sizeCanvasForDpr,
-  drawHexShape,
   drawHexOutline as renderHexOutline,
   findHexAtPoint,
-  drawPlayerMarker,
 } from '../../utils/hexRenderer';
-import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
-import { PerlinNoise } from '../../noise';
+import { drawPixelIcon, drawPixelPlayer } from '../../utils/pixelIcons';
+import { ART_PX } from '../../utils/pixelTerrainRenderer';
+import { renderInteriorFloor, interiorThemeFor } from '../../utils/pixelInteriorRenderer';
 
 interface Coord {
   col: number;
@@ -73,7 +72,7 @@ const NO_POSITION: Coord = { col: 0, row: 0 };
 interface InteriorHexCanvasProps {
   interiorMap?: InteriorMapView | null;
   playerPosition?: Coord | null;
-  playerIcon?: string;
+  playerClass?: string;
   selectedHex?: Coord | null;
   onHexClick?: (hex: PositionedHex) => void;
   onHexDoubleClick?: (hex: PositionedHex) => void;
@@ -82,7 +81,7 @@ interface InteriorHexCanvasProps {
 function InteriorHexCanvas({
   interiorMap,
   playerPosition,
-  playerIcon = '🧍',
+  playerClass,
   selectedHex,
   onHexClick,
   onHexDoubleClick,
@@ -95,15 +94,14 @@ function InteriorHexCanvas({
   // CSS-pixel size of the canvas; the backing store is this x devicePixelRatio.
   const canvasSizeRef = useRef({ width: 0, height: 0 });
   const hasCenteredRef = useRef(false);
-  const textureGenerator = useRef<HexTextureGenerator | null>(null);
-
-  // Initialize texture generator once
-  useEffect(() => {
-    if (!textureGenerator.current) {
-      const noise = new PerlinNoise(Date.now());
-      textureGenerator.current = new HexTextureGenerator(noise);
-    }
-  }, []);
+  // Whole-floor pixel art, re-rendered only when the terrain changes
+  const floor = useMemo(
+    () =>
+      interiorMap?.hexes?.length
+        ? renderInteriorFloor(interiorMap.hexes, interiorThemeFor(interiorMap.poiType), hexSize)
+        : null,
+    [interiorMap?.hexes, interiorMap?.poiType, hexSize]
+  );
 
   // Convert grid to positioned hexes (using utility function)
   const positionedHexes = useMemo((): PositionedHex[] => {
@@ -167,25 +165,7 @@ function InteriorHexCanvas({
   // Draw a single hex (using utility function)
   const drawHex = useCallback(
     (ctx: CanvasRenderingContext2D, hex: PositionedHex) => {
-      const { x, y, terrain, content } = hex;
-
-      // Draw hex shape with procedural texture or solid color fallback
-      const strokeColor = terrain.walkable ? '#555' : '#111';
-      const lineWidth = terrain.walkable ? 1 : 2;
-
-      if (textureGenerator.current) {
-        const pattern = textureGenerator.current.getPattern(
-          ctx,
-          terrain,
-          hexSize,
-          hex.col,
-          hex.row
-        );
-        drawHexShape(ctx, x, y, hexSize, pattern, strokeColor, lineWidth);
-      } else {
-        // Fallback to solid color if texture generator not ready
-        drawHexShape(ctx, x, y, hexSize, terrain.color, strokeColor, lineWidth);
-      }
+      const { x, y, content } = hex;
 
       // Draw content markers (only if discovered)
       if (content) {
@@ -241,269 +221,44 @@ function InteriorHexCanvas({
       ctx.globalAlpha = 0.3;
     }
 
-    const iconSize = hexSize * 0.5;
-
     switch (content) {
-      case 'entrance':
-        // Brown door icon
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize);
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x - iconSize / 2, y - iconSize / 2, iconSize, iconSize);
-        // Door knob
-        ctx.fillStyle = '#f1c40f';
-        ctx.beginPath();
-        ctx.arc(x + iconSize * 0.25, y, iconSize * 0.1, 0, Math.PI * 2);
-        ctx.fill();
-        break;
-
-      case 'exit': {
-        // Wooden ladder leading up to the surface
-        const railColor = '#8B5E3C';
-        const railHighlight = '#C49A6C';
-        const rungColor = '#6B4423';
-        const rungHighlight = '#A0713A';
-        const railW = iconSize * 0.12;
-        const halfSpan = iconSize * 0.28;
-        const ladderTop = y - iconSize * 0.52;
-        const ladderBottom = y + iconSize * 0.48;
-
-        // Left rail
-        ctx.fillStyle = railColor;
-        ctx.fillRect(x - halfSpan - railW / 2, ladderTop, railW, ladderBottom - ladderTop);
-        // Left rail highlight
-        ctx.fillStyle = railHighlight;
-        ctx.fillRect(x - halfSpan - railW / 2, ladderTop, railW * 0.3, ladderBottom - ladderTop);
-
-        // Right rail
-        ctx.fillStyle = railColor;
-        ctx.fillRect(x + halfSpan - railW / 2, ladderTop, railW, ladderBottom - ladderTop);
-        // Right rail highlight
-        ctx.fillStyle = railHighlight;
-        ctx.fillRect(x + halfSpan - railW / 2, ladderTop, railW * 0.3, ladderBottom - ladderTop);
-
-        // Rungs (4 horizontal bars evenly spaced)
-        const rungCount = 4;
-        const rungH = iconSize * 0.09;
-        for (let i = 0; i < rungCount; i++) {
-          const rungY = ladderTop + ((ladderBottom - ladderTop) / (rungCount + 1)) * (i + 1);
-          ctx.fillStyle = rungColor;
-          ctx.fillRect(x - halfSpan - railW / 2, rungY - rungH / 2, halfSpan * 2 + railW, rungH);
-          // Rung highlight (top edge)
-          ctx.fillStyle = rungHighlight;
-          ctx.fillRect(
-            x - halfSpan - railW / 2,
-            rungY - rungH / 2,
-            halfSpan * 2 + railW,
-            rungH * 0.3
-          );
-        }
-
-        break;
-      }
-
       case 'encounter': {
         // Look up the encounter object for extra info (CR, isBoss, defeated)
         const enc = interiorMap?.encounters?.find(e => e.col === col && e.row === row);
         const isBoss = enc?.isBoss === true;
         const defeated = enc?.defeated === true || isCollected;
-        const crLabel = enc?.cr != null ? `${enc.cr}` : '?';
+        ctx.globalAlpha = 1; // the defeated sprite is already greyed
+        drawPixelIcon(ctx, defeated ? 'enemyDefeated' : isBoss ? 'enemyBoss' : 'enemy', x, y);
 
-        // Token base color: dark crimson for normal, deep purple for boss, gray for defeated
-        const tokenColor = defeated ? '#555' : isBoss ? '#6a0dad' : '#c0392b';
-        const borderColor = defeated ? '#333' : isBoss ? '#d4a0ff' : '#ff6b6b';
-
-        // ── Body (hexagon-ish circle) ───────────────────────────────────────
-        ctx.beginPath();
-        ctx.arc(x, y + iconSize * 0.1, iconSize * 0.55, 0, Math.PI * 2);
-        ctx.fillStyle = tokenColor;
-        ctx.fill();
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = defeated ? 1.5 : 2.5;
-        ctx.stroke();
-
-        // ── Head ───────────────────────────────────────────────────────────
-        ctx.beginPath();
-        ctx.arc(x, y - iconSize * 0.28, iconSize * 0.26, 0, Math.PI * 2);
-        ctx.fillStyle = tokenColor;
-        ctx.fill();
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = defeated ? 1 : 2;
-        ctx.stroke();
-
-        // ── Skull face (X eyes when defeated, dot eyes when alive) ─────────
-        if (defeated) {
-          // X eyes
-          ctx.strokeStyle = '#aaa';
-          ctx.lineWidth = 1.2;
-          for (const ox of [-0.12, 0.12]) {
-            const ex = x + iconSize * ox;
-            const ey = y - iconSize * 0.31;
-            const r = iconSize * 0.06;
-            ctx.beginPath();
-            ctx.moveTo(ex - r, ey - r);
-            ctx.lineTo(ex + r, ey + r);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(ex + r, ey - r);
-            ctx.lineTo(ex - r, ey + r);
-            ctx.stroke();
-          }
-        } else {
-          // Glowing dot eyes
-          ctx.fillStyle = isBoss ? '#d4a0ff' : '#ff9999';
-          for (const ox of [-0.12, 0.12]) {
-            ctx.beginPath();
-            ctx.arc(x + iconSize * ox, y - iconSize * 0.3, iconSize * 0.055, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-
-        // ── Boss crown ─────────────────────────────────────────────────────
-        if (isBoss && !defeated) {
-          ctx.fillStyle = '#f1c40f';
-          ctx.strokeStyle = '#b8860b';
-          ctx.lineWidth = 1;
-          const cy2 = y - iconSize * 0.5;
-          ctx.beginPath();
-          ctx.moveTo(x - iconSize * 0.22, cy2);
-          ctx.lineTo(x - iconSize * 0.22, cy2 - iconSize * 0.18);
-          ctx.lineTo(x - iconSize * 0.1, cy2 - iconSize * 0.1);
-          ctx.lineTo(x, cy2 - iconSize * 0.22);
-          ctx.lineTo(x + iconSize * 0.1, cy2 - iconSize * 0.1);
-          ctx.lineTo(x + iconSize * 0.22, cy2 - iconSize * 0.18);
-          ctx.lineTo(x + iconSize * 0.22, cy2);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-        }
-
-        // ── CR badge ───────────────────────────────────────────────────────
+        // CR badge: square pixel plate, bottom-right
         if (!defeated) {
-          const badgeX = x + iconSize * 0.38;
-          const badgeY = y + iconSize * 0.48;
-          ctx.fillStyle = isBoss ? '#6a0dad' : '#c0392b';
-          ctx.strokeStyle = isBoss ? '#d4a0ff' : '#ff6b6b';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.arc(badgeX, badgeY, iconSize * 0.22, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
+          const bx = Math.round((x + hexSize * 0.3) / ART_PX) * ART_PX;
+          const by = Math.round((y + hexSize * 0.3) / ART_PX) * ART_PX;
+          const half = 5 * ART_PX / 2 + ART_PX;
+          ctx.fillStyle = '#1a150c';
+          ctx.fillRect(bx - half - ART_PX, by - half - ART_PX, (half + ART_PX) * 2, (half + ART_PX) * 2);
+          ctx.fillStyle = isBoss ? '#5a2a8a' : '#7a1f16';
+          ctx.fillRect(bx - half, by - half, half * 2, half * 2);
           ctx.fillStyle = '#fff';
-          ctx.font = `bold ${Math.max(11, iconSize * 0.22)}px Arial`;
+          ctx.font = 'bold 10px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(crLabel, badgeX, badgeY);
+          ctx.fillText(enc?.cr != null ? `${enc.cr}` : '?', bx, by + 1);
         }
         break;
       }
-
       case 'loot':
-      case 'chest': {
-        if (!isCollected) {
-          // Glow behind chest so it stands out on dark tiles
-          ctx.shadowColor = '#f39c12';
-          ctx.shadowBlur = 10;
-        }
-        // Chest body
-        ctx.fillStyle = isCollected ? '#555' : '#8B6914';
-        ctx.fillRect(x - iconSize * 0.55, y - iconSize * 0.2, iconSize * 1.1, iconSize * 0.65);
-        // Chest lid (lighter strip on top)
-        ctx.fillStyle = isCollected ? '#666' : '#f39c12';
-        ctx.fillRect(x - iconSize * 0.55, y - iconSize * 0.35, iconSize * 1.1, iconSize * 0.22);
-        // Outline
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = isCollected ? '#444' : '#000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x - iconSize * 0.55, y - iconSize * 0.35, iconSize * 1.1, iconSize * 0.87);
-        // Dividing line between lid and body
-        ctx.beginPath();
-        ctx.moveTo(x - iconSize * 0.55, y - iconSize * 0.13);
-        ctx.lineTo(x + iconSize * 0.55, y - iconSize * 0.13);
-        ctx.strokeStyle = isCollected ? '#444' : '#000';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        // Lock clasp (center)
-        ctx.fillStyle = isCollected ? '#888' : '#f1c40f';
-        ctx.beginPath();
-        ctx.arc(x, y - iconSize * 0.13, iconSize * 0.13, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+      case 'chest':
+        ctx.globalAlpha = 1;
+        drawPixelIcon(ctx, isCollected ? 'chestOpened' : 'chest', x, y);
         break;
-      }
-
       case 'hazard':
-        // Orange/gray warning triangle (gray if triggered)
-        ctx.fillStyle = isCollected ? '#666666' : '#e67e22';
-        ctx.beginPath();
-        ctx.moveTo(x, y - iconSize * 0.6);
-        ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.4);
-        ctx.lineTo(x - iconSize * 0.6, y + iconSize * 0.4);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        // Exclamation mark
-        ctx.fillStyle = '#000';
-        ctx.fillRect(x - iconSize * 0.08, y - iconSize * 0.3, iconSize * 0.16, iconSize * 0.4);
-        ctx.beginPath();
-        ctx.arc(x, y + iconSize * 0.25, iconSize * 0.08, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.globalAlpha = 1;
+        drawPixelIcon(ctx, isCollected ? 'hazardTriggered' : 'hazard', x, y);
         break;
-
-      case 'stairsUp':
-        // Stairs going up icon (arrow pointing up with steps)
-        ctx.fillStyle = '#6a5a3a';
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        // Draw steps (3 horizontal lines)
-        for (let i = 0; i < 3; i++) {
-          const yOffset = y - iconSize * 0.3 + i * iconSize * 0.3;
-          ctx.beginPath();
-          ctx.moveTo(x - iconSize * 0.4, yOffset);
-          ctx.lineTo(x + iconSize * 0.4, yOffset);
-          ctx.stroke();
-        }
-        // Draw up arrow
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.moveTo(x, y - iconSize * 0.5);
-        ctx.lineTo(x + iconSize * 0.3, y);
-        ctx.lineTo(x - iconSize * 0.3, y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.stroke();
-        break;
-
-      case 'stairsDown':
-        // Stairs going down icon (arrow pointing down with steps)
-        ctx.fillStyle = '#5a4a2a';
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        // Draw steps (3 horizontal lines)
-        for (let i = 0; i < 3; i++) {
-          const yOffset = y - iconSize * 0.3 + i * iconSize * 0.3;
-          ctx.beginPath();
-          ctx.moveTo(x - iconSize * 0.4, yOffset);
-          ctx.lineTo(x + iconSize * 0.4, yOffset);
-          ctx.stroke();
-        }
-        // Draw down arrow
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.moveTo(x, y + iconSize * 0.5);
-        ctx.lineTo(x + iconSize * 0.3, y);
-        ctx.lineTo(x - iconSize * 0.3, y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.stroke();
-        break;
+      default:
+        // entrance, exit, stairsUp, stairsDown
+        drawPixelIcon(ctx, content, x, y);
     }
 
     ctx.restore();
@@ -540,9 +295,9 @@ function InteriorHexCanvas({
         y = playerHex.y;
       }
 
-      drawPlayerMarker(ctx, x, y, hexSize, playerIcon);
+      drawPixelPlayer(ctx, x, y, playerClass);
     },
-    [hexSize, playerPosition, playerIcon]
+    [playerPosition, playerClass]
   );
 
   // Main draw function (called by the animation hook only when something changed)
@@ -566,7 +321,12 @@ function InteriorHexCanvas({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.translate(offsetX, offsetY);
 
-      // Draw only hexes inside the viewport (plus a margin)
+      if (floor) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(floor.canvas, floor.x, floor.y, floor.canvas.width * ART_PX, floor.canvas.height * ART_PX);
+      }
+
+      // Draw content markers inside the viewport (plus a margin)
       const { width, height } = canvasSizeRef.current;
       const margin = hexSize * 2;
       for (const hex of hexArray) {
@@ -625,6 +385,7 @@ function InteriorHexCanvas({
       selectedHex,
       hoveredHex,
       interiorMap,
+      floor,
       drawHex,
       drawHexOutline,
       drawPlayer,

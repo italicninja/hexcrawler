@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import type { Quest, QuestObjective } from '../../game/Quest';
+import PixelIcon from './PixelIcon';
 
 export default function QuestLog() {
   const { state, dispatch, actions } = useGameState();
@@ -58,7 +59,11 @@ export default function QuestLog() {
     return (
       <div key={objective.description} className="quest-objective">
         <div className="objective-text">
-          {isComplete && <span className="checkmark">✓ </span>}
+          {isComplete && (
+            <span className="checkmark">
+              <PixelIcon name="check" />{' '}
+            </span>
+          )}
           {objective.description}
         </div>
         <div className="objective-progress">
@@ -124,13 +129,17 @@ export default function QuestLog() {
           <div className="rewards-list">
             {quest.rewards.xp > 0 && (
               <div className="reward-item">
-                <span className="reward-icon">⭐</span>
+                <span className="reward-icon">
+                  <PixelIcon name="star" />
+                </span>
                 <span>{quest.rewards.xp} XP</span>
               </div>
             )}
             {quest.rewards.gold > 0 && (
               <div className="reward-item">
-                <span className="reward-icon">💰</span>
+                <span className="reward-icon">
+                  <PixelIcon name="coins" />
+                </span>
                 <span>{quest.rewards.gold} Gold</span>
               </div>
             )}
@@ -138,7 +147,9 @@ export default function QuestLog() {
               quest.rewards.items.length > 0 &&
               quest.rewards.items.map((item, idx) => (
                 <div key={idx} className="reward-item">
-                  <span className="reward-icon">🎁</span>
+                  <span className="reward-icon">
+                    <PixelIcon name="gift" />
+                  </span>
                   <span>{item.name || item}</span>
                 </div>
               ))}

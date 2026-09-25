@@ -3,6 +3,7 @@ import { useGameState, ACTIONS } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { Character } from '../../game/Character';
 import { FEATURES } from '../../constants/gameConstants';
+import PixelIcon from './PixelIcon';
 
 /**
  * CharacterStats component - displays character stats in D&D 5e format
@@ -309,7 +310,7 @@ function CharacterStats({ character }: { character: Character | null }) {
           </div>
           {character.daysWithoutFood > 0 && (
             <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#e74c3c' }}>
-              ⚠ {character.daysWithoutFood} day(s) without food
+              <PixelIcon name="warning" /> {character.daysWithoutFood} day(s) without food
             </div>
           )}
           {character.exhaustionLevel > 0 && (

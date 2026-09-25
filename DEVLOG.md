@@ -73,3 +73,162 @@ generators.
 Interiors will need an offscreen canvas per floor because wall faces depend on
 neighbouring hexes. Once the style is final, trim the rejected images here to a
 representative few.
+
+## 2026-09-25: Port the pixel-art style to the overworld
+
+**What:** new `src/utils/pixelTerrainRenderer.ts`, a TypeScript port of style C from
+`texture-previews/`. `HexGridCanvas` now uses it in place of `HexTextureGenerator`.
+Interiors and combat still use the old generator.
+
+**Why:** the overworld didn't look like the preview. Style C had only ever lived in the
+preview harness and was never wired into the game.
+
+**Route:**
+- Each hex is rendered once at art resolution into two cached canvases: ground (clipped
+  to the hex) and sprites. The whole visible map's ground is drawn first, then sprites in
+  y order, so trees and peaks can overhang neighbouring hexes without getting clipped.
+  The cache is rebuilt when `mapData` changes.
+- The art grid is aligned to world coordinates and noise is sampled in world space.
+  Coast foam, hex borders and river channels look up neighbouring terrain from the map,
+  so they join up across hex edges just as in the preview.
+- Rejected: pre-rendering the whole 60x60 map into one offscreen canvas. That's roughly
+  1.5M art pixels to render up front, and fog of war would still need drawing on top.
+- `ART_PX = 2`: the preview used 3px art pixels at hex radius 40, and the game uses radius
+  30. 2px keeps about the same number of art pixels per hex, so sprite density matches.
+  A fractional scale would make pixel widths uneven.
+- Known leak: coast foam on an explored hex shows that the unexplored hex next to it is
+  water.
+
+![overworld 2x](docs/devlog/2026-09-25-overworld-pixel-port/overworld-2x.png)
+
+## 2026-09-25: Pixel-art player and map icons
+
+**What:** new `src/utils/pixelIcons.ts` holds every map icon as ASCII pixel art:
+- a player sprite for each of the 12 classes (outfit colours plus a class item: sword,
+  staff, bow, lute, ...)
+- all 11 POI types, plus `Cache`, which had no icon before
+- the discovered-POI star
+- the interior markers: door, ladder, stairs, chests, hazards, and enemy/boss/defeated tokens
+
+The overworld and the interior canvas both use them. `poiRenderer.ts`, the shared
+emoji `drawPlayerMarker`, and the three copies of `CLASS_ICONS` are gone.
+`InteriorHexCanvas` now takes `playerClass` instead of an emoji.
+
+**Why:** the vector and emoji icons clashed with the new pixel terrain.
+
+**Route:**
+- Sprites are strings with a shared palette. The dark outline is generated
+  automatically. The player gets a second pale ring so it stays visible on any terrain,
+  and unopened chests get a gold ring in place of the old blurred glow. Each sprite is
+  baked once to a canvas and drawn at `ART_PX`, snapped to the terrain's art grid.
+- The player is built from parts (head variant + body + items), so 12 classes need
+  12 short kit entries instead of 12 hand-drawn sprites.
+- Rejected on the first pass: white stair arrows were too faint and a village of
+  two 3px huts was hard to read. The arrows are now gold and larger, and the huts bigger.
+- Interior floors still use the old texture generator. Only the markers changed.
+
+![sheet](docs/devlog/2026-09-25-pixel-icons/sheet.png)
+
+| Overworld | Interior |
+| --- | --- |
+| ![overworld](docs/devlog/2026-09-25-pixel-icons/overworld.png) | ![interior](docs/devlog/2026-09-25-pixel-icons/interior.png) |
+
+## 2026-09-25: Pixel art for interiors, combat and outlines
+
+**What:** everything left on the old look now uses the pixel style.
+- **Interior floors:** `utils/pixelInteriorRenderer.ts` ports the preview's interior
+  renderer. It has five themes picked from the map's `poiType`: dungeon, cave, ruins,
+  tower and town (camp/village/town). The 3/4 wall faces, building roofs and facades, and
+  the torch and mushroom lighting are included. Each floor renders once into a single canvas.
+- **Combat:** `utils/pixelBattlefieldRenderer.ts` bakes each battlefield into one canvas.
+  Overworld-terrain fights get pixel ground tiles. POI fights (dungeon, cave, ruins, ...)
+  get the matching interior theme, and their wall obstacles become real walls with faces.
+  Trees, boulders, reeds, ice and dunes are sprites. Difficult terrain is a yellow dither.
+  The centre landmark is the old vector art rasterised at art resolution with hard alpha.
+  Allies are drawn with their class sprite and enemies with the monster sprite, plus a
+  pixel ring under whoever's turn it is and a chunky HP bar.
+- **Outlines and overlays:** selection, hover and attack outlines, plus the
+  movement-range fill, now follow each hex's stepped art-pixel edge (`hexRenderer`).
+  Overworld fog is drawn the same way, so it meets explored ground with no seam.
+- **Removed:** `HexTextureGenerator` has no callers left and is deleted, along with all
+  the vector obstacle and class-icon drawing in `CombatCanvas` (about 550 lines).
+
+**Why:** the user approved the icons and asked to convert everything that was still in
+the old style.
+
+**Route:**
+- Interiors render a whole floor at once, not per hex. Wall faces depend on the tiles to
+  the north and lights reach across tiles, so per-hex tiles would need neighbour-aware
+  cache keys anyway.
+- Combat on overworld terrain uses ground tiles only. The overworld's forest sprites on
+  every hex would bury the tokens. River fights use grass ground, because all-river hexes
+  would turn into a maze of channels.
+- Battlefield keys arrive as display names (`Forest`), so they're lowercased. Anything
+  that isn't a POI type falls back to overworld terrain. The first pass routed `Forest`
+  to the dungeon theme.
+- The first obstacle pass was too small to read as blocked, so the sprites were doubled.
+- `ART_PX` moved into `hexRenderer` so the outline code can use it without a circular import.
+
+| Interior | Combat |
+| --- | --- |
+| ![interior](docs/devlog/2026-09-25-pixel-everything/interior.png) | ![combat](docs/devlog/2026-09-25-pixel-everything/combat.png) |
+
+![overworld](docs/devlog/2026-09-25-pixel-everything/overworld.png)
+
+Battlefields shown at 1 CSS px per art px (dungeon, cave, ruins, town, desert, swamp):
+
+![battlefields](docs/devlog/2026-09-25-pixel-everything/battlefields.png)
+
+## 2026-09-25: Pixel icons in the HTML UI
+
+**What:** a `<PixelIcon name>` component (`components/ui/PixelIcon.tsx`) shows any
+sprite from `utils/pixelIcons` as a pixelated `<img>`. `pixelIconImage` bakes the sprite to
+a data URL. It gets 11 new UI sprites: action, bonus, move, object, lock, coins, gift,
+bolt, disk, pin and bulb. They replace the emoji in:
+- the combat action-economy bar
+- the opportunity-attack prompt
+- the exploration "Find the Exit Hex" lock
+- the treasure-chest heading
+- quest rewards
+- save slot titles and locations
+- the save-version tip
+
+**Why:** the user pointed out that the Action / Bonus Action / Movement tracker was
+still emoji next to the pixel-art map.
+
+**Route:** the UI reuses the canvas sprite pipeline (ASCII art, auto outline, one bake
+per sprite) instead of separate image files, so HTML and canvas icons look identical.
+Typographic marks (✓ ○ ⚠ ✕ ♂/♀) and the dev-only DevTools panel keep their characters.
+
+![ui icons](docs/devlog/2026-09-25-ui-pixel-icons/ui-icons.png)
+
+![combat panel](docs/devlog/2026-09-25-ui-pixel-icons/combat-ui.png)
+
+## 2026-09-25: Every remaining symbol is a pixel sprite
+
+**What:** all the remaining icon glyphs in the UI are now `<PixelIcon>` sprites, using
+new art added to `pixelIcons`:
+- the overworld sidebar menu, which used lucide icons: character, party, equipment,
+  tent, forage, scroll, disk, gear
+- the character-creation class picker, which now shows each class's actual player
+  sprite. `ClassIcon.tsx` and its SVGs are deleted.
+- every close button (✕ ×) and the shadcn dialog's X
+- ✓ checks, the ○ "available" dot, ⚠ warnings, ← exit/leave buttons, ▼▲▶ toggles,
+  ♂/♀ in the party list and ⏱️ playtime
+- the ■ legend chips in the town, now bordered CSS swatches
+- the DevTools emoji
+
+`lucide-react` had no users left and is uninstalled. The log hints that quoted
+"← Exit ..." now just say "Exit ...", matching the buttons.
+
+**Why:** the user asked for all symbols and emoji to be sprites after the combat bar.
+
+**Route:** punctuation inside prose stays as text: • separators, × in "10×10", ≤, and →
+in log messages. It reads as typography, not icons. Prettier reformatted all of
+`ErrorBoundary` and most of `DevTools`, so those two were re-applied by hand to keep the
+diff to the icon changes. The sidebar sprites were bumped to 3x after they looked tiny
+next to the 22px lucide icons they replaced.
+
+![sidebar](docs/devlog/2026-09-25-all-symbols/sidebar.png)
+
+![class select](docs/devlog/2026-09-25-all-symbols/class-select.png)

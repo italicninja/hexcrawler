@@ -14,6 +14,7 @@ import InteriorHexDetails from '../ui/InteriorHexDetails';
 import { DiceRoller } from '../../game/DiceRoller';
 import { formatTime, getCombatDuration } from '../../game/TimeManager';
 import './ExplorationScene.css';
+import PixelIcon from '../ui/PixelIcon';
 
 interface Coord {
   col: number;
@@ -26,21 +27,6 @@ interface SceneHex {
   terrain: { name?: string; key?: string; walkable?: boolean };
   content?: string | null;
 }
-
-const CLASS_ICONS: Record<string, string> = {
-  fighter: '⚔️',
-  wizard: '✨',
-  cleric: '✝️',
-  rogue: '🗡️',
-  ranger: '🏹',
-  barbarian: '🪓',
-  paladin: '🛡️',
-  druid: '🌿',
-  bard: '🎵',
-  sorcerer: '🔥',
-  warlock: '👁️',
-  monk: '👊',
-};
 
 function ExplorationScene() {
   const { state, actions, dispatch } = useGameState();
@@ -286,7 +272,7 @@ function ExplorationScene() {
   const handleExitViaExitHex = () => {
     const poiName = currentPOI?.poi?.name || 'this location';
     addMessage(
-      `You reach the exit of ${poiName}. Step outside? (Click "← Exit to Overworld" to leave.)`,
+      `You reach the exit of ${poiName}. Step outside? (Click "Exit to Overworld" to leave.)`,
       'info'
     );
     // Surface the exit button visually — set a flag so the button pulses
@@ -353,13 +339,23 @@ function ExplorationScene() {
               cursor: canExitFreely || exitReady ? 'pointer' : 'not-allowed',
             }}
           >
-            {canExitFreely || exitReady ? '← Exit to Overworld' : '🔒 Find the Exit Hex'}
+            {canExitFreely || exitReady ? (
+              <>
+                <PixelIcon name="arrowLeft" /> Exit to Overworld
+              </>
+            ) : (
+              <>
+                <PixelIcon name="lock" /> Find the Exit Hex
+              </>
+            )}
           </button>
         </div>
         <InteriorHexCanvas
-          interiorMap={interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']}
+          interiorMap={
+            interiorMap as unknown as Parameters<typeof InteriorHexCanvas>[0]['interiorMap']
+          }
           playerPosition={playerPosition}
-          playerIcon={CLASS_ICONS[state.party?.player?.class ?? ''] ?? '🧍'}
+          playerClass={state.party?.player?.class}
           selectedHex={selectedHex}
           onHexClick={handleHexClick}
           onHexDoubleClick={handleHexDoubleClick}

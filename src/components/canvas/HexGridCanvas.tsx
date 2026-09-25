@@ -10,16 +10,13 @@ import {
 import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
-import { POIRenderer } from '../../poiRenderer';
-import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
+import { drawPixelIcon, drawPixelPlayer } from '../../utils/pixelIcons';
+import { PixelTerrainRenderer, ART_PX } from '../../utils/pixelTerrainRenderer';
 import {
   calculateHexPosition,
-  drawHexShape,
   drawHexOutline as renderHexOutline,
   findHexAtPoint,
 } from '../../utils/hexRenderer';
-import { PerlinNoise } from '../../noise';
-import { seedToNumber } from '../../utils/seededRandom';
 import type { POI } from '../../types/game';
 
 interface CanvasHex {
@@ -48,22 +45,6 @@ interface HexGridCanvasProps {
   onHexDoubleClick?: (hex: PositionedHex) => void;
 }
 
-// Emoji icons for each character class, used on the canvas player marker
-const CLASS_ICONS: Record<string, string> = {
-  fighter: '⚔️',
-  wizard: '✨',
-  cleric: '✝️',
-  rogue: '🗡️',
-  ranger: '🏹',
-  barbarian: '🪓',
-  paladin: '🛡️',
-  druid: '🌿',
-  bard: '🎵',
-  sorcerer: '🔥',
-  warlock: '👁️',
-  monk: '👊',
-};
-
 /**
  * HexGridCanvas component - renders hex grid on canvas
  */
@@ -81,16 +62,8 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
 
   // CSS-pixel size of the canvas; the backing store is this × devicePixelRatio.
   const canvasSizeRef = useRef({ width: 0, height: 0 });
-  const poiRenderer = useRef(new POIRenderer());
-  const textureGenerator = useRef<HexTextureGenerator | null>(null);
-
-  // Initialize texture generator once
-  useEffect(() => {
-    if (!textureGenerator.current) {
-      const noise = new PerlinNoise(state.mapSeed ? seedToNumber(state.mapSeed) : Date.now());
-      textureGenerator.current = new HexTextureGenerator(noise);
-    }
-  }, [state.mapSeed]);
+  // Per-hex pixel-art tiles, rendered lazily and cached for the current map
+  const terrainRenderer = useMemo(() => new PixelTerrainRenderer(hexes ?? [], hexSize), [hexes, hexSize]);
 
   // Calculate hex position (using utility function)
   const getHexX = useCallback(
@@ -116,86 +89,33 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
     });
   }, [hexes, hexSize]);
 
-  // Draw a single hex
-  const drawHex = useCallback(
+  // Draw a hex's pixel-art ground or sprite layer (all ground goes down before any sprites,
+  // since sprites overhang neighbouring hexes). Unexplored hexes are fog.
+  const drawTerrain = useCallback(
+    (ctx: CanvasRenderingContext2D, hex: PositionedHex, layer: 'ground' | 'sprites') => {
+      const explored = isHexExplored(hex.col, hex.row);
+      if (!explored && layer === 'sprites') return;
+      // Unexplored hexes are flat fog of war
+      const tile = explored ? terrainRenderer.getTile(hex.col, hex.row) : terrainRenderer.getFog(hex.col, hex.row);
+      const img = tile[layer];
+      ctx.drawImage(img, tile.x, tile.y, img.width * ART_PX, img.height * ART_PX);
+    },
+    [isHexExplored, terrainRenderer]
+  );
+
+  // Draw a hex's POI icon and discovered marker
+  const drawPOI = useCallback(
     (ctx: CanvasRenderingContext2D, hex: PositionedHex) => {
       const { x, y } = hex;
-
-      // Check if hex has been explored (fog of war)
-      const explored = isHexExplored(hex.col, hex.row);
-
-      if (!explored) {
-        // Fog of war — flat black like the unmapped OSRS world map
-        drawHexShape(ctx, x, y, hexSize, '#0b0a08', 'rgba(0, 0, 0, 0.35)', 1);
-        return;
-      }
-
-      // Draw explored hex with textured pattern (pass col/row for per-hex variation).
-      // Stroke is a barely-there dark line: OSRS ground has no visible grid.
-      if (textureGenerator.current) {
-        const pattern = textureGenerator.current.getPattern(
-          ctx,
-          hex.terrain,
-          hexSize,
-          hex.col,
-          hex.row
-        );
-        drawHexShape(ctx, x, y, hexSize, pattern, 'rgba(15, 12, 6, 0.25)', 1);
-      } else {
-        // Fallback to solid color if texture generator not ready
-        drawHexShape(ctx, x, y, hexSize, hex.terrain.color, 'rgba(15, 12, 6, 0.25)', 1);
-      }
+      if (!isHexExplored(hex.col, hex.row)) return;
 
       // Draw POI icon if present AND visible (towns always, others only if discovered)
       if (hex.poi && shouldShowPOI(hex.poi, hex.col, hex.row)) {
-        // Save context before drawing POI
-        ctx.save();
+        drawPixelIcon(ctx, hex.poi.icon || hex.poi.name, x, y);
 
-        poiRenderer.current.draw(ctx, x, y, hexSize, hex.poi);
-
-        ctx.restore();
-
-        // Draw discovered marker for discovered POIs (not towns, they're always visible)
+        // Gold star in the top-right corner for discovered POIs (towns are always visible)
         if (isPoiDiscovered(hex.col, hex.row) && !hex.poi.visibleWithoutDiscovery) {
-          ctx.save();
-
-          // Draw a small star marker in the top-right corner of the hex
-          const starX = x + hexSize * 0.6;
-          const starY = y - hexSize * 0.6;
-          const starSize = hexSize * 0.15;
-
-          // Draw a 5-pointed star — OSRS quest-icon gold
-          ctx.fillStyle = '#f8c243';
-          ctx.strokeStyle = '#3a2f15';
-          ctx.lineWidth = 1;
-
-          ctx.beginPath();
-          for (let i = 0; i < 5; i++) {
-            const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
-            const outerRadius = starSize;
-            const innerRadius = starSize * 0.4;
-
-            // Outer point
-            const outerX = starX + Math.cos(angle) * outerRadius;
-            const outerY = starY + Math.sin(angle) * outerRadius;
-
-            if (i === 0) {
-              ctx.moveTo(outerX, outerY);
-            } else {
-              ctx.lineTo(outerX, outerY);
-            }
-
-            // Inner point
-            const innerAngle = angle + Math.PI / 5;
-            const innerX = starX + Math.cos(innerAngle) * innerRadius;
-            const innerY = starY + Math.sin(innerAngle) * innerRadius;
-            ctx.lineTo(innerX, innerY);
-          }
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.restore();
+          drawPixelIcon(ctx, 'star', x + hexSize * 0.6, y - hexSize * 0.6);
         }
       }
     },
@@ -217,8 +137,6 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       hexes: PositionedHex[],
       playerVisualPosRef: MutableRefObject<VisualPos | null>
     ) => {
-      const playerClass = state.party?.player?.class;
-      const playerIcon = (playerClass ? CLASS_ICONS[playerClass] : undefined) ?? '🧍';
       let playerX: number, playerY: number;
 
       // ALWAYS use the visual position ref
@@ -235,22 +153,9 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
         playerVisualPosRef.current = { x: playerX, y: playerY };
       }
 
-      // Player marker — white dot with dark ring, like the OSRS minimap
-      ctx.beginPath();
-      ctx.arc(playerX, playerY, hexSize * 0.38, 0, Math.PI * 2);
-      ctx.fillStyle = '#f4f1e8';
-      ctx.fill();
-      ctx.strokeStyle = '#1a150c';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Draw player class icon
-      ctx.font = `${hexSize * 0.5}px serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(playerIcon, playerX, playerY);
+      drawPixelPlayer(ctx, playerX, playerY, state.party?.player?.class);
     },
-    [hexSize, state.playerPosition, state.party]
+    [state.playerPosition, state.party]
   );
 
   // Main draw function (will be called by animation hook)
@@ -275,12 +180,16 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       // Draw only hexes inside the viewport (plus a one-hex margin)
       const { width, height } = canvasSizeRef.current;
       const margin = hexSize * 2;
-      for (const hex of positionedHexes) {
+      const visible = positionedHexes.filter(hex => {
         const sx = hex.x * zoom + offsetX;
         const sy = hex.y * zoom + offsetY;
-        if (sx < -margin || sy < -margin || sx > width + margin || sy > height + margin) continue;
-        drawHex(ctx, hex);
-      }
+        return !(sx < -margin || sy < -margin || sx > width + margin || sy > height + margin);
+      });
+      ctx.imageSmoothingEnabled = false; // keep art pixels crisp when tiles are scaled up
+      visible.sort((a, b) => a.y - b.y || a.x - b.x); // painter's order for sprite overhang
+      for (const hex of visible) drawTerrain(ctx, hex, 'ground');
+      for (const hex of visible) drawTerrain(ctx, hex, 'sprites');
+      for (const hex of visible) drawPOI(ctx, hex);
 
       // Draw selected hex outline
       if (selectedHex) {
@@ -304,7 +213,8 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       offsetY,
       zoom,
       selectedHex,
-      drawHex,
+      drawTerrain,
+      drawPOI,
       drawHexOutline,
       drawPlayerMarker,
     ]

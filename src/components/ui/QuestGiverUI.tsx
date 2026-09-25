@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import './QuestGiverUI.css';
+import PixelIcon from './PixelIcon';
 
 interface QuestObjectiveLike {
   description: string;
@@ -78,7 +79,7 @@ function QuestGiverUI({
         <div className="quest-giver-header">
           <h2>{questGiver.name || 'Quest Giver'}</h2>
           <button className="close-button" onClick={onClose} aria-label="Close">
-            ×
+            <PixelIcon name="close" label="Close" />
           </button>
         </div>
 

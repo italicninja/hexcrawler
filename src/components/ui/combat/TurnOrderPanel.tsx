@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import CombatantCard from './CombatantCard';
+import PixelIcon from '../PixelIcon';
 
 /**
  * TurnOrderPanel - Display initiative order in sidebar
@@ -61,7 +62,7 @@ function TurnOrderPanel({ turnOrder, currentTurnIndex, round }: TurnOrderPanelPr
           }}
           aria-label={isCollapsed ? 'Expand turn order' : 'Collapse turn order'}
         >
-          {isCollapsed ? '▼' : '▲'}
+          <PixelIcon name={isCollapsed ? 'chevronDown' : 'chevronUp'} />
         </button>
       </div>
 

@@ -38,11 +38,12 @@ Integration: a tile depends on its north neighbours because of the faces, so ren
 
 ## Re-rendering
 
+`baseline.js` is a frozen bundle of the retired `HexTextureGenerator` (the game now renders with
+`src/utils/pixel*Renderer.ts`), so it can no longer be rebuilt from `src/`.
+
 ```sh
-# Only needed after changing src/utils/hexTextureGenerator.ts:
-<repo>/node_modules/esbuild/bin/esbuild texture-previews/baseline-entry.ts --bundle --format=iife \
-  --outfile=texture-previews/baseline.js --define:import.meta.env.DEV=false --define:import.meta.env.VITE_LOG_LEVEL=undefined
-# Same command with interiors-entry.ts -> interiors.js after changing the interior generators.
+# After changing the interior generators, rebuild interiors.js from interiors-entry.ts:
+<repo>/node_modules/esbuild/bin/esbuild texture-previews/interiors-entry.ts --bundle --format=iife   --outfile=texture-previews/interiors.js --define:import.meta.env.DEV=false --define:import.meta.env.VITE_LOG_LEVEL=undefined
 PLAYWRIGHT_PATH=<repo>/node_modules/playwright node texture-previews/render.mjs
 ```
 
