@@ -232,3 +232,17 @@ next to the 22px lucide icons they replaced.
 ![sidebar](docs/devlog/2026-09-25-all-symbols/sidebar.png)
 
 ![class select](docs/devlog/2026-09-25-all-symbols/class-select.png)
+
+## 2026-09-25: Auto-merge PRs when CI passes
+
+**What:** Added an `auto-merge` job to `.github/workflows/qa-tests.yml`. On a
+same-repo PR it merges with a merge commit and deletes the branch, but only after
+`checks` (typecheck, lint, unit) and both `qa-tests` browsers succeed.
+
+**Why:** For now, a green CI run is enough review to land a PR.
+
+**Route:** The test workflow already existed, so this is one new job, not a new
+workflow. It depends on `checks` and `qa-tests` directly rather than on
+`qa-summary`, because `qa-summary` runs with `if: always()` and reports success
+when `qa-tests` is skipped. Merging directly in the job avoids needing GitHub's
+repo-level auto-merge setting. Fork PRs are skipped because their token is read-only.
