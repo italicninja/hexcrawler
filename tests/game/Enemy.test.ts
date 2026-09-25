@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { Enemy } from '../../src/game/Enemy';
+import { Enemy, findSrdMonster } from '../../src/game/Enemy';
 import { DiceRoller } from '../../src/game/DiceRoller';
+import { POISystem } from '../../src/poiSystem';
 
 describe('Enemy group sizing by XP budget', () => {
   it('keeps level 1 solo fights small and grows them by level 5', () => {
@@ -27,5 +28,33 @@ describe('Enemy group sizing by XP budget', () => {
     const enemies = Enemy.parseCreatureString('2d4 Wolves', 0.25, new DiceRoller(), [3]);
     expect(enemies).toHaveLength(4);
     expect(enemies.every(e => e.cr === 0.25)).toBe(true);
+  });
+});
+
+describe('SRD monster database', () => {
+  it('resolves every CR <= 5 encounter creature to a real stat block with a matching CR', () => {
+    const tables = new POISystem().encounterTables;
+    const mismatches: string[] = [];
+    for (const [terrain, entries] of Object.entries(tables)) {
+      for (const e of entries) {
+        if (e.cr === 0 || e.cr > 5 || ['Giant fish', 'Yetis'].includes(e.name)) continue;
+        const name = e.creatures.replace(/^(\d+d\d+|\d+)\s+/, '');
+        const enemy = new Enemy(name, e.cr);
+        const block = findSrdMonster(name) ?? enemy.getStatTableByName(name.toLowerCase());
+        if (!block || enemy.cr !== e.cr) {
+          mismatches.push(`${terrain}/${e.name}: table CR ${e.cr}, block CR ${enemy.cr}`);
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it('prefers exact SRD creatures over loose hand-written keyword matches', () => {
+    // "owlbear" contains "bear" but must not get the brown bear block
+    const owlbear = new Enemy('Owlbear', 3);
+    expect(owlbear.maxHP).toBe(59);
+    expect(owlbear.multiattack).toBe(2);
+    // Hand-written MM'25 goblin still wins over the SRD 5.1 goblin
+    expect(new Enemy('Goblin', 0.25).maxHP).toBe(10);
   });
 });

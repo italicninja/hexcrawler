@@ -5,6 +5,52 @@ import {
   ENCOUNTER_DIFFICULTY_BY_LEVEL,
   ENCOUNTER_XP_BUDGET,
 } from '../constants/gameConstants';
+import { SRD_MONSTERS, type SrdMonster } from './data/SrdMonsters';
+
+/** SRD creatures that keep their hand-written MM'25 block in getStatTableByName */
+const MM25_BLOCKS = new Set([
+  'goblin',
+  'hobgoblin',
+  'bugbear',
+  'skeleton',
+  'zombie',
+  'ghoul',
+  'wolf',
+  'dire wolf',
+  'brown bear',
+  'boar',
+  'bandit',
+  'bandit captain',
+  'guard',
+]);
+
+/** Encounter-table names that aren't SRD names */
+const SRD_ALIASES: Record<string, string> = {
+  pirate: 'bandit',
+  nomad: 'tribal warrior',
+  'elf scout': 'scout',
+  naiad: 'dryad',
+  'wild horse': 'riding horse',
+  'will-o-wisp': "will-o'-wisp",
+};
+
+/** "Giant Spiders #2" -> giant spider. Tries the name as-is, then naive singulars. */
+export function findSrdMonster(name: string): SrdMonster | null {
+  const base = name
+    .toLowerCase()
+    .replace(/\s*#\d+$/, '')
+    .trim();
+  for (const key of [
+    base,
+    base.replace(/ves$/, 'f'),
+    base.replace(/ies$/, 'y'),
+    base.replace(/s$/, ''),
+  ]) {
+    const hit = SRD_MONSTERS[SRD_ALIASES[key] ?? key];
+    if (hit) return hit;
+  }
+  return null;
+}
 
 interface Attack {
   name: string;
@@ -186,6 +232,8 @@ export class Enemy {
     // Named lookup takes priority over generic CR bracket
     const namedTable = this.getStatTableByName(name);
     const statTable = namedTable || this.getStatTableByCR(cr);
+    // A real stat block knows its own CR — use it so XP matches the creature
+    if (typeof statTable.cr === 'number') this.cr = statTable.cr;
 
     this.maxHP = statTable.hp;
     this.ac = statTable.ac;
@@ -213,6 +261,10 @@ export class Enemy {
    */
   getStatTableByName(name: string): StatTable | null {
     const n = (name || '').toLowerCase();
+
+    // Exact SRD 5.1 creature first — unless a hand-written MM'25 block below covers it
+    const srd = findSrdMonster(n);
+    if (srd && !MM25_BLOCKS.has(srd.name.toLowerCase())) return { ...srd };
 
     // ── Goblinoid family ─────────────────────────────────────────────────────
 
