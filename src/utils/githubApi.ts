@@ -1,138 +1,79 @@
 /**
- * GitHub API Integration
- * Handles bug report submission to GitHub issues
- * Requires VITE_GITHUB_PAT environment variable
+ * Bug report helper.
+ * Builds a prefilled GitHub "new issue" URL — the user submits it from their own
+ * GitHub session, so no token ever ships in the client bundle.
  */
-
-import logger from './logger';
 
 const GITHUB_REPO = 'italicninja/hexcrawler';
-const GITHUB_API_URL = 'https://api.github.com';
+const TITLE_MAX = 100;
+// GitHub rejects very long issue URLs (~8 KB); keep the encoded URL well under that.
+const URL_MAX = 7000;
 
-interface GitInfo {
-  commit: string;
-  branch: string;
-}
+/**
+ * Build a prefilled GitHub new-issue URL. When it would be too long, the oldest
+ * log entries are dropped first, then the description is cut as a last resort.
+ */
+export function buildBugReportUrl(description: string, gameLog: string): string {
+  const title = `Bug Report: ${truncateTitle(description)}`;
+  const build = (desc: string, log: string) =>
+    `https://github.com/${GITHUB_REPO}/issues/new?title=${encodeURIComponent(
+      title
+    )}&labels=bug&body=${encodeURIComponent(formatIssueBody(desc, log))}`;
 
-interface BugReportResult {
-  success: boolean;
-  issueNumber?: number;
-  url?: string;
-  error?: string;
+  let lines = gameLog ? gameLog.split('\n') : [];
+  let desc = description;
+  let url = build(desc, gameLog);
+  while (url.length > URL_MAX && lines.length > 0) {
+    lines = lines.slice(Math.max(1, Math.ceil(lines.length / 4)));
+    const log = lines.length ? `[... earlier entries trimmed ...]\n${lines.join('\n')}` : '';
+    url = build(desc, log);
+  }
+  while (url.length > URL_MAX && desc.length > 0) {
+    desc = desc.slice(0, Math.floor(desc.length * 0.75));
+    url = build(`${desc}\n[... trimmed ...]`, '');
+  }
+  return url;
 }
 
 /**
- * Submit a bug report to GitHub Issues
+ * Open the prefilled issue form in a new tab. Returns false if the popup was blocked.
+ * (Not using the 'noopener' feature: with it window.open always returns null.)
  */
-export async function submitBugReport(
-  description: string,
-  gameLog: string
-): Promise<BugReportResult> {
-  const token = import.meta.env.VITE_GITHUB_PAT as string | undefined;
-
-  if (!token) {
-    return {
-      success: false,
-      error: 'GitHub PAT not configured. Please set VITE_GITHUB_PAT environment variable.',
-    };
-  }
-
-  try {
-    // Get git info for context
-    const gitInfo: GitInfo = {
-      commit: (import.meta.env.VITE_GIT_COMMIT as string) || 'unknown',
-      branch: (import.meta.env.VITE_GIT_BRANCH as string) || 'unknown',
-    };
-
-    // Format issue body
-    const issueBody = formatIssueBody(description, gameLog, gitInfo);
-
-    // Create GitHub issue
-    const response = await fetch(`${GITHUB_API_URL}/repos/${GITHUB_REPO}/issues`, {
-      method: 'POST',
-      headers: {
-        Authorization: `token ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title: `Bug Report: ${truncateTitle(description)}`,
-        body: issueBody,
-        labels: ['bug', 'user-reported'],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = (await response.json().catch(() => ({}))) as { message?: string };
-      throw new Error(errorData.message || `GitHub API error: ${response.status}`);
-    }
-
-    const issue = (await response.json()) as { number: number; html_url: string };
-
-    return {
-      success: true,
-      issueNumber: issue.number,
-      url: issue.html_url,
-    };
-  } catch (error) {
-    const err = error as Error;
-    logger.general.error('Failed to submit bug report:', { error, message: err.message });
-    return {
-      success: false,
-      error: err.message || 'Failed to submit bug report',
-    };
-  }
+export function openBugReport(description: string, gameLog: string): boolean {
+  const win = window.open(buildBugReportUrl(description, gameLog), '_blank');
+  if (win) win.opener = null;
+  return win !== null;
 }
 
-/**
- * Format the issue body with bug description, game log, and metadata
- */
-function formatIssueBody(description: string, gameLog: string, gitInfo: GitInfo): string {
-  const timestamp = new Date().toISOString();
-  const userAgent = navigator.userAgent;
+function formatIssueBody(description: string, gameLog: string): string {
+  const commit = (import.meta.env.VITE_GIT_COMMIT as string | undefined) || 'unknown';
+  const branch = (import.meta.env.VITE_GIT_BRANCH as string | undefined) || 'unknown';
 
   return `## Bug Description
 
 ${description}
 
----
-
 ## Environment
 
-- **Timestamp:** ${timestamp}
-- **Branch:** ${gitInfo.branch}
-- **Commit:** ${gitInfo.commit}
-- **User Agent:** ${userAgent}
-
----
+- **Timestamp:** ${new Date().toISOString()}
+- **Branch:** ${branch}
+- **Commit:** ${commit}
+- **User Agent:** ${navigator.userAgent}
 
 ## Game Log
 
 <details>
-<summary>Click to expand game log (${gameLog.split('\n').length} entries)</summary>
+<summary>Game log</summary>
 
 \`\`\`
 ${gameLog || 'No game log available'}
 \`\`\`
 
 </details>
-
----
-
-*This bug report was automatically submitted from the game client.*
 `;
 }
 
-/**
- * Truncate title to fit GitHub's limits
- */
 function truncateTitle(description: string): string {
-  const maxLength = 100;
   const firstLine = description.split('\n')[0].trim();
-
-  if (firstLine.length <= maxLength) {
-    return firstLine;
-  }
-
-  return firstLine.substring(0, maxLength - 3) + '...';
+  return firstLine.length <= TITLE_MAX ? firstLine : firstLine.substring(0, TITLE_MAX - 3) + '...';
 }

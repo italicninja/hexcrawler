@@ -1,4 +1,5 @@
 // DiceRoller — D&D 5e dice rolling system
+import { createSeededRNG } from '../utils/seededRandom';
 import logger from '../utils/logger';
 import type { LogMessageType } from '../types/game';
 
@@ -49,16 +50,7 @@ export class DiceRoller {
   }
 
   createSeededRNG(seed: string): () => number {
-    let seedValue = 0;
-    for (let i = 0; i < seed.length; i++) {
-      seedValue = (seedValue << 5) - seedValue + seed.charCodeAt(i);
-      seedValue = seedValue & seedValue;
-    }
-
-    return () => {
-      seedValue = (seedValue * 9301 + 49297) % 233280;
-      return seedValue / 233280;
-    };
+    return createSeededRNG(seed);
   }
 
   random(): number {
@@ -115,7 +107,9 @@ export class DiceRoller {
       throw new Error('DiceRoller.skillCheck: character is required');
     }
 
-    const abilityScore = (character[ability] as number | undefined) || 10;
+    // Character instances keep scores under .abilities; SurvivalManager passes a flat object.
+    const abilityScore =
+      character.abilities?.[ability] ?? (character[ability] as number | undefined) ?? 10;
     const modifier = this.getAbilityModifier(abilityScore);
     const proficiencyBonus = proficient ? character.proficiencyBonus || 2 : 0;
 

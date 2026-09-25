@@ -151,7 +151,7 @@ function ExplorationScene() {
       const diceRoller = new DiceRoller(seed, addMessage);
 
       // TODO: Implement full combat system
-      const damageReceived = diceRoller.rollDice(1, 6);
+      const damageReceived = diceRoller.rollDice(6, 1); // 1d6
       const updatedCharacter = state.playerCharacter.clone();
       updatedCharacter.damage(damageReceived);
 

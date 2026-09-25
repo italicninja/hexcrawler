@@ -190,7 +190,7 @@ function RestMenu({ onClose }: RestMenuProps) {
       className="rest-menu"
       style={{
         padding: '1rem',
-        backgroundColor: 'var(--bg-primary)',
+        backgroundColor: 'var(--bg-color)',
         border: '1px solid var(--border-color)',
         borderRadius: '0.5rem',
         maxWidth: '400px',
@@ -203,7 +203,7 @@ function RestMenu({ onClose }: RestMenuProps) {
         style={{
           marginBottom: '1rem',
           padding: '0.5rem',
-          backgroundColor: 'var(--bg-secondary)',
+          backgroundColor: 'var(--bg-light)',
           borderRadius: '0.25rem',
         }}
       >
@@ -264,8 +264,8 @@ function RestMenu({ onClose }: RestMenuProps) {
             width: '100%',
             padding: '0.5rem',
             backgroundColor:
-              canShortRest && hitDiceToSpend > 0 ? 'var(--color-primary)' : 'var(--bg-tertiary)',
-            color: 'white',
+              canShortRest && hitDiceToSpend > 0 ? 'var(--primary-color)' : 'var(--bg-lighter)',
+            color: canShortRest && hitDiceToSpend > 0 ? 'var(--on-primary)' : 'var(--text-muted)',
             border: 'none',
             borderRadius: '0.25rem',
             cursor: canShortRest && hitDiceToSpend > 0 ? 'pointer' : 'not-allowed',
@@ -313,8 +313,8 @@ function RestMenu({ onClose }: RestMenuProps) {
             padding: '0.5rem',
             backgroundColor: canLongRestCheck.allowed
               ? 'var(--color-success)'
-              : 'var(--bg-tertiary)',
-            color: 'white',
+              : 'var(--bg-lighter)',
+            color: canLongRestCheck.allowed ? '#fff' : 'var(--text-muted)',
             border: 'none',
             borderRadius: '0.25rem',
             cursor: canLongRestCheck.allowed ? 'pointer' : 'not-allowed',
@@ -330,7 +330,7 @@ function RestMenu({ onClose }: RestMenuProps) {
           style={{
             marginBottom: '1rem',
             padding: '1rem',
-            border: '2px solid var(--color-primary)',
+            border: '2px solid var(--primary-color)',
             borderRadius: '0.25rem',
             backgroundColor: 'rgba(74, 144, 226, 0.05)',
           }}
@@ -345,7 +345,7 @@ function RestMenu({ onClose }: RestMenuProps) {
             style={{
               marginBottom: '1rem',
               padding: '0.5rem',
-              backgroundColor: 'var(--bg-secondary)',
+              backgroundColor: 'var(--bg-light)',
               borderRadius: '0.25rem',
             }}
           >
@@ -386,8 +386,8 @@ function RestMenu({ onClose }: RestMenuProps) {
               width: '100%',
               padding: '0.5rem',
               backgroundColor:
-                canAffordInn && !isFullHP ? 'var(--color-primary)' : 'var(--bg-tertiary)',
-              color: 'white',
+                canAffordInn && !isFullHP ? 'var(--primary-color)' : 'var(--bg-lighter)',
+              color: canAffordInn && !isFullHP ? 'var(--on-primary)' : 'var(--text-muted)',
               border: 'none',
               borderRadius: '0.25rem',
               cursor: canAffordInn && !isFullHP ? 'pointer' : 'not-allowed',
@@ -404,7 +404,7 @@ function RestMenu({ onClose }: RestMenuProps) {
           style={{
             marginBottom: '1rem',
             padding: '0.75rem',
-            backgroundColor: 'var(--bg-secondary)',
+            backgroundColor: 'var(--bg-light)',
             borderRadius: '0.25rem',
             fontSize: '0.9rem',
             color: 'var(--text-muted)',
@@ -421,7 +421,7 @@ function RestMenu({ onClose }: RestMenuProps) {
           style={{
             width: '100%',
             padding: '0.5rem',
-            backgroundColor: 'var(--bg-secondary)',
+            backgroundColor: 'var(--bg-light)',
             color: 'var(--text-color)',
             border: '1px solid var(--border-color)',
             borderRadius: '0.25rem',

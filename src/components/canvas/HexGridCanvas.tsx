@@ -19,6 +19,7 @@ import {
   findHexAtPoint,
 } from '../../utils/hexRenderer';
 import { PerlinNoise } from '../../noise';
+import { seedToNumber } from '../../utils/seededRandom';
 import type { POI } from '../../types/game';
 
 interface CanvasHex {
@@ -78,13 +79,15 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
   const [zoom] = useState(1.0);
   const [selectedHex, setSelectedHex] = useState<PositionedHex | null>(null);
 
+  // CSS-pixel size of the canvas; the backing store is this × devicePixelRatio.
+  const canvasSizeRef = useRef({ width: 0, height: 0 });
   const poiRenderer = useRef(new POIRenderer());
   const textureGenerator = useRef<HexTextureGenerator | null>(null);
 
   // Initialize texture generator once
   useEffect(() => {
     if (!textureGenerator.current) {
-      const noise = new PerlinNoise(Number(state.mapSeed) || Date.now());
+      const noise = new PerlinNoise(state.mapSeed ? seedToNumber(state.mapSeed) : Date.now());
       textureGenerator.current = new HexTextureGenerator(noise);
     }
   }, [state.mapSeed]);
@@ -122,12 +125,13 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       const explored = isHexExplored(hex.col, hex.row);
 
       if (!explored) {
-        // Draw fog of war
-        drawHexShape(ctx, x, y, hexSize, '#1a1a1a', '#333', 1);
+        // Fog of war — flat black like the unmapped OSRS world map
+        drawHexShape(ctx, x, y, hexSize, '#0b0a08', 'rgba(0, 0, 0, 0.35)', 1);
         return;
       }
 
-      // Draw explored hex with textured pattern (pass col/row for per-hex variation)
+      // Draw explored hex with textured pattern (pass col/row for per-hex variation).
+      // Stroke is a barely-there dark line: OSRS ground has no visible grid.
       if (textureGenerator.current) {
         const pattern = textureGenerator.current.getPattern(
           ctx,
@@ -136,10 +140,10 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
           hex.col,
           hex.row
         );
-        drawHexShape(ctx, x, y, hexSize, pattern, '#333', 1);
+        drawHexShape(ctx, x, y, hexSize, pattern, 'rgba(15, 12, 6, 0.25)', 1);
       } else {
         // Fallback to solid color if texture generator not ready
-        drawHexShape(ctx, x, y, hexSize, hex.terrain.color, '#333', 1);
+        drawHexShape(ctx, x, y, hexSize, hex.terrain.color, 'rgba(15, 12, 6, 0.25)', 1);
       }
 
       // Draw POI icon if present AND visible (towns always, others only if discovered)
@@ -160,9 +164,9 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
           const starY = y - hexSize * 0.6;
           const starSize = hexSize * 0.15;
 
-          // Draw a 5-pointed star
-          ctx.fillStyle = '#FFD700'; // Gold color
-          ctx.strokeStyle = '#000';
+          // Draw a 5-pointed star — OSRS quest-icon gold
+          ctx.fillStyle = '#f8c243';
+          ctx.strokeStyle = '#3a2f15';
           ctx.lineWidth = 1;
 
           ctx.beginPath();
@@ -231,17 +235,17 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
         playerVisualPosRef.current = { x: playerX, y: playerY };
       }
 
-      // Draw player marker (yellow circle)
+      // Player marker — white dot with dark ring, like the OSRS minimap
       ctx.beginPath();
-      ctx.arc(playerX, playerY, hexSize * 0.4, 0, Math.PI * 2);
-      ctx.fillStyle = '#FFD700';
+      ctx.arc(playerX, playerY, hexSize * 0.38, 0, Math.PI * 2);
+      ctx.fillStyle = '#f4f1e8';
       ctx.fill();
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = '#1a150c';
       ctx.lineWidth = 2;
       ctx.stroke();
 
       // Draw player class icon
-      ctx.font = `${hexSize * 0.55}px serif`;
+      ctx.font = `${hexSize * 0.5}px serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(playerIcon, playerX, playerY);
@@ -258,15 +262,25 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Apply transformations
+      // Apply transformations (drawing happens in CSS pixels)
       ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.translate(offsetX, offsetY);
       ctx.scale(zoom, zoom);
 
-      // Draw all hexes
-      positionedHexes.forEach(hex => drawHex(ctx, hex));
+      // Draw only hexes inside the viewport (plus a one-hex margin)
+      const { width, height } = canvasSizeRef.current;
+      const margin = hexSize * 2;
+      for (const hex of positionedHexes) {
+        const sx = hex.x * zoom + offsetX;
+        const sy = hex.y * zoom + offsetY;
+        if (sx < -margin || sy < -margin || sx > width + margin || sy > height + margin) continue;
+        drawHex(ctx, hex);
+      }
 
       // Draw selected hex outline
       if (selectedHex) {
@@ -284,6 +298,7 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       ctx.restore();
     },
     [
+      hexSize,
       positionedHexes,
       offsetX,
       offsetY,
@@ -296,7 +311,7 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
   );
 
   // Use animation hook for smooth camera and player movement
-  const { playerVisualPosRef, centerCameraOnHex, currentCameraRef } = useCanvasAnimation({
+  const { playerVisualPosRef, centerCameraOnHex, currentCameraRef, invalidate } = useCanvasAnimation({
     drawCallback: () => draw(playerVisualPosRef),
     getHexX,
     getHexY,
@@ -314,8 +329,16 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
     const resizeCanvas = () => {
       const container = canvas.parentElement;
       if (container) {
-        canvas.width = container.clientWidth - 48;
-        canvas.height = container.clientHeight - 48;
+        const width = container.clientWidth - 48;
+        const height = container.clientHeight - 48;
+        const dpr = window.devicePixelRatio || 1;
+        canvasSizeRef.current = { width, height };
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        // Setting canvas.width clears it; repaint next frame.
+        invalidate();
       }
     };
 
@@ -343,8 +366,8 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
     centerCameraOnHex(
       state.playerPosition.col,
       state.playerPosition.row,
-      canvas.width,
-      canvas.height,
+      canvasSizeRef.current.width,
+      canvasSizeRef.current.height,
       false
     );
   }, [
@@ -363,8 +386,8 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
     centerCameraOnHex(
       state.playerPosition.col,
       state.playerPosition.row,
-      canvas.width,
-      canvas.height,
+      canvasSizeRef.current.width,
+      canvasSizeRef.current.height,
       true
     );
   }, [state.playerPosition, hexes, centerCameraOnHex]);

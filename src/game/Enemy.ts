@@ -779,7 +779,8 @@ export class Enemy {
     const attack = this.attacks[attackIndex] || this.attacks[0];
     let damage = diceRoller.damageRoll(attack.damage);
     if (isCrit) {
-      damage += diceRoller.damageRoll(attack.damage);
+      // Crits double the dice, not the flat bonus
+      damage += diceRoller.damageRoll(attack.damage.replace(/[+-]\d+$/, ''));
     }
     return { damage, damageType: attack.damageType, attackName: attack.name };
   }

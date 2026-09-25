@@ -14,7 +14,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: var(--z-overlay);
   padding: 20px;
 }
 
@@ -45,25 +45,6 @@
   margin: 0;
   color: #4a9eff;
   font-size: 1.5rem;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 2rem;
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s;
-}
-
-.close-button:hover {
-  color: #ff4a4a;
 }
 
 /* Dialogue */

@@ -131,7 +131,6 @@ src/
 ├── constants/                     # Game constants
 │   └── gameConstants.ts           # DND rules, GAME_DEFAULTS, XP_TABLE
 ├── hooks/                         # Custom React hooks
-│   ├── useGameLoop.js             # Game loop hook
 │   └── useEventListener.js        # DOM event hook
 └── utils/
     └── logger.ts                  # Categorized dev logging utility

@@ -324,23 +324,19 @@ describe('Combat — processAttack(): hero attacker', () => {
     expect(enemy.checkIsDead()).toBe(true);
   });
 
-  it('Rage on the attacker grants advantage and bonus melee damage', () => {
+  it('Rage on the attacker adds bonus melee damage but no attack advantage (PHB 2024)', () => {
     const { combat, ally, foe } = makeHexCombat();
     ally.statusEffects.push({
       name: 'Rage',
       effects: { strengthAdvantage: true, rageDamageBonus: 2, physicalResistance: true },
     });
-    // Advantage → two d20 rolls, keep highest
-    const d20 = vi
-      .spyOn(combat.diceRoller, 'rollD20')
-      .mockReturnValueOnce(10)
-      .mockReturnValueOnce(3);
+    const d20 = vi.spyOn(combat.diceRoller, 'rollD20').mockReturnValue(10);
     vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(5);
 
     const result = combat.processAttack('ally-0', 'enemy-0');
 
-    expect(d20).toHaveBeenCalledTimes(2); // advantage pair
-    expect(result.hit).toBe(true); // kept 10 → 15 vs AC 15
+    expect(d20).toHaveBeenCalledTimes(1); // straight roll, no advantage
+    expect(result.hit).toBe(true); // 10 + 5 = 15 vs AC 15
     expect(result.damage).toBe(10); // 1d8(5) + STR(3) + rage(2)
     expect(foe.hp).toBe(0);
     expect(ally.statusEffects[0].extendedThisTurn).toBe(true);
@@ -374,16 +370,16 @@ describe('Combat — processAttack(): enemy attacker', () => {
     expect(ally.hp).toBe(20);
   });
 
-  it('enemy natural 20 doubles weapon dice', () => {
+  it('enemy natural 20 doubles weapon dice but not the flat bonus', () => {
     const hero = makeHero();
     const { combat, ally } = makeHexCombat(hero);
     vi.spyOn(combat.diceRoller, 'rollD20').mockReturnValue(20);
-    vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(3); // (1d6+2 → 5) + (1d6+2 → 5)
+    vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(3); // (1d6+2 → 5) + (1d6 → 3)
 
     const result = combat.processAttack('enemy-0', 'ally-0');
     expect(result.critical).toBe(true);
-    expect(result.damage).toBe(10);
-    expect(ally.hp).toBe(10);
+    expect(result.damage).toBe(8);
+    expect(ally.hp).toBe(12);
   });
 
   it('attacks against a dodging target are rolled with disadvantage', () => {
@@ -682,6 +678,7 @@ const ACTION_NAMES = [
   'INCREMENT_ATTACK_COUNT',
   'ADVANCE_COMBAT_TURN',
   'END_COMBAT',
+  'PROCESS_COMBAT_ACTION',
 ] as const;
 
 const ACTIONS: Record<string, string> = Object.fromEntries(ACTION_NAMES.map(n => [n, n]));
@@ -1040,5 +1037,61 @@ describe('Combat — misc public API', () => {
     const result = combat.processSpell('ally-0', 'Definitely Not A Spell');
     expect(result.success).toBe(false);
     expect(result.message).toMatch(/Spell not found/);
+  });
+});
+
+// ─── Spells in hex combat ─────────────────────────────────────────────────────
+
+describe('combatReducer — spell casting', () => {
+  function spellSetup() {
+    const wizard = makeHero('Wiz', { class: 'wizard' });
+    wizard.abilities.intelligence = 16; // +3 → spell attack +5
+    const { combat, enemy, foe } = makeHexCombat(wizard, makeGoblin()); // AC 15, HP 10
+    combat.logger = vi.fn();
+    const state = makeReducerState([...combat.turnOrder].map(c => ({ ...c })), { combat });
+    return { state, combat, enemy, foe };
+  }
+  const castFireBolt = (target: unknown) => ({
+    type: 'PROCESS_COMBAT_ACTION',
+    payload: {
+      actionType: 'spell',
+      attacker: { id: 'ally-0', character: { name: 'Wiz' } },
+      target,
+      spell: { name: 'Fire Bolt', level: 0, castingTime: '1 action' },
+    },
+  });
+
+  it('a damaging spell hits against the enemy .ac and reduces its HP', () => {
+    const { state, combat, enemy, foe } = spellSetup();
+    vi.spyOn(combat.diceRoller, 'rollD20').mockReturnValue(10); // 10 + 5 = 15 vs AC 15 → hit
+    vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(7);
+
+    const next = combatReducer(state, castFireBolt({ id: 'enemy-0' }) as any, ACTIONS)!;
+
+    expect(foe.hp).toBe(3);
+    expect(enemy.currentHP).toBe(3);
+    expect(next.combatState!.turnOrder[1].currentHP).toBe(3);
+    expect(next.combatState!.turnState.actionUsed).toBe(true);
+  });
+
+  it('replaying the same (state, action) — as StrictMode does — resolves the cast once', () => {
+    const { state, combat, foe } = spellSetup();
+    const d20 = vi.spyOn(combat.diceRoller, 'rollD20').mockReturnValue(10);
+    vi.spyOn(combat.diceRoller, 'rollDice').mockReturnValue(7);
+    const action = castFireBolt({ id: 'enemy-0' }) as any;
+
+    const first = combatReducer(state, action, ACTIONS);
+    const second = combatReducer(state, action, ACTIONS);
+
+    expect(second).toBe(first);
+    expect(d20).toHaveBeenCalledTimes(1);
+    expect(foe.hp).toBe(3); // damage applied once, not twice
+  });
+
+  it('a cast with no target fails and does not consume the action', () => {
+    const { state } = spellSetup();
+    const next = combatReducer(state, castFireBolt(null) as any, ACTIONS)!;
+    expect(next).toBe(state);
+    expect(next.combatState!.turnState.actionUsed).toBe(false);
   });
 });

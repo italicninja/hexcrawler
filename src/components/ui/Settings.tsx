@@ -9,6 +9,7 @@ function Settings() {
   const { settings, set } = useSettings();
 
   const themes = [
+    { id: 'runescape', name: 'RuneScape', description: 'Old School stone, parchment & gold' },
     { id: 'midnight-gold', name: 'Midnight Gold', description: 'Dark theme with golden accents' },
     { id: 'teal-dark', name: 'Teal Dark', description: 'Original teal dark theme' },
     { id: 'light', name: 'Light', description: 'Light theme for daytime play' },

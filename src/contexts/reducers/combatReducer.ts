@@ -35,7 +35,29 @@ import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
 import logger from '../../utils/logger';
 import type { GameState, Action, CombatStateData } from '../../types/state';
 
+// StrictMode (and React's render replays) call a reducer more than once with the same
+// (state, action). This reducer drives the mutable Combat instance — dice rolls, HP,
+// Rage/Dodge ticks, ability uses, spell slots, GameLog messages — so a replay would
+// re-roll and double-apply. Memoising on the action object makes replays return the
+// first result instead of re-running the side effects.
+// ponytail: replay-safe, not pure. The Combat instance is still mutated in place and dice
+// are rolled inside the reducer. Full purity = roll at the dispatch site (results in the
+// payload), clone the Combat/turnOrder per action, and move GameLog calls out of here.
+const replayCache = new WeakMap<object, { state: GameState; result: GameState | null }>();
+
 export function combatReducer(
+  state: GameState,
+  action: Action,
+  ACTIONS: Record<string, string>
+): GameState | null {
+  const cached = replayCache.get(action);
+  if (cached && cached.state === state) return cached.result;
+  const result = reduceCombat(state, action, ACTIONS);
+  replayCache.set(action, { state, result });
+  return result;
+}
+
+function reduceCombat(
   state: GameState,
   action: Action,
   ACTIONS: Record<string, string>
@@ -77,17 +99,23 @@ export function combatReducer(
         return state;
       }
 
+      // Seed per location + encounter so different fights don't share one battlefield
+      const where = state.inInterior
+        ? `${state.currentPOI?.col},${state.currentPOI?.row}/${state.interiorPlayerPosition?.col},${state.interiorPlayerPosition?.row}`
+        : `${state.playerPosition.col},${state.playerPosition.row}`;
+      const battlefieldSeed = `${state.mapSeed}:battle:${where}:${encounterName ?? encounterType}`;
+
       logger.combat.info('[START_COMBAT] Generating battlefield...', {
         encounterType,
         terrainType,
-        seed: state.mapSeed,
+        seed: battlefieldSeed,
       });
 
       // Generate battlefield
       const battlefield = CombatTerrainGenerator.generate(
         encounterType,
         terrainType,
-        state.mapSeed,
+        battlefieldSeed,
         hexContext
       );
 
@@ -601,6 +629,12 @@ export function combatReducer(
         // Use Combat.processSpell() to execute spell
         const combat = state.combatState.combat;
         if (combat && combat.processSpell) {
+          // Sync HP from Redux into the Combat instance before resolving (same as attacks)
+          state.combatState.turnOrder.forEach(c => {
+            const combatEntry = combat.turnOrder.find((ct: any) => ct.id === c.id);
+            if (combatEntry) combatEntry.hp = c.currentHP;
+          });
+
           const result = combat.processSpell(
             caster.id,
             spell.name,
@@ -616,13 +650,35 @@ export function combatReducer(
             message: result.message,
           });
 
+          if (result.message && combat.logger) {
+            combat.logger(
+              result.success
+                ? `${casterChar.name} casts ${spell.name}: ${result.message}`
+                : result.message,
+              result.success ? 'action' : 'warning'
+            );
+          }
+
+          // Invalid cast (no target, no slot, ...) consumes nothing
+          if (!result.success) return state;
+
           // Spells use Action unless specified otherwise
-          const spellActionType = spell.castingTime === 'bonus action' ? 'bonusAction' : 'action';
+          const spellActionType = String(spell.castingTime || '').includes('bonus action')
+            ? 'bonusAction'
+            : 'action';
+
+          const syncedTurnOrder = state.combatState.turnOrder.map(c => {
+            const combatEntry = combat.turnOrder.find((ct: any) => ct.id === c.id);
+            return combatEntry && combatEntry.hp !== c.currentHP
+              ? { ...c, currentHP: combatEntry.hp }
+              : c;
+          });
 
           return {
             ...state,
             combatState: {
               ...state.combatState,
+              turnOrder: syncedTurnOrder,
               turnState: {
                 ...state.combatState.turnState,
                 actionUsed:

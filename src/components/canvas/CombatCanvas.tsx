@@ -2,6 +2,7 @@ import {
   useRef,
   useEffect,
   useCallback,
+  useMemo,
   useState,
   type MouseEvent,
   type WheelEvent,
@@ -15,6 +16,7 @@ import {
   drawHexShape,
   drawHexOutline,
   findHexAtPoint,
+  sizeCanvasForDpr,
 } from '../../utils/hexRenderer';
 import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
 import { PerlinNoise } from '../../noise';
@@ -119,6 +121,8 @@ function CombatCanvas({
     zoom: FIXED_ZOOM,
   });
   const textureGenerator = useRef<HexTextureGenerator | null>(null);
+  // CSS-pixel size of the canvas; the backing store is this x devicePixelRatio.
+  const canvasSizeRef = useRef({ width: 0, height: 0 });
 
   // Active movement animation state (stored as a ref so rAF reads latest without closures)
   const movementAnimRef = useRef<MovementAnim | null>(null);
@@ -143,14 +147,38 @@ function CombatCanvas({
   const drawTree = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
 
-    // Brown trunk
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(x - size * 0.15, y + size * 0.1, size * 0.3, size * 0.4);
+    // OSRS low-poly tree: brown trunk, faceted canopy with hard outline
+    ctx.fillStyle = '#5a3c20';
+    ctx.strokeStyle = '#2a1c0e';
+    ctx.lineWidth = 1;
+    ctx.fillRect(x - size * 0.12, y + size * 0.08, size * 0.24, size * 0.4);
+    ctx.strokeRect(x - size * 0.12, y + size * 0.08, size * 0.24, size * 0.4);
 
-    // Green foliage
+    // Canopy: chunky hexagonal crown
+    const r = size * 0.42;
+    const cy = y - size * 0.1;
+    ctx.fillStyle = '#2e4423';
+    ctx.strokeStyle = '#1d2d16';
     ctx.beginPath();
-    ctx.arc(x, y - size * 0.1, size * 0.4, 0, Math.PI * 2);
-    ctx.fillStyle = '#228B22';
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i - Math.PI / 6;
+      const px = x + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r * 0.9;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Lit facet, top-left
+    ctx.fillStyle = '#46663a';
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.5, cy - r * 0.15);
+    ctx.lineTo(x - r * 0.05, cy - r * 0.7);
+    ctx.lineTo(x + r * 0.35, cy - r * 0.25);
+    ctx.lineTo(x - r * 0.1, cy + r * 0.05);
+    ctx.closePath();
     ctx.fill();
 
     ctx.restore();
@@ -166,7 +194,7 @@ function CombatCanvas({
   const drawRock = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
 
-    // Irregular gray polygon
+    // Faceted grey rock: shadow body + lit face + hard outline
     ctx.beginPath();
     ctx.moveTo(x - size * 0.3, y + size * 0.2);
     ctx.lineTo(x - size * 0.1, y - size * 0.3);
@@ -174,11 +202,21 @@ function CombatCanvas({
     ctx.lineTo(x + size * 0.3, y + size * 0.1);
     ctx.lineTo(x + size * 0.1, y + size * 0.3);
     ctx.closePath();
-    ctx.fillStyle = '#808080';
+    ctx.fillStyle = '#6b675e';
     ctx.fill();
-    ctx.strokeStyle = '#404040';
+    ctx.strokeStyle = '#36332d';
     ctx.lineWidth = 1;
     ctx.stroke();
+
+    // Lit facet, upper-left
+    ctx.fillStyle = '#7d786c';
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.22, y + size * 0.08);
+    ctx.lineTo(x - size * 0.1, y - size * 0.26);
+    ctx.lineTo(x + size * 0.12, y - size * 0.16);
+    ctx.lineTo(x - size * 0.04, y + size * 0.02);
+    ctx.closePath();
+    ctx.fill();
 
     ctx.restore();
   }, []);
@@ -192,18 +230,29 @@ function CombatCanvas({
    */
   const drawWall = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
-    ctx.fillStyle = '#555555';
+    // Weathered stone wall, mortar lines offset like real coursing
+    ctx.fillStyle = '#6e6a60';
     ctx.fillRect(x - size * 0.45, y - size * 0.2, size * 0.9, size * 0.4);
-    ctx.strokeStyle = '#333333';
+    ctx.strokeStyle = '#36332d';
     ctx.lineWidth = 1;
     ctx.strokeRect(x - size * 0.45, y - size * 0.2, size * 0.9, size * 0.4);
-    // Stone block lines
+    // Mortar lines (staggered blocks)
+    ctx.strokeStyle = '#4a463e';
     ctx.beginPath();
-    ctx.moveTo(x, y - size * 0.2);
-    ctx.lineTo(x, y + size * 0.2);
     ctx.moveTo(x - size * 0.45, y);
     ctx.lineTo(x + size * 0.45, y);
-    ctx.strokeStyle = '#444444';
+    ctx.moveTo(x - size * 0.15, y - size * 0.2);
+    ctx.lineTo(x - size * 0.15, y);
+    ctx.moveTo(x + size * 0.15, y - size * 0.2);
+    ctx.lineTo(x + size * 0.15, y);
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y + size * 0.2);
+    ctx.stroke();
+    // Top highlight
+    ctx.strokeStyle = 'rgba(220, 214, 198, 0.35)';
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.43, y - size * 0.17);
+    ctx.lineTo(x + size * 0.43, y - size * 0.17);
     ctx.stroke();
     ctx.restore();
   }, []);
@@ -271,12 +320,15 @@ function CombatCanvas({
    */
   const drawDune = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
-    ctx.fillStyle = '#c8902a';
+    ctx.fillStyle = '#b8a070';
     ctx.beginPath();
     ctx.ellipse(x, y + size * 0.1, size * 0.45, size * 0.2, 0, Math.PI, 0);
     ctx.fill();
+    ctx.strokeStyle = '#8a7752';
+    ctx.lineWidth = 1;
+    ctx.stroke();
     // Crest line
-    ctx.strokeStyle = 'rgba(255, 220, 120, 0.5)';
+    ctx.strokeStyle = 'rgba(230, 212, 168, 0.6)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x - size * 0.4, y + size * 0.02);
@@ -294,17 +346,31 @@ function CombatCanvas({
    */
   const drawBoulder = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
-    ctx.fillStyle = '#9a8a78';
+    // Chunky boulder: faceted heptagon instead of a smooth circle
+    const r = size * 0.32;
+    ctx.fillStyle = '#857c6c';
     ctx.beginPath();
-    ctx.arc(x, y, size * 0.32, 0, Math.PI * 2);
+    for (let i = 0; i < 7; i++) {
+      const a = (Math.PI * 2 * i) / 7 - Math.PI / 2;
+      const wobble = i % 2 === 0 ? 1 : 0.85;
+      const px = x + Math.cos(a) * r * wobble;
+      const py = y + Math.sin(a) * r * wobble;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#6a5a48';
+    ctx.strokeStyle = '#4a4438';
     ctx.lineWidth = 1.5;
     ctx.stroke();
-    // Highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    // Lit facet
+    ctx.fillStyle = '#9a9180';
     ctx.beginPath();
-    ctx.arc(x - size * 0.1, y - size * 0.1, size * 0.12, 0, Math.PI * 2);
+    ctx.moveTo(x - r * 0.5, y - r * 0.1);
+    ctx.lineTo(x - r * 0.1, y - r * 0.7);
+    ctx.lineTo(x + r * 0.3, y - r * 0.3);
+    ctx.lineTo(x - r * 0.1, y + r * 0.05);
+    ctx.closePath();
     ctx.fill();
     ctx.restore();
   }, []);
@@ -656,16 +722,24 @@ function CombatCanvas({
 
       ctx.save();
 
-      // Shadow / glow — rage takes priority over turn indicator colour
-      if (isRaging) {
-        // Faster pulse (150 ms) in orange-red to stand out from the turn glow
-        const ragePulse = Math.sin(Date.now() / 150) * 6 + 10;
-        ctx.shadowBlur = ragePulse + (isCurrentTurn ? 8 : 0);
-        ctx.shadowColor = '#ff6b35';
-      } else if (isCurrentTurn) {
-        const pulseOffset = Math.sin(Date.now() / 300) * 5 + 5;
-        ctx.shadowBlur = pulseOffset + 10;
-        ctx.shadowColor = combatant.isAlly ? '#FFD700' : '#FF0000';
+      // Glow halo — rage takes priority over turn indicator colour. A translucent
+      // ring instead of shadowBlur, which is expensive and only pulsed when some
+      // other effect happened to force a redraw.
+      const glowColor = isRaging
+        ? '#ff6b35'
+        : isCurrentTurn
+          ? combatant.isAlly
+            ? '#FFD700'
+            : '#FF0000'
+          : null;
+      if (glowColor) {
+        ctx.beginPath();
+        ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+        ctx.strokeStyle = glowColor;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = isRaging && isCurrentTurn ? 7 : 5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
       }
 
       // Calculate HP percentage
@@ -715,6 +789,45 @@ function CombatCanvas({
     [drawClassIcon, drawHPBar]
   );
 
+  // Hex pixel positions only change with the battlefield
+  const positionedHexes = useMemo(
+    () =>
+      (battlefield?.hexes ?? []).map(hex => {
+        const pos = calculateHexPosition(hex.col, hex.row, HEX_SIZE);
+        return { ...hex, x: pos.x, y: pos.y };
+      }),
+    [battlefield]
+  );
+
+  // Pathfinding / LoS are computed when the relevant state changes, not every frame
+  const reachableHexes = useMemo(() => {
+    const current = combatants[currentTurnIndex];
+    if (selectedAction !== 'move' || !current?.position || !battlefield?.hexes) return [];
+    return calculateReachableHexes(
+      current.position,
+      movementRemaining / 5, // Convert feet to hexes (5 feet per hex)
+      battlefield as unknown as Parameters<typeof calculateReachableHexes>[2],
+      combatants as unknown as Parameters<typeof calculateReachableHexes>[3]
+    );
+  }, [selectedAction, combatants, currentTurnIndex, movementRemaining, battlefield]);
+
+  const attackTargets = useMemo(() => {
+    const current = combatants[currentTurnIndex];
+    if (selectedAction !== 'attack' || !current?.position || !battlefield) return [];
+    const ccPos = current.position;
+    const attackRange = current.attackRange || 1; // Default melee range
+    const targets: Array<Coord & { hasLoS: boolean }> = [];
+    combatants.forEach((target, index) => {
+      if (index === currentTurnIndex || !target.position) return;
+      if (current.isAlly === target.isAlly) return; // Same team
+      const tPos = target.position;
+      if (getHexDistance(ccPos.col, ccPos.row, tPos.col, tPos.row) <= attackRange) {
+        targets.push({ ...tPos, hasLoS: checkLineOfSight(ccPos, tPos, battlefield) });
+      }
+    });
+    return targets;
+  }, [selectedAction, combatants, currentTurnIndex, battlefield]);
+
   /**
    * Main draw function
    */
@@ -732,22 +845,26 @@ function CombatCanvas({
     if (!battlefield || !battlefield.hexes) return;
 
     // Clear canvas
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw in CSS pixels on a devicePixelRatio backing store
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const { width, height } = canvasSizeRef.current;
 
     // Apply camera transform (zoom is always 1.0)
     ctx.save();
     ctx.translate(cameraOffset.x, cameraOffset.y);
     ctx.scale(FIXED_ZOOM, FIXED_ZOOM);
 
-    // Create positioned hexes with screen coordinates
-    const positionedHexes = battlefield.hexes.map(hex => {
-      const pos = calculateHexPosition(hex.col, hex.row, HEX_SIZE);
-      return { ...hex, x: pos.x, y: pos.y };
-    });
-
-    // Draw hexes
+    // Draw hexes inside the viewport (plus a margin)
+    const margin = HEX_SIZE * 2;
     positionedHexes.forEach(hex => {
       const { x, y } = hex;
+      const sx = x + cameraOffset.x;
+      const sy = y + cameraOffset.y;
+      if (sx < -margin || sy < -margin || sx > width + margin || sy > height + margin) return;
 
       // Draw terrain with procedural texture
       if (textureGenerator.current && hex.terrain) {
@@ -801,48 +918,17 @@ function CombatCanvas({
       drawLandmark(ctx, centerPos.x, centerPos.y, HEX_SIZE * 2.5, landmarkTerrainKey);
     }
 
-    // Draw movement range overlay
-    if (selectedAction === 'move' && combatants[currentTurnIndex]?.position) {
-      const currentCombatant = combatants[currentTurnIndex];
-      const ccPos = currentCombatant.position!;
-      const reachableHexes = calculateReachableHexes(
-        ccPos,
-        movementRemaining / 5, // Convert feet to hexes (5 feet per hex)
-        battlefield as unknown as Parameters<typeof calculateReachableHexes>[2],
-        combatants as unknown as Parameters<typeof calculateReachableHexes>[3]
-      );
+    // Draw movement range overlay (reachable set is memoized above)
+    reachableHexes.forEach(reachable => {
+      const pos = calculateHexPosition(reachable.col, reachable.row, HEX_SIZE);
+      drawHexShape(ctx, pos.x, pos.y, HEX_SIZE, 'rgba(0, 255, 0, 0.2)', null, 0);
+    });
 
-      ctx.save();
-      ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
-      reachableHexes.forEach(reachable => {
-        const pos = calculateHexPosition(reachable.col, reachable.row, HEX_SIZE);
-        drawHexShape(ctx, pos.x, pos.y, HEX_SIZE, 'rgba(0, 255, 0, 0.2)', null, 0);
-      });
-      ctx.restore();
-    }
-
-    // Draw attack range overlay
-    if (selectedAction === 'attack' && combatants[currentTurnIndex]?.position) {
-      const currentCombatant = combatants[currentTurnIndex];
-      const ccPos = currentCombatant.position!;
-      const attackRange = currentCombatant.attackRange || 1; // Default melee range
-
-      combatants.forEach((target, index) => {
-        if (index === currentTurnIndex || !target.position) return;
-        if (currentCombatant.isAlly === target.isAlly) return; // Same team
-        const tPos = target.position;
-
-        const distance = getHexDistance(ccPos.col, ccPos.row, tPos.col, tPos.row);
-
-        if (distance <= attackRange) {
-          const hasLoS = checkLineOfSight(ccPos, tPos, battlefield);
-
-          const pos = calculateHexPosition(tPos.col, tPos.row, HEX_SIZE);
-          const outlineColor = hasLoS ? '#00ff00' : '#ff0000';
-          drawHexOutline(ctx, pos.x, pos.y, HEX_SIZE, outlineColor, 3);
-        }
-      });
-    }
+    // Draw attack range overlay (targets + line of sight memoized above)
+    attackTargets.forEach(target => {
+      const pos = calculateHexPosition(target.col, target.row, HEX_SIZE);
+      drawHexOutline(ctx, pos.x, pos.y, HEX_SIZE, target.hasLoS ? '#00ff00' : '#ff0000', 3);
+    });
 
     // Draw combatants (use animated pixel position if available)
     let _drawnCount = 0;
@@ -867,22 +953,23 @@ function CombatCanvas({
 
     // POI ambient overlay drawn in screen space
     const poiType = battlefield?.hexContext?.poiType;
-    if (poiType && canvas) {
-      drawPoiAmbient(ctx, canvas.width, canvas.height, performance.now(), poiType);
+    if (poiType) {
+      drawPoiAmbient(ctx, width, height, performance.now(), poiType);
     }
 
     // Weather overlay drawn in screen space (after camera restore, not affected by pan)
     const weatherCond = battlefield?.hexContext?.weather;
-    if (weatherCond && canvas) {
-      drawWeatherOverlay(ctx, canvas.width, canvas.height, performance.now(), weatherCond);
+    if (weatherCond) {
+      drawWeatherOverlay(ctx, width, height, performance.now(), weatherCond);
     }
   }, [
     battlefield,
+    positionedHexes,
+    reachableHexes,
+    attackTargets,
     combatants,
     currentTurnIndex,
-    selectedAction,
     hoveredHex,
-    movementRemaining,
     cameraOffset,
     cameraZoom,
     drawTree,
@@ -894,6 +981,35 @@ function CombatCanvas({
     drawBoulder,
     drawCombatant,
   ]);
+
+  // Latest draw for the resize observer (which is registered once)
+  const drawRef = useRef(draw);
+  drawRef.current = draw;
+
+  /**
+   * Size the backing store to the canvas' CSS box (DPR-aware) and keep it in sync.
+   * Declared before the draw effects so the first paint isn't wiped by a later resize.
+   */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const resizeCanvas = () => {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const prev = canvasSizeRef.current;
+      if (prev.width === width && prev.height === height) return;
+      canvasSizeRef.current = { width, height };
+      sizeCanvasForDpr(canvas, width, height);
+      // Setting canvas.width clears it; repaint (the movement loop repaints itself).
+      if (!movementAnimRef.current) drawRef.current();
+    };
+
+    resizeCanvas();
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
 
   /**
    * Hex-by-hex movement animation.
@@ -1036,50 +1152,6 @@ function CombatCanvas({
   }, [draw]);
 
   /**
-   * Initial canvas size setup (runs once on mount)
-   */
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    canvas.width = parent.clientWidth;
-    canvas.height = parent.clientHeight;
-  }, []);
-
-  /**
-   * Handle window resize (independent of draw)
-   */
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handleResize = () => {
-      const parent = canvas.parentElement;
-      if (!parent) return;
-
-      const newWidth = parent.clientWidth;
-      const newHeight = parent.clientHeight;
-
-      // Only resize if dimensions actually changed
-      if (canvas.width !== newWidth || canvas.height !== newHeight) {
-        canvas.width = newWidth;
-        canvas.height = newHeight;
-        // Trigger redraw by changing a state value
-        draw();
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [draw]);
-
-  /**
    * Convert screen coordinates to canvas coordinates (accounting for camera transform)
    * @param {number} clientX - Screen X coordinate
    * @param {number} clientY - Screen Y coordinate
@@ -1140,12 +1212,6 @@ function CombatCanvas({
 
         const canvasPos = screenToCanvas(e.clientX, e.clientY);
 
-        // Create positioned hexes for hit detection
-        const positionedHexes = battlefield.hexes.map(hex => {
-          const pos = calculateHexPosition(hex.col, hex.row, HEX_SIZE);
-          return { ...hex, x: pos.x, y: pos.y };
-        });
-
         const newHoveredHex = findHexAtPoint(
           canvasPos.x,
           canvasPos.y,
@@ -1168,7 +1234,15 @@ function CombatCanvas({
         }
       }
     },
-    [isDragging, dragStart, cameraZoom, battlefield, screenToCanvas, onCameraChange, onHexHover]
+    [
+      isDragging,
+      dragStart,
+      battlefield,
+      positionedHexes,
+      screenToCanvas,
+      onCameraChange,
+      onHexHover,
+    ]
   );
 
   /**
@@ -1210,12 +1284,6 @@ function CombatCanvas({
       const canvasPos = screenToCanvas(e.clientX, e.clientY);
       logger.combat.debug('[CombatCanvas] Canvas position', canvasPos);
 
-      // Create positioned hexes for hit detection
-      const positionedHexes = battlefield.hexes.map(hex => {
-        const pos = calculateHexPosition(hex.col, hex.row, HEX_SIZE);
-        return { ...hex, x: pos.x, y: pos.y };
-      });
-
       const clickedHex = findHexAtPoint(
         canvasPos.x,
         canvasPos.y,
@@ -1231,7 +1299,7 @@ function CombatCanvas({
         logger.combat.debug('[CombatCanvas] No hex found at click position');
       }
     },
-    [hasDragged, battlefield, screenToCanvas, onHexClick]
+    [hasDragged, battlefield, positionedHexes, screenToCanvas, onHexClick]
   );
 
   /**
@@ -1302,6 +1370,7 @@ function CombatCanvas({
       style={{
         width: '100%',
         height: '100%',
+        display: 'block',
         cursor: isDragging ? 'grabbing' : 'grab',
         touchAction: 'none',
       }}

@@ -77,7 +77,7 @@ function QuestGiverUI({
         {/* Header */}
         <div className="quest-giver-header">
           <h2>{questGiver.name || 'Quest Giver'}</h2>
-          <button className="close-button" onClick={onClose}>
+          <button className="close-button" onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
@@ -102,6 +102,15 @@ function QuestGiverUI({
                   key={quest.id || index}
                   className={`quest-card ${selectedQuest?.id === quest.id ? 'selected' : ''}`}
                   onClick={() => setSelectedQuest(quest)}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selectedQuest?.id === quest.id}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedQuest(quest);
+                    }
+                  }}
                 >
                   <div className="quest-card-header">
                     <h4>{quest.title}</h4>

@@ -4,13 +4,8 @@ import { useGameLog } from '../contexts/GameLogContext';
 import { logRegionStats } from '../utils/regionDebug';
 import logger from '../utils/logger';
 import { StartingCacheGenerator } from '../game/StartingCacheGenerator';
-import { STARTING_CACHE } from '../constants/gameConstants';
+import { STARTING_CACHE, TERRAIN } from '../constants/gameConstants';
 import type { TerrainGenerator } from '../terrainGenerator';
-
-interface ViewportSize {
-  width: number;
-  height: number;
-}
 
 interface PoiLike {
   name?: string;
@@ -30,11 +25,10 @@ interface GeneratedHex {
  * useMapGeneration Hook
  *
  * Handles initial map generation when a new game is started.
- * Generates the map once based on seed and viewport size, then stores it in game state.
+ * Generates the map once from the seed alone, then stores it in game state.
  */
 export function useMapGeneration(
-  terrainGeneratorRef: RefObject<TerrainGenerator | null>,
-  viewportSize: ViewportSize
+  terrainGeneratorRef: RefObject<TerrainGenerator | null>
 ) {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
@@ -57,16 +51,12 @@ export function useMapGeneration(
     // Set seed for reproducible generation
     gen.setSeed(state.mapSeed);
 
-    // Calculate initial map size based on viewport to ensure full coverage
-    const hexSize = 30;
-    const initialCols = Math.ceil((viewportSize.width * 0.6) / (hexSize * Math.sqrt(3))) + 30; // +30 buffer (increased from 20)
-    const initialRows = Math.ceil((viewportSize.height * 0.8) / (hexSize * 1.5)) + 30; // +30 buffer (increased from 20)
-
-    // Generate terrain data - always start from (0, 0) for deterministic terrain
-    // New region-based generation returns { grid, regions, hexToRegion, weatherSystem }
+    // Fixed initial size (not viewport-derived) so a seed always yields the same world;
+    // infinite expansion fills in beyond it deterministically per hex.
+    // Region-based generation returns { grid, regions, hexToRegion, weatherSystem }
     const generationResult = gen.generate(
-      Math.max(initialCols, 60), // Minimum 60 cols (increased from 40)
-      Math.max(initialRows, 60), // Minimum 60 rows (increased from 50)
+      TERRAIN.MAP_INITIAL_WIDTH,
+      TERRAIN.MAP_INITIAL_HEIGHT,
       0.5, // terrainVariety
       5 // poiFrequency
     );
@@ -105,20 +95,7 @@ export function useMapGeneration(
     );
 
     if (startingHex) {
-      // Save current seed state
-      const savedSeed = gen.seed;
-
-      // Use a deterministic seed offset for the starting POI
-      const startingCacheSeed = parseInt(state.mapSeed, 10) + 999999;
-      gen.seed = startingCacheSeed;
-
-      // Generate the starting cache POI using the POI system
-      const startingCache = gen.poiSystem.generateStartingCache(gen.random.bind(gen));
-
-      startingHex.poi = startingCache;
-
-      // Restore seed state
-      gen.seed = savedSeed;
+      startingHex.poi = gen.poiSystem.generateStartingCache(gen.streamFor('startingCache'));
     }
 
     // Store map in game state (includes regions and weather system)

@@ -1151,6 +1151,7 @@ export class Character {
       currentHP: this.currentHP,
       armorClass: this.armorClass,
       proficiencyBonus: this.proficiencyBonus,
+      initiativeBonus: this.initiativeBonus,
       moveDistance: this.moveDistance,
       viewDistance: this.viewDistance,
       hitDie: this.hitDie,
@@ -1166,6 +1167,8 @@ export class Character {
       hitDiceRemaining: this.hitDiceRemaining,
       lastLongRest: this.lastLongRest,
       spellSlotsUsed: { ...this.spellSlotsUsed },
+      knownSpells: [...this.knownSpells],
+      preparedSpells: [...this.preparedSpells],
       baseStats: this.baseStats ? { ...this.baseStats } : undefined,
       rations: this.rations,
       daysWithoutFood: this.daysWithoutFood,
@@ -1199,6 +1202,7 @@ export class Character {
     char.currentHP = data.currentHP;
     char.armorClass = data.armorClass;
     char.proficiencyBonus = data.proficiencyBonus;
+    char.initiativeBonus = data.initiativeBonus || 0;
     char.moveDistance = data.moveDistance || 1;
     char.viewDistance = data.viewDistance || 2;
     char.hitDie = data.hitDie;
@@ -1227,6 +1231,8 @@ export class Character {
       data.hitDiceRemaining !== undefined ? data.hitDiceRemaining : char.level;
     char.lastLongRest = data.lastLongRest || 0;
     char.spellSlotsUsed = data.spellSlotsUsed ? { ...data.spellSlotsUsed } : {};
+    char.knownSpells = Array.isArray(data.knownSpells) ? [...data.knownSpells] : [];
+    char.preparedSpells = Array.isArray(data.preparedSpells) ? [...data.preparedSpells] : [];
     char.baseStats = data.baseStats ? { ...data.baseStats } : undefined;
 
     char.rations = data.rations !== undefined ? data.rations : 7;

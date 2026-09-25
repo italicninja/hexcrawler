@@ -461,10 +461,11 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
       addMessage('[DEV] No map data yet', 'error');
       return;
     }
-    // Dispatch REVEAL_AROUND_PLAYER for every hex in a grid scan
-    // Use SET_MAP_DATA with all hexes marked as explored via ADD_EXPLORED_HEX
-    state.mapData.forEach(hex => {
-      dispatch({ type: actions.ADD_EXPLORED_HEX, payload: `${hex.col},${hex.row}` });
+    // Single batch dispatch — per-hex ADD_EXPLORED_HEX dispatches tripped
+    // the infinite dispatch loop detector on maps with >100 hexes
+    dispatch({
+      type: actions.ADD_EXPLORED_HEXES,
+      payload: state.mapData.map(hex => `${hex.col},${hex.row}`),
     });
     addMessage(`[DEV] Revealed ${state.mapData.length} hexes`, 'system');
     logger.general.info('DEV Reveal All', { hexCount: state.mapData.length });
@@ -574,13 +575,7 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
   };
 
   const handleWipeSaves = () => {
-    Object.values(SaveManager.SAVE_SLOTS).forEach(slot => {
-      try {
-        localStorage.removeItem(slot);
-      } catch {
-        // ignore
-      }
-    });
+    Object.values(SaveManager.SAVE_SLOTS).forEach(slot => SaveManager.deleteSlot(slot));
     localStorage.removeItem(SaveManager.ACTIVE_SLOT_KEY);
     localStorage.removeItem(SaveManager.LAST_QUICKSAVE_KEY);
     addMessage('[DEV] All save slots wiped', 'system');

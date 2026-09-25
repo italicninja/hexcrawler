@@ -24,27 +24,6 @@
   color: #fff;
 }
 
-.close-button {
-  background: none;
-  border: none;
-  font-size: 32px;
-  color: #999;
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.close-button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
 .save-slots-container {
   margin-bottom: 16px;
 }
@@ -55,12 +34,6 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 0 0 12px 0;
-}
-
-.slot-divider {
-  height: 1px;
-  background: #444;
-  margin: 24px 0;
 }
 
 .save-slot-manager-footer {
@@ -113,9 +86,6 @@
 }
 
 /* Remove slot-divider within grid (no longer needed) */
-.save-slots-grid .slot-divider {
-  display: none;
-}
 
 /* Responsive: Stack columns on smaller screens */
 @media (max-width: 768px) {

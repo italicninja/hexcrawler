@@ -17,10 +17,12 @@ import { Party } from '../../game/Party';
 import { Quest } from '../../game/Quest';
  
 import { Shop } from '../../game/Shop';
-import { createGameTime, advanceTime } from '../../game/TimeManager';
+import { advanceTime } from '../../game/TimeManager';
+import { createInitialState } from '../initialState';
 import { GAME_DEFAULTS } from '../../constants/gameConstants';
  
 import { WeatherSystem } from '../../WeatherSystem';
+import { HexGrid } from '../../utils/HexGrid';
 import type { GameState, Action } from '../../types/state';
 import logger from '../../utils/logger';
 
@@ -39,42 +41,15 @@ export function gameReducer(
     case ACTIONS.NEW_GAME: {
       const mapSeed = action.payload;
 
-      // Transition to character creation scene instead of creating default character
-      // This matches the expected flow: Title -> CharacterCreation -> Overworld
+      // Start from a fresh initial state so nothing (interior floors, quests, shops,
+      // pending loot, ...) leaks from the previous game, then apply the new-game fields.
+      // Flow: Title -> CharacterCreation -> Overworld
       return {
-        ...state,
-        playerPosition: GAME_DEFAULTS.START_POSITION,
-        playerCharacter: null,
-        party: null,
-        mapData: null,
+        ...createInitialState(),
         mapSeed,
-        hexGrid: null,
-        regions: [],
-        hexToRegion: null,
-        weatherSystem: null,
-        exploredHexes: new Set(),
-        discoveredPOIs: new Set(),
-        currentScene: 'characterCreation',
         characterCreationSeed: mapSeed,
-        hasActiveEvent: false,
-        interiorMaps: {},
-        currentPOI: null,
-        interiorPlayerPosition: null,
-        inInterior: false,
-        explorationState: {
-          searchedPOIs: new Set(),
-          clearedEncounters: {},
-          collectedLoot: {},
-          triggeredHazards: {},
-        },
-        gameTime: createGameTime(),
-        playtime: 0,
-        combatLog: [],
+        currentScene: 'characterCreation',
         combatState: null,
-        activeQuests: [],
-        completedQuests: [],
-        townQuests: {},
-        shopInventories: {},
       };
     }
 
@@ -190,6 +165,10 @@ export function gameReducer(
         currentPOI: null,
         interiorPlayerPosition: null,
         interiorMaps: {},
+        interiorFloors: {},
+        currentFloor: 0,
+        // hexGrid isn't serialized; rebuild it or movement reads the previous game's map
+        hexGrid: loadedState.mapData ? new HexGrid(loadedState.mapData) : null,
       };
     }
 

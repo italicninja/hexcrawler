@@ -66,6 +66,15 @@ export function mapReducer(
         exploredHexes: new Set([...state.exploredHexes, action.payload]),
       };
 
+    // Batch reveal (payload: string[] of hex keys) — one dispatch for many
+    // hexes so callers like DevTools' Reveal All don't trip the infinite
+    // dispatch loop detector with hundreds of ADD_EXPLORED_HEX dispatches.
+    case ACTIONS.ADD_EXPLORED_HEXES:
+      return {
+        ...state,
+        exploredHexes: new Set([...state.exploredHexes, ...action.payload]),
+      };
+
     case ACTIONS.REVEAL_AROUND_PLAYER: {
       const { col, row } = action.payload;
       const newExploredHexes = new Set(state.exploredHexes);

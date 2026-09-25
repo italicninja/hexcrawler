@@ -5,17 +5,13 @@ export default {
     './pages/**/*.{js,jsx}',
     './components/**/*.{js,jsx}',
     './app/**/*.{js,jsx}',
-    './src/**/*.{js,jsx}',
+    './index.html',
+    './src/**/*.{ts,tsx}',
   ],
   prefix: "",
+  // style.css defines its own .container layout class
+  corePlugins: { container: false },
   theme: {
-    container: {
-      center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
-    },
     extend: {
       colors: {
         border: "hsl(var(--border))",

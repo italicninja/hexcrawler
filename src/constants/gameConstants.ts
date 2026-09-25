@@ -408,8 +408,9 @@ export const SURVIVAL = {
 // TERRAIN
 // ===================
 export const TERRAIN = {
-  MAP_INITIAL_WIDTH: 30,
-  MAP_INITIAL_HEIGHT: 20,
+  // Initial world size is fixed (never viewport-derived) so a seed is reproducible
+  MAP_INITIAL_WIDTH: 60,
+  MAP_INITIAL_HEIGHT: 60,
   EXPANSION_CHUNK_SIZE: 10,
   EXPANSION_THRESHOLD: 5, // Hexes from edge before expanding
   VIEWPORT_WIDTH_RATIO: 0.6, // Approximate canvas width relative to viewport
@@ -482,6 +483,8 @@ export const QUEST = {
 export const SAVE = {
   VERSION: '5.0',
   AUTO_SAVE_DEBOUNCE_MS: 500,
+  // Minimum gap between autosaves triggered by overworld movement/time passing
+  AUTO_SAVE_INTERVAL_MS: 30000,
   MAX_SAVE_SLOTS: 3,
   PLAYTIME_UPDATE_INTERVAL_MS: 1000,
 };

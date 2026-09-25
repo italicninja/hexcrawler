@@ -107,6 +107,13 @@ export function useInfiniteTerrainExpansion(
 
     // Keep same seed for consistent generation
     gen.setSeed(state.mapSeed);
+    // After a reload the generator is fresh: give it the saved world so expanded hexes
+    // get regional weather instead of falling back to clear skies.
+    if (!gen.weatherSystem && state.weatherSystem) {
+      gen.weatherSystem = state.weatherSystem;
+      gen.regions = state.regions as unknown as TerrainGenerator['regions'];
+      gen.hexToRegion = state.hexToRegion as TerrainGenerator['hexToRegion'];
+    }
 
     // Generate new hexes based on direction
     const newHexes = generateExpansionHexes(
@@ -143,7 +150,7 @@ export function useInfiniteTerrainExpansion(
  * @param {string} direction - Direction to expand ('north', 'south', 'east', 'west')
  * @param {Object} boundaries - Current map boundaries { minCol, maxCol, minRow, maxRow }
  */
-function generateExpansionHexes(
+export function generateExpansionHexes(
   terrainGenerator: TerrainGenerator,
   direction: string,
   boundaries: MapBounds,

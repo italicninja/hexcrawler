@@ -210,7 +210,7 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
       className="survival-menu"
       style={{
         padding: '1rem',
-        backgroundColor: 'var(--bg-primary)',
+        backgroundColor: 'var(--bg-color)',
         border: '1px solid var(--border-color)',
         borderRadius: '0.5rem',
         maxWidth: '400px',
@@ -223,7 +223,7 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
         style={{
           marginBottom: '1rem',
           padding: '0.5rem',
-          backgroundColor: 'var(--bg-secondary)',
+          backgroundColor: 'var(--bg-light)',
           borderRadius: '0.25rem',
         }}
       >
@@ -306,8 +306,8 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
             width: '100%',
             padding: '0.5rem',
             backgroundColor:
-              isForaging || isAreaFullyForaged ? 'var(--bg-tertiary)' : 'var(--color-primary)',
-            color: 'white',
+              isForaging || isAreaFullyForaged ? 'var(--bg-lighter)' : 'var(--primary-color)',
+            color: isForaging || isAreaFullyForaged ? 'var(--text-muted)' : 'var(--on-primary)',
             border: 'none',
             borderRadius: '0.25rem',
             cursor: isForaging || isAreaFullyForaged ? 'not-allowed' : 'pointer',
@@ -322,7 +322,7 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
       <div
         style={{
           padding: '0.75rem',
-          backgroundColor: 'var(--bg-secondary)',
+          backgroundColor: 'var(--bg-light)',
           borderRadius: '0.25rem',
           fontSize: '0.85rem',
           color: 'var(--text-muted)',
@@ -348,7 +348,7 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
             width: '100%',
             padding: '0.5rem',
             marginTop: '1rem',
-            backgroundColor: 'var(--bg-secondary)',
+            backgroundColor: 'var(--bg-light)',
             color: 'var(--text-color)',
             border: '1px solid var(--border-color)',
             borderRadius: '0.25rem',

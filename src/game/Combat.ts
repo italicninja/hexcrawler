@@ -876,16 +876,7 @@ export class Combat {
     let hasAdvantage = false;
     let hasDisadvantage = false;
 
-    // Attacker: Rage grants Advantage on STR melee attacks
-    if (attacker.character) {
-      const attackerRage = attacker.statusEffects?.find(
-        e => e.name === 'Rage' && e.effects?.strengthAdvantage
-      );
-      if (attackerRage && attackType === 'melee') {
-        hasAdvantage = true;
-      }
-    }
-
+    // Rage (PHB'24) grants no attack advantage either way — that's Reckless Attack's job.
     // Attacker: Reckless Attack grants Advantage on STR melee attacks
     const attackerReckless = attacker.statusEffects?.find(
       e => e.name === 'Reckless Attack' && e.effects?.advantageOnStrAttacks
@@ -899,12 +890,6 @@ export class Combat {
       e => e.name === 'Reckless Attack' && e.effects?.vulnerableToAdvantage
     );
     if (targetReckless) {
-      hasAdvantage = true;
-    }
-
-    // Defender: Rage — attackers gain Advantage against a raging combatant (PHB'24 p51)
-    const targetRaging = target.statusEffects?.find(e => e.name === 'Rage');
-    if (targetRaging) {
       hasAdvantage = true;
     }
 
@@ -1033,7 +1018,8 @@ export class Combat {
         const baseDamage = this.diceRoller.damageRoll(weaponDamage, damageType);
         damage = baseDamage;
         if (critical) {
-          damage += this.diceRoller.damageRoll(weaponDamage, damageType);
+          // Crits double the dice, not the flat bonus (enemy strings like '1d6+2')
+          damage += this.diceRoller.damageRoll(weaponDamage.replace(/[+-]\d+$/, ''), damageType);
         }
 
         // --- Rage resistance (PHB'24): target with Rage takes half BPS damage ---
@@ -1138,7 +1124,9 @@ export class Combat {
       };
     }
 
-    const target = targetId ? this.getCombatantById(targetId) : null;
+    if (!caster.character) {
+      return { success: false, message: 'Only characters can cast spells' };
+    }
 
     // Get spell - need to check caster's class
     const className = caster.character.class || caster.character.className;
@@ -1149,6 +1137,14 @@ export class Combat {
         success: false,
         message: `Spell not found: ${spellName}`,
       };
+    }
+
+    // Self spells target the caster; everything else needs a living target.
+    const target =
+      spell.targetType === 'self' ? caster : targetId ? this.getCombatantById(targetId) : null;
+    const targetStats = target ? target.character || target.enemy : null;
+    if (!target || !targetStats) {
+      return { success: false, message: `${spell.name} needs a target` };
     }
 
     // Check if caster has spell slots (unless it's a cantrip)
@@ -1168,13 +1164,25 @@ export class Combat {
     // Cast spell
     const result = (spell.cast as (...args: any[]) => any)(
       caster.character,
-      target?.character || null,
+      targetStats,
       this.diceRoller
     );
 
-    // Use spell slot if not a cantrip and cast was successful
-    if (result.success && !isCantrip) {
+    if (!result.success) return result;
+
+    // Use spell slot if not a cantrip
+    if (!isCantrip) {
       spendSpellSlot(caster.character, spellLevel);
+    }
+
+    // Apply damage / healing to the target combatant and its underlying Character/Enemy
+    const damage = Number(result.damage) || 0;
+    const healing = Number(result.healing) || 0;
+    if (damage || healing) {
+      const maxHp = target.maxHp ?? target.maxHP ?? targetStats.maxHP ?? Infinity;
+      const hp = target.hp ?? target.currentHP ?? targetStats.currentHP ?? 0;
+      target.hp = Math.max(0, Math.min(maxHp, hp - damage + healing));
+      targetStats.currentHP = target.hp;
     }
 
     return result;

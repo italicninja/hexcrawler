@@ -7,6 +7,7 @@ import { WeatherSystem, type WeatherType } from './WeatherSystem';
 import logger from './utils/logger';
 import { getHexDistance } from './utils/hexMath';
 import { GAME_DEFAULTS } from './constants/gameConstants';
+import { createSeededRNG, hashSeed, seedToNumber } from './utils/seededRandom';
 
 interface TerrainType {
   key: string;
@@ -56,6 +57,7 @@ export class TerrainGenerator {
   terrainTypes: Record<string, TerrainType>;
   poiTypes: POITypeWeight[];
   seed: number;
+  rng: () => number;
   noise: PerlinNoise;
   terrainAlgorithms: TerrainAlgorithms;
   riverGenerator: RiverGenerator;
@@ -69,16 +71,18 @@ export class TerrainGenerator {
   startRow?: number;
 
   constructor() {
+    // Muted, earthy OSRS world-map palette (kept in sync with the tone ramps
+    // in utils/hexTextureGenerator.ts — these are the middle "base" tones)
     this.terrainTypes = {
-      water: { key: 'water', name: 'Water', color: '#4682B4', difficulty: 4 },
-      river: { key: 'river', name: 'River', color: '#5B9BD5', difficulty: 2 },
-      swamp: { key: 'swamp', name: 'Swamp', color: '#4F7942', difficulty: 3 },
-      grassland: { key: 'grassland', name: 'Grassland', color: '#90EE90', difficulty: 1 },
-      forest: { key: 'forest', name: 'Forest', color: '#228B22', difficulty: 2 },
-      hills: { key: 'hills', name: 'Hills', color: '#8B7355', difficulty: 2 },
-      mountains: { key: 'mountains', name: 'Mountains', color: '#696969', difficulty: 3 },
-      desert: { key: 'desert', name: 'Desert', color: '#EDC9AF', difficulty: 2 },
-      tundra: { key: 'tundra', name: 'Tundra', color: '#E0E0E0', difficulty: 2 },
+      water: { key: 'water', name: 'Water', color: '#4a698c', difficulty: 4 },
+      river: { key: 'river', name: 'River', color: '#5a7da3', difficulty: 2 },
+      swamp: { key: 'swamp', name: 'Swamp', color: '#4c5a36', difficulty: 3 },
+      grassland: { key: 'grassland', name: 'Grassland', color: '#56793f', difficulty: 1 },
+      forest: { key: 'forest', name: 'Forest', color: '#3d5930', difficulty: 2 },
+      hills: { key: 'hills', name: 'Hills', color: '#6e7045', difficulty: 2 },
+      mountains: { key: 'mountains', name: 'Mountains', color: '#6b675e', difficulty: 3 },
+      desert: { key: 'desert', name: 'Desert', color: '#c9b385', difficulty: 2 },
+      tundra: { key: 'tundra', name: 'Tundra', color: '#c7cdd1', difficulty: 2 },
     };
 
     this.poiTypes = [
@@ -95,6 +99,7 @@ export class TerrainGenerator {
     // applyRegionalWeather(), keeping weather consistent and biome-aware.
 
     this.seed = Date.now();
+    this.rng = createSeededRNG(`${this.seed}:terrain`);
     this.noise = new PerlinNoise(this.seed);
     this.terrainAlgorithms = new TerrainAlgorithms(this.noise);
     this.riverGenerator = new RiverGenerator(this.noise);
@@ -109,8 +114,18 @@ export class TerrainGenerator {
   }
 
   setSeed(seed: string | number | null): void {
-    this.seed = seed ? parseInt(String(seed), 10) : Date.now();
+    this.seed = seed ? seedToNumber(seed) : Date.now();
+    this.rng = createSeededRNG(`${this.seed}:terrain`);
     this.noise.setSeed(this.seed);
+  }
+
+  /**
+   * Independent RNG for one purpose (and optionally one hex), so streams never overlap
+   * and a hex's content doesn't depend on generation order or map bounds.
+   */
+  streamFor(purpose: string, col?: number, row?: number): () => number {
+    const where = col === undefined ? '' : `:${col},${row}`;
+    return createSeededRNG(`${this.seed}:${purpose}${where}`);
   }
 
   initializeRegions(width: number, height: number): void {
@@ -126,7 +141,7 @@ export class TerrainGenerator {
     this.startCol = startCol;
     this.startRow = startRow;
 
-    this.regionGenerator = new RegionGenerator(this.seed, width, height);
+    this.regionGenerator = new RegionGenerator(hashSeed(`${this.seed}:region`), width, height);
     // Pass start position so region 0 is pinned there and forced to Temperate Forest
     const { regions, hexToRegion } = this.regionGenerator.generate(null, startCol, startRow);
     this.regions = regions;
@@ -137,7 +152,7 @@ export class TerrainGenerator {
     // WeatherType — same runtime objects, so cast through the boundary.
     this.weatherSystem = new WeatherSystem(
       this.regions as unknown as ConstructorParameters<typeof WeatherSystem>[0],
-      this.seed + 1000,
+      hashSeed(`${this.seed}:weather`),
       width,
       height
     );
@@ -153,10 +168,9 @@ export class TerrainGenerator {
     this.algorithm = algorithm;
   }
 
-  // Simple seeded random number generator
+  // Seeded terrain stream (reset by setSeed)
   random(): number {
-    const x = Math.sin(this.seed++) * 10000;
-    return x - Math.floor(x);
+    return this.rng();
   }
 
   generate(

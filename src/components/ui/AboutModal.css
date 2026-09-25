@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: var(--z-modal);
 }
 
 /* Modal Container */
@@ -107,7 +107,7 @@
   padding-top: 1rem;
   border-top: 1px solid var(--border-color);
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -132,29 +132,11 @@
 }
 
 .btn-close:hover {
-  background: var(--hover-bg);
+  background: var(--bg-lighter);
   border-color: var(--accent-color);
 }
 
 /* Close Button (×) */
-.close-button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s;
-}
-
-.close-button:hover {
-  color: var(--text-color);
-}
-
 /* Mobile Responsive */
 @media (max-width: 640px) {
   .about-modal {

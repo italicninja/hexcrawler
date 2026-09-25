@@ -22,6 +22,8 @@ interface UseCanvasAnimationParams {
   playerPosition: HexCoordinates;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   hexes: any[];
+  /** Player slide duration in ms (default 300). */
+  moveDuration?: number;
 }
 
 interface UseCanvasAnimationReturn {
@@ -34,6 +36,8 @@ interface UseCanvasAnimationReturn {
     smooth?: boolean
   ) => void;
   currentCameraRef: React.MutableRefObject<VisualPosition>;
+  /** Force a redraw on the next frame (e.g. after a canvas resize clears it). */
+  invalidate: () => void;
 }
 
 /**
@@ -42,7 +46,8 @@ interface UseCanvasAnimationReturn {
  * Handles canvas animation loop including:
  * - Smooth camera movement with lerp
  * - Player movement animation with easing
- * - Continuous 60fps rendering loop
+ * - rAF loop that only redraws when something changed (render, camera ease,
+ *   player animation, or invalidate())
  */
 export function useCanvasAnimation({
   drawCallback,
@@ -52,6 +57,7 @@ export function useCanvasAnimation({
   setOffsetY,
   playerPosition,
   hexes,
+  moveDuration = 300,
 }: UseCanvasAnimationParams): UseCanvasAnimationReturn {
   const animationFrameRef = useRef<number | null>(null);
   const targetCameraRef = useRef<VisualPosition>({ x: 0, y: 0 });
@@ -61,9 +67,12 @@ export function useCanvasAnimation({
   const playerVisualPosRef = useRef<VisualPosition | null>(null);
   const playerAnimationRef = useRef<PlayerAnimation | null>(null);
   const drawRef = useRef<() => void>(drawCallback);
+  const dirtyRef = useRef(true);
 
+  // A new drawCallback means the component re-rendered with new data.
   useEffect(() => {
     drawRef.current = drawCallback;
+    dirtyRef.current = true;
   }, [drawCallback]);
 
   const centerCameraOnHex = (
@@ -98,7 +107,10 @@ export function useCanvasAnimation({
     const animate = () => {
       if (!running) return;
 
+      let changed = dirtyRef.current;
+
       if (playerAnimationRef.current) {
+        changed = true;
         const { startPos, endPos, startTime, duration } = playerAnimationRef.current;
         const elapsed = performance.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
@@ -125,13 +137,17 @@ export function useCanvasAnimation({
         currentCameraRef.current.y += dy * lerpSpeed;
         setOffsetX(currentCameraRef.current.x);
         setOffsetY(currentCameraRef.current.y);
-      } else {
+        changed = true;
+      } else if (dx !== 0 || dy !== 0) {
         currentCameraRef.current = { ...targetCameraRef.current };
         setOffsetX(targetCameraRef.current.x);
         setOffsetY(targetCameraRef.current.y);
+        changed = true;
       }
 
-      if (drawRef.current) {
+      // Idle frames cost nothing: skip the full-map repaint when nothing moved.
+      if (changed) {
+        dirtyRef.current = false;
         drawRef.current();
       }
 
@@ -172,7 +188,7 @@ export function useCanvasAnimation({
       startPos,
       endPos,
       startTime: performance.now(),
-      duration: 300,
+      duration: moveDuration,
     };
 
     previousPlayerPosRef.current = currentPos;
@@ -182,5 +198,8 @@ export function useCanvasAnimation({
     playerVisualPosRef,
     centerCameraOnHex,
     currentCameraRef,
+    invalidate: () => {
+      dirtyRef.current = true;
+    },
   };
 }

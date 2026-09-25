@@ -13,6 +13,16 @@ import { TerrainGenerator } from '../../terrainGenerator';
 import { formatTime } from '../../game/TimeManager';
 import { Character } from '../../game/Character';
 import { FEATURES } from '../../constants/gameConstants';
+import {
+  User,
+  Users,
+  Swords,
+  Tent,
+  Trees,
+  ScrollText,
+  Save,
+  Settings as SettingsIcon,
+} from 'lucide-react';
 import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
 import PartyList from '../ui/PartyList';
@@ -29,6 +39,7 @@ import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import { CombatCanvasPane, CombatActionPane } from './CombatSceneWrapper';
 import MenuSidebar from '../ui/MenuSidebar';
 import MenuPanel from '../ui/MenuPanel';
+import Modal from '../ui/Modal';
 import AIInspector from '../debug/AIInspector';
 import DevTools from '../debug/DevTools';
 import type { SceneHex } from '../../types/scene';
@@ -48,6 +59,9 @@ const CLASS_ICONS: Record<string, string> = {
   monk: '👊',
 };
 
+// Sidebar menu icons: inline SVG so they render the same on every OS (emoji don't)
+const MENU_ICON = { size: 22, strokeWidth: 1.75, 'aria-hidden': true } as const;
+
 function OverworldScene() {
   const { state, isHexReachable } = useGameState();
   const { settings } = useSettings();
@@ -66,7 +80,7 @@ function OverworldScene() {
   // AI Inspector toggle (via URL param)
   const [showAIInspector] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('aiInspector') === 'true';
+    return import.meta.env.DEV && params.get('aiInspector') === 'true';
   });
 
   // Combat behaviour: victory/defeat detection, initiative logging, AI turns,
@@ -103,7 +117,7 @@ function OverworldScene() {
   }, []);
 
   // Use custom hooks for map generation and expansion
-  useMapGeneration(terrainGeneratorRef, viewportSize);
+  useMapGeneration(terrainGeneratorRef);
   useInfiniteTerrainExpansion(terrainGeneratorRef, viewportSize);
 
   // Update selected character when player character changes
@@ -123,26 +137,26 @@ function OverworldScene() {
       {
         id: 'character',
         label: 'Character',
-        icon: '👤',
+        icon: <User {...MENU_ICON} />,
         description: 'View character stats',
       },
       {
         id: 'party',
         label: 'Party',
-        icon: '👥',
+        icon: <Users {...MENU_ICON} />,
         description: 'Manage party members',
         badge: state.party?.npcs?.filter((npc: unknown) => npc).length || 0,
       },
       {
         id: 'equipment',
         label: 'Equipment',
-        icon: '⚔️',
+        icon: <Swords {...MENU_ICON} />,
         description: 'Manage inventory & gear',
       },
       {
         id: 'rest',
         label: 'Rest',
-        icon: '🏕️',
+        icon: <Tent {...MENU_ICON} />,
         description: 'Rest and recover',
       },
       ...(FEATURES.SURVIVAL_ENABLED
@@ -150,7 +164,7 @@ function OverworldScene() {
             {
               id: 'survival',
               label: 'Survival',
-              icon: '🌲',
+              icon: <Trees {...MENU_ICON} />,
               description: 'Forage and hunt',
               disabled: !!state.combatState?.active,
               disabledReason: 'Cannot forage during combat',
@@ -160,20 +174,20 @@ function OverworldScene() {
       {
         id: 'quests',
         label: 'Quests',
-        icon: '📜',
+        icon: <ScrollText {...MENU_ICON} />,
         description: 'Track your quests',
         badge: state.activeQuests?.length || 0,
       },
       {
         id: 'save',
         label: 'Save',
-        icon: '💾',
+        icon: <Save {...MENU_ICON} />,
         description: 'Save your game',
       },
       {
         id: 'config',
         label: 'Config',
-        icon: '⚙️',
+        icon: <SettingsIcon {...MENU_ICON} />,
         description: 'Game settings',
       },
     ];
@@ -281,7 +295,7 @@ function OverworldScene() {
           <h2 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.25rem' }}>hexcrawler</h2>
 
           {/* Dev Tools */}
-          <DevTools terrainGeneratorRef={terrainGeneratorRef} />
+          {import.meta.env.DEV && <DevTools terrainGeneratorRef={terrainGeneratorRef} />}
         </div>
 
         <div
@@ -438,7 +452,6 @@ function OverworldScene() {
             /* Hex Details */
             <HexDetails
               hex={selectedHex as unknown as Parameters<typeof HexDetails>[0]['hex']}
-              terrainGenerator={terrainGeneratorRef.current}
               onMoveClick={overworld.handleMoveToHex as unknown as Parameters<typeof HexDetails>[0]['onMoveClick']}
             />
           )}
@@ -530,13 +543,14 @@ function OverworldScene() {
       </div>
 
       {/* Save Menu Modal */}
-      {showSaveMenu && (
-        <div className="modal-overlay" onClick={() => setShowSaveMenu(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <SaveSlotManager mode="save" onClose={() => setShowSaveMenu(false)} />
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={showSaveMenu}
+        onClose={() => setShowSaveMenu(false)}
+        overlayClassName="modal-overlay"
+        className="modal-content"
+      >
+        <SaveSlotManager mode="save" onClose={() => setShowSaveMenu(false)} />
+      </Modal>
 
       {/* AI Inspector (dev mode only) */}
       {showAIInspector && (

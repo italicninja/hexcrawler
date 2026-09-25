@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useEventListener } from '../../hooks/useEventListener';
+import Modal, { ModalTitle } from './Modal';
 import './ChangelogModal.css';
 
 /**
@@ -20,13 +20,6 @@ interface Commit {
 }
 
 function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
-  // Escape key handler
-  useEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && isOpen) {
-      onClose();
-    }
-  });
-
   // Parse and group git log
   const changelog = useMemo(() => {
     const gitLogRaw = import.meta.env.VITE_GIT_LOG || '';
@@ -79,42 +72,43 @@ function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     return grouped;
   }, []);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="changelog-overlay" onClick={onClose}>
-      <div className="changelog-modal" onClick={e => e.stopPropagation()}>
-        <div className="changelog-header">
-          <h2>Changelog</h2>
-          <button className="close-button" onClick={onClose} aria-label="Close">
-            &times;
-          </button>
-        </div>
-
-        <div className="changelog-content">
-          {Object.keys(changelog).length === 0 ? (
-            <p className="changelog-empty">No changelog available</p>
-          ) : (
-            Object.entries(changelog).map(([date, commits]) => (
-              <div key={date} className="changelog-section">
-                <h3 className="changelog-date">{date}</h3>
-                <ul className="changelog-list">
-                  {commits.map(commit => (
-                    <li key={commit.hash}>{commit.subject}</li>
-                  ))}
-                </ul>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="changelog-footer">
-          <button onClick={onClose} className="btn-close">
-            Close
-          </button>
-        </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      overlayClassName="changelog-overlay"
+      className="changelog-modal"
+    >
+      <div className="changelog-header">
+        <ModalTitle>Changelog</ModalTitle>
+        <button className="close-button" onClick={onClose} aria-label="Close">
+          &times;
+        </button>
       </div>
-    </div>
+
+      <div className="changelog-content">
+        {Object.keys(changelog).length === 0 ? (
+          <p className="changelog-empty">No changelog available</p>
+        ) : (
+          Object.entries(changelog).map(([date, commits]) => (
+            <div key={date} className="changelog-section">
+              <h3 className="changelog-date">{date}</h3>
+              <ul className="changelog-list">
+                {commits.map(commit => (
+                  <li key={commit.hash}>{commit.subject}</li>
+                ))}
+              </ul>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="changelog-footer">
+        <button onClick={onClose} className="btn-close">
+          Close
+        </button>
+      </div>
+    </Modal>
   );
 }
 

@@ -1,9 +1,9 @@
 import { createContext, useContext, useReducer, useEffect, useRef, useMemo } from 'react';
-import { createGameTime } from '../game/TimeManager';
 import { SaveManager } from '../utils/SaveManager';
 import { getHexDistance } from '../utils/hexMath';
-import { GAME_DEFAULTS, COMBAT } from '../constants/gameConstants';
+import { SAVE } from '../constants/gameConstants';
 import { combinedReducer } from './reducers/index';
+import { createInitialState } from './initialState';
 import logger from '../utils/logger';
 import type { GameState, Action, GameStateContextValue } from '../types/state';
 import type { POI } from '../types/game';
@@ -19,6 +19,7 @@ export const ACTIONS = {
   SET_MAP_DATA: 'SET_MAP_DATA',
   SET_MAP_SEED: 'SET_MAP_SEED',
   ADD_EXPLORED_HEX: 'ADD_EXPLORED_HEX',
+  ADD_EXPLORED_HEXES: 'ADD_EXPLORED_HEXES',
   REVEAL_AROUND_PLAYER: 'REVEAL_AROUND_PLAYER',
   DISCOVER_POI: 'DISCOVER_POI',
   LOAD_GAME: 'LOAD_GAME',
@@ -113,84 +114,10 @@ interface ExtendedContextValue extends GameStateContextValue {
 }
 
 // ---------------------------------------------------------------------------
-// Initial state
-// ---------------------------------------------------------------------------
-
-const initialState: GameState = {
-  playerPosition: GAME_DEFAULTS.START_POSITION,
-  playerCharacter: null,
-  party: null,
-  mapData: null,
-  mapSeed: '',
-  hexGrid: null,
-  regions: [],
-  hexToRegion: null,
-  weatherSystem: null,
-  exploredHexes: new Set<string>(),
-  discoveredPOIs: new Set<string>(),
-  currentScene: 'title',
-  newGameSeed: null,
-  characterCreationSeed: null,
-  hasActiveEvent: false,
-  // Interior/exploration state
-  interiorMaps: {},
-  interiorFloors: {},
-  currentFloor: 0,
-  interiorMap: null,
-  currentPOI: null,
-  interiorPlayerPosition: null,
-  inInterior: false,
-  explorationState: {
-    searchedPOIs: new Set<string>(),
-    clearedEncounters: {},
-    collectedLoot: {},
-    triggeredHazards: {},
-  },
-  // Time tracking
-  gameTime: createGameTime(),
-  playtime: 0,
-  // Combat state
-  combatLog: [],
-  combatState: {
-    active: false,
-    combat: null,
-    battlefield: null,
-    turnOrder: [],
-    currentTurnIndex: 0,
-    round: 1,
-    encounterName: '',
-    encounterType: 'standard',
-    waitingForPlayerAction: false,
-    movementRemaining: COMBAT.DEFAULT_MOVEMENT_FEET,
-    turnState: {
-      actionUsed: false,
-      bonusActionUsed: false,
-      reactionUsed: false,
-      movementUsed: 0,
-      freeObjectUsed: false,
-      attacksMade: 0,
-      conditions: [],
-      readyAction: null,
-    },
-  },
-  // Quest state
-  activeQuests: [],
-  completedQuests: [],
-  failedQuests: [],
-  availableQuests: [],
-  townQuests: {},
-  // Shop state
-  currentShop: null,
-  shopInventories: {},
-  // Misc
-  activeEvent: null,
-  pendingLoot: null,
-  leveledUp: false,
-};
-
-// ---------------------------------------------------------------------------
 // Context
 // ---------------------------------------------------------------------------
+
+const AUTOSAVE_SCENES = new Set(['overworld', 'exploration', 'town']);
 
 const GameStateContext = createContext<ExtendedContextValue | null>(null);
 
@@ -213,7 +140,7 @@ export { getHexDistance, isHexReachable } from '../utils/hexMath';
 // ---------------------------------------------------------------------------
 
 export function GameStateProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(gameStateReducer, initialState);
+  const [state, dispatch] = useReducer(gameStateReducer, undefined, createInitialState);
   const playtimeStartRef = useRef<number>(Date.now());
   const playtimeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -239,30 +166,49 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     return undefined;
   }, [state.currentScene, state.playerCharacter]);
 
-  // Event-based auto-save
+  // Auto-save. A save serializes the whole map, so it is throttled:
+  //  - milestones (scene change, quest completion, combat start/end) save after a short debounce
+  //  - movement/time/character changes save at most every AUTO_SAVE_INTERVAL_MS (trailing)
+  //  - tab hide / page unload flush immediately so progress isn't lost
+  const stateRef = useRef(state);
+  const lastAutoSaveRef = useRef(0);
   useEffect(() => {
-    if (!state.playerCharacter || state.currentScene === 'title') {
-      return undefined;
-    }
+    stateRef.current = state;
+  });
 
-    const scene = state.currentScene as string;
-    const shouldAutoSave = scene === 'overworld' || scene === 'exploration' || scene === 'town';
+  const writeAutosave = () => {
+    const s = stateRef.current;
+    if (!s.playerCharacter || !AUTOSAVE_SCENES.has(s.currentScene as string)) return;
+    SaveManager.saveToSlot(SaveManager.SAVE_SLOTS.AUTOSAVE, s);
+    lastAutoSaveRef.current = Date.now();
+  };
 
-    if (shouldAutoSave) {
-      const timeoutId = setTimeout(() => {
-        SaveManager.saveToSlot(SaveManager.SAVE_SLOTS.AUTOSAVE, state);
-      }, 500);
+  useEffect(() => {
+    const timeoutId = setTimeout(writeAutosave, SAVE.AUTO_SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timeoutId);
+  }, [state.currentScene, state.completedQuests.length, state.combatState?.active]);
 
-      return () => clearTimeout(timeoutId);
-    }
-    return undefined;
-  }, [
-    state.currentScene,
-    state.playerCharacter,
-    state.gameTime,
-    state.completedQuests.length,
-    state.combatState?.active,
-  ]);
+  useEffect(() => {
+    // Deadline stays fixed at lastSave + interval, so rescheduling on every move doesn't postpone it
+    const wait = Math.max(
+      SAVE.AUTO_SAVE_DEBOUNCE_MS,
+      lastAutoSaveRef.current + SAVE.AUTO_SAVE_INTERVAL_MS - Date.now()
+    );
+    const timeoutId = setTimeout(writeAutosave, wait);
+    return () => clearTimeout(timeoutId);
+  }, [state.gameTime, state.playerCharacter, state.playerPosition]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') writeAutosave();
+    };
+    window.addEventListener('beforeunload', writeAutosave);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('beforeunload', writeAutosave);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
   // Helper functions - memoized to prevent recreating on every render
   const helpers = useMemo(
