@@ -283,3 +283,20 @@ jobs:
             -d "$payload"
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+  # Merge the PR once every check passes. Skipped for fork PRs (read-only token).
+  # ponytail: unconditional auto-merge; gate on a label or approval once others contribute.
+  auto-merge:
+    name: Auto-merge PR
+    needs: [checks, qa-tests]
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge PR
+        run: gh pr merge "$PR_URL" --merge --delete-branch
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
