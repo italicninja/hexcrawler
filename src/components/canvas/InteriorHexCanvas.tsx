@@ -16,14 +16,12 @@ import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
 import {
   calculateHexPosition,
   sizeCanvasForDpr,
-  drawHexShape,
   drawHexOutline as renderHexOutline,
   findHexAtPoint,
 } from '../../utils/hexRenderer';
-import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
 import { drawPixelIcon, drawPixelPlayer } from '../../utils/pixelIcons';
 import { ART_PX } from '../../utils/pixelTerrainRenderer';
-import { PerlinNoise } from '../../noise';
+import { renderInteriorFloor, interiorThemeFor } from '../../utils/pixelInteriorRenderer';
 
 interface Coord {
   col: number;
@@ -96,15 +94,14 @@ function InteriorHexCanvas({
   // CSS-pixel size of the canvas; the backing store is this x devicePixelRatio.
   const canvasSizeRef = useRef({ width: 0, height: 0 });
   const hasCenteredRef = useRef(false);
-  const textureGenerator = useRef<HexTextureGenerator | null>(null);
-
-  // Initialize texture generator once
-  useEffect(() => {
-    if (!textureGenerator.current) {
-      const noise = new PerlinNoise(Date.now());
-      textureGenerator.current = new HexTextureGenerator(noise);
-    }
-  }, []);
+  // Whole-floor pixel art, re-rendered only when the terrain changes
+  const floor = useMemo(
+    () =>
+      interiorMap?.hexes?.length
+        ? renderInteriorFloor(interiorMap.hexes, interiorThemeFor(interiorMap.poiType), hexSize)
+        : null,
+    [interiorMap?.hexes, interiorMap?.poiType, hexSize]
+  );
 
   // Convert grid to positioned hexes (using utility function)
   const positionedHexes = useMemo((): PositionedHex[] => {
@@ -168,25 +165,7 @@ function InteriorHexCanvas({
   // Draw a single hex (using utility function)
   const drawHex = useCallback(
     (ctx: CanvasRenderingContext2D, hex: PositionedHex) => {
-      const { x, y, terrain, content } = hex;
-
-      // Draw hex shape with procedural texture or solid color fallback
-      const strokeColor = terrain.walkable ? '#555' : '#111';
-      const lineWidth = terrain.walkable ? 1 : 2;
-
-      if (textureGenerator.current) {
-        const pattern = textureGenerator.current.getPattern(
-          ctx,
-          terrain,
-          hexSize,
-          hex.col,
-          hex.row
-        );
-        drawHexShape(ctx, x, y, hexSize, pattern, strokeColor, lineWidth);
-      } else {
-        // Fallback to solid color if texture generator not ready
-        drawHexShape(ctx, x, y, hexSize, terrain.color, strokeColor, lineWidth);
-      }
+      const { x, y, content } = hex;
 
       // Draw content markers (only if discovered)
       if (content) {
@@ -342,7 +321,12 @@ function InteriorHexCanvas({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.translate(offsetX, offsetY);
 
-      // Draw only hexes inside the viewport (plus a margin)
+      if (floor) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(floor.canvas, floor.x, floor.y, floor.canvas.width * ART_PX, floor.canvas.height * ART_PX);
+      }
+
+      // Draw content markers inside the viewport (plus a margin)
       const { width, height } = canvasSizeRef.current;
       const margin = hexSize * 2;
       for (const hex of hexArray) {
@@ -401,6 +385,7 @@ function InteriorHexCanvas({
       selectedHex,
       hoveredHex,
       interiorMap,
+      floor,
       drawHex,
       drawHexOutline,
       drawPlayer,

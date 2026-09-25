@@ -8,15 +8,16 @@
  * coastlines and river channels run continuously across hex edges.
  */
 
-import { calculateHexPosition, pixelToOffset } from './hexRenderer';
+import { ART_PX, calculateHexPosition, pixelToOffset } from './hexRenderer';
 import { getHexNeighbors } from './hexMath';
 
-/** CSS pixels per art pixel. The preview used 3 at radius 40; 2 keeps a similar art-pixel count per hex at radius 30. */
-export const ART_PX = 2;
+// ART_PX (CSS px per art px) lives in hexRenderer. The preview used 3 at radius 40;
+// 2 keeps a similar art-pixel count per hex at radius 30.
+export { ART_PX };
 const SQ3 = Math.sqrt(3);
 const PAD = 12; // art px of room around the hex for sprite overhang
 
-type RGB = [number, number, number];
+export type RGB = [number, number, number];
 type Seg = [number, number, number, number];
 
 export interface PixelTile {
@@ -34,20 +35,20 @@ interface TerrainHex {
 }
 
 // ── Noise (deterministic, world-space) ──────────────────────────────────────
-function hash2(x: number, y: number, s = 0): number {
+export function hash2(x: number, y: number, s = 0): number {
   let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 982451653)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
 }
-function vnoise(x: number, y: number, s = 0): number {
+export function vnoise(x: number, y: number, s = 0): number {
   const xi = Math.floor(x), yi = Math.floor(y);
   const xf = x - xi, yf = y - yi;
   const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
   const a = hash2(xi, yi, s), b = hash2(xi + 1, yi, s), c = hash2(xi, yi + 1, s), d = hash2(xi + 1, yi + 1, s);
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
-function fbm(x: number, y: number, oct: number, s: number): number {
+export function fbm(x: number, y: number, oct: number, s: number): number {
   let sum = 0, amp = 0.5, f = 1, norm = 0;
   for (let i = 0; i < oct; i++) {
     sum += amp * vnoise(x * f, y * f, s + i * 17);
@@ -57,7 +58,7 @@ function fbm(x: number, y: number, oct: number, s: number): number {
   }
   return sum / norm;
 }
-function rng(seed: number): () => number {
+export function rng(seed: number): () => number {
   // mulberry32
   let a = Math.floor(seed * 4294967296) >>> 0;
   return () => {
@@ -67,15 +68,15 @@ function rng(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const rgb = (h: string): RGB => {
+export const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+export const rgb = (h: string): RGB => {
   const n = parseInt(h.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
 
 // ── Palettes & sprites ──────────────────────────────────────────────────────
-const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
-const PAL: Record<string, string[]> = {
+export const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+export const PAL: Record<string, string[]> = {
   grassland: ['#3f6b2f', '#4f8337', '#62993f', '#7cae4e'],
   forest: ['#1f3b22', '#2c5230', '#3b6a3a', '#4f8446'],
   hills: ['#566a32', '#6d803b', '#879449', '#a2a45d'],
@@ -98,12 +99,12 @@ const SPR_PAL: Record<string, Record<string, string>> = {
   rock: { o: '#2e2f33', d: '#5a5c63', m: '#7d8088', l: '#a4a7ad' },
 };
 
-interface Sprite {
+export interface Sprite {
   px: Array<[number, number, string]>; // (0,0) = bottom-centre anchor
   pal: Record<string, string>;
 }
 const spriteCache = new Map<string, Sprite>();
-function sprite(kind: string, size: number): Sprite {
+export function sprite(kind: string, size: number): Sprite {
   const key = kind + size;
   const cached = spriteCache.get(key);
   if (cached) return cached;
@@ -165,14 +166,33 @@ const RAW: Record<string, { rows: string[]; pal: Record<string, string> }> = {
   reed: { rows: ['r', 'r', 'm', 'm', 'm'], pal: { r: '#6b4424', m: '#6f8a3c' } },
   flower: { rows: ['y'], pal: { y: '#f0e07a' } },
   stone: { rows: ['ll', 'dd'], pal: { l: '#c6b48d', d: '#8d7a55' } },
+  // Combat obstacles (pixelBattlefieldRenderer)
+  boulder: {
+    rows: ['....oooo...', '..oolllmoo.', '.ollllmmmmo', 'ollllmmmmdo', 'olllmmmmddo', 'ommmmmmdddo', '.oddddddoo.', '..ooooooo..'],
+    pal: { o: '#2e2f33', l: '#a4a7ad', m: '#7d8088', d: '#5a5c63' },
+  },
+  ice: {
+    rows: ['....ooo....', '...owwlo...', '..owwllbo..', '.owwlllbbo.', 'owwllllbbbo', 'oobbbbbbboo'],
+    pal: { o: '#4a6a80', w: '#ffffff', l: '#cfe6f2', b: '#9cc0d6' },
+  },
+  dune: {
+    rows: ['.....oooo.....', '...oollllmoo..', '..ollllllmmmo.', '.olllllllmmmmo', 'oooooooooooooo'],
+    pal: { o: '#8d6a3a', l: '#ead29c', m: '#caa56b' },
+  },
+  reedTall: { rows: ['r', 'r', 'm', 'm', 'm', 'm', 'm'], pal: { r: '#6b4424', m: '#6f8a3c' } },
+  // Interior decorations (pixelInteriorRenderer)
+  torch: { rows: ['.y.', 'fyf', '.f.', '.b.', '.b.'], pal: { y: '#fff3a8', f: '#ff9a2e', b: '#5a3a1e' } },
+  shroom: { rows: ['.c.', 'ccc', '.s.'], pal: { c: '#7fe8e0', s: '#c8c0a8' } },
+  rubble1: { rows: ['.oo.', 'olmo', 'ommd'], pal: { o: '#2a2926', l: '#8d8a82', m: '#6a675f', d: '#4a4843' } },
+  rubble2: { rows: ['oo', 'lm'], pal: { o: '#2a2926', l: '#8d8a82', m: '#5a5852' } },
 };
-function drawSprite(ctx: CanvasRenderingContext2D, s: Sprite, ax: number, ay: number): void {
+export function drawSprite(ctx: CanvasRenderingContext2D, s: Sprite, ax: number, ay: number): void {
   for (const [x, y, ch] of s.px) {
     ctx.fillStyle = s.pal[ch];
     ctx.fillRect(ax + x, ay + y, 1, 1);
   }
 }
-function drawRaw(ctx: CanvasRenderingContext2D, name: string, ax: number, ay: number): void {
+export function drawRaw(ctx: CanvasRenderingContext2D, name: string, ax: number, ay: number): void {
   const { rows, pal } = RAW[name], w = rows[0].length;
   rows.forEach((row, j) =>
     [...row].forEach((ch, i) => {
@@ -184,7 +204,7 @@ function drawRaw(ctx: CanvasRenderingContext2D, name: string, ax: number, ay: nu
 }
 
 /** Deterministic, roughly even points inside a hex (rejection sampling), sorted top to bottom. */
-function scatterInHex(cx: number, cy: number, r: number, n: number, minDist: number, margin: number, rand: () => number) {
+export function scatterInHex(cx: number, cy: number, r: number, n: number, minDist: number, margin: number, rand: () => number) {
   const pts: Array<{ x: number; y: number; k: number }> = [];
   for (let tries = 0; pts.length < n && tries < n * 40; tries++) {
     const x = cx + (rand() * 2 - 1) * r * SQ3 / 2, y = cy + (rand() * 2 - 1) * r;
@@ -207,6 +227,7 @@ export class PixelTerrainRenderer {
   private terrain = new Map<string, string>();
   private tiles = new Map<string, PixelTile>();
   private segs = new Map<string, Seg[]>();
+  private fog = new Map<string, PixelTile>();
 
   constructor(hexes: readonly TerrainHex[], private hexSize: number) {
     for (const h of hexes) this.terrain.set(`${h.col},${h.row}`, h.terrain.key);
@@ -218,6 +239,29 @@ export class PixelTerrainRenderer {
     if (!tile) {
       tile = this.render(col, row);
       this.tiles.set(key, tile);
+    }
+    return tile;
+  }
+
+  /** Flat fog-of-war fill covering exactly the hex's art pixels (seamless next to ground tiles). */
+  getFog(col: number, row: number): PixelTile {
+    const key = `${col},${row}`;
+    let tile = this.fog.get(key);
+    if (!tile) {
+      const r = this.hexSize, { x: hx, y: hy } = calculateHexPosition(col, row, r);
+      const i0 = Math.floor((hx - r) / ART_PX) - 1, j0 = Math.floor((hy - r) / ART_PX) - 1;
+      const W = Math.ceil((2 * r) / ART_PX) + 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = W;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#0b0a08';
+      for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) {
+        const o = pixelToOffset((i0 + i + 0.5) * ART_PX, (j0 + j + 0.5) * ART_PX, r);
+        if (o.col === col && o.row === row) ctx.fillRect(i, j, 1, 1);
+      }
+      tile = { ground: canvas, sprites: canvas, x: i0 * ART_PX, y: j0 * ART_PX };
+      this.fog.set(key, tile);
     }
     return tile;
   }

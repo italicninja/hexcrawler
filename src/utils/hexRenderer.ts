@@ -86,8 +86,42 @@ export function drawHexShape(
   }
 }
 
+/** CSS pixels per art pixel for all pixel-art rendering (terrain, icons, outlines). */
+export const ART_PX = 2;
+
+// Art-pixel sets per hex, keyed by col,row,size,thickness (0 = whole hex)
+const pixelHexCache = new Map<string, Path2D>();
+
+/** The hex's pixels on the world art grid: its edge ring `thick` px deep, or all of it for 0. */
+function pixelHexPath(x: number, y: number, hexSize: number, thick: number): Path2D {
+  const { col, row } = pixelToOffset(x, y, hexSize);
+  const key = `${col},${row},${hexSize},${thick}`;
+  let path = pixelHexCache.get(key);
+  if (path) return path;
+  path = new Path2D();
+  const own = (i: number, j: number) => {
+    const o = pixelToOffset((i + 0.5) * ART_PX, (j + 0.5) * ART_PX, hexSize);
+    return o.col === col && o.row === row;
+  };
+  const i0 = Math.floor((x - hexSize) / ART_PX) - 1, i1 = Math.ceil((x + hexSize) / ART_PX) + 1;
+  const j0 = Math.floor((y - hexSize) / ART_PX) - 1, j1 = Math.ceil((y + hexSize) / ART_PX) + 1;
+  for (let j = j0; j <= j1; j++) {
+    for (let i = i0; i <= i1; i++) {
+      if (!own(i, j)) continue;
+      let hit = thick === 0;
+      for (let k = 1; k <= thick && !hit; k++) {
+        hit = !own(i + k, j) || !own(i - k, j) || !own(i, j + k) || !own(i, j - k);
+      }
+      if (hit) path.rect(i * ART_PX, j * ART_PX, ART_PX, ART_PX);
+    }
+  }
+  pixelHexCache.set(key, path);
+  return path;
+}
+
 /**
- * Draw a hexagon outline at the specified position (for selection/highlighting)
+ * Draw a hex outline (selection / hover) as art pixels on the world art grid, so it
+ * follows the same stepped edge as the pixel terrain. `width` >= 3 draws 2 art px thick.
  */
 export function drawHexOutline(
   ctx: CanvasRenderingContext2D,
@@ -97,24 +131,14 @@ export function drawHexOutline(
   color: string = '#ff6b6b',
   width: number = 3
 ): void {
-  ctx.beginPath();
+  ctx.fillStyle = color;
+  ctx.fill(pixelHexPath(x, y, hexSize, width >= 3 ? 2 : 1));
+}
 
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 6;
-    const hx = x + hexSize * Math.cos(angle);
-    const hy = y + hexSize * Math.sin(angle);
-
-    if (i === 0) {
-      ctx.moveTo(hx, hy);
-    } else {
-      ctx.lineTo(hx, hy);
-    }
-  }
-
-  ctx.closePath();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.stroke();
+/** Fill a hex's art pixels (range overlays), matching the pixel terrain's stepped edges. */
+export function fillPixelHex(ctx: CanvasRenderingContext2D, x: number, y: number, hexSize: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.fill(pixelHexPath(x, y, hexSize, 0));
 }
 
 /**

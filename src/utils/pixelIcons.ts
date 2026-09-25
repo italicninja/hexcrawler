@@ -349,3 +349,31 @@ export function drawPixelIcon(ctx: CanvasRenderingContext2D, name: string, x: nu
 export function drawPixelPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, playerClass?: string): void {
   drawPixelIcon(ctx, `player:${playerClass ?? ''}`, x, y);
 }
+
+/** A pixel ellipse under a token's feet (turn / rage indicator). */
+export function drawPixelRing(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
+  const cx = Math.round(x / ART_PX), cy = Math.round(y / ART_PX) + 7;
+  const seen = new Set<string>();
+  ctx.fillStyle = color;
+  for (let a = 0; a < 64; a++) {
+    const t = (a / 64) * Math.PI * 2;
+    const i = Math.round(cx + Math.cos(t) * 8), j = Math.round(cy + Math.sin(t) * 3);
+    if (seen.has(`${i},${j}`)) continue;
+    seen.add(`${i},${j}`);
+    ctx.fillRect(i * ART_PX, j * ART_PX, ART_PX, ART_PX);
+  }
+}
+
+/** Chunky HP bar: dark frame, 2 art px tall, snapped to the art grid. */
+export function drawPixelBar(ctx: CanvasRenderingContext2D, x: number, y: number, pct: number): void {
+  const w = 14, left = Math.round(x / ART_PX) - w / 2, top = Math.round(y / ART_PX);
+  const fill = Math.round(w * Math.max(0, Math.min(1, pct)));
+  ctx.fillStyle = OUTLINE;
+  ctx.fillRect((left - 1) * ART_PX, (top - 1) * ART_PX, (w + 2) * ART_PX, 4 * ART_PX);
+  ctx.fillStyle = '#3a2f22';
+  ctx.fillRect(left * ART_PX, top * ART_PX, w * ART_PX, 2 * ART_PX);
+  ctx.fillStyle = pct < 0.3 ? '#d8342a' : pct < 0.6 ? '#f2cb4c' : '#5ec23a';
+  ctx.fillRect(left * ART_PX, top * ART_PX, fill * ART_PX, 2 * ART_PX);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'; // top highlight row
+  ctx.fillRect(left * ART_PX, top * ART_PX, fill * ART_PX, ART_PX / 2);
+}

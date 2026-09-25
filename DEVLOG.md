@@ -132,3 +132,49 @@ emoji `drawPlayerMarker`, and the three copies of `CLASS_ICONS` are gone.
 | Overworld | Interior |
 | --- | --- |
 | ![overworld](docs/devlog/2026-09-25-pixel-icons/overworld.png) | ![interior](docs/devlog/2026-09-25-pixel-icons/interior.png) |
+
+## 2026-09-25: Pixel art for interiors, combat and outlines
+
+**What:** everything left on the old look now uses the pixel style.
+- **Interior floors:** `utils/pixelInteriorRenderer.ts` ports the preview's interior
+  renderer. It has five themes picked from the map's `poiType`: dungeon, cave, ruins,
+  tower and town (camp/village/town). The 3/4 wall faces, building roofs and facades, and
+  the torch and mushroom lighting are included. Each floor renders once into a single canvas.
+- **Combat:** `utils/pixelBattlefieldRenderer.ts` bakes each battlefield into one canvas.
+  Overworld-terrain fights get pixel ground tiles. POI fights (dungeon, cave, ruins, ...)
+  get the matching interior theme, and their wall obstacles become real walls with faces.
+  Trees, boulders, reeds, ice and dunes are sprites. Difficult terrain is a yellow dither.
+  The centre landmark is the old vector art rasterised at art resolution with hard alpha.
+  Allies are drawn with their class sprite and enemies with the monster sprite, plus a
+  pixel ring under whoever's turn it is and a chunky HP bar.
+- **Outlines and overlays:** selection, hover and attack outlines, plus the
+  movement-range fill, now follow each hex's stepped art-pixel edge (`hexRenderer`).
+  Overworld fog is drawn the same way, so it meets explored ground with no seam.
+- **Removed:** `HexTextureGenerator` has no callers left and is deleted, along with all
+  the vector obstacle and class-icon drawing in `CombatCanvas` (about 550 lines).
+
+**Why:** the user approved the icons and asked to convert everything that was still in
+the old style.
+
+**Route:**
+- Interiors render a whole floor at once, not per hex. Wall faces depend on the tiles to
+  the north and lights reach across tiles, so per-hex tiles would need neighbour-aware
+  cache keys anyway.
+- Combat on overworld terrain uses ground tiles only. The overworld's forest sprites on
+  every hex would bury the tokens. River fights use grass ground, because all-river hexes
+  would turn into a maze of channels.
+- Battlefield keys arrive as display names (`Forest`), so they're lowercased. Anything
+  that isn't a POI type falls back to overworld terrain. The first pass routed `Forest`
+  to the dungeon theme.
+- The first obstacle pass was too small to read as blocked, so the sprites were doubled.
+- `ART_PX` moved into `hexRenderer` so the outline code can use it without a circular import.
+
+| Interior | Combat |
+| --- | --- |
+| ![interior](docs/devlog/2026-09-25-pixel-everything/interior.png) | ![combat](docs/devlog/2026-09-25-pixel-everything/combat.png) |
+
+![overworld](docs/devlog/2026-09-25-pixel-everything/overworld.png)
+
+Battlefields shown at 1 CSS px per art px (dungeon, cave, ruins, town, desert, swamp):
+
+![battlefields](docs/devlog/2026-09-25-pixel-everything/battlefields.png)

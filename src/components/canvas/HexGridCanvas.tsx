@@ -14,7 +14,6 @@ import { drawPixelIcon, drawPixelPlayer } from '../../utils/pixelIcons';
 import { PixelTerrainRenderer, ART_PX } from '../../utils/pixelTerrainRenderer';
 import {
   calculateHexPosition,
-  drawHexShape,
   drawHexOutline as renderHexOutline,
   findHexAtPoint,
 } from '../../utils/hexRenderer';
@@ -94,16 +93,14 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
   // since sprites overhang neighbouring hexes). Unexplored hexes are fog.
   const drawTerrain = useCallback(
     (ctx: CanvasRenderingContext2D, hex: PositionedHex, layer: 'ground' | 'sprites') => {
-      if (!isHexExplored(hex.col, hex.row)) {
-        // Fog of war — flat black like the unmapped OSRS world map
-        if (layer === 'ground') drawHexShape(ctx, hex.x, hex.y, hexSize, '#0b0a08', 'rgba(0, 0, 0, 0.35)', 1);
-        return;
-      }
-      const tile = terrainRenderer.getTile(hex.col, hex.row);
+      const explored = isHexExplored(hex.col, hex.row);
+      if (!explored && layer === 'sprites') return;
+      // Unexplored hexes are flat fog of war
+      const tile = explored ? terrainRenderer.getTile(hex.col, hex.row) : terrainRenderer.getFog(hex.col, hex.row);
       const img = tile[layer];
       ctx.drawImage(img, tile.x, tile.y, img.width * ART_PX, img.height * ART_PX);
     },
-    [hexSize, isHexExplored, terrainRenderer]
+    [isHexExplored, terrainRenderer]
   );
 
   // Draw a hex's POI icon and discovered marker
