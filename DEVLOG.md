@@ -73,3 +73,30 @@ generators.
 Interiors will need an offscreen canvas per floor because wall faces depend on
 neighbouring hexes. Once the style is final, trim the rejected images here to a
 representative few.
+
+## 2026-09-25: Port the pixel-art style to the overworld
+
+**What:** new `src/utils/pixelTerrainRenderer.ts`, a TypeScript port of style C from
+`texture-previews/`. `HexGridCanvas` now uses it in place of `HexTextureGenerator`.
+Interiors and combat still use the old generator.
+
+**Why:** the overworld didn't look like the preview. Style C had only ever lived in the
+preview harness and was never wired into the game.
+
+**Route:**
+- Each hex is rendered once at art resolution into two cached canvases: ground (clipped
+  to the hex) and sprites. The whole visible map's ground is drawn first, then sprites in
+  y order, so trees and peaks can overhang neighbouring hexes without getting clipped.
+  The cache is rebuilt when `mapData` changes.
+- The art grid is aligned to world coordinates and noise is sampled in world space.
+  Coast foam, hex borders and river channels look up neighbouring terrain from the map,
+  so they join up across hex edges just as in the preview.
+- Rejected: pre-rendering the whole 60x60 map into one offscreen canvas. That's roughly
+  1.5M art pixels to render up front, and fog of war would still need drawing on top.
+- `ART_PX = 2`: the preview used 3px art pixels at hex radius 40, and the game uses radius
+  30. 2px keeps about the same number of art pixels per hex, so sprite density matches.
+  A fractional scale would make pixel widths uneven.
+- Known leak: coast foam on an explored hex shows that the unexplored hex next to it is
+  water.
+
+![overworld 2x](docs/devlog/2026-09-25-overworld-pixel-port/overworld-2x.png)

@@ -11,15 +11,13 @@ import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
 import { POIRenderer } from '../../poiRenderer';
-import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
+import { PixelTerrainRenderer, ART_PX } from '../../utils/pixelTerrainRenderer';
 import {
   calculateHexPosition,
   drawHexShape,
   drawHexOutline as renderHexOutline,
   findHexAtPoint,
 } from '../../utils/hexRenderer';
-import { PerlinNoise } from '../../noise';
-import { seedToNumber } from '../../utils/seededRandom';
 import type { POI } from '../../types/game';
 
 interface CanvasHex {
@@ -82,15 +80,8 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
   // CSS-pixel size of the canvas; the backing store is this × devicePixelRatio.
   const canvasSizeRef = useRef({ width: 0, height: 0 });
   const poiRenderer = useRef(new POIRenderer());
-  const textureGenerator = useRef<HexTextureGenerator | null>(null);
-
-  // Initialize texture generator once
-  useEffect(() => {
-    if (!textureGenerator.current) {
-      const noise = new PerlinNoise(state.mapSeed ? seedToNumber(state.mapSeed) : Date.now());
-      textureGenerator.current = new HexTextureGenerator(noise);
-    }
-  }, [state.mapSeed]);
+  // Per-hex pixel-art tiles, rendered lazily and cached for the current map
+  const terrainRenderer = useMemo(() => new PixelTerrainRenderer(hexes ?? [], hexSize), [hexes, hexSize]);
 
   // Calculate hex position (using utility function)
   const getHexX = useCallback(
@@ -116,35 +107,27 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
     });
   }, [hexes, hexSize]);
 
-  // Draw a single hex
-  const drawHex = useCallback(
-    (ctx: CanvasRenderingContext2D, hex: PositionedHex) => {
-      const { x, y } = hex;
-
-      // Check if hex has been explored (fog of war)
-      const explored = isHexExplored(hex.col, hex.row);
-
-      if (!explored) {
+  // Draw a hex's pixel-art ground or sprite layer (all ground goes down before any sprites,
+  // since sprites overhang neighbouring hexes). Unexplored hexes are fog.
+  const drawTerrain = useCallback(
+    (ctx: CanvasRenderingContext2D, hex: PositionedHex, layer: 'ground' | 'sprites') => {
+      if (!isHexExplored(hex.col, hex.row)) {
         // Fog of war — flat black like the unmapped OSRS world map
-        drawHexShape(ctx, x, y, hexSize, '#0b0a08', 'rgba(0, 0, 0, 0.35)', 1);
+        if (layer === 'ground') drawHexShape(ctx, hex.x, hex.y, hexSize, '#0b0a08', 'rgba(0, 0, 0, 0.35)', 1);
         return;
       }
+      const tile = terrainRenderer.getTile(hex.col, hex.row);
+      const img = tile[layer];
+      ctx.drawImage(img, tile.x, tile.y, img.width * ART_PX, img.height * ART_PX);
+    },
+    [hexSize, isHexExplored, terrainRenderer]
+  );
 
-      // Draw explored hex with textured pattern (pass col/row for per-hex variation).
-      // Stroke is a barely-there dark line: OSRS ground has no visible grid.
-      if (textureGenerator.current) {
-        const pattern = textureGenerator.current.getPattern(
-          ctx,
-          hex.terrain,
-          hexSize,
-          hex.col,
-          hex.row
-        );
-        drawHexShape(ctx, x, y, hexSize, pattern, 'rgba(15, 12, 6, 0.25)', 1);
-      } else {
-        // Fallback to solid color if texture generator not ready
-        drawHexShape(ctx, x, y, hexSize, hex.terrain.color, 'rgba(15, 12, 6, 0.25)', 1);
-      }
+  // Draw a hex's POI icon and discovered marker
+  const drawPOI = useCallback(
+    (ctx: CanvasRenderingContext2D, hex: PositionedHex) => {
+      const { x, y } = hex;
+      if (!isHexExplored(hex.col, hex.row)) return;
 
       // Draw POI icon if present AND visible (towns always, others only if discovered)
       if (hex.poi && shouldShowPOI(hex.poi, hex.col, hex.row)) {
@@ -275,12 +258,16 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       // Draw only hexes inside the viewport (plus a one-hex margin)
       const { width, height } = canvasSizeRef.current;
       const margin = hexSize * 2;
-      for (const hex of positionedHexes) {
+      const visible = positionedHexes.filter(hex => {
         const sx = hex.x * zoom + offsetX;
         const sy = hex.y * zoom + offsetY;
-        if (sx < -margin || sy < -margin || sx > width + margin || sy > height + margin) continue;
-        drawHex(ctx, hex);
-      }
+        return !(sx < -margin || sy < -margin || sx > width + margin || sy > height + margin);
+      });
+      ctx.imageSmoothingEnabled = false; // keep art pixels crisp when tiles are scaled up
+      visible.sort((a, b) => a.y - b.y || a.x - b.x); // painter's order for sprite overhang
+      for (const hex of visible) drawTerrain(ctx, hex, 'ground');
+      for (const hex of visible) drawTerrain(ctx, hex, 'sprites');
+      for (const hex of visible) drawPOI(ctx, hex);
 
       // Draw selected hex outline
       if (selectedHex) {
@@ -304,7 +291,8 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
       offsetY,
       zoom,
       selectedHex,
-      drawHex,
+      drawTerrain,
+      drawPOI,
       drawHexOutline,
       drawPlayerMarker,
     ]
