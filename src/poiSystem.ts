@@ -72,64 +72,65 @@ export class POISystem {
   metropolisDescriptions: string[];
 
   constructor() {
-    // Encounter tables by terrain type
+    // Encounter tables by terrain type. `cr` is the CR of ONE creature (5e MM) —
+    // group size is scaled to the party's XP budget when combat starts.
     this.encounterTables = {
       river: [
-        { name: 'River pirates', cr: 2, creatures: '1d4 Pirates' },
+        { name: 'River pirates', cr: 0.125, creatures: '1d4 Pirates' },
         { name: 'Giant fish', cr: 1, creatures: '1 Giant Pike' },
-        { name: 'Naiads', cr: 3, creatures: '1d3 Naiads' },
-        { name: 'Crocodiles', cr: 1, creatures: '1d4 Crocodiles' },
+        { name: 'Naiads', cr: 1, creatures: '1d3 Naiads' },
+        { name: 'Crocodiles', cr: 0.5, creatures: '1d4 Crocodiles' },
         { name: 'Fishermen', cr: 0, creatures: 'Friendly Fishermen' },
       ],
       grassland: [
-        { name: 'Bandits', cr: 2, creatures: '2d4 Bandits' },
-        { name: 'Wild horses', cr: 0, creatures: '1d6 Wild Horses' },
+        { name: 'Bandits', cr: 0.125, creatures: '2d4 Bandits' },
+        { name: 'Wild horses', cr: 0.25, creatures: '1d6 Wild Horses' },
         { name: 'Traveling merchants', cr: 0, creatures: 'Merchant Caravan' },
-        { name: 'Goblin scouts', cr: 1, creatures: '2d4 Goblins' },
+        { name: 'Goblin scouts', cr: 0.25, creatures: '2d4 Goblins' },
         { name: 'Giant spiders', cr: 1, creatures: '1d4 Giant Spiders' },
       ],
       forest: [
-        { name: 'Wolves', cr: 1, creatures: '2d4 Wolves' },
-        { name: 'Bears', cr: 2, creatures: '1d2 Brown Bears' },
-        { name: 'Elven patrol', cr: 3, creatures: '1d4 Elf Scouts' },
-        { name: 'Giant spiders', cr: 2, creatures: '1d6 Giant Spiders' },
-        { name: 'Druids', cr: 3, creatures: '1d2 Druids' },
+        { name: 'Wolves', cr: 0.25, creatures: '2d4 Wolves' },
+        { name: 'Bears', cr: 1, creatures: '1d2 Brown Bears' },
+        { name: 'Elven patrol', cr: 0.5, creatures: '1d4 Elf Scouts' },
+        { name: 'Giant spiders', cr: 1, creatures: '1d6 Giant Spiders' },
+        { name: 'Druids', cr: 2, creatures: '1d2 Druids' },
       ],
       hills: [
         { name: 'Hill giants', cr: 5, creatures: '1d2 Hill Giants' },
-        { name: 'Gnolls', cr: 2, creatures: '2d4 Gnolls' },
-        { name: 'Griffons', cr: 4, creatures: '1 Griffon' },
-        { name: 'Kobolds', cr: 1, creatures: '3d6 Kobolds' },
+        { name: 'Gnolls', cr: 0.5, creatures: '2d4 Gnolls' },
+        { name: 'Griffons', cr: 2, creatures: '1 Griffon' },
+        { name: 'Kobolds', cr: 0.125, creatures: '3d6 Kobolds' },
       ],
       mountains: [
         { name: 'Young dragon', cr: 10, creatures: '1 Young Dragon' },
-        { name: 'Harpies', cr: 3, creatures: '1d6 Harpies' },
+        { name: 'Harpies', cr: 1, creatures: '1d6 Harpies' },
         { name: 'Stone giants', cr: 7, creatures: '1d2 Stone Giants' },
         { name: 'Wyverns', cr: 6, creatures: '1d2 Wyverns' },
       ],
       desert: [
-        { name: 'Giant scorpions', cr: 1, creatures: '1d4 Giant Scorpions' },
-        { name: 'Mummies', cr: 5, creatures: '1d3 Mummies' },
-        { name: 'Sand worms', cr: 8, creatures: '1 Purple Worm' },
-        { name: 'Desert nomads', cr: 1, creatures: '2d4 Nomads' },
+        { name: 'Giant scorpions', cr: 3, creatures: '1d4 Giant Scorpions' },
+        { name: 'Mummies', cr: 3, creatures: '1d3 Mummies' },
+        { name: 'Sand worms', cr: 15, creatures: '1 Purple Worm' },
+        { name: 'Desert nomads', cr: 0.125, creatures: '2d4 Nomads' },
       ],
       swamp: [
-        { name: 'Lizardfolk', cr: 2, creatures: '2d4 Lizardfolk' },
+        { name: 'Lizardfolk', cr: 0.5, creatures: '2d4 Lizardfolk' },
         { name: 'Trolls', cr: 5, creatures: '1d2 Trolls' },
-        { name: 'Will-o-wisps', cr: 4, creatures: '1d3 Will-o-wisps' },
-        { name: 'Giant crocodiles', cr: 3, creatures: '1d2 Giant Crocodiles' },
+        { name: 'Will-o-wisps', cr: 2, creatures: '1d3 Will-o-wisps' },
+        { name: 'Giant crocodiles', cr: 5, creatures: '1d2 Giant Crocodiles' },
       ],
       water: [
-        { name: 'Pirates', cr: 2, creatures: '2d4 Pirates' },
-        { name: 'Merfolk', cr: 1, creatures: '1d6 Merfolk' },
+        { name: 'Pirates', cr: 0.125, creatures: '2d4 Pirates' },
+        { name: 'Merfolk', cr: 0.125, creatures: '1d6 Merfolk' },
         { name: 'Sea serpents', cr: 7, creatures: '1 Sea Serpent' },
-        { name: 'Sahuagin', cr: 3, creatures: '2d4 Sahuagin' },
+        { name: 'Sahuagin', cr: 0.5, creatures: '2d4 Sahuagin' },
       ],
       tundra: [
         { name: 'Frost giants', cr: 8, creatures: '1d2 Frost Giants' },
-        { name: 'Yetis', cr: 5, creatures: '1d3 Yetis' },
+        { name: 'Yetis', cr: 3, creatures: '1d3 Yetis' },
         { name: 'Winter wolves', cr: 3, creatures: '1d6 Winter Wolves' },
-        { name: 'Ice mephits', cr: 2, creatures: '2d4 Ice Mephits' },
+        { name: 'Ice mephits', cr: 0.5, creatures: '2d4 Ice Mephits' },
       ],
     };
 
@@ -283,23 +284,24 @@ export class POISystem {
   ): number {
     const distance = getHexDistance(startCol, startRow, col, row);
 
+    // Near spawn: fractional tiers only, and no terrain bump, so the first few
+    // hexes can only hold CR 1/8–1/2 creatures.
+    if (distance <= 3) return 0.25;
+    if (distance <= 5) return 0.5;
+
     let baseCR: number;
-    if (distance <= 2) {
-      baseCR = 0;
-    } else if (distance <= 5) {
-      baseCR = Math.floor(random() * 2);
-    } else if (distance <= 10) {
-      baseCR = Math.floor(random() * 3) + 1;
+    if (distance <= 10) {
+      baseCR = Math.floor(random() * 2) + 1;
     } else if (distance <= 15) {
-      baseCR = Math.floor(random() * 3) + 3;
+      baseCR = Math.floor(random() * 3) + 2;
     } else if (distance <= 20) {
-      baseCR = Math.floor(random() * 4) + 5;
+      baseCR = Math.floor(random() * 3) + 4;
     } else {
-      baseCR = Math.floor(random() * 5) + 8;
+      baseCR = Math.floor(random() * 5) + 6;
     }
 
     const terrainMod = Math.floor(terrainDifficulty / 2);
-    return Math.max(0, baseCR + terrainMod);
+    return baseCR + terrainMod;
   }
 
   getPOITypesForTerrain(terrain: TerrainLike): string[] {
@@ -323,11 +325,14 @@ export class POISystem {
     const terrainKey = terrain.name.toLowerCase();
     const encounters = this.encounterTables[terrainKey] || this.encounterTables.grassland;
 
-    const suitableEncounters = encounters.filter(e => Math.abs(e.cr - cr) <= 2);
+    // Distance tier is a ceiling: creatures at or below it, down to 3 CR weaker.
+    const suitableEncounters = encounters.filter(e => e.cr <= cr && e.cr >= cr - 3);
 
     if (suitableEncounters.length === 0) {
-      const index = Math.floor(random() * encounters.length);
-      return encounters[index];
+      // Nothing fits (e.g. mountains near spawn) — take the closest CR, never a random one
+      return encounters.reduce((best, e) =>
+        Math.abs(e.cr - cr) < Math.abs(best.cr - cr) ? e : best
+      );
     }
 
     const index = Math.floor(random() * suitableEncounters.length);
@@ -343,7 +348,9 @@ export class POISystem {
     startRow = 7,
     random: RandomFn = Math.random
   ): POI | null {
-    const cr = this.calculateCR(col, row, startCol, startRow, terrain.difficulty, random);
+    const tier = this.calculateCR(col, row, startCol, startRow, terrain.difficulty, random);
+    // Interiors (dungeon/cave/tower/ruins) scale floors off whole-number CRs
+    const cr = Math.floor(tier);
 
     switch (type) {
       case POI_TYPES.CAMP:
@@ -361,7 +368,7 @@ export class POISystem {
       case POI_TYPES.SHRINE:
         return this.generateShrine(random);
       case POI_TYPES.ENCOUNTER:
-        return this.generateEncounter(cr, terrain, random);
+        return this.generateEncounter(tier, terrain, random);
       case POI_TYPES.RUINS:
         return this.generateRuins(cr, random);
       case POI_TYPES.CAVE:
