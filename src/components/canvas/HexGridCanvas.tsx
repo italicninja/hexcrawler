@@ -11,14 +11,13 @@ import { useGameState } from '../../contexts/GameStateContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCanvasAnimation } from '../../hooks/useCanvasAnimation';
 import { POIRenderer } from '../../poiRenderer';
-import { HexTextureGenerator } from '../../utils/hexTextureGenerator';
+import { PixelTerrainRenderer } from '../../utils/pixelArt/terrainTiles';
 import {
   calculateHexPosition,
   drawHexShape,
   drawHexOutline as renderHexOutline,
   findHexAtPoint,
 } from '../../utils/hexRenderer';
-import { PerlinNoise } from '../../noise';
 import { seedToNumber } from '../../utils/seededRandom';
 import type { POI } from '../../types/game';
 
@@ -82,15 +81,11 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
   // CSS-pixel size of the canvas; the backing store is this × devicePixelRatio.
   const canvasSizeRef = useRef({ width: 0, height: 0 });
   const poiRenderer = useRef(new POIRenderer());
-  const textureGenerator = useRef<HexTextureGenerator | null>(null);
-
-  // Initialize texture generator once
-  useEffect(() => {
-    if (!textureGenerator.current) {
-      const noise = new PerlinNoise(state.mapSeed ? seedToNumber(state.mapSeed) : Date.now());
-      textureGenerator.current = new HexTextureGenerator(noise);
-    }
-  }, [state.mapSeed]);
+  // Pixel-art terrain tiles, seeded per world so ground texture differs between worlds
+  const terrainRenderer = useMemo(
+    () => new PixelTerrainRenderer(state.mapSeed ? seedToNumber(state.mapSeed) : 0),
+    [state.mapSeed]
+  );
 
   // Calculate hex position (using utility function)
   const getHexX = useCallback(
@@ -108,13 +103,23 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
   );
 
   // Convert hex array to positioned hex objects (memoized for performance)
+  // Sorted top-to-bottom so sprites that poke upward (trees, peaks) overlap the row above.
   const positionedHexes = useMemo<PositionedHex[]>(() => {
     if (!hexes) return [];
-    return hexes.map(hex => {
-      const { x, y } = calculateHexPosition(hex.col, hex.row, hexSize);
-      return { ...hex, x, y };
-    });
+    return hexes
+      .map(hex => {
+        const { x, y } = calculateHexPosition(hex.col, hex.row, hexSize);
+        return { ...hex, x, y };
+      })
+      .sort((a, b) => a.row - b.row || a.col - b.col);
   }, [hexes, hexSize]);
+
+  // Terrain lookup for neighbour-aware tiles (coastlines, river channels, borders)
+  const terrainAt = useMemo(() => {
+    const byCoord = new Map<string, string>();
+    for (const hex of hexes ?? []) byCoord.set(`${hex.col},${hex.row}`, hex.terrain.key);
+    return (col: number, row: number) => byCoord.get(`${col},${row}`);
+  }, [hexes]);
 
   // Draw a single hex
   const drawHex = useCallback(
@@ -130,24 +135,24 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
         return;
       }
 
-      // Draw explored hex with textured pattern (pass col/row for per-hex variation).
-      // Stroke is a barely-there dark line: OSRS ground has no visible grid.
-      if (textureGenerator.current) {
-        const pattern = textureGenerator.current.getPattern(
-          ctx,
-          hex.terrain,
-          hexSize,
-          hex.col,
-          hex.row
-        );
-        drawHexShape(ctx, x, y, hexSize, pattern, 'rgba(15, 12, 6, 0.25)', 1);
-      } else {
-        // Fallback to solid color if texture generator not ready
-        drawHexShape(ctx, x, y, hexSize, hex.terrain.color, 'rgba(15, 12, 6, 0.25)', 1);
-      }
+      // Pixel-art tile (hex borders are baked in as a darker tone). Big sprites are
+      // skipped under a visible POI so the icon stays readable.
+      const poiVisible = !!hex.poi && shouldShowPOI(hex.poi, hex.col, hex.row);
+      const drawn = terrainRenderer.drawHex(
+        ctx,
+        hex.col,
+        hex.row,
+        hex.terrain.key,
+        x,
+        y,
+        hexSize,
+        terrainAt,
+        { decor: !poiVisible, color: hex.terrain.color }
+      );
+      if (!drawn) drawHexShape(ctx, x, y, hexSize, hex.terrain.color, 'rgba(15, 12, 6, 0.25)', 1);
 
       // Draw POI icon if present AND visible (towns always, others only if discovered)
-      if (hex.poi && shouldShowPOI(hex.poi, hex.col, hex.row)) {
+      if (hex.poi && poiVisible) {
         // Save context before drawing POI
         ctx.save();
 
@@ -199,7 +204,7 @@ function HexGridCanvas({ hexes, onHexClick, onHexDoubleClick }: HexGridCanvasPro
         }
       }
     },
-    [hexSize, isHexExplored, shouldShowPOI, isPoiDiscovered]
+    [hexSize, isHexExplored, shouldShowPOI, isPoiDiscovered, terrainRenderer, terrainAt]
   );
 
   // Draw hex outline (for selection) - wrapper around utility function
