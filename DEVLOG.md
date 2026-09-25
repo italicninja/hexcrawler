@@ -203,3 +203,32 @@ Typographic marks (✓ ○ ⚠ ✕ ♂/♀) and the dev-only DevTools panel keep
 ![ui icons](docs/devlog/2026-09-25-ui-pixel-icons/ui-icons.png)
 
 ![combat panel](docs/devlog/2026-09-25-ui-pixel-icons/combat-ui.png)
+
+## 2026-09-25: Every remaining symbol is a pixel sprite
+
+**What:** all the remaining icon glyphs in the UI are now `<PixelIcon>` sprites, using
+new art added to `pixelIcons`:
+- the overworld sidebar menu, which used lucide icons: character, party, equipment,
+  tent, forage, scroll, disk, gear
+- the character-creation class picker, which now shows each class's actual player
+  sprite. `ClassIcon.tsx` and its SVGs are deleted.
+- every close button (✕ ×) and the shadcn dialog's X
+- ✓ checks, the ○ "available" dot, ⚠ warnings, ← exit/leave buttons, ▼▲▶ toggles,
+  ♂/♀ in the party list and ⏱️ playtime
+- the ■ legend chips in the town, now bordered CSS swatches
+- the DevTools emoji
+
+`lucide-react` had no users left and is uninstalled. The log hints that quoted
+"← Exit ..." now just say "Exit ...", matching the buttons.
+
+**Why:** the user asked for all symbols and emoji to be sprites after the combat bar.
+
+**Route:** punctuation inside prose stays as text: • separators, × in "10×10", ≤, and →
+in log messages. It reads as typography, not icons. Prettier reformatted all of
+`ErrorBoundary` and most of `DevTools`, so those two were re-applied by hand to keep the
+diff to the icon changes. The sidebar sprites were bumped to 3x after they looked tiny
+next to the 22px lucide icons they replaced.
+
+![sidebar](docs/devlog/2026-09-25-all-symbols/sidebar.png)
+
+![class select](docs/devlog/2026-09-25-all-symbols/class-select.png)

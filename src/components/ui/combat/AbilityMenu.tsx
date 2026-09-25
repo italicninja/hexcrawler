@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react';
 import { useEventListener } from '../../../hooks/useEventListener';
+import PixelIcon from '../PixelIcon';
 
 /**
  * AbilityMenu - Modal overlay for selecting class ability
@@ -160,7 +161,7 @@ function AbilityMenu({ character, combatant, onSelect, onClose }: AbilityMenuPro
             onClick={onClose}
             aria-label="Close ability menu"
           >
-            ×
+            <PixelIcon name="close" label="Close" />
           </button>
         </div>
 

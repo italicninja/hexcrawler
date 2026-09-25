@@ -59,7 +59,11 @@ export default function QuestLog() {
     return (
       <div key={objective.description} className="quest-objective">
         <div className="objective-text">
-          {isComplete && <span className="checkmark">✓ </span>}
+          {isComplete && (
+            <span className="checkmark">
+              <PixelIcon name="check" />{' '}
+            </span>
+          )}
           {objective.description}
         </div>
         <div className="objective-progress">

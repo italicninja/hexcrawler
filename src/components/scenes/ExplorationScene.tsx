@@ -272,7 +272,7 @@ function ExplorationScene() {
   const handleExitViaExitHex = () => {
     const poiName = currentPOI?.poi?.name || 'this location';
     addMessage(
-      `You reach the exit of ${poiName}. Step outside? (Click "← Exit to Overworld" to leave.)`,
+      `You reach the exit of ${poiName}. Step outside? (Click "Exit to Overworld" to leave.)`,
       'info'
     );
     // Surface the exit button visually — set a flag so the button pulses
@@ -340,7 +340,9 @@ function ExplorationScene() {
             }}
           >
             {canExitFreely || exitReady ? (
-              '← Exit to Overworld'
+              <>
+                <PixelIcon name="arrowLeft" /> Exit to Overworld
+              </>
             ) : (
               <>
                 <PixelIcon name="lock" /> Find the Exit Hex

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import type { Item } from '../../game/Item';
 import type { Character } from '../../game/Character';
+import PixelIcon from './PixelIcon';
 
 interface ItemSource {
   type: string;
@@ -27,7 +28,9 @@ function ItemDetailPanel({ item, source, onEquip, onUnequip }: ItemDetailPanelPr
     return (
       <div className="item-detail-panel empty">
         <div className="detail-panel-placeholder">
-          <div className="placeholder-icon">⚔</div>
+          <div className="placeholder-icon">
+            <PixelIcon name="action" scale={4} />
+          </div>
           <div className="placeholder-text">Click any item to inspect it</div>
         </div>
       </div>
@@ -109,7 +112,10 @@ function ItemDetailPanel({ item, source, onEquip, onUnequip }: ItemDetailPanelPr
 
       <div className="detail-actions">
         {source?.type === 'slot' && (
-          <button className="detail-action-btn unequip" onClick={() => onUnequip(source.slotId ?? '')}>
+          <button
+            className="detail-action-btn unequip"
+            onClick={() => onUnequip(source.slotId ?? '')}
+          >
             Unequip
           </button>
         )}

@@ -127,7 +127,7 @@ export function useInteriorNavigation({ openPanel }: InteriorNavigationOptions) 
     if (hex.terrain?.key === 'exit' || hex.content === 'exit') {
       setInteriorExitReady(true);
       addMessage(
-        `You reach the entrance of ${state.currentPOI?.poi?.name || 'this location'}. Click "← Exit Interior" to leave.`,
+        `You reach the entrance of ${state.currentPOI?.poi?.name || 'this location'}. Click "Exit Interior" to leave.`,
         'info'
       );
       return; // Don't process loot/other content on exit tile

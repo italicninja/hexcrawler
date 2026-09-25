@@ -116,7 +116,9 @@ function SaveSlot({
         <div className="progress-info">
           <span>Day {metadata.day}</span>
           {metadata.playtime > 0 && (
-            <span className="playtime">⏱️ {formatPlaytime(metadata.playtime)}</span>
+            <span className="playtime">
+              <PixelIcon name="clock" /> {formatPlaytime(metadata.playtime)}
+            </span>
           )}
         </div>
         <div className="timestamp-info">

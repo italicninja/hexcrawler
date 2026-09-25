@@ -1,4 +1,5 @@
 import { useGameState } from '../../contexts/GameStateContext';
+import PixelIcon from './PixelIcon';
 
 /**
  * InteriorInfoPane - Info panel shown when inside a POI/town
@@ -403,9 +404,13 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }: Interior
           opacity: isTown || onExitHex ? 1 : 0.45,
         }}
       >
-        {isTown || onExitHex
-          ? `← Exit ${isTown ? 'Town' : 'Interior'}`
-          : 'Return to entrance to exit'}
+        {isTown || onExitHex ? (
+          <>
+            <PixelIcon name="arrowLeft" /> Exit {isTown ? 'Town' : 'Interior'}
+          </>
+        ) : (
+          'Return to entrance to exit'
+        )}
       </button>
     </div>
   );

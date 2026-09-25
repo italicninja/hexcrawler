@@ -5,6 +5,7 @@ import { DiceRoller } from '../../game/DiceRoller';
 import SurvivalManager from '../../game/SurvivalManager';
 import { TIME_COSTS } from '../../game/TimeManager';
 import type { Hex } from '../../types/game';
+import PixelIcon from './PixelIcon';
 
 interface SurvivalMenuProps {
   onClose?: () => void;
@@ -255,7 +256,9 @@ function SurvivalMenu({ onClose }: SurvivalMenuProps) {
           }}
         >
           <p style={{ margin: 0, fontSize: '0.9rem', color: '#e74c3c' }}>
-            <strong>⚠ {exhaustionEffects.description}</strong>
+            <strong>
+              <PixelIcon name="warning" /> {exhaustionEffects.description}
+            </strong>
           </p>
           <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             Rest with food and water to reduce exhaustion.

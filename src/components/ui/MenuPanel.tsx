@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Modal, { ModalTitle } from './Modal';
+import PixelIcon from './PixelIcon';
 
 /**
  * MenuPanel - Reusable popup panel for menus
@@ -91,7 +92,7 @@ function MenuPanel({
           onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-color)')}
           onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
         >
-          ✕
+          <PixelIcon name="close" label="Close" />
         </button>
       </div>
 

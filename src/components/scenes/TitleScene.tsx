@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../shadcn/ConfirmDialog';
 import { SaveManager } from '../../utils/SaveManager';
 import SaveSlotManager from '../ui/SaveSlotManager';
 import Modal from '../ui/Modal';
+import PixelIcon from '../ui/PixelIcon';
 
 function TitleScene() {
   const { dispatch, actions } = useGameState();
@@ -67,7 +68,9 @@ function TitleScene() {
               onClick={() => setShowAdvanced(!showAdvanced)}
               type="button"
             >
-              <span className={`dropdown-arrow ${showAdvanced ? 'expanded' : ''}`}>▼</span>
+              <span className={`dropdown-arrow ${showAdvanced ? 'expanded' : ''}`}>
+                <PixelIcon name="chevronDown" />
+              </span>
               Advanced Options
             </button>
 
@@ -91,8 +94,8 @@ function TitleScene() {
           </div>
 
           <div className="title-footer">
-            <strong>Controls:</strong> Click hex to view details • Click &quot;Move Here&quot; or double-click
-            to travel
+            <strong>Controls:</strong> Click hex to view details • Click &quot;Move Here&quot; or
+            double-click to travel
             <br />
             Game auto-saves on rest, combat victory, quest completion, and scene changes
           </div>

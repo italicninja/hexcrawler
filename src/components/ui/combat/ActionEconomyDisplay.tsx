@@ -57,14 +57,7 @@ function ActionEconomyDisplay({ turnState, character }: ActionEconomyDisplayProp
           {movementData?.used ?? 0}/{movementData?.total ?? 0} ft
         </span>
       ) : (
-        <span
-          className="text-lg font-bold"
-          style={{
-            color: isUsed ? 'var(--text-muted)' : '#2ecc71',
-          }}
-        >
-          {isUsed ? '✓' : '○'}
-        </span>
+        <PixelIcon name={isUsed ? 'check' : 'ready'} label={isUsed ? 'used' : 'available'} />
       )}
     </div>
   );

@@ -25,6 +25,8 @@ const SHARED: Palette = {
   x: '#c0392b', X: '#7a1f16', // red
   p: '#a86ae0', P: '#5a2a8a', // violet
   u: '#3b6fd0', // blue
+  f: '#f0c8a0', // skin
+  q: '#e07ab0', // pink
 };
 const OUTLINE = '#1a150c';
 
@@ -187,6 +189,7 @@ const ICONS: Record<string, Art> = {
   },
   chest: { rows: CHEST, halo: '#f39c12' },
   chestOpened: { rows: CHEST, pal: { b: '#666', B: '#444', y: '#888', Y: '#999' } },
+  warning: { rows: ['....o....', '...ooo...', '...oko...', '..ookoo..', '..ookoo..', '.ooooooo.', '.oookooo.', 'ooooooooo'] },
   hazard: { rows: ['....o....', '...ooo...', '...oko...', '..ookoo..', '..ookoo..', '.ooooooo.', '.oookooo.', 'ooooooooo'] },
   hazardTriggered: {
     rows: ['....o....', '...ooo...', '...oko...', '..ookoo..', '..ookoo..', '.ooooooo.', '.oookooo.', 'ooooooooo'],
@@ -207,6 +210,29 @@ Object.assign(ICONS, {
   disk: { rows: ['uuuuuu.', 'uhhhhuu', 'uhhhhuu', 'uuuuuuu', 'uueeeuu', 'uuekeuu', 'uueeeuu'] },
   pin: { rows: ['.xxx.', 'xxhxx', 'xxxxx', '.xxx.', '.xxx.', '..x..'] },
   bulb: { rows: ['.yyy.', 'yYYyy', 'yYyyy', 'yyyyy', '.yyy.', '.mmm.', '..m..'] },
+  // Menu
+  character: { rows: ['..fff..', '.fffff.', '..fff..', '.uuuuu.', 'uuuuuuu', 'uuuuuuu'] },
+  party: { rows: ['.ff...ff.', '.ff...ff.', 'uuuu.xxxx', 'uuuu.xxxx', 'uuuu.xxxx'] },
+  equipment: { rows: ['uuuuu', 'uuyuu', 'uyyyu', 'uuyuu', '.uuu.', '..u..'] },
+  tent: { rows: ['...c...', '..ccC..', '.cccCC.', '.ccnCC.', 'ccnnnCC'] },
+  forage: { rows: ['..g..', '.gGg.', '..g..', '.gGg.', 'gGGGg', '..b..'] },
+  scroll: { rows: ['CccccC', '.cCCc.', '.cccc.', '.cCCc.', '.cccc.', 'CccccC'] },
+  gear: { rows: ['.s.s.s.', 'sssssss', '.ss.ss.', 'sss.sss', '.ss.ss.', 'sssssss', '.s.s.s.'] },
+  // Controls and status marks
+  close: { rows: ['ww...ww', 'www.www', '.wwwww.', '..www..', '.wwwww.', 'www.www', 'ww...ww'] },
+  check: { rows: ['......g', '.....gg', 'g...gg.', 'gg.gg..', '.ggg...', '..g....'] },
+  ready: { rows: ['.ggg.', 'g...g', 'g...g', 'g...g', '.ggg.'] },
+  arrowLeft: { rows: ['..w....', '.ww....', 'wwwwwww', '.ww....', '..w....'] },
+  arrowUp: { rows: ['..g..', '.ggg.', 'ggggg', '.ggg.', '.ggg.'] },
+  chevronDown: { rows: ['wwwww', '.www.', '..w..'] },
+  chevronUp: { rows: ['..w..', '.www.', 'wwwww'] },
+  chevronRight: { rows: ['w..', 'ww.', 'www', 'ww.', 'w..'] },
+  male: { rows: ['...uuu', '....uu', '.uuu.u', 'u...u.', 'u...u.', '.uuu..'] },
+  female: { rows: ['.qqq.', 'q...q', 'q...q', '.qqq.', '..q..', '.qqq.', '..q..'] },
+  clock: { rows: ['.www.', 'wwkww', 'wwkww', 'wwkkw', 'wwwww', '.www.'] },
+  map: { rows: ['cCcCcC', 'cgcCxC', 'cCgCcC', 'cCcgcC', 'cCcCcC'] },
+  sun: { rows: ['y.y.y', '.yyy.', 'yyYyy', '.yyy.', 'y.y.y'] },
+  die: { rows: ['hhhhh', 'hkhhh', 'hhkhh', 'hhhkh', 'hhhhh'] },
 });
 
 const ENEMY = [

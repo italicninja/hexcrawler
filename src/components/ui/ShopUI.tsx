@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGameState, ACTIONS } from '../../contexts/GameStateContext';
 import type { Item } from '../../game/Item';
 import './ShopUI.css';
+import PixelIcon from './PixelIcon';
 
 /**
  * ShopUI - Modal component for buying and selling items at shops
@@ -76,7 +77,7 @@ function ShopUI({ poiKey, shopType, onClose }: ShopUIProps) {
         <div className="shop-header">
           <h2>{shop.name}</h2>
           <button className="shop-close-btn" onClick={onClose} aria-label="Close shop">
-            ×
+            <PixelIcon name="close" label="Close" />
           </button>
         </div>
 
