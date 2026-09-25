@@ -316,6 +316,62 @@ export const XP_TABLE = [
   355000, // Level 20
 ];
 
+/**
+ * D&D 5e CR to XP Conversion Table
+ * Maps Challenge Rating to Experience Points awarded
+ */
+export const CR_TO_XP: Record<number, number> = {
+  0: 10,
+  0.125: 25, // CR 1/8
+  0.25: 50, // CR 1/4
+  0.5: 100, // CR 1/2
+  1: 200,
+  2: 450,
+  3: 700,
+  4: 1100,
+  5: 1800,
+  6: 2300,
+  7: 2900,
+  8: 3900,
+  9: 5000,
+  10: 5900,
+  11: 7200,
+  12: 8400,
+  13: 10000,
+  14: 11500,
+  15: 13000,
+  16: 15000,
+  17: 18000,
+  18: 20000,
+  19: 22000,
+  20: 25000,
+  21: 33000,
+  22: 41000,
+  23: 50000,
+  24: 62000,
+  25: 75000,
+  26: 90000,
+  27: 105000,
+  28: 120000,
+  29: 135000,
+  30: 155000,
+};
+
+/**
+ * 2024 DMG XP budget PER CHARACTER by level (index 0 = level 1).
+ * ponytail: levels 1-5 only; higher levels reuse level 5 — extend when balancing 6+.
+ */
+export const ENCOUNTER_XP_BUDGET = [
+  { low: 50, moderate: 75, high: 100 },
+  { low: 100, moderate: 150, high: 200 },
+  { low: 150, moderate: 225, high: 400 },
+  { low: 250, moderate: 375, high: 500 },
+  { low: 500, moderate: 750, high: 1100 },
+];
+
+/** Difficulty used for random encounters at each level: forgiving early, harsh by 4-5 */
+export const ENCOUNTER_DIFFICULTY_BY_LEVEL = ['low', 'low', 'moderate', 'high', 'high'] as const;
+
 // ===================
 // POI SPAWN RATES
 // ===================

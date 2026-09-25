@@ -4,7 +4,7 @@
  */
 import { DiceRoller } from './DiceRoller';
 import { getHexDistance } from '../utils/hexMath';
-import { DND } from '../constants/gameConstants';
+import { CR_TO_XP, DND } from '../constants/gameConstants';
 import { checkLineOfSight } from './LineOfSight';
 import { AbilityEffects } from './AbilityEffects';
 import { getSpell, hasSpellSlot, spendSpellSlot } from './SpellManager';
@@ -42,47 +42,6 @@ interface CombatOptions {
   canFlee?: boolean;
   [key: string]: unknown;
 }
-
-/**
- * D&D 5e CR to XP Conversion Table
- * Maps Challenge Rating to Experience Points awarded
- */
-export const CR_TO_XP: Record<number, number> = {
-  0: 10,
-  0.125: 25, // CR 1/8
-  0.25: 50, // CR 1/4
-  0.5: 100, // CR 1/2
-  1: 200,
-  2: 450,
-  3: 700,
-  4: 1100,
-  5: 1800,
-  6: 2300,
-  7: 2900,
-  8: 3900,
-  9: 5000,
-  10: 5900,
-  11: 7200,
-  12: 8400,
-  13: 10000,
-  14: 11500,
-  15: 13000,
-  16: 15000,
-  17: 18000,
-  18: 20000,
-  19: 22000,
-  20: 25000,
-  21: 33000,
-  22: 41000,
-  23: 50000,
-  24: 62000,
-  25: 75000,
-  26: 90000,
-  27: 105000,
-  28: 120000,
-  29: 135000,
-  30: 155000,
-};
 
 /**
  * Get XP value for a given CR

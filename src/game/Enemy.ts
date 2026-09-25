@@ -1,5 +1,56 @@
 // Enemy — D&D 5e monster model
 import { DiceRoller } from './DiceRoller';
+import {
+  CR_TO_XP,
+  ENCOUNTER_DIFFICULTY_BY_LEVEL,
+  ENCOUNTER_XP_BUDGET,
+} from '../constants/gameConstants';
+import { SRD_MONSTERS, type SrdMonster } from './data/SrdMonsters';
+
+/** SRD creatures that keep their hand-written MM'25 block in getStatTableByName */
+const MM25_BLOCKS = new Set([
+  'goblin',
+  'hobgoblin',
+  'bugbear',
+  'skeleton',
+  'zombie',
+  'ghoul',
+  'wolf',
+  'dire wolf',
+  'brown bear',
+  'boar',
+  'bandit',
+  'bandit captain',
+  'guard',
+]);
+
+/** Encounter-table names that aren't SRD names */
+const SRD_ALIASES: Record<string, string> = {
+  pirate: 'bandit',
+  nomad: 'tribal warrior',
+  'elf scout': 'scout',
+  naiad: 'dryad',
+  'wild horse': 'riding horse',
+  'will-o-wisp': "will-o'-wisp",
+};
+
+/** "Giant Spiders #2" -> giant spider. Tries the name as-is, then naive singulars. */
+export function findSrdMonster(name: string): SrdMonster | null {
+  const base = name
+    .toLowerCase()
+    .replace(/\s*#\d+$/, '')
+    .trim();
+  for (const key of [
+    base,
+    base.replace(/ves$/, 'f'),
+    base.replace(/ies$/, 'y'),
+    base.replace(/s$/, ''),
+  ]) {
+    const hit = SRD_MONSTERS[SRD_ALIASES[key] ?? key];
+    if (hit) return hit;
+  }
+  return null;
+}
 
 interface Attack {
   name: string;
@@ -181,6 +232,8 @@ export class Enemy {
     // Named lookup takes priority over generic CR bracket
     const namedTable = this.getStatTableByName(name);
     const statTable = namedTable || this.getStatTableByCR(cr);
+    // A real stat block knows its own CR — use it so XP matches the creature
+    if (typeof statTable.cr === 'number') this.cr = statTable.cr;
 
     this.maxHP = statTable.hp;
     this.ac = statTable.ac;
@@ -208,6 +261,10 @@ export class Enemy {
    */
   getStatTableByName(name: string): StatTable | null {
     const n = (name || '').toLowerCase();
+
+    // Exact SRD 5.1 creature first — unless a hand-written MM'25 block below covers it
+    const srd = findSrdMonster(n);
+    if (srd && !MM25_BLOCKS.has(srd.name.toLowerCase())) return { ...srd };
 
     // ── Goblinoid family ─────────────────────────────────────────────────────
 
@@ -555,6 +612,57 @@ export class Enemy {
         range: 1,
         moveDistance: 6,
       },
+      0.125: {
+        hp: 9,
+        ac: 12,
+        attackBonus: 3,
+        damagePerRound: 4,
+        saveDC: 13,
+        strength: 10,
+        dexterity: 12,
+        constitution: 10,
+        intelligence: 8,
+        wisdom: 10,
+        charisma: 8,
+        attacks: [{ name: 'Strike', damage: '1d6+1', damageType: 'slashing' }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      },
+      0.25: {
+        hp: 13,
+        ac: 13,
+        attackBonus: 4,
+        damagePerRound: 5,
+        saveDC: 13,
+        strength: 12,
+        dexterity: 14,
+        constitution: 12,
+        intelligence: 8,
+        wisdom: 10,
+        charisma: 8,
+        attacks: [{ name: 'Strike', damage: '1d6+2', damageType: 'slashing' }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      },
+      0.5: {
+        hp: 22,
+        ac: 13,
+        attackBonus: 4,
+        damagePerRound: 6,
+        saveDC: 13,
+        strength: 14,
+        dexterity: 12,
+        constitution: 12,
+        intelligence: 8,
+        wisdom: 10,
+        charisma: 8,
+        attacks: [{ name: 'Strike', damage: '1d8+2', damageType: 'slashing' }],
+        multiattack: 1,
+        range: 1,
+        moveDistance: 6,
+      },
       1: {
         hp: 36,
         ac: 13,
@@ -826,28 +934,36 @@ export class Enemy {
     return enemy;
   }
 
+  /**
+   * Build enemies from a string like "2d4 Wolves". `cr` is the CR of one creature.
+   * With `partyLevels`, a dice count is replaced by as many creatures as fit the
+   * party's XP budget (capped by the dice max and by level + 1 per member, since
+   * big groups outclass their XP against few heroes). Without it, the dice are rolled.
+   */
   static parseCreatureString(
     creatureString: string,
     cr: number,
     diceRoller: DiceRoller,
-    family: string | null = null,
-    variant: string | null = null
+    partyLevels: number[] = []
   ): Enemy[] {
     const match = creatureString.match(/^(\d+d\d+|\d+)\s+(.+)$/i);
 
     if (!match) {
-      return [new Enemy(creatureString, cr, 'generic', family, variant)];
+      return [new Enemy(creatureString, cr, 'generic')];
     }
 
     const countPart = match[1];
     const namePart = match[2];
 
     let count: number;
-    if (countPart.includes('d')) {
-      const [numDice, diceSize] = countPart.split('d').map(Number);
-      count = diceRoller.rollDice(diceSize, numDice);
-    } else {
+    if (!countPart.includes('d')) {
       count = parseInt(countPart, 10);
+    } else {
+      const [numDice, diceSize] = countPart.split('d').map(Number);
+      count =
+        partyLevels.length > 0
+          ? Enemy.groupSizeForBudget(cr, numDice * diceSize, partyLevels)
+          : diceRoller.rollDice(diceSize, numDice);
     }
 
     const inferredType = this._inferTypeFromName(namePart);
@@ -855,10 +971,22 @@ export class Enemy {
     const enemies: Enemy[] = [];
     for (let i = 0; i < count; i++) {
       const enemyName = count > 1 ? `${namePart} #${i + 1}` : namePart;
-      enemies.push(new Enemy(enemyName, cr, inferredType, family, variant));
+      enemies.push(new Enemy(enemyName, cr, inferredType));
     }
 
     return enemies;
+  }
+
+  static groupSizeForBudget(cr: number, maxCount: number, partyLevels: number[]): number {
+    let budget = 0;
+    let sizeCap = 0;
+    for (const level of partyLevels) {
+      const i = Math.min(Math.max(level, 1), ENCOUNTER_XP_BUDGET.length) - 1;
+      budget += ENCOUNTER_XP_BUDGET[i][ENCOUNTER_DIFFICULTY_BY_LEVEL[i]];
+      sizeCap += level + 1;
+    }
+    const xpEach = CR_TO_XP[cr] || 1;
+    return Math.max(1, Math.min(Math.floor(budget / xpEach), maxCount, sizeCap));
   }
 
   static _inferTypeFromName(name: string): string {

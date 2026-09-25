@@ -17,6 +17,7 @@ import {
   generateCombatIntro,
 } from '../utils/flavorTextGenerator';
 import { Enemy } from '../game/Enemy';
+import type { Character } from '../game/Character';
 import SurvivalManager from '../game/SurvivalManager';
 import { AIEngine } from '../game/ai/AIEngine';
 import { FEATURES } from '../constants/gameConstants';
@@ -151,12 +152,20 @@ export function useOverworldActions() {
   const handleEngageCombat = async (poi: ScenePoi) => {
     addMessage(`You engage ${poi.name} in combat!`, 'encounter');
 
-    // Get party members
-    const allies = state.party?.getAllMembers().filter((m: unknown) => m) ?? [];
+    // Party members. state.party.player is the creation-time snapshot and never
+    // updated, so use the live playerCharacter (cloned — combat may mutate it).
+    const npcs: Character[] = (state.party?.npcs ?? []).filter((m: Character | null) => m !== null);
+    const allies = state.playerCharacter ? [state.playerCharacter.clone(), ...npcs] : npcs;
 
-    // Parse enemies from POI
+    // Parse enemies from POI. Distance picked the creature; party levels pick group size.
     const diceRoller = new DiceRoller();
-    const enemies = Enemy.parseCreatureString(poi.creatures ?? '', poi.cr ?? 1, diceRoller);
+    const partyLevels = allies.map(m => m.level);
+    const enemies = Enemy.parseCreatureString(
+      poi.creatures ?? '',
+      poi.cr ?? 1,
+      diceRoller,
+      partyLevels
+    );
 
     // Determine encounter type based on POI or terrain
     let encounterType = 'standard';
