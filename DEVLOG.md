@@ -340,3 +340,32 @@ real `Combat` through the reducer, so tick-order bugs like this one get caught.
 Some items were left out because the game has no support for them yet: ending
 Rage on Incapacitated or on donning heavy armor mid-combat, extending it by forcing
 a save, and wiring STR-save advantage into actual saves.
+
+## 2026-09-25: Pixel-art title screen
+
+**What:** the title screen now sits on a full-screen `TitleBackground` canvas. It pans
+slowly across a fixed-seed overworld, then crossfades through a metropolis, a dungeon,
+a cave, ruins and a tower floor, and loops. The menu is a dark panel with a stepped
+pixel frame over a vignette. The logo's soft glow is now a hard pixel drop shadow.
+
+**Why:** the user wanted the title screen to match the new pixel theme, with a
+scrolling hex background moving from the overworld into dungeons, caves and cities.
+
+**Route:** there is no new art. Each scene is real generator output (`TerrainGenerator`,
+`TownGenerator`, `DungeonGenerator`, and so on) drawn by the in-game
+`PixelTerrainRenderer` / `renderInteriorFloor`, and POI icons come from `drawPixelIcon`.
+Every map is baked once into a world-scale canvas, so each frame is just one or two
+`drawImage` calls. All seeds are fixed, so the backdrop looks the same on every visit.
+Only the overworld is built before first paint (about 1s). Each later scene is built
+0.5s into the scene before it, which costs one 80-180ms hitch on the main thread per
+scene. A worker would remove that, but the renderers need `document`, so it isn't worth
+it yet. With `prefers-reduced-motion` set, you get a single still frame of the
+overworld.
+
+![overworld](docs/devlog/2026-09-25-title-screen/overworld.png)
+
+![town](docs/devlog/2026-09-25-title-screen/town.png)
+
+![dungeon](docs/devlog/2026-09-25-title-screen/dungeon.png)
+
+![tower](docs/devlog/2026-09-25-title-screen/tower.png)

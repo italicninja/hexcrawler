@@ -8,6 +8,7 @@ import { SaveManager } from '../../utils/SaveManager';
 import SaveSlotManager from '../ui/SaveSlotManager';
 import Modal from '../ui/Modal';
 import PixelIcon from '../ui/PixelIcon';
+import TitleBackground from '../ui/TitleBackground';
 
 function TitleScene() {
   const { dispatch, actions } = useGameState();
@@ -45,6 +46,7 @@ function TitleScene() {
       </Modal>
 
       <div className="title-screen">
+        <TitleBackground />
         <div className="title-content">
           <h1 className="title-logo">Hexcrawler</h1>
           <div className="title-subtitle">A D&D 5e hexcrawler</div>
