@@ -41,11 +41,12 @@ interface FloorHex {
   terrain: { key: string };
   content?: string | null;
   buildingType?: unknown;
+  buildingId?: number;
 }
 
 const F = 6; // height of a wall's south face, in art pixels
 const BLOCKS = new Set(['wall', 'water', 'chasm', 'building', 'fence']);
-const SOLID = new Set(['wall', 'building']);
+const SOLID = new Set(['wall']);
 const P = (a: string[]): RGB[] => a.map(rgb);
 const bay = (i: number, j: number) => BAYER[j & 3][i & 3] / 16;
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -66,6 +67,8 @@ export function interiorThemeFor(poiType: unknown): InteriorTheme {
     case 'camp':
     case 'village':
     case 'town':
+    case 'city':
+    case 'metropolis':
       return 'town';
     default:
       return 'dungeon';
@@ -119,6 +122,23 @@ const THEMES: Record<InteriorTheme, Theme> = {
 const GRASS = P(PAL.grassland), OVERGROWTH = P(PAL.forest);
 const WATER = P(['#0e2238', '#16304c', '#1f4062', '#2f5a80']);
 const PAVERS = P(['#6e6552', '#948a72', '#a89e85', '#bcb299']);
+const DIRT = P(['#5a4430', '#76593c', '#866846', '#98794f']);
+/** Town props drawn as sprites instead of building boxes. */
+const PROPS = new Set(['well', 'questBoard', 'campfire']);
+/** Walkable town ground that trees should not crowd. */
+const OPEN_GROUND = new Set(['road', 'path', 'townSquare', 'buildingEntrance', 'gate']);
+const STREETS = new Set(['road', 'path', 'townSquare']);
+const TOWN_GROUND: Record<string, string> = { road: 'cobble', gate: 'cobble', buildingEntrance: 'cobble', townSquare: 'pavers', path: 'dirt' };
+/** Doorsteps and gates sit on whatever street they open onto: dirt in camps, cobble elsewhere. */
+function townGround(h: { key: string; buildingType?: unknown; neighbors: Array<{ key: string } | undefined> }): string {
+  const inherits = h.key === 'buildingEntrance' || h.key === 'gate' || (h.key === 'building' && PROPS.has(String(h.buildingType)));
+  if (!inherits) return TOWN_GROUND[h.key] ?? 'grass';
+  // Doorsteps, gates and props take the most common street surface around them
+  const counts = new Map<string, number>();
+  for (const n of h.neighbors) if (n && STREETS.has(n.key)) counts.set(n.key, (counts.get(n.key) ?? 0) + 1);
+  const best = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
+  return best ? TOWN_GROUND[best] : h.key === 'building' ? 'grass' : 'cobble';
+}
 
 interface BuildingDef {
   roof: 'tile' | 'slate' | 'thatch' | 'stripes';
@@ -128,6 +148,12 @@ interface BuildingDef {
   ridge?: string;
 }
 const HOUSE: BuildingDef = { roof: 'thatch', roofPal: P(['#4e3818', '#7a5c28', '#98763a', '#b8924c']), wall: '#cdb890', timber: '#6a4a2a' };
+const HOUSES: BuildingDef[] = [
+  HOUSE,
+  { roof: 'tile', roofPal: P(['#4a2414', '#7a3c22', '#96502e', '#b46a40']), wall: '#d8ccaa', timber: '#5a3a20' },
+  { roof: 'slate', roofPal: P(['#2a2e30', '#46505a', '#58646e', '#6e7c86']), wall: '#c4bca8', timber: '#4a3a2a' },
+  { roof: 'thatch', roofPal: P(['#3e3418', '#665a2a', '#84763a', '#a2924e']), wall: '#e0d4b4', timber: '#6a4a2a' },
+];
 const BUILDINGS: Record<string, BuildingDef> = {
   inn: { roof: 'tile', roofPal: P(['#3e1512', '#6e2620', '#8c3428', '#ac4a38']), wall: '#d8c8a0', timber: '#5a3a20' },
   shop: { roof: 'slate', roofPal: P(['#1e252e', '#344050', '#465466', '#5e6e84']), wall: '#c8c0b0', timber: '#4a3a2a' },
@@ -194,6 +220,7 @@ function floorColor(T: Theme, i: number, j: number, style: string): RGB {
       return T.floorPal[1 + Math.min(2, Math.floor(w.id * 2 + (w.f1 < 0.3 ? 0.6 : 0)))];
     }
     case 'pavers': return PAVERS[flag(i, j, 51, 8, 5).idx];
+    case 'dirt': return hash2(i, j, 53) > 0.97 ? DIRT[0] : DIRT[1 + Math.min(2, Math.floor(fbm(i * 0.12, j * 0.12, 3, 52) * 2 + t * 0.8))];
     case 'grass': return GRASS[1 + Math.min(2, Math.floor(clamp01((fbm(i * 0.06, j * 0.06, 3, 7) - 0.28) / 0.44) * 2 + t))];
     default: return T.floorPal[1];
   }
@@ -218,41 +245,23 @@ function faceColor(T: Theme, i: number, k: number): RGB {
   if (mod(i + course * 3, 6) === 0) return T.facePal[0];
   return T.facePal[hash2(Math.floor((i + course * 3) / 6), course, 73) > 0.75 ? 1 : 2];
 }
-function facadeColor(b: BuildingDef, i: number, k: number, entranceX: number | null): RGB {
-  const wall = rgb(b.wall), timber = rgb(b.timber);
-  if (k === 1) return mix(wall, BLACK, 0.55); // eave shadow
-  if (k === F) return rgb('#5a5248'); // stone footing
-  if (entranceX !== null && Math.abs(i - entranceX) <= 2 && k >= 2) {
-    if (Math.abs(i - entranceX) === 2) return timber;
-    return k === 4 && i === entranceX + 1 ? rgb('#e0b040') : rgb('#4a2c14');
-  }
-  if (mod(i, 7) === 0 || k === 2) return timber;
-  if ((k === 3 || k === 4) && (mod(i, 7) === 3 || mod(i, 7) === 4)) return k === 3 && mod(i, 7) === 3 ? rgb('#8fb0c8') : rgb('#2a3848');
-  return wall;
-}
-
-interface Group {
-  def: BuildingDef;
-  ridge: number;
-}
 interface Cell {
   col: number;
   row: number;
   key: string;
   content?: string | null;
   buildingType?: unknown;
+  buildingId?: number;
   x: number;
   y: number;
   seed: number;
   walk: boolean;
   edge: boolean;
-  group?: Group;
   neighbors: Array<Cell | undefined>;
 }
 
-function roofColor(g: Group, i: number, j: number, onEdge: boolean): RGB {
-  const b = g.def, pal = b.roofPal, dy = j - g.ridge, t = bay(i, j);
-  if (onEdge) return pal[0];
+function roofColor(b: BuildingDef, i: number, j: number, dy: number): RGB {
+  const pal = b.roofPal, t = bay(i, j);
   if (Math.abs(dy) < 0.5) return b.ridge ? rgb(b.ridge) : pal[3];
   let idx = dy < 0 ? 2 : 1;
   if (b.roof === 'tile') {
@@ -264,6 +273,137 @@ function roofColor(g: Group, i: number, j: number, onEdge: boolean): RGB {
     idx += n > 0.62 ? 1 : n < 0.3 ? -1 : 0;
   } else return mix(mod(i, 6) < 3 ? pal[2] : pal[3], BLACK, dy < 0 ? 0 : 0.2); // stripes
   return pal[Math.max(0, Math.min(3, idx))];
+}
+
+/** Screen-space box of one placed building, in local art pixels. */
+interface BuildingBox {
+  type: string;
+  id: number;
+  L: number;
+  R: number;
+  T: number;
+  B: number;
+  doorX: number | null;
+}
+
+type Put = (i: number, j: number, c: RGB) => void;
+
+/**
+ * Paint one building: gabled roof over a 3/4-view south facade, door above its doorstep.
+ * The box is inscribed in the footprint hexes, so neighbouring lots never overlap.
+ */
+function drawBuilding(put: Put, darken: (i: number, j: number, f: number) => void, b: BuildingBox, i0: number, j0: number) {
+  const h = hash2(b.id, 7, 3);
+  const def = b.type === 'house' ? HOUSES[Math.floor(h * HOUSES.length)] : BUILDINGS[b.type] ?? HOUSE, { L, R, T, B } = b, W = R - L;
+  const fh = Math.max(7, Math.min(14, Math.round((B - T) * 0.42)));
+  const eave = B - fh, ridge = T + Math.round((eave - T) * 0.4);
+  const doorX = b.doorX === null ? null : Math.max(L + 4, Math.min(R - 4, b.doorX));
+  const wall = rgb(def.wall), timber = rgb(def.timber), stone = rgb('#5a5248'), dark = rgb('#2a1e12');
+
+  // Drop shadow east and a contact line under the facade
+  for (let j = T + 3; j <= B + 1; j++) for (let i = R + 1; i <= R + 2; i++) if (bay(i0 + i, j0 + j) < 0.6) darken(i, j, 0.35);
+  for (let i = L; i <= R + 2; i++) darken(i, B + 1, 0.3);
+
+  if (b.type === 'tent') {
+    const mid = (L + R) / 2, pal = def.roofPal;
+    for (let j = T; j <= B; j++) {
+      const half = ((j - T + 1) / (B - T + 1)) * (W / 2);
+      for (let i = Math.ceil(mid - half); i <= Math.floor(mid + half); i++) {
+        const edge = i - (mid - half) < 1 || mid + half - i < 1 || j === B;
+        let c = edge ? pal[0] : mod(i0 + i, 6) < 3 ? pal[2] : pal[3];
+        if (i > mid && !edge) c = mix(c, BLACK, 0.18);
+        if (doorX !== null && j > B - fh && Math.abs(i - doorX) <= (j - (B - fh)) * 0.45) c = dark;
+        put(i, j, c);
+      }
+    }
+    return;
+  }
+
+  // Roof
+  for (let j = T; j <= eave; j++) for (let i = L; i <= R; i++) {
+    const edge = i === L || i === R || j === T || j === eave;
+    put(i, j, edge ? def.roofPal[0] : mix(roofColor(def, i0 + i, j0 + j, j - ridge), BLACK, i - L < 2 || R - i < 2 ? 0.2 : 0));
+  }
+
+  // Facade
+  const twoStorey = fh >= 11, beam2 = Math.floor(fh / 2);
+  const timbered = b.type === 'house' || b.type === 'inn' || b.type === 'shop';
+  for (let k = 1; k <= fh; k++) for (let i = L + 1; i <= R - 1; i++) {
+    const j = eave + k, x = i - L;
+    let c = wall;
+    if (b.type === 'supplyWagon') c = mod(k, 3) === 0 ? timber : mix(wall, BLACK, 0.1 * mod(x, 2));
+    else if (b.type === 'temple' && mod(x, 4) === 0) c = mix(wall, BLACK, 0.18); // pilasters
+    else if (b.type === 'barracks' || b.type === 'blacksmith') c = flag(i0 + i, j0 + j, 83, 4, 3).idx === 0 ? mix(wall, BLACK, 0.3) : wall;
+    else if (timbered && (x === 1 || R - i === 1 || mod(x, 8) === 0 || k === 2 || (twoStorey && k === beam2))) c = timber;
+    // Windows, one row per storey, kept clear of the door
+    const wk = k - (twoStorey && k > beam2 ? beam2 : 0);
+    if ((wk === 3 || wk === 4) && (mod(x, 8) === 3 || mod(x, 8) === 4) && b.type !== 'market' && b.type !== 'supplyWagon' && (doorX === null || Math.abs(i - doorX) > 3))
+      c = b.type === 'inn' ? rgb(wk === 3 && mod(x, 8) === 3 ? '#fff0b0' : '#e0a848') : rgb(wk === 3 && mod(x, 8) === 3 ? '#8fb0c8' : '#2a3848');
+    if (k === 1) c = mix(c, BLACK, 0.55); // eave shadow
+    if (k === fh && b.type !== 'market') c = b.type === 'supplyWagon' ? timber : stone;
+    put(i, j, c);
+  }
+
+  // Door
+  if (doorX !== null && b.type !== 'market' && b.type !== 'supplyWagon') {
+    const wide = b.type === 'blacksmith' ? 3 : 2, top = Math.max(2, fh - 7);
+    for (let k = top; k < fh; k++) for (let dx = -wide; dx <= wide; dx++) {
+      let c = Math.abs(dx) === wide || k === top ? timber : rgb('#4a2c14');
+      if (b.type === 'temple' && k === top && Math.abs(dx) === wide) c = wall; // arch
+      if (b.type === 'blacksmith' && Math.abs(dx) < wide && k > top) c = rgb(k > fh - 3 && Math.abs(dx) < 2 ? '#ffd070' : '#c8581e'); // forge glow
+      if (b.type !== 'blacksmith' && dx === 1 && k === top + 3) c = rgb('#e0b040'); // handle
+      put(doorX + dx, eave + k, c);
+    }
+  }
+
+  // Per-type details
+  const chimney = (cx: number, glow: boolean) => {
+    for (let j = T - 5; j <= T + 2; j++) for (let i = cx - 1; i <= cx + 1; i++)
+      put(i, j, j === T - 5 ? rgb(glow ? '#ff9a2e' : '#3a3632') : mix(stone, BLACK, i === cx + 1 ? 0.3 : 0));
+    if (glow) put(cx, T - 6, rgb('#8a8680'));
+  };
+  if (b.type === 'blacksmith') chimney(R - 5, true);
+  if (b.type === 'inn' || (b.type === 'house' && h > 0.35)) chimney(h > 0.6 ? L + 4 : R - 5, false);
+  if (b.type === 'inn' && doorX !== null) {
+    const sx = doorX + (doorX + 9 < R ? 5 : -8); // hanging sign beside the door
+    for (let i = sx; i <= sx + 3; i++) put(i, eave + 2, timber);
+    for (let j = eave + 3; j <= eave + 5; j++) for (let i = sx; i <= sx + 3; i++)
+      put(i, j, i === sx || i === sx + 3 || j === eave + 5 ? timber : rgb('#d8b048'));
+  }
+  if (b.type === 'shop' && doorX !== null) {
+    for (let k = 2; k <= 3; k++) for (let i = doorX - 4; i <= doorX + 4; i++) put(i, eave + k, rgb(mod(i0 + i, 2) === 0 ? '#b83a2c' : '#efe4c6')); // awning
+  }
+  if (b.type === 'barracks') {
+    for (const bx of [L + 3, R - 5]) for (let k = 2; k <= 7 && k < fh; k++) for (let i = bx; i <= bx + 2; i++)
+      put(i, eave + k, k === 2 ? rgb('#e0b848') : k === 7 && i === bx + 1 ? mix(rgb('#9a2a22'), BLACK, 0.3) : rgb('#9a2a22')); // banners
+  }
+  if (b.type === 'temple') {
+    const cx = Math.round((L + R) / 2); // bell tower + spire
+    for (let j = T - 9; j <= T + 3; j++) for (let i = cx - 3; i <= cx + 3; i++) {
+      const spire = j < T - 4, half = spire ? Math.floor((j - (T - 9)) / 2) : 3;
+      if (Math.abs(i - cx) > half) continue;
+      let c = spire ? def.roofPal[Math.abs(i - cx) === half ? 0 : i < cx ? 3 : 2] : Math.abs(i - cx) === 3 ? mix(wall, BLACK, 0.3) : wall;
+      if (!spire && j >= T - 2 && j <= T && Math.abs(i - cx) <= 1) c = rgb('#2a2418'); // belfry opening
+      put(i, j, c);
+    }
+    put(cx, T - 10, rgb('#e0b848'));
+  }
+  if (b.type === 'market') {
+    for (let k = 2; k <= fh; k++) for (let i = L + 1; i <= R - 1; i++) {
+      const x = i - L;
+      let c: RGB | null = null;
+      if (x === 1 || R - i === 1) c = timber; // stall posts
+      else if (k >= fh - 2) c = k === fh ? rgb('#3a2814') : rgb('#8a5a2e'); // counter
+      else if (k === fh - 3) c = rgb(['#c83a2a', '#6a9a3a', '#e0c060', '#c87a2a'][Math.floor(hash2(i0 + i, 1, 84) * 4)]); // produce
+      if (c) put(i, eave + k, c);
+    }
+  }
+  if (b.type === 'supplyWagon') {
+    for (const wx of [L + 5, R - 5]) for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= 10) put(wx + dx, B - 1 + dy, d2 <= 1 ? rgb('#8a7a60') : d2 >= 6 ? dark : rgb('#5a3a1e')); // wheels
+    }
+  }
 }
 
 interface Light {
@@ -289,32 +429,14 @@ export function renderInteriorFloor(
   for (const h of hexes) {
     const { x, y } = calculateHexPosition(h.col, h.row, r);
     byKey.set(`${h.col},${h.row}`, {
-      col: h.col, row: h.row, key: h.terrain.key, content: h.content, buildingType: h.buildingType,
+      col: h.col, row: h.row, key: h.terrain.key, content: h.content, buildingType: h.buildingType, buildingId: h.buildingId,
       x, y, seed: hash2(h.col, h.row, 99), walk: !BLOCKS.has(h.terrain.key), edge: false, neighbors: [],
     });
   }
   const cellsArr = [...byKey.values()];
   for (const c of cellsArr) c.neighbors = getHexNeighbors(c.col, c.row).map(n => byKey.get(`${n.col},${n.row}`));
-  for (const c of cellsArr) c.edge = SOLID.has(c.key) && c.neighbors.some(n => n?.walk);
-  // Group building hexes so each building gets one continuous roof.
-  for (const c of cellsArr) {
-    if (c.key !== 'building' || c.group) continue;
-    const g: Group = { def: BUILDINGS[String(c.buildingType)] ?? HOUSE, ridge: 0 };
-    const members: Cell[] = [], stack = [c];
-    c.group = g;
-    while (stack.length) {
-      const m = stack.pop()!;
-      members.push(m);
-      for (const n of m.neighbors) {
-        if (n && !n.group && (n.key === 'building' || n.key === 'buildingEntrance') && n.buildingType === c.buildingType) {
-          n.group = g;
-          stack.push(n);
-        }
-      }
-    }
-    const roof = members.filter(m => m.key === 'building');
-    g.ridge = Math.round(roof.reduce((s, m) => s + m.y, 0) / roof.length / ART_PX);
-  }
+  // Town walls are the perimeter, so every wall hex shows masonry (no dark void)
+  for (const c of cellsArr) c.edge = SOLID.has(c.key) && (themeKey === 'town' || c.neighbors.some(n => n?.walk));
 
   // Art-pixel bounds of the floor, aligned to the world art grid
   const xs = cellsArr.map(c => c.x), ys = cellsArr.map(c => c.y);
@@ -342,14 +464,9 @@ export function renderInteriorFloor(
     const wi = i0 + i, wj = j0 + j, t = bay(wi, wj);
     const cx = Math.round(h.x / ART_PX) - i0, cy = Math.round(h.y / ART_PX) - j0;
     let c: RGB;
-    const ground = themeKey === 'town'
-      ? ({ road: 'cobble', gate: 'cobble', buildingEntrance: 'cobble', townSquare: 'pavers' } as Record<string, string>)[h.key] ?? 'grass'
-      : T.floor;
+    const ground = themeKey === 'town' ? townGround(h) : T.floor;
 
-    if (h.key === 'building') {
-      const onEdge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => { const n = G(i + a, j + b); return !n || n.group !== h.group || n.key !== 'building'; });
-      c = roofColor(h.group!, wi, wj, onEdge);
-    } else if (h.key === 'wall' && !h.edge) {
+    if (h.key === 'wall' && !h.edge) {
       if (T.void === 'night') {
         c = rgb(t > 0.5 ? '#0b1020' : '#0e1428');
         if (hash2(wi, wj, 77) > 0.992) { c = rgb('#c9d3f0'); unlit[j * GW + i] = 1; }
@@ -374,8 +491,6 @@ export function renderInteriorFloor(
         const step = Math.floor((j - cy + 5) / 2), f = h.key === 'stairsDown' ? step / 5.5 : (5 - step) / 5.5;
         c = Math.abs(i - cx) === 5 ? rgb('#141210') : (j - cy + 5) % 2 === 0 ? mix(rgb('#a39c8c'), BLACK, f * 0.7) : mix(rgb('#5e594f'), BLACK, f * 0.85);
       }
-      if (h.key === 'fence' && (j - cy === -2 || j - cy === 0 || (mod(wi, 5) === 0 && j - cy >= -4 && j - cy <= 1))) c = rgb(mod(wi, 5) === 0 ? '#4a3018' : '#7a5632');
-      if (h.key === 'gate' && Math.abs(Math.abs(i - cx) - 5) <= 1 && j - cy >= -6 && j - cy <= 1) c = rgb(j - cy === -6 ? '#a19a83' : '#6e6858');
       if (grid && h.walk && (G(i + 1, j) !== h || G(i, j + 1) !== h)) c = mix(c, BLACK, 0.18);
     }
     // South faces: an open pixel just below a solid block shows that block's front wall
@@ -385,12 +500,8 @@ export function renderInteriorFloor(
         if (!a) break;
         if (!SOLID.has(a.key)) continue;
         if (a.key === 'wall' && !a.edge) break;
-        if (k <= F) {
-          if (a.key === 'building') {
-            const ent = h.key === 'buildingEntrance' && h.group === a.group ? cx : null;
-            c = facadeColor(a.group!.def, i, k, ent);
-          } else c = faceColor(T, wi, k);
-        } else if (k === F + 1 || t < 0.5) c = mix(c, BLACK, 0.45); // contact shadow
+        if (k <= F) c = faceColor(T, wi, k);
+        else if (k === F + 1 || t < 0.5) c = mix(c, BLACK, 0.45); // contact shadow
         break;
       }
     }
@@ -400,19 +511,92 @@ export function renderInteriorFloor(
     d[o + 2] = c[2];
     d[o + 3] = 255;
   }
+
+  // Buildings: one box per buildingId, inscribed in its footprint hexes, painted north to south
+  const put: Put = (i, j, c) => {
+    if (!G(i, j)) return;
+    const o = (j * GW + i) * 4;
+    d[o] = c[0];
+    d[o + 1] = c[1];
+    d[o + 2] = c[2];
+  };
+  const darken = (i: number, j: number, f: number) => {
+    if (!G(i, j)) return;
+    const o = (j * GW + i) * 4;
+    for (let k = 0; k < 3; k++) d[o + k] *= 1 - f;
+  };
+  const ax = (c: Cell) => Math.round(c.x / ART_PX) - i0, ay = (c: Cell) => Math.round(c.y / ART_PX) - j0;
+  const hw = Math.floor((r * Math.sqrt(3)) / 2 / ART_PX) - 1, lr = r / ART_PX;
+  const footprints = new Map<number, Cell[]>(), doors = new Map<number, Cell>();
+  for (const c of cellsArr) {
+    if (c.buildingId === undefined) continue;
+    if (c.key === 'building') footprints.set(c.buildingId, [...(footprints.get(c.buildingId) ?? []), c]);
+    else doors.set(c.buildingId, c);
+  }
+  const boxes: BuildingBox[] = [];
+  for (const [id, cells] of footprints) {
+    const type = String(cells[0].buildingType);
+    if (PROPS.has(type)) continue;
+    const rows = new Map<number, number[]>();
+    for (const c of cells) rows.set(c.row, [...(rows.get(c.row) ?? []), ax(c)]);
+    const spans = [...rows.values()], ys = cells.map(ay), door = doors.get(id);
+    boxes.push({
+      type, id,
+      L: Math.max(...spans.map(xs => Math.min(...xs))) - hw,
+      R: Math.min(...spans.map(xs => Math.max(...xs))) + hw,
+      T: Math.min(...ys) - Math.round(lr * 0.55),
+      B: Math.max(...ys) + Math.round(lr * 0.5),
+      doorX: door ? ax(door) : null,
+    });
+  }
+  boxes.sort((a, b) => a.T - b.T || a.L - b.L);
+  for (const b of boxes) drawBuilding(put, darken, b, i0, j0);
   ctx.putImageData(img, 0, 0);
+
+  // Fences: split rails from each post toward its fence/gate neighbours; gateposts beside the gate
+  const FENCED = new Set(['fence', 'gate']);
+  const dot = (x: number, y: number, w: number, h: number, col: string) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+  for (const h of cellsArr) {
+    const cx = ax(h), cy = ay(h);
+    if (h.key === 'fence') {
+      for (const n of h.neighbors) {
+        if (!n || !FENCED.has(n.key)) continue;
+        // At a corner three fence hexes touch; skip the shortcut rail past the corner post
+        const tip = h.neighbors.find(m => m && m !== n && FENCED.has(m.key) && n.neighbors.includes(m));
+        if (tip && tip.neighbors.filter(m => m && FENCED.has(m.key)).length === 2) continue;
+        const mx = (ax(n) - cx) / 2, my = (ay(n) - cy) / 2, steps = Math.max(Math.abs(mx), Math.abs(my));
+        for (let k = 0; k <= steps; k++) {
+          const x = Math.round(cx + (mx * k) / steps), y = Math.round(cy + (my * k) / steps);
+          dot(x, y - 4, 1, 1, '#7a5632');
+          dot(x, y - 1, 1, 1, '#7a5632');
+          dot(x, y, 1, 1, '#3a2614');
+        }
+      }
+      dot(cx, cy - 6, 2, 7, '#4a3018');
+      dot(cx, cy - 6, 2, 1, '#8a6a42');
+    }
+    if (h.key === 'gate') {
+      for (const n of h.neighbors) {
+        if (!n || n.row !== h.row || (n.key !== 'fence' && n.key !== 'wall')) continue;
+        const stone = n.key === 'wall', w = stone ? 4 : 2, x = n.col < h.col ? cx - hw - 1 : cx + hw - w + 2;
+        dot(x, cy - (stone ? 12 : 8), w, stone ? 14 : 9, stone ? '#646058' : '#4a3018');
+        dot(x, cy - (stone ? 12 : 8), w, 1, stone ? '#908b80' : '#a0804a');
+      }
+    }
+    if (h.key === 'building' && PROPS.has(String(h.buildingType))) drawRaw(ctx, String(h.buildingType), cx, cy + 5);
+  }
 
   // Decorations that receive lighting
   const lights: Light[] = [], emissive: Array<[string, number, number]> = [];
   const sorted = [...cellsArr].sort((a, b) => a.y - b.y || a.x - b.x);
-  const lr = r / ART_PX;
   for (const h of sorted) {
     const rand = rng(h.seed), cx = Math.round(h.x / ART_PX) - i0, cy = Math.round(h.y / ART_PX) - j0;
     const spots = (n: number, md: number, margin: number) => scatterInHex(cx, cy, lr, n, md, margin, rand);
     if (h.key === 'rubble') for (const [x, y, k] of spots(4, 3, 2)) drawRaw(ctx, k < 0.5 ? 'rubble1' : 'rubble2', x, y);
-    if (themeKey === 'town' && h.key === 'grass') {
+    // Buildings are already painted, so keep grass decor off hexes whose neighbours carry roofs/chimneys
+    if (themeKey === 'town' && h.key === 'grass' && h.neighbors.every(n => n?.key !== 'building')) {
       for (const [x, y, k] of spots(3, 3, 2)) drawRaw(ctx, k < 0.3 ? 'flower' : 'tuft', x, y);
-      if (rand() < 0.14 && h.neighbors.every(n => !n || n.key === 'grass')) drawSprite(ctx, sprite('tree', 3), cx, cy + 3);
+      if (rand() < 0.3 && h.neighbors.every(n => !n || !OPEN_GROUND.has(n.key))) drawSprite(ctx, sprite('tree', rand() < 0.5 ? 3 : 4), cx, cy + 4);
     }
     if (T.void === 'overgrowth' && h.key === 'wall' && !h.edge && rand() < 0.7) {
       for (const [x, y, k] of spots(2, 5, 3)) drawSprite(ctx, sprite('tree', k < 0.5 ? 3 : 4), x, y);

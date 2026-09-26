@@ -29,6 +29,9 @@ export interface InteriorHex {
   connectedFloor?: number;
   /** Building-type key for town tiles occupied by a building / its entrance. */
   buildingType?: string;
+  /** Town tiles: which placed building this footprint/doorstep belongs to. */
+  buildingId?: number;
+  buildingName?: string;
 }
 
 export type InteriorGrid = InteriorHex[][];

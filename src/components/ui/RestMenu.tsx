@@ -5,6 +5,7 @@ import { RestManager } from '../../game/RestManager';
 import { applyStarvation } from '../../game/SurvivalManager';
 import { generateRestFlavor } from '../../utils/flavorTextGenerator';
 import PixelIcon from './PixelIcon';
+import { isSettlement } from '../../constants/gameConstants';
 
 interface RestMenuProps {
   onClose?: () => void;
@@ -177,7 +178,7 @@ function RestMenu({ onClose }: RestMenuProps) {
   const canLongRestCheck = RestManager.canLongRest(character, getGameTimeInHours());
 
   // Check if player is inside a town interior (not just standing on a town hex)
-  const isInTown = state.inInterior && state.currentPOI?.poi?.type === 'town';
+  const isInTown = state.inInterior && isSettlement(state.currentPOI?.poi?.type);
 
   // Calculate inn rest cost (currentHex already defined via useMemo above)
   const costPerPerson = 10;

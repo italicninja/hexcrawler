@@ -1,5 +1,6 @@
 import { useGameState } from '../../contexts/GameStateContext';
 import PixelIcon from './PixelIcon';
+import { isSettlement } from '../../constants/gameConstants';
 
 /**
  * InteriorInfoPane - Info panel shown when inside a POI/town
@@ -18,6 +19,7 @@ interface InteriorHex {
   terrain: HexTerrain;
   content?: string | null;
   buildingType?: string | null;
+  buildingName?: string;
 }
 
 interface InteriorEncounter {
@@ -60,7 +62,7 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }: Interior
   const { poi } = state.currentPOI;
 
   // Towns exit freely; dungeons/caves/ruins/towers/starting_cache require the Exit Hex
-  const isTown = ['town', 'village', 'city', 'metropolis', 'camp'].includes(poi.type);
+  const isTown = isSettlement(poi.type);
 
   // Check if the player is currently standing on an Exit Hex
   const currentHex = interiorMap.hexes.find(
@@ -69,7 +71,7 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }: Interior
   const onExitHex = currentHex?.terrain?.key === 'exit' || currentHex?.content === 'exit';
 
   const handleExitInterior = () => {
-    if (poi.type === 'town') {
+    if (isTown) {
       dispatch({ type: actions.EXIT_TOWN });
     } else {
       dispatch({ type: actions.EXIT_EXPLORATION });
@@ -190,7 +192,7 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }: Interior
                   textTransform: 'capitalize',
                 }}
               >
-                {displayHex.buildingType}
+                {displayHex.buildingName ?? displayHex.buildingType}
               </div>
               {displayHex.terrain.isInteractive && isCurrentHex && (
                 <div
@@ -347,7 +349,7 @@ function InteriorInfoPane({ selectedHex, playerPosition, interiorMap }: Interior
             marginBottom: '0.2rem',
           }}
         >
-          {poi.type === 'town' ? 'Town' : 'Interior'}
+          {isTown ? poi.type : 'Interior'}
         </div>
         <div
           style={{
