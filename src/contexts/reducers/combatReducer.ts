@@ -731,30 +731,32 @@ function reduceCombat(
         newRound,
       });
 
-      // --- Start-of-turn ticks: Rage + status effect durations ---
-      // tickRage() checks whether Rage extension criteria were met and ends Rage if not.
-      // tickStatusEffects() decrements duration on all other effects (e.g. Dodge) and removes
-      // any that have expired, so Dodge applied last turn is gone before this turn's action.
+      // --- Turn-boundary ticks ---
+      // End of the outgoing turn: tickRage() ends Rage unless it was extended this turn.
+      // Start of the next turn: tickStatusEffects() decrements durations (e.g. Dodge) and
+      // removes expired effects, so Dodge applied last turn is gone before this turn's action.
       const combat = state.combatState.combat;
       let updatedTurnOrder = state.combatState.turnOrder;
+      const syncEffects = (id: string, source: any) => {
+        updatedTurnOrder = updatedTurnOrder.map(c =>
+          c.id === id ? { ...c, statusEffects: [...(source.statusEffects || [])] } : c
+        );
+      };
+
+      const endingCombatant = state.combatState.turnOrder[prevIndex];
+      if (combat && endingCombatant?.statusEffects?.some(e => e.name === 'Rage')) {
+        const endingInCombat = combat.turnOrder.find((c: any) => c.id === endingCombatant.id);
+        if (endingInCombat) {
+          combat.tickRage(endingInCombat);
+          syncEffects(endingCombatant.id, endingInCombat);
+        }
+      }
 
       if (combat && nextCombatant?.statusEffects?.length) {
         const nextCombatantInCombat = combat.turnOrder.find((c: any) => c.id === nextCombatant.id);
         if (nextCombatantInCombat) {
-          // Tick Rage first (has its own extension logic)
-          if (nextCombatant.isAlly && nextCombatant.statusEffects.some(e => e.name === 'Rage')) {
-            combat.tickRage(nextCombatantInCombat);
-          }
-          // Tick all other duration-based effects (Dodge expires here after 1 full round)
           combat.tickStatusEffects(nextCombatantInCombat);
-
-          // Sync the updated statusEffects back into the immutable Redux turnOrder
-          updatedTurnOrder = state.combatState.turnOrder.map(c => {
-            if (c.id === nextCombatant.id) {
-              return { ...c, statusEffects: [...(nextCombatantInCombat.statusEffects || [])] };
-            }
-            return c;
-          });
+          syncEffects(nextCombatant.id, nextCombatantInCombat);
         }
       }
 

@@ -7,6 +7,7 @@ import { CR_TO_XP } from '../../src/constants/gameConstants';
 import { Character } from '../../src/game/Character';
 import { Enemy } from '../../src/game/Enemy';
 import { DiceRoller } from '../../src/game/DiceRoller';
+import { AbilityEffects } from '../../src/game/AbilityEffects';
 import { combatReducer } from '../../src/contexts/reducers/combatReducer';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -991,6 +992,73 @@ describe('Combat — status effects', () => {
 
     ally.statusEffects.push({ name: 'Dodge', duration: 1 });
     expect(combat.getRollTypeForAbilityCheck(ally as any, 'dexterity')).toBe('advantage');
+  });
+});
+
+// ─── Rage lifecycle (SRD 5.2) ────────────────────────────────────────────────
+
+describe('Combat — Rage lifecycle (SRD 5.2)', () => {
+  /** Rage the ally in; the fighter test hero starts in heavy armor, which blocks Rage. */
+  const enterRage = (combat: any, ally: any) => {
+    ally.character.equipment.chest = null;
+    expect(AbilityEffects.rage(ally, combat.diceRoller).success).toBe(true);
+  };
+
+  const advance = (state: any) =>
+    combatReducer(state, { type: 'ADVANCE_COMBAT_TURN', payload: {} } as any, ACTIONS)!;
+
+  /** Ally rages on its turn in a real Combat driven by the reducer. */
+  function ragingCombat() {
+    const { combat, ally, foe } = makeHexCombat();
+    enterRage(combat, ally);
+    const state = makeReducerState([ally, foe], { combat });
+    const rageOf = (s: any) => s.combatState.turnOrder[0].statusEffects.find((e: any) => e.name === 'Rage');
+    return { combat, ally, state, rageOf };
+  }
+
+  it('a missed attack roll still extends Rage', () => {
+    const { combat, ally } = makeHexCombat();
+    enterRage(combat, ally);
+    vi.spyOn(combat.diceRoller, 'rollD20').mockReturnValue(2); // 2 + 5 = 7 vs AC 15 → miss
+
+    const result = combat.processAttack('ally-0', 'enemy-0');
+
+    expect(result.hit).toBe(false);
+    expect(ally.statusEffects[0].extendedThisTurn).toBe(true);
+  });
+
+  it('survives into the next turn, then ends at the end of a turn with no extension', () => {
+    const { state, rageOf } = ragingCombat();
+
+    let s = advance(state); // end of the turn Rage began → still raging
+    expect(rageOf(s)).toBeDefined();
+    s = advance(s); // start of rager's next turn (tickStatusEffects must not drop it)
+    expect(rageOf(s)).toBeDefined();
+    s = advance(s); // end of that turn with no attack or Bonus Action → Rage ends
+    expect(rageOf(s)).toBeUndefined();
+  });
+
+  it('continues past a turn in which the rager attacked', () => {
+    const { state, rageOf } = ragingCombat();
+
+    let s = advance(advance(state)); // back to the rager's next turn
+    rageOf(s).extendedThisTurn = true; // attacked / used Extend Rage this turn
+    s = advance(s);
+    expect(rageOf(s)).toBeDefined();
+    expect(rageOf(s).extendedThisTurn).toBe(false);
+  });
+
+  it('ends after 10 minutes (100 rounds) even when extended', () => {
+    const { combat, ally } = makeHexCombat();
+    enterRage(combat, ally);
+    for (let turn = 1; turn < 100; turn++) {
+      ally.statusEffects[0].extendedThisTurn = true;
+      combat.tickRage(ally as any);
+    }
+    expect(ally.statusEffects[0].name).toBe('Rage'); // 99 turns in
+    ally.statusEffects[0].extendedThisTurn = true;
+    combat.tickRage(ally as any);
+    expect(ally.statusEffects).toHaveLength(0);
   });
 });
 

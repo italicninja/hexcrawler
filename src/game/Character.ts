@@ -918,6 +918,15 @@ export class Character {
       }
     }
 
+    // Rage uses scale with Barbarian level (SRD 5.2 table); the new use is available immediately
+    const rage = this.abilities_list.find(a => a.name === 'Rage');
+    if (rage && (this.class || '').toLowerCase() === 'barbarian') {
+      const lvl = this.level;
+      const maxUses = lvl >= 17 ? 6 : lvl >= 12 ? 5 : lvl >= 6 ? 4 : lvl >= 3 ? 3 : 2;
+      rage.uses = (rage.uses ?? 0) + maxUses - (rage.maxUses ?? 0);
+      rage.maxUses = maxUses;
+    }
+
     return {
       oldLevel,
       newLevel: this.level,

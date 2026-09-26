@@ -313,3 +313,30 @@ After:
 In game, the inn doorstep opening the rest panel with the inn option:
 
 ![inn](docs/devlog/2026-09-25-town-redesign/ingame-inn.png)
+
+## 2026-09-25: Fix Rage to match the SRD 5.2
+
+**What:** An audit of Barbarian Rage against the SRD 5.2 found four bugs:
+
+- Rage carried `duration: 1`, so `tickStatusEffects` removed it at the start of the
+  rager's next turn, even when it had been extended. Rage no longer has a
+  `duration`. `tickRage` is the only thing that ends it.
+- Only a hit kept Rage going. Any attack roll against an enemy now does, hit or miss.
+- The cap was 10 rounds, the 2014 one-minute rule. It's now 10 minutes (100 rounds).
+- Rage uses stayed at 2 forever. `levelUp()` now follows the table (2/3/4/5/6 at
+  levels 1/3/6/12/17), and each new use is available right away.
+
+Rage expiry also moved from the start of the rager's next turn to the end of their
+current turn. `ADVANCE_COMBAT_TURN` ticks Rage on the outgoing combatant, so an
+unextended Rage no longer halves enemy damage for an extra round.
+
+**Why:** The user asked for Rage to be checked against the SRD, then for all the
+findings to be fixed.
+
+**Route:** The duration bug turned up while tracing the tick order for the timing
+fix. It wasn't in the first audit. `tickRage` kept its counting logic and was
+re-pointed at the end of the turn, rather than rewritten. Unit tests now drive a
+real `Combat` through the reducer, so tick-order bugs like this one get caught.
+Some items were left out because the game has no support for them yet: ending
+Rage on Incapacitated or on donning heavy armor mid-combat, extending it by forcing
+a save, and wiring STR-save advantage into actual saves.
