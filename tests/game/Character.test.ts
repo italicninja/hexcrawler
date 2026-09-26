@@ -341,6 +341,19 @@ describe('Character XP & levelling', () => {
     expect((c as any).level).toBe(2);
   });
 
+  it('levelUp scales Barbarian Rage uses per the SRD table', () => {
+    const c = new Character('Grog', 'barbarian');
+    const rage = () => (c as any).abilities_list.find((a: any) => a.name === 'Rage');
+    rage().uses = 1; // one use spent
+    const expected: Record<number, number> = { 2: 2, 3: 3, 6: 4, 12: 5, 17: 6, 20: 6 };
+    while ((c as any).level < 20) {
+      (c as any).levelUp();
+      const lvl = (c as any).level;
+      if (expected[lvl]) expect(rage().maxUses).toBe(expected[lvl]);
+    }
+    expect(rage().uses).toBe(5); // spent use stays spent; each new use is granted
+  });
+
   it('levelUp increases maxHP', () => {
     const c = new Character('Hero', 'fighter');
     const before = (c as any).maxHP;

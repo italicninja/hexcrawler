@@ -872,6 +872,10 @@ export class Combat {
     let damage = 0;
     let message = '';
 
+    // Rage (SRD 5.2): making an attack roll against an enemy — hit or miss — extends it
+    const attackerRage = attacker.statusEffects?.find(e => e.name === 'Rage');
+    if (attackerRage) attackerRage.extendedThisTurn = true;
+
     if (attacker.character) {
       // Hero attacker — use DiceRoller.attackRoll() which auto-logs and uses character stats
       // Pass rollType so advantage/disadvantage is reflected in the roll and log
@@ -913,12 +917,9 @@ export class Combat {
         }
 
         // --- Rage damage bonus (PHB'24): applies to STR-based melee and unarmed attacks ---
-        const attackerRage = attacker.statusEffects?.find(e => e.name === 'Rage');
         if (attackerRage && attackType === 'melee') {
           const rageBonus = Number(attackerRage.effects?.rageDamageBonus) || 2;
           damage += rageBonus;
-          // Mark rage as extended since an attack was made
-          attackerRage.extendedThisTurn = true;
           logger.combat.debug('Rage damage bonus applied', {
             attacker: attackerChar.name,
             rageBonus,
@@ -1206,10 +1207,10 @@ export class Combat {
   }
 
   /**
-   * Tick Rage at the START of the raging combatant's turn (PHB'24).
-   * Rage lasts until end of the rager's next turn. Each turn we check whether
-   * an extension criteria was met the previous turn; if not, Rage ends.
-   * Also enforces the 10-round maximum duration.
+   * Tick Rage at the END of the raging combatant's turn (SRD 5.2).
+   * Rage lasts until the end of the rager's next turn; on each later turn it must be
+   * extended (attack roll, forced save, or Bonus Action) or it ends as that turn ends.
+   * Also enforces the 10-minute (100-round) maximum duration.
    *
    * @param {object} combatant - Combatant whose Rage to tick (turnOrder entry)
    */
@@ -1220,39 +1221,31 @@ export class Combat {
     if (!rageEffect) return;
 
     const name = combatant.character?.name || combatant.name || 'Combatant';
+    const endRage = (reason: string) => {
+      combatant.statusEffects = combatant.statusEffects.filter(e => e.name !== 'Rage');
+      if (this.logger) this.logger(`${name}'s Rage ${reason}`, 'info');
+      logger.combat.info('Rage ended', { name, reason });
+    };
 
-    // Increment total rounds active
+    // Count completed turns while raging
     rageEffect.roundsActive = (rageEffect.roundsActive || 0) + 1;
 
-    // Hard cap: 10 rounds maximum (10 minutes)
-    if (rageEffect.roundsActive > (rageEffect.maxDuration ?? Infinity)) {
-      combatant.statusEffects = combatant.statusEffects.filter(e => e.name !== 'Rage');
-      if (this.logger) {
-        this.logger(`${name}'s Rage ends — 10-round limit reached.`, 'info');
-      }
-      logger.combat.info('Rage ended: max duration reached', { name });
+    if (rageEffect.roundsActive >= (rageEffect.maxDuration ?? Infinity)) {
+      endRage('ends — 10-minute limit reached.');
       return;
     }
 
-    // First turn of Rage: extendedThisTurn starts false but we give it the turn to prove itself
+    // The turn Rage was entered: it lasts through the end of the next turn regardless
     if (rageEffect.roundsActive === 1) {
-      // First real turn — Rage just started, no extension check yet
       rageEffect.extendedThisTurn = false;
       return;
     }
 
-    // Subsequent turns: check if extension criteria were met on the previous turn
     if (rageEffect.extendedThisTurn) {
-      // Extension met — reset flag and let Rage continue
       rageEffect.extendedThisTurn = false;
       logger.combat.debug('Rage extended', { name, roundsActive: rageEffect.roundsActive });
     } else {
-      // No qualifying action last turn — Rage ends
-      combatant.statusEffects = combatant.statusEffects.filter(e => e.name !== 'Rage');
-      if (this.logger) {
-        this.logger(`${name}'s Rage fades — no qualifying action last turn.`, 'info');
-      }
-      logger.combat.info('Rage ended: no extension', { name });
+      endRage('fades — no attack or Bonus Action to sustain it.');
     }
   }
 

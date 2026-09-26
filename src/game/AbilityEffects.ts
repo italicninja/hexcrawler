@@ -128,10 +128,10 @@ export class AbilityEffects {
    *   - Advantage on Strength checks and Strength saving throws
    *   - Cannot maintain Concentration or cast spells
    * Duration: Until end of next turn; extends each turn by:
-   *   - Making an attack roll against an enemy
+   *   - Making an attack roll against an enemy (hit or miss)
    *   - Forcing an enemy to make a saving throw
    *   - Taking a Bonus Action to extend
-   * Maximum 10 minutes (10 rounds in combat).
+   * Maximum 10 minutes (100 rounds).
    * Uses: recover 1 on Short Rest, all on Long Rest.
    */
   static rage(combatant: Combatant, _diceRoller: DiceRoller): AbilityResult {
@@ -161,10 +161,9 @@ export class AbilityEffects {
 
     combatant.statusEffects.push({
       name: 'Rage',
-      // Duration tracks whether extension criteria were met this turn.
-      // tickRage() in Combat.ts processes the real turn-by-turn expiry.
-      duration: 1, // 1 = active; tickRage decrements / removes on turn start
-      maxDuration: 10, // Hard cap: 10 rounds (10-minute maximum)
+      // No `duration`: tickRage() in Combat.ts owns expiry (tickStatusEffects would
+      // otherwise remove Rage at the start of the rager's next turn).
+      maxDuration: 100, // Hard cap: 10 minutes = 100 rounds
       roundsActive: 0, // How many turns have elapsed while raging
       extendedThisTurn: false, // Set to true when an attack or qualifying action occurs
       effects: {
@@ -240,7 +239,7 @@ export class AbilityEffects {
     if ((rageEffect.roundsActive ?? 0) >= (rageEffect.maxDuration ?? Infinity)) {
       return {
         success: false,
-        message: `${combatant.name}'s Rage has reached the 10-round limit.`,
+        message: `${combatant.name}'s Rage has reached the 10-minute limit.`,
       };
     }
 
