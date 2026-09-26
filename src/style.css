@@ -601,7 +601,34 @@ button:active {
   overflow-y: auto;
 }
 
+.title-background {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  image-rendering: pixelated;
+  z-index: 0;
+}
+
+/* Vignette so the menu stays readable over the scrolling map */
+.title-screen::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.25) 30%, rgba(0, 0, 0, 0.75) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
 .title-content {
+  position: relative;
+  z-index: 2;
+  background: rgba(8, 8, 12, 0.72);
+  /* stepped pixel frame */
+  box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px var(--border-color),
+    0 0 0 6px #000;
   text-align: center;
   max-width: 600px;
   padding: 2rem;
@@ -617,7 +644,9 @@ button:active {
   font-weight: 700;
   color: var(--accent-color);
   margin-bottom: 0.5rem;
-  text-shadow: 0 0 20px rgba(20, 184, 166, 0.5);
+  /* hard-edged pixel drop shadow instead of a soft glow */
+  text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  letter-spacing: 0.05em;
 }
 
 .title-subtitle {
