@@ -185,6 +185,19 @@ const RAW: Record<string, { rows: string[]; pal: Record<string, string> }> = {
   shroom: { rows: ['.c.', 'ccc', '.s.'], pal: { c: '#7fe8e0', s: '#c8c0a8' } },
   rubble1: { rows: ['.oo.', 'olmo', 'ommd'], pal: { o: '#2a2926', l: '#8d8a82', m: '#6a675f', d: '#4a4843' } },
   rubble2: { rows: ['oo', 'lm'], pal: { o: '#2a2926', l: '#8d8a82', m: '#5a5852' } },
+  // Town props (pixelInteriorRenderer)
+  well: {
+    rows: ['..rrrrrrr..', '.rRRRRRRRr.', 'rRRRRRRRRRr', '..p.....p..', '..p..b..p..', '..p..b..p..', '.ossssssso.', 'osSSSSSSSso', 'osswwwwwsso', 'osSSSSSSSso', '.ooooooooo.'],
+    pal: { r: '#5a2a1a', R: '#8c3428', p: '#4a3018', b: '#8a7a60', o: '#2e2c28', s: '#8d8a82', S: '#a8a49a', w: '#2f5a80' },
+  },
+  questBoard: {
+    rows: ['.ttttttttttt.', 'tbbbbbbbbbbbt', 'tbwwbbwwwbbbt', 'tbwwbbwwwbybt', 'tbbbwwbbbbybt', 'tbyybwwbwwbbt', 'tbyybbbbwwbbt', 'tbbbbbbbbbbbt', '.ttttttttttt.', '..p.......p..', '..p.......p..', '..p.......p..', '.ooo.....ooo.'],
+    pal: { t: '#4e3018', b: '#8a5a2e', w: '#efe4c6', y: '#e0c060', p: '#5a3a1e', o: '#2e2418' },
+  },
+  campfire: {
+    rows: ['....y....', '...yfy...', '..yfFfy..', '..fFFFf..', '.sfFfFfs.', 'sLlLlLlLs', '.sssssss.'],
+    pal: { y: '#fff3a8', f: '#ff9a2e', F: '#ffd070', l: '#5a3a1e', L: '#7a5230', s: '#6a675f' },
+  },
 };
 export function drawSprite(ctx: CanvasRenderingContext2D, s: Sprite, ax: number, ay: number): void {
   for (const [x, y, ch] of s.px) {

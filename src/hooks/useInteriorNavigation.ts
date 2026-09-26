@@ -9,11 +9,24 @@ import logger from '../utils/logger';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import type { SceneHex, SceneInteriorMap } from '../types/scene';
+import { isSettlement } from '../constants/gameConstants';
 
 interface InteriorNavigationOptions {
   /** Open a scene panel by id (e.g. 'rest', 'quests') — used by building interactions. */
   openPanel: (panelId: string) => void;
 }
+
+// ponytail: flavor only until shops/temple/smithy UIs are wired (ShopUI exists but is broken)
+const BUILDING_LINES: Record<string, (name: string) => string> = {
+  shop: n => `${n}: the shopkeeper is restocking. Trading isn't open yet.`,
+  market: n => `${n}: merchants haggle loudly, but none will deal with strangers yet.`,
+  blacksmith: n => `${n}: the smith is hammering away and waves you off for now.`,
+  temple: n => `${n}: candles flicker in the quiet nave. The priests offer no services yet.`,
+  barracks: n => `${n}: a guard eyes you and bars the door.`,
+  house: n => `A ${n.toLowerCase()}. The door is locked.`,
+  tent: n => `A ${n.toLowerCase()}. Someone is snoring inside.`,
+  supplyWagon: n => `${n}: crates of rope, oil and salted meat. Not for sale.`,
+};
 
 export function useInteriorNavigation({ openPanel }: InteriorNavigationOptions) {
   const { state, dispatch, actions, getHexDistance } = useGameState();
@@ -117,10 +130,9 @@ export function useInteriorNavigation({ openPanel }: InteriorNavigationOptions) 
     }
 
     // Check for town gate exit
-    if (hex.terrain?.key === 'gate') {
-      if (state.currentPOI?.poi.type === 'town') {
-        dispatch({ type: actions.EXIT_TOWN });
-      }
+    if (hex.terrain?.key === 'gate' && isSettlement(state.currentPOI?.poi.type)) {
+      dispatch({ type: actions.EXIT_TOWN });
+      return;
     }
 
     // Check for Exit Hex (non-town POIs) — unlock the exit button
@@ -279,23 +291,20 @@ export function useInteriorNavigation({ openPanel }: InteriorNavigationOptions) 
 
   // Handle building interactions in towns
   const handleBuildingInteraction = (hex: SceneHex) => {
-    const buildingType = hex.buildingType;
+    const name = hex.buildingName ?? hex.buildingType ?? 'the building';
 
-    switch (buildingType) {
+    switch (hex.buildingType) {
       case 'inn':
+        addMessage(`You step into ${name}. A warm hearth and a soft bed await.`, 'info');
         openPanel('rest');
-        break;
-      case 'shop':
-        addMessage('Shop interface coming soon!', 'info');
         break;
       case 'questBoard':
         openPanel('quests');
         break;
-      case 'blacksmith':
-      case 'temple':
-      case 'house':
-        addMessage(`${buildingType} services coming soon!`, 'info');
-        break;
+      default: {
+        const line = BUILDING_LINES[hex.buildingType ?? ''];
+        if (line) addMessage(line(name), 'info');
+      }
     }
   };
 

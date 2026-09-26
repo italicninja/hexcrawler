@@ -28,6 +28,9 @@ The following items from the previous TODO were completed as part of v0.5.0 and 
 
 ## CRITICAL
 
+> **Milestone 1 (slay the level-5 boss):** see [docs/design/MILESTONE_1_REVIEW.md](docs/design/MILESTONE_1_REVIEW.md)
+> for the blockers (interior combat, quest board → giver, victory scene) and the build order.
+
 ### 1. Remove `// @ts-nocheck` Suppressions
 
 **Priority:** High | **Time:** 8-12 hours | **Status:** ✅ COMPLETE — 0 of 100 files carry `@ts-nocheck`; `tsc --noEmit` passes clean and all 269 tests pass.

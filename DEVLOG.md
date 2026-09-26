@@ -246,3 +246,70 @@ workflow. It depends on `checks` and `qa-tests` directly rather than on
 `qa-summary`, because `qa-summary` runs with `if: always()` and reports success
 when `qa-tests` is skipped. Merging directly in the job avoids needing GitHub's
 repo-level auto-merge setting. Fork PRs are skipped because their token is read-only.
+
+## 2026-09-25: Town redesign + milestone-1 review
+
+**What:** Settlements are rebuilt from the grid up.
+- `TownGenerator` is rewritten street-first. A two-hex avenue runs north from a two-hex gate.
+  East–west streets cross it every 4 rows (street, 2 building rows, 1 yard row). The street
+  nearest the middle gets a plaza with a well (a campfire in camps) and the quest board.
+  Buildings sit in lots on the north side of each street with 1-hex alleys between them, so
+  neighbours never merge. Each has a walkable doorstep on the street below its door.
+- Landmarks (inn, shop, temple, blacksmith, market, barracks) are carved first from the frontage
+  nearest the plaza, so they always exist. Houses fill what's left. Buildings get seeded names
+  ("The Gilded Tankard").
+- Map heights are now 4n + 2 per size (`SETTLEMENT_DIMENSIONS`) so streets fill the map.
+- The renderer draws each building as one rectangle inscribed in its footprint. It has a gabled
+  roof, a timbered or stone facade, windows, and a door above the doorstep. Per-type details: inn
+  sign and lit windows, shop awning, forge glow and chimney, temple spire, barracks banners,
+  market stall, wagon wheels, tents. The well, quest board and campfire are sprites. Fences are
+  connected split rails, and cities get stone walls. City and metropolis no longer fall through
+  to the dark dungeon theme.
+- Gameplay fixes:
+  - The gate exits every settlement type, not only `town`.
+  - The inn option shows in any settlement.
+  - Every settlement gets an Enter button (camps had none).
+  - Every doorstep responds with a line naming the building.
+  - The player spawns inside the gate instead of on it.
+- Dead `TownScene` is removed. The settlement type list lives in one place (`isSettlement`).
+- `docs/design/MILESTONE_1_REVIEW.md` is a top-down review of what blocks the first win
+  condition: a quest from the first board to kill a level-5 boss.
+
+**Why:** The user said towns "seem odd" and asked for a bottom-up redesign, plus a review against
+the level-5-boss milestone.
+
+**Route:** Rendered every settlement size through the live generator and renderer first (below).
+The oddness came from the old approach:
+- Rectangles in offset coordinates became ragged hex blobs.
+- The door tile was cut out of the footprint, leaving a notch.
+- Same-type neighbours merged into one roof, and houses sat on roads.
+- Vertical roads zigzagged, the side fences were disconnected stubs, and the "secondary roads"
+  mostly didn't connect.
+
+Tried keeping per-hex roofs and just cleaning up placement. Rejected, because a hex-union roof
+always reads as a blob. Drawing one inscribed rectangle per building, with a separate doorstep,
+fixed the shapes outright.
+
+South-facing doors only: the 3/4 view shows south faces, so buildings sit north of their street.
+
+The first pass kept only the middle streets. That left the southern third as empty lawn and gave
+the temple (4 wide) no lot. Switched to using every street, and to carving landmarks before
+splitting house lots. A unit test checks for all sizes × 8 seeds that the entrance can reach
+every door and the gate, and that the landmarks exist.
+
+Before:
+
+![before town](docs/devlog/2026-09-25-town-redesign/before-town.png)
+![before city](docs/devlog/2026-09-25-town-redesign/before-city.png)
+
+After:
+
+![town](docs/devlog/2026-09-25-town-redesign/after-town.png)
+![village](docs/devlog/2026-09-25-town-redesign/after-village.png)
+![camp](docs/devlog/2026-09-25-town-redesign/after-camp.png)
+![city](docs/devlog/2026-09-25-town-redesign/after-city.png)
+![metropolis](docs/devlog/2026-09-25-town-redesign/after-metropolis.png)
+
+In game, the inn doorstep opening the rest panel with the inn option:
+
+![inn](docs/devlog/2026-09-25-town-redesign/ingame-inn.png)

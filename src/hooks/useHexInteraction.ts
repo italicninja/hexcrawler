@@ -4,6 +4,7 @@ import { useGameLog } from '../contexts/GameLogContext';
 import DiceRoller from '../game/DiceRoller';
 import { generateSettlementFlavor } from '../utils/flavorTextGenerator';
 import logger from '../utils/logger';
+import { isSettlement, SETTLEMENT_DIMENSIONS } from '../constants/gameConstants';
 
 /** POI fields this hook reads. Runtime POIs carry more than the canonical type. */
 interface InteractionPOI {
@@ -313,9 +314,7 @@ export function useHexInteraction(hex: InteractionHex | null) {
     if (!hex || !hex.poi) return;
 
     const poi = hex.poi;
-    const settlementTypes = ['town', 'village', 'city', 'metropolis', 'camp'];
-
-    if (!settlementTypes.includes(poi.type)) return;
+    if (!isSettlement(poi.type)) return;
 
     const poiKey = `${hex.col},${hex.row}`;
 
@@ -342,33 +341,7 @@ export function useHexInteraction(hex: InteractionHex | null) {
       // Extract settlement size from poi
       const settlementSize = poi.settlementSize || poi.type;
 
-      // Determine interior size based on settlement tier
-      let width: number, height: number;
-      switch (settlementSize) {
-        case 'camp':
-          width = 12;
-          height = 10;
-          break;
-        case 'village':
-          width = 18;
-          height = 14;
-          break;
-        case 'town':
-          width = 24;
-          height = 18;
-          break;
-        case 'city':
-          width = 30;
-          height = 24;
-          break;
-        case 'metropolis':
-          width = 36;
-          height = 30;
-          break;
-        default:
-          width = 24;
-          height = 18;
-      }
+      const { width, height } = SETTLEMENT_DIMENSIONS[settlementSize] ?? SETTLEMENT_DIMENSIONS.town;
 
       // Generate interior map with settlement size in townData
       const townData = {

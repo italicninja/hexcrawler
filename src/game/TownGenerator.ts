@@ -1,10 +1,20 @@
 /**
- * TownGenerator - Generates walkable town interiors with buildings, roads, and NPCs
- * Towns are structured layouts with a central square and organized districts
+ * TownGenerator - walkable settlement interiors (camp → metropolis).
+ *
+ * Layout is street-first on the odd-r hex grid:
+ *   - a two-hex-wide avenue runs north from the gate at the bottom edge
+ *   - east–west streets cross it every 4 rows (street, 2 building rows, 1 yard row)
+ *   - the street nearest the middle gets a plaza with a well/campfire and the quest board
+ *   - buildings sit in lots on the north side of each street, 1-hex alleys between them,
+ *     with a doorstep tile on the street directly below the facade (the 3/4 view shows
+ *     south faces, so every door faces south onto a street)
+ *
+ * Building tiles are solid; the doorstep is the walkable, interactive tile.
  */
 
 import { InteriorGenerator } from './InteriorGenerator';
-import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
+import type { InteriorGrid, InteriorHex, HexCoord, TerrainType } from './InteriorGenerator';
+import logger from '../utils/logger';
 
 /** Settlement metadata passed into generate(). */
 interface TownData {
@@ -13,878 +23,245 @@ interface TownData {
   [key: string]: unknown;
 }
 
-/** Metadata describing a building type that can be placed in a settlement. */
-interface BuildingType {
-  key: string;
-  name: string;
-  icon: string;
-  size: { width: number; height: number };
-  entranceOffset: { col: number; row: number };
-}
-
-/** A placed building instance in a generated settlement. */
-interface Building {
+/** A placed building or prop. `door` is its walkable doorstep (null for decor). */
+export interface Building {
+  id: number;
   type: string;
   name: string;
-  icon: string;
   col: number;
   row: number;
   width: number;
   height: number;
-  entrance: HexCoord;
-}
-
-interface CenterSquare {
-  col: number;
-  row: number;
-  radius: number;
+  door: HexCoord | null;
 }
 
 /** A generated settlement interior map. Extra fields ride the index signature. */
-interface TownMap {
+export interface TownMap {
   hexes: InteriorHex[];
   buildings: Building[];
   entrance: HexCoord;
-  centerSquare: CenterSquare;
   encounters: Record<string, unknown>[];
   loot: Record<string, unknown>[];
   hazards: Record<string, unknown>[];
   [key: string]: unknown;
 }
 
-export class TownGenerator extends InteriorGenerator {
-  buildingTypes: Record<string, BuildingType>;
+interface SettlementSpec {
+  perimeter: 'fence' | 'wall' | null;
+  street: 'road' | 'path';
+  plaza: 'townSquare' | 'path';
+  /** Plaza extends this many hexes either side of the avenue. */
+  plazaRadius: number;
+  centerpiece: 'well' | 'campfire';
+  /** Placed nearest the plaza first; each needs a lot at least FOOTPRINT.minWidth wide. */
+  essentials: string[];
+  fillers: string[];
+  lotWidth: [number, number];
+  /** Chance a leftover lot gets a filler instead of staying a garden. */
+  density: number;
+}
 
+const SPECS: Record<string, SettlementSpec> = {
+  camp: {
+    perimeter: null, street: 'path', plaza: 'path', plazaRadius: 1, centerpiece: 'campfire',
+    essentials: ['supplyWagon'], fillers: ['tent', 'tent', 'tent', 'supplyWagon'], lotWidth: [2, 2], density: 0.8,
+  },
+  village: {
+    perimeter: 'fence', street: 'road', plaza: 'townSquare', plazaRadius: 2, centerpiece: 'well',
+    essentials: ['inn', 'shop'], fillers: ['house'], lotWidth: [2, 3], density: 0.65,
+  },
+  town: {
+    perimeter: 'fence', street: 'road', plaza: 'townSquare', plazaRadius: 2, centerpiece: 'well',
+    essentials: ['inn', 'shop', 'temple', 'blacksmith'], fillers: ['house'], lotWidth: [2, 3], density: 0.75,
+  },
+  city: {
+    perimeter: 'wall', street: 'road', plaza: 'townSquare', plazaRadius: 3, centerpiece: 'well',
+    essentials: ['inn', 'shop', 'temple', 'market', 'blacksmith', 'barracks'], fillers: ['house'], lotWidth: [2, 3], density: 0.9,
+  },
+  metropolis: {
+    perimeter: 'wall', street: 'road', plaza: 'townSquare', plazaRadius: 4, centerpiece: 'well',
+    essentials: ['inn', 'shop', 'temple', 'market', 'blacksmith', 'barracks', 'inn', 'shop', 'market'],
+    fillers: ['house'], lotWidth: [2, 4], density: 0.95,
+  },
+};
+
+const FOOTPRINT: Record<string, { minWidth: number; height: 1 | 2 }> = {
+  inn: { minWidth: 3, height: 2 },
+  shop: { minWidth: 3, height: 2 },
+  blacksmith: { minWidth: 3, height: 2 },
+  temple: { minWidth: 4, height: 2 },
+  barracks: { minWidth: 4, height: 2 },
+  market: { minWidth: 3, height: 1 },
+  house: { minWidth: 2, height: 2 },
+  tent: { minWidth: 2, height: 1 },
+  supplyWagon: { minWidth: 2, height: 1 },
+};
+
+const NAMES: Record<string, string[]> = {
+  inn: ['The Weary Traveler', 'The Gilded Tankard', 'The Sleeping Griffin', 'The Rusty Lantern', 'The Drunken Dragon', 'The Hearth & Horn'],
+  shop: ['Oakbarrel Provisions', 'The Copper Kettle', "Wayfarer's Supply", 'Hilltop Goods', 'The Lucky Satchel'],
+  blacksmith: ['The Iron Anvil', 'Emberforge Smithy', 'Hammer & Tongs'],
+  temple: ['Temple of the Morning Light', 'Chapel of the Silver Flame', 'House of the Harvest'],
+  market: ['Market Stalls', 'Traders’ Row', 'Bazaar'],
+  barracks: ['Watch Barracks', 'Garrison Hall'],
+  house: ['Cottage', 'Townhouse', 'Homestead'],
+  tent: ["Traveler's Tent", "Trapper's Tent", "Scout's Tent"],
+  supplyWagon: ['Supply Wagon'],
+  questBoard: ['Quest Board'],
+  well: ['Town Well'],
+  campfire: ['Campfire'],
+};
+
+const TERRAIN: Record<string, TerrainType> = {
+  road: { key: 'road', name: 'Cobblestone Road', color: '#8B7355', walkable: true },
+  path: { key: 'path', name: 'Dirt Path', color: '#8a6e4a', walkable: true },
+  grass: { key: 'grass', name: 'Grass', color: '#567d46', walkable: true },
+  townSquare: { key: 'townSquare', name: 'Town Square', color: '#a89968', walkable: true },
+  building: { key: 'building', name: 'Building', color: '#8B4513', walkable: false },
+  buildingEntrance: { key: 'buildingEntrance', name: 'Doorstep', color: '#654321', walkable: true, isInteractive: true },
+  gate: { key: 'gate', name: 'Gate', color: '#5C4033', walkable: true },
+  fence: { key: 'fence', name: 'Fence', color: '#4a3f35', walkable: false },
+  wall: { key: 'wall', name: 'City Wall', color: '#4a4740', walkable: false },
+};
+
+/** Horizontal position in hex widths on the odd-r grid (odd rows shift right by half). */
+const px = (col: number, row: number) => col + (row & 1) * 0.5;
+
+export class TownGenerator extends InteriorGenerator {
   constructor() {
     super();
-
-    // Town-specific terrain types
-    this.terrainTypes = {
-      ...this.terrainTypes,
-      road: {
-        key: 'road',
-        name: 'Cobblestone Road',
-        color: '#8B7355',
-        walkable: true,
-      },
-      grass: {
-        key: 'grass',
-        name: 'Grass',
-        color: '#567d46',
-        walkable: true,
-      },
-      townSquare: {
-        key: 'townSquare',
-        name: 'Town Square',
-        color: '#a89968',
-        walkable: true,
-      },
-      building: {
-        key: 'building',
-        name: 'Building',
-        color: '#8B4513',
-        walkable: false,
-      },
-      buildingEntrance: {
-        key: 'buildingEntrance',
-        name: 'Building Entrance',
-        color: '#654321',
-        walkable: true,
-        isInteractive: true,
-      },
-      gate: {
-        key: 'gate',
-        name: 'Town Gate',
-        color: '#5C4033',
-        walkable: true,
-      },
-      fence: {
-        key: 'fence',
-        name: 'Fence',
-        color: '#4a3f35',
-        walkable: false,
-      },
-    };
-
-    // Building types with their metadata
-    this.buildingTypes = {
-      inn: {
-        key: 'inn',
-        name: 'The Weary Traveler Inn',
-        icon: '🏨',
-        size: { width: 3, height: 3 },
-        entranceOffset: { col: 1, row: 2 }, // Bottom center
-      },
-      shop: {
-        key: 'shop',
-        name: 'General Store',
-        icon: '🏪',
-        size: { width: 3, height: 2 },
-        entranceOffset: { col: 1, row: 1 }, // Bottom center
-      },
-      questBoard: {
-        key: 'questBoard',
-        name: 'Quest Board',
-        icon: '📋',
-        size: { width: 2, height: 2 },
-        entranceOffset: { col: 0, row: 1 }, // Bottom left
-      },
-      blacksmith: {
-        key: 'blacksmith',
-        name: 'Blacksmith',
-        icon: '⚒️',
-        size: { width: 3, height: 2 },
-        entranceOffset: { col: 1, row: 1 },
-      },
-      temple: {
-        key: 'temple',
-        name: 'Temple',
-        icon: '⛪',
-        size: { width: 4, height: 3 },
-        entranceOffset: { col: 2, row: 2 },
-      },
-      house: {
-        key: 'house',
-        name: 'House',
-        icon: '🏠',
-        size: { width: 2, height: 2 },
-        entranceOffset: { col: 0, row: 1 },
-      },
-      tent: {
-        key: 'tent',
-        name: 'Tent',
-        icon: '⛺',
-        size: { width: 2, height: 1 },
-        entranceOffset: { col: 0, row: 0 },
-      },
-      campfire: {
-        key: 'campfire',
-        name: 'Campfire',
-        icon: '🔥',
-        size: { width: 1, height: 1 },
-        entranceOffset: { col: 0, row: 0 },
-      },
-      supplyWagon: {
-        key: 'supplyWagon',
-        name: 'Supply Wagon',
-        icon: '🛒',
-        size: { width: 2, height: 1 },
-        entranceOffset: { col: 0, row: 0 },
-      },
-      market: {
-        key: 'market',
-        name: 'Market',
-        icon: '🏬',
-        size: { width: 3, height: 2 },
-        entranceOffset: { col: 1, row: 1 },
-      },
-      barracks: {
-        key: 'barracks',
-        name: 'Barracks',
-        icon: '🛡️',
-        size: { width: 4, height: 2 },
-        entranceOffset: { col: 2, row: 1 },
-      },
-    };
+    this.terrainTypes = { ...this.terrainTypes, ...TERRAIN };
   }
 
-  /**
-   * Generate a settlement interior map (routed by settlement size)
-   * @param {number} width - Map width
-   * @param {number} height - Map height
-   * @param {object} townData - Settlement metadata (name, settlementSize, etc.)
-   * @returns {object} Interior map data
-   */
   generate(width: number, height: number, townData: TownData = {}): TownMap {
-    const settlementSize = townData.settlementSize || 'town';
+    const size = townData.settlementSize && SPECS[townData.settlementSize] ? townData.settlementSize : 'town';
+    const spec = SPECS[size];
+    const grid = this.initializeGrid(width, height, TERRAIN.grass);
+    const at = (col: number, row: number) => grid[row]?.[col];
+    const paint = (col: number, row: number, key: string) => {
+      const h = at(col, row);
+      if (h) h.terrain = TERRAIN[key];
+    };
+    const ac = Math.floor(width / 2) - 1; // avenue columns: ac, ac + 1
 
-    switch (settlementSize) {
-      case 'camp':
-        return this.generateCampLayout(width, height, townData);
-      case 'village':
-        return this.generateVillageLayout(width, height, townData);
-      case 'town':
-        return this.generateTownLayout(width, height, townData);
-      case 'city':
-        return this.generateCityLayout(width, height, townData);
-      case 'metropolis':
-        return this.generateMetropolisLayout(width, height, townData);
-      default:
-        return this.generateTownLayout(width, height, townData);
+    if (spec.perimeter) {
+      for (let c = 0; c < width; c++) [0, height - 1].forEach(r => paint(c, r, spec.perimeter!));
+      for (let r = 0; r < height; r++) [0, width - 1].forEach(c => paint(c, r, spec.perimeter!));
     }
-  }
 
-  /**
-   * Generate a camp layout (smallest settlement)
-   * @param {number} width - Map width (12×10)
-   * @param {number} height - Map height
-   * @param {object} townData - Camp metadata
-   * @returns {object} Interior map data
-   */
-  generateCampLayout(width: number, height: number, _townData: TownData): TownMap {
-    // Initialize grid with grass (no walls)
-    const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
+    // Streets every 4 rows up from the gate (heights are 4n + 2, so they fill the map);
+    // the one nearest the middle gets the plaza.
+    const streets: number[] = [];
+    for (let r = height - 3; r >= 3; r -= 4) streets.unshift(r);
+    const mid = (height - 1) / 2;
+    const plazaStreet = [...streets].sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid) || b - a)[0];
+    for (const s of streets) for (let c = 1; c < width - 1; c++) paint(c, s, spec.street);
+    for (let r = streets[0]; r < height - 1; r++) [ac, ac + 1].forEach(c => paint(c, r, spec.street));
 
-    const centerCol = Math.floor(width / 2);
-    const centerRow = Math.floor(height / 2);
+    const R = spec.plazaRadius;
+    for (let r = plazaStreet - 3; r < plazaStreet; r++)
+      for (let c = ac - R; c <= ac + 1 + R; c++) paint(c, r, spec.plaza);
+
+    // Gate: two hexes wide at the bottom edge; the player spawns just inside.
+    const gate = spec.perimeter === 'wall' ? { ...TERRAIN.gate, name: 'City Gate' } : TERRAIN.gate;
+    grid[height - 1][ac].terrain = grid[height - 1][ac + 1].terrain = gate;
+    grid[height - 1][ac].content = 'entrance';
+
+    const names = Object.fromEntries(Object.entries(NAMES).map(([k, v]) => [k, [...v]]));
+    // Landmarks draw without replacement so a metropolis's two inns differ; homes may repeat
+    const nameFor = (type: string) => {
+      const pool = names[type];
+      const i = Math.floor(this.random() * pool.length);
+      return pool.length > 1 && type !== 'house' && type !== 'tent' ? pool.splice(i, 1)[0] : pool[i];
+    };
     const buildings: Building[] = [];
+    const place = (type: string, col: number, bottom: number, w: number, h: number, withDoor: boolean) => {
+      const b: Building = { id: buildings.length + 1, type, name: nameFor(type), col, row: bottom - h + 1, width: w, height: h, door: null };
+      for (let r = b.row; r <= bottom; r++) for (let c = col; c < col + w; c++) this.tag(at(c, r)!, TERRAIN.building, b);
+      if (withDoor) {
+        b.door = this.doorstep(grid, col, bottom, w, ac + 0.5);
+        this.tag(at(b.door.col, b.door.row)!, TERRAIN.buildingEntrance, b);
+      }
+      buildings.push(b);
+    };
 
-    // Place campfire in center
-    const campfire = this.placeBuilding(grid, this.buildingTypes.campfire, centerCol, centerRow);
-    if (campfire) buildings.push(campfire);
+    // Plaza props: centerpiece in the middle, quest board at the plaza's north-east corner.
+    place(spec.centerpiece, ac, plazaStreet - 2, 1, 1, false);
+    place('questBoard', ac + 1 + R, plazaStreet - 3, 1, 1, true);
 
-    // Place 2-3 tents around campfire
-    const numTents = this.randomInt(2, 3);
-    const tentPositions = [
-      { col: centerCol - 3, row: centerRow - 2 },
-      { col: centerCol + 2, row: centerRow - 2 },
-      { col: centerCol - 1, row: centerRow + 2 },
-    ];
-
-    for (let i = 0; i < numTents && i < tentPositions.length; i++) {
-      const tent = this.placeBuilding(
-        grid,
-        this.buildingTypes.tent,
-        tentPositions[i].col,
-        tentPositions[i].row
-      );
-      if (tent) buildings.push(tent);
+    // Frontage: runs of free grass on the two rows above each street.
+    const runs: Array<{ row: number; start: number; end: number }> = [];
+    for (const s of streets) {
+      const free = (x: number) => x < width - 1 && at(x, s - 1)?.terrain.key === 'grass' && at(x, s - 2)?.terrain.key === 'grass';
+      for (let c = 1; c < width - 1; c++) {
+        if (!free(c)) continue;
+        const start = c;
+        while (free(c + 1)) c++;
+        runs.push({ row: s - 1, start, end: c });
+      }
     }
 
-    // Place supply wagon (acts as shop)
-    const wagon = this.placeBuilding(
-      grid,
-      this.buildingTypes.supplyWagon,
-      centerCol + 3,
-      centerRow + 1
-    );
-    if (wagon) buildings.push(wagon);
+    // Essentials are carved from the run end nearest the plaza, leaving a 1-hex alley.
+    const plazaX = ac + 0.5, plazaY = plazaStreet - 2;
+    const reach = (col: number, row: number) => Math.hypot(col - plazaX, (row - plazaY) * 1.5);
+    for (const type of spec.essentials) {
+      const w = FOOTPRINT[type].minWidth;
+      const options = runs
+        .filter(r => r.end - r.start + 1 >= w)
+        .map(r => ({ r, fromEnd: reach(r.end, r.row) < reach(r.start, r.row) }))
+        .sort((a, b) => reach(a.fromEnd ? a.r.end : a.r.start, a.r.row) - reach(b.fromEnd ? b.r.end : b.r.start, b.r.row));
+      const pick = options[0];
+      if (!pick) {
+        logger.general.warn('TownGenerator: no frontage for essential building', { type, size, seed: this.seed });
+        continue;
+      }
+      const { r, fromEnd } = pick;
+      place(type, fromEnd ? r.end - w + 1 : r.start, r.row, w, FOOTPRINT[type].height, true);
+      if (fromEnd) r.end -= w + 1;
+      else r.start += w + 1;
+    }
 
-    // Place quest board
-    const questBoard = this.placeBuilding(
-      grid,
-      this.buildingTypes.questBoard,
-      centerCol - 4,
-      centerRow + 1
-    );
-    if (questBoard) buildings.push(questBoard);
-
-    // Place entrance at bottom center — row height-2 so it lands on grass,
-    // not on the perimeter fence (row height-1) which is non-walkable.
-    const entranceCol = centerCol;
-    const entranceRow = height - 2;
-    grid[entranceRow][entranceCol].terrain = this.terrainTypes.gate;
-    grid[entranceRow][entranceCol].content = 'entrance';
-
-    // Convert grid to hex array
-    const hexes = this.gridToHexes(grid);
-    const entrance = { col: entranceCol, row: entranceRow };
-    const centerSquare = { col: centerCol, row: centerRow, radius: 1 };
+    // Whatever frontage is left becomes house lots or gardens.
+    for (const r of runs) {
+      for (let x = r.start; x <= r.end; ) {
+        const w = Math.min(this.randomInt(spec.lotWidth[0], spec.lotWidth[1]), r.end - x + 1);
+        if (w >= 2 && this.random() < spec.density) {
+          const type = this.randomChoice(spec.fillers);
+          place(type, x, r.row, w, FOOTPRINT[type].height, true);
+        }
+        x += w + 1;
+      }
+    }
 
     return {
       seed: this.seed,
-      poiType: 'camp',
+      poiType: size,
+      name: townData.name,
       width,
       height,
-      hexes,
+      hexes: this.gridToHexes(grid),
       buildings,
+      entrance: { col: ac, row: height - 2 },
       encounters: [],
       loot: [],
       hazards: [],
-      entrance,
-      centerSquare,
     };
   }
 
-  /**
-   * Generate a village layout (small settlement)
-   * @param {number} width - Map width (18×14)
-   * @param {number} height - Map height
-   * @param {object} townData - Village metadata
-   * @returns {object} Interior map data
-   */
-  generateVillageLayout(width: number, height: number, _townData: TownData): TownMap {
-    // Initialize grid with grass
-    const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
-
-    // Add fence perimeter
-    this.generateTownWalls(grid);
-
-    const centerCol = Math.floor(width / 2);
-    const centerRow = Math.floor(height / 2);
-    const buildings: Building[] = [];
-
-    // Small 3×3 town square in center
-    const squareRadius = 1;
-    for (let row = 0; row < height; row++) {
-      for (let col = 0; col < width; col++) {
-        const distance = this.getHexDistance(col, row, centerCol, centerRow);
-        if (distance <= squareRadius) {
-          grid[row][col].terrain = this.terrainTypes.townSquare;
-        }
-      }
-    }
-
-    // Single horizontal road through center
-    for (let col = 0; col < width; col++) {
-      if (grid[centerRow][col].terrain.key !== 'townSquare') {
-        grid[centerRow][col].terrain = this.terrainTypes.road;
-      }
-    }
-
-    // Place essential buildings: inn, shop, quest board only
-    const inn = this.placeBuilding(grid, this.buildingTypes.inn, centerCol - 5, centerRow - 3);
-    if (inn) buildings.push(inn);
-
-    const shop = this.placeBuilding(grid, this.buildingTypes.shop, centerCol + 3, centerRow - 3);
-    if (shop) buildings.push(shop);
-
-    const questBoard = this.placeBuilding(
-      grid,
-      this.buildingTypes.questBoard,
-      centerCol - 1,
-      centerRow - 4
-    );
-    if (questBoard) buildings.push(questBoard);
-
-    // Place 2-4 houses
-    const numHouses = this.randomInt(2, 4);
-    let housesPlaced = 0;
-    let attempts = 0;
-
-    while (housesPlaced < numHouses && attempts < 30) {
-      attempts++;
-      const col = this.randomInt(3, width - 4);
-      const row = this.randomInt(3, height - 4);
-
-      if (this.getHexDistance(col, row, centerCol, centerRow) < 3) {
-        continue;
-      }
-
-      const house = this.placeBuilding(grid, this.buildingTypes.house, col, row);
-      if (house) {
-        buildings.push(house);
-        housesPlaced++;
-      }
-    }
-
-    // Place gate at bottom
-    this.placeGate(grid);
-
-    // Convert grid to hex array
-    const hexes = this.gridToHexes(grid);
-    const entrance = this.findEntrance(grid);
-    const centerSquare = { col: centerCol, row: centerRow, radius: squareRadius };
-
-    return {
-      seed: this.seed,
-      poiType: 'village',
-      width,
-      height,
-      hexes,
-      buildings,
-      encounters: [],
-      loot: [],
-      hazards: [],
-      entrance,
-      centerSquare,
-    };
+  private tag(hex: InteriorHex, terrain: TerrainType, b: Building) {
+    hex.terrain = terrain;
+    hex.buildingType = b.type;
+    hex.buildingId = b.id;
+    hex.buildingName = b.name;
   }
 
-  /**
-   * Generate a town layout (original logic)
-   * @param {number} width - Map width (typically 20-25)
-   * @param {number} height - Map height (typically 15-20)
-   * @param {object} townData - Town metadata
-   * @returns {object} Interior map data
-   */
-  generateTownLayout(width: number, height: number, townData: TownData): TownMap {
-    // Initialize grid with grass
-    const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
-
-    // Generate town layout
-    this.generateTownWalls(grid);
-    const centerSquare = this.generateTownSquare(grid);
-    this.generateMainRoads(grid, centerSquare);
-    const buildings = this.placeBuildings(grid, townData);
-    this.generateSecondaryRoads(grid, buildings);
-    this.placeGate(grid);
-
-    // Convert grid to hex array
-    const hexes = this.gridToHexes(grid);
-
-    // Find entrance (at gate)
-    const entrance = this.findEntrance(grid);
-
-    // Return interior map data structure
-    return {
-      seed: this.seed,
-      poiType: 'town',
-      width,
-      height,
-      hexes,
-      buildings, // Building metadata with positions
-      encounters: [], // Towns have no random encounters
-      loot: [], // Towns have no random loot
-      hazards: [], // Towns have no hazards
-      entrance,
-      centerSquare,
-    };
-  }
-
-  /**
-   * Generate a city or metropolis layout (larger settlement)
-   * @param {number} width - Map width (30×24 for city, 36×30 for metropolis)
-   * @param {number} height - Map height
-   * @param {object} townData - City metadata
-   * @returns {object} Interior map data
-   */
-  generateCityLayout(width: number, height: number, townData: TownData): TownMap {
-    const isMetropolis = townData.settlementSize === 'metropolis';
-
-    // Initialize grid with grass
-    const grid = this.initializeGrid(width, height, this.terrainTypes.grass);
-
-    // Generate walls
-    this.generateTownWalls(grid);
-
-    const centerCol = Math.floor(width / 2);
-    const centerRow = Math.floor(height / 2);
-
-    // Bigger town square (radius 2 for city, 3 for metropolis)
-    const squareRadius = isMetropolis ? 3 : 2;
-    for (let row = 0; row < height; row++) {
-      for (let col = 0; col < width; col++) {
-        const distance = this.getHexDistance(col, row, centerCol, centerRow);
-        if (distance <= squareRadius) {
-          grid[row][col].terrain = this.terrainTypes.townSquare;
-        }
-      }
-    }
-
-    // Grid pattern roads (every 6 hexes)
-    for (let col = 0; col < width; col += 6) {
-      for (let row = 0; row < height; row++) {
-        if (grid[row][col].terrain.key !== 'townSquare' && grid[row][col].terrain.key !== 'fence') {
-          grid[row][col].terrain = this.terrainTypes.road;
-        }
-      }
-    }
-
-    for (let row = 0; row < height; row += 6) {
-      for (let col = 0; col < width; col++) {
-        if (grid[row][col].terrain.key !== 'townSquare' && grid[row][col].terrain.key !== 'fence') {
-          grid[row][col].terrain = this.terrainTypes.road;
-        }
-      }
-    }
-
-    // Main roads through center
-    for (let col = 0; col < width; col++) {
-      if (grid[centerRow][col].terrain.key !== 'townSquare') {
-        grid[centerRow][col].terrain = this.terrainTypes.road;
-      }
-    }
-
-    for (let row = 0; row < height; row++) {
-      if (grid[row][centerCol].terrain.key !== 'townSquare') {
-        grid[row][centerCol].terrain = this.terrainTypes.road;
-      }
-    }
-
-    const buildings: Building[] = [];
-
-    // Place all town buildings + market + barracks
-    const essentialPositions: Array<{ type: BuildingType; position: HexCoord }> = [
-      { type: this.buildingTypes.inn, position: { col: centerCol - 8, row: centerRow - 6 } },
-      { type: this.buildingTypes.shop, position: { col: centerCol + 5, row: centerRow - 6 } },
-      { type: this.buildingTypes.questBoard, position: { col: centerCol - 1, row: centerRow - 7 } },
-      { type: this.buildingTypes.blacksmith, position: { col: centerCol - 8, row: centerRow + 5 } },
-      { type: this.buildingTypes.temple, position: { col: centerCol + 4, row: centerRow + 5 } },
-      { type: this.buildingTypes.market, position: { col: centerCol - 12, row: centerRow - 2 } },
-      { type: this.buildingTypes.barracks, position: { col: centerCol + 8, row: centerRow - 2 } },
-    ];
-
-    // Metropolis gets duplicate inns and shops
-    if (isMetropolis) {
-      essentialPositions.push(
-        { type: this.buildingTypes.inn, position: { col: centerCol - 14, row: centerRow + 8 } },
-        { type: this.buildingTypes.shop, position: { col: centerCol + 10, row: centerRow + 8 } }
-      );
-    }
-
-    // Place essential buildings
-    for (const { type, position } of essentialPositions) {
-      const building = this.placeBuilding(grid, type, position.col, position.row);
-      if (building) {
-        buildings.push(building);
-      }
-    }
-
-    // Place houses (8-12 for city, 12-18 for metropolis)
-    const numHouses = isMetropolis ? this.randomInt(12, 18) : this.randomInt(8, 12);
-    let housesPlaced = 0;
-    let attempts = 0;
-
-    while (housesPlaced < numHouses && attempts < 100) {
-      attempts++;
-      const col = this.randomInt(3, width - 4);
-      const row = this.randomInt(3, height - 4);
-
-      if (this.getHexDistance(col, row, centerCol, centerRow) < squareRadius + 3) {
-        continue;
-      }
-
-      const house = this.placeBuilding(grid, this.buildingTypes.house, col, row);
-      if (house) {
-        buildings.push(house);
-        housesPlaced++;
-      }
-    }
-
-    // Connect buildings to roads
-    this.generateSecondaryRoads(grid, buildings);
-
-    // Place gate
-    this.placeGate(grid);
-
-    // Convert grid to hex array
-    const hexes = this.gridToHexes(grid);
-    const entrance = this.findEntrance(grid);
-    const centerSquare = { col: centerCol, row: centerRow, radius: squareRadius };
-
-    return {
-      seed: this.seed,
-      poiType: isMetropolis ? 'metropolis' : 'city',
-      width,
-      height,
-      hexes,
-      buildings,
-      encounters: [],
-      loot: [],
-      hazards: [],
-      entrance,
-      centerSquare,
-    };
-  }
-
-  /**
-   * Generate a metropolis layout (alias to city with larger dimensions)
-   * @param {number} width - Map width (36×30)
-   * @param {number} height - Map height
-   * @param {object} townData - Metropolis metadata
-   * @returns {object} Interior map data
-   */
-  generateMetropolisLayout(width: number, height: number, townData: TownData): TownMap {
-    return this.generateCityLayout(width, height, townData);
-  }
-
-  /**
-   * Generate town walls/fence around perimeter
-   * @param {Array} grid - 2D grid
-   */
-  generateTownWalls(grid: InteriorGrid): void {
-    const height = grid.length;
-    const width = grid[0].length;
-
-    for (let row = 0; row < height; row++) {
-      for (let col = 0; col < width; col++) {
-        // Perimeter fence
-        if (row === 0 || row === height - 1 || col === 0 || col === width - 1) {
-          grid[row][col].terrain = this.terrainTypes.fence;
-        }
-      }
-    }
-  }
-
-  /**
-   * Generate central town square
-   * @param {Array} grid - 2D grid
-   * @returns {object} Center square coordinates {col, row, radius}
-   */
-  generateTownSquare(grid: InteriorGrid): CenterSquare {
-    const height = grid.length;
-    const width = grid[0].length;
-
-    const centerCol = Math.floor(width / 2);
-    const centerRow = Math.floor(height / 2);
-    const radius = 2;
-
-    // Create circular town square
-    for (let row = 0; row < height; row++) {
-      for (let col = 0; col < width; col++) {
-        const distance = this.getHexDistance(col, row, centerCol, centerRow);
-        if (distance <= radius) {
-          grid[row][col].terrain = this.terrainTypes.townSquare;
-        }
-      }
-    }
-
-    return { col: centerCol, row: centerRow, radius };
-  }
-
-  /**
-   * Generate main roads radiating from town square
-   * @param {Array} grid - 2D grid
-   * @param {object} centerSquare - Center square data
-   */
-  generateMainRoads(grid: InteriorGrid, centerSquare: CenterSquare): void {
-    const height = grid.length;
-    const width = grid[0].length;
-    const { col: centerCol, row: centerRow } = centerSquare;
-
-    // Horizontal road through center
-    for (let col = 0; col < width; col++) {
-      if (grid[centerRow][col].terrain.key !== 'townSquare') {
-        grid[centerRow][col].terrain = this.terrainTypes.road;
-      }
-    }
-
-    // Vertical road through center
-    for (let row = 0; row < height; row++) {
-      if (grid[row][centerCol].terrain.key !== 'townSquare') {
-        grid[row][centerCol].terrain = this.terrainTypes.road;
-      }
-    }
-  }
-
-  /**
-   * Place buildings in the town
-   * @param {Array} grid - 2D grid
-   * @param {object} townData - Town metadata
-   * @returns {Array} Array of placed buildings with metadata
-   */
-  placeBuildings(grid: InteriorGrid, _townData: TownData): Building[] {
-    const buildings: Building[] = [];
-    const height = grid.length;
-    const width = grid[0].length;
-    const centerCol = Math.floor(width / 2);
-    const centerRow = Math.floor(height / 2);
-
-    // Essential buildings (always present)
-    const essentialBuildings: Array<{ type: BuildingType; position: HexCoord }> = [
-      { type: this.buildingTypes.inn, position: { col: centerCol - 6, row: centerRow - 4 } },
-      { type: this.buildingTypes.shop, position: { col: centerCol + 4, row: centerRow - 4 } },
-      { type: this.buildingTypes.questBoard, position: { col: centerCol - 1, row: centerRow - 5 } },
-      { type: this.buildingTypes.blacksmith, position: { col: centerCol - 6, row: centerRow + 3 } },
-      { type: this.buildingTypes.temple, position: { col: centerCol + 3, row: centerRow + 3 } },
-    ];
-
-    // Place essential buildings
-    for (const { type, position } of essentialBuildings) {
-      const building = this.placeBuilding(grid, type, position.col, position.row);
-      if (building) {
-        buildings.push(building);
-      }
-    }
-
-    // Place random houses in remaining spaces
-    const numHouses = this.randomInt(3, 6);
-    let attempts = 0;
-    let housesPlaced = 0;
-
-    while (housesPlaced < numHouses && attempts < 50) {
-      attempts++;
-
-      // Random position avoiding center
-      const col = this.randomInt(3, width - 5);
-      const row = this.randomInt(3, height - 5);
-
-      // Don't place too close to center
-      if (this.getHexDistance(col, row, centerCol, centerRow) < 4) {
-        continue;
-      }
-
-      const house = this.placeBuilding(grid, this.buildingTypes.house, col, row);
-      if (house) {
-        buildings.push(house);
-        housesPlaced++;
-      }
-    }
-
-    return buildings;
-  }
-
-  /**
-   * Place a single building on the grid
-   * @param {Array} grid - 2D grid
-   * @param {object} buildingType - Building type metadata
-   * @param {number} startCol - Top-left column
-   * @param {number} startRow - Top-left row
-   * @returns {object|null} Building data or null if placement failed
-   */
-  placeBuilding(
-    grid: InteriorGrid,
-    buildingType: BuildingType,
-    startCol: number,
-    startRow: number
-  ): Building | null {
-    const { width: bWidth, height: bHeight } = buildingType.size;
-    const height = grid.length;
-    const width = grid[0].length;
-
-    // Check if area is available
-    for (let r = 0; r < bHeight; r++) {
-      for (let c = 0; c < bWidth; c++) {
-        const col = startCol + c;
-        const row = startRow + r;
-
-        if (col < 0 || col >= width || row < 0 || row >= height) {
-          return null; // Out of bounds
-        }
-
-        const terrain = grid[row][col].terrain;
-        // Can only build on grass or road (will overwrite)
-        if (terrain.key !== 'grass' && terrain.key !== 'road') {
-          return null; // Space occupied
-        }
-      }
-    }
-
-    // Place building
-    for (let r = 0; r < bHeight; r++) {
-      for (let c = 0; c < bWidth; c++) {
-        const col = startCol + c;
-        const row = startRow + r;
-        grid[row][col].terrain = this.terrainTypes.building;
-        grid[row][col].buildingType = buildingType.key;
-      }
-    }
-
-    // Place entrance
-    const entranceCol = startCol + buildingType.entranceOffset.col;
-    const entranceRow = startRow + buildingType.entranceOffset.row;
-    grid[entranceRow][entranceCol].terrain = this.terrainTypes.buildingEntrance;
-    grid[entranceRow][entranceCol].buildingType = buildingType.key;
-
-    return {
-      type: buildingType.key,
-      name: buildingType.name,
-      icon: buildingType.icon,
-      col: startCol,
-      row: startRow,
-      width: bWidth,
-      height: bHeight,
-      entrance: { col: entranceCol, row: entranceRow },
-    };
-  }
-
-  /**
-   * Generate secondary roads connecting buildings
-   * @param {Array} grid - 2D grid
-   * @param {Array} buildings - Placed buildings
-   */
-  generateSecondaryRoads(grid: InteriorGrid, buildings: Building[]): void {
-    // Connect each building entrance to nearest main road
-    for (const building of buildings) {
-      const { entrance } = building;
-      this.connectToNearestRoad(grid, entrance.col, entrance.row);
-    }
-  }
-
-  /**
-   * Connect a point to the nearest road
-   * @param {Array} grid - 2D grid
-   * @param {number} startCol
-   * @param {number} startRow
-   */
-  connectToNearestRoad(grid: InteriorGrid, startCol: number, startRow: number): void {
-    const height = grid.length;
-    const width = grid[0].length;
-
-    // Carve path to nearest road (simple straight line)
-    const centerCol = Math.floor(width / 2);
-    const centerRow = Math.floor(height / 2);
-
-    const current = { col: startCol, row: startRow };
-
-    // Move toward center roads
-    while (
-      grid[current.row][current.col].terrain.key !== 'road' &&
-      grid[current.row][current.col].terrain.key !== 'townSquare'
-    ) {
-      // Determine direction to move
-      const dx = centerCol - current.col;
-      const dy = centerRow - current.row;
-
-      // Move horizontally or vertically toward center
-      if (Math.abs(dx) > Math.abs(dy) && dx !== 0) {
-        current.col += dx > 0 ? 1 : -1;
-      } else if (dy !== 0) {
-        current.row += dy > 0 ? 1 : -1;
-      } else {
-        break; // Already at center
-      }
-
-      // Bounds check
-      if (current.col < 0 || current.col >= width || current.row < 0 || current.row >= height) {
-        break;
-      }
-
-      // Place road if on grass
-      const currentTerrain = grid[current.row][current.col].terrain;
-      if (currentTerrain.key === 'grass') {
-        grid[current.row][current.col].terrain = this.terrainTypes.road;
-      } else if (currentTerrain.key === 'building' || currentTerrain.key === 'fence') {
-        // Don't overwrite buildings or fences
-        break;
-      }
-    }
-  }
-
-  /**
-   * Place town gate (entrance/exit)
-   * @param {Array} grid - 2D grid
-   */
-  placeGate(grid: InteriorGrid): void {
-    const height = grid.length;
-    const width = grid[0].length;
-
-    // Place gate at bottom center (where main road exits)
-    const gateCol = Math.floor(width / 2);
-    const gateRow = height - 1;
-
-    grid[gateRow][gateCol].terrain = this.terrainTypes.gate;
-    grid[gateRow][gateCol].content = 'entrance';
-  }
-
-  /**
-   * Find entrance hex
-   * @param {Array} grid - 2D grid
-   * @returns {object} {col, row}
-   */
-  findEntrance(grid: InteriorGrid): HexCoord {
-    for (let row = 0; row < grid.length; row++) {
-      for (let col = 0; col < grid[row].length; col++) {
-        if (grid[row][col].content === 'entrance') {
-          return { col, row };
-        }
-      }
-    }
-
-    // Fallback to bottom center
-    return { col: Math.floor(grid[0].length / 2), row: grid.length - 1 };
-  }
-
-  /**
-   * No encounters in towns (override parent method)
-   */
-  placeEncounters(_interiorMap: TownMap, _poi?: unknown): Record<string, unknown>[] {
-    return [];
-  }
-
-  /**
-   * No loot in towns (override parent method)
-   */
-  placeLoot(_interiorMap: TownMap): Record<string, unknown>[] {
-    return [];
-  }
-
-  /**
-   * No hazards in towns (override parent method)
-   */
-  placeHazards(_interiorMap: TownMap): Record<string, unknown>[] {
-    return [];
+  /** The hex below the bottom row closest to the building's middle (ties go toward `towardX`). */
+  private doorstep(grid: InteriorGrid, col: number, bottom: number, w: number, towardX: number): HexCoord {
+    const centre = px(col, bottom) + (w - 1) / 2, row = bottom + 1;
+    const score = (c: number) => Math.abs(px(c, row) - centre) * 100 + Math.abs(px(c, row) - towardX);
+    let best = col;
+    for (let c = col - 1; c <= col + w; c++) if (grid[row]?.[c] && score(c) < score(best)) best = c;
+    return { col: best, row };
   }
 }
 

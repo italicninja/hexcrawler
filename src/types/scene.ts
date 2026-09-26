@@ -35,6 +35,7 @@ export interface SceneHex {
   poi?: ScenePoi | null;
   weather?: { condition?: string } | null;
   buildingType?: string;
+  buildingName?: string;
   connectedFloor?: number;
 }
 

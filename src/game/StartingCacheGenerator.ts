@@ -21,6 +21,7 @@ import { InteriorGenerator } from './InteriorGenerator';
 import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { STARTING_CACHE, GAME_DEFAULTS } from '../constants/gameConstants';
 import { getHexDistance } from '../utils/hexMath';
+import { isSettlement } from '../constants/gameConstants';
 
 /** Minimal overworld-hex shape needed to locate settlements. */
 interface WorldHex {
@@ -52,8 +53,6 @@ interface NearestSettlement {
   direction: string;
 }
 
-// Settlement POI types that count as "a place to head to"
-const SETTLEMENT_TYPES = new Set(['camp', 'village', 'town', 'city', 'metropolis']);
 
 /**
  * Given a delta (target - origin) in offset-grid col/row space, return the
@@ -103,7 +102,7 @@ function findNearestSettlement(
   let nearestDist = Infinity;
 
   for (const hex of worldHexes) {
-    if (!hex.poi || !hex.poi.type || !SETTLEMENT_TYPES.has(hex.poi.type)) continue;
+    if (!hex.poi || !hex.poi.type || !isSettlement(hex.poi.type)) continue;
     // Skip the starting cache itself
     if (hex.col === startCol && hex.row === startRow) continue;
 

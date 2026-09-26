@@ -10,6 +10,7 @@ import { useGameLog } from '../contexts/GameLogContext';
 import { useKeyboardControls } from './useKeyboardControls';
 import { useHexInteraction } from './useHexInteraction';
 import { SaveManager } from '../utils/SaveManager';
+import { isSettlement } from '../constants/gameConstants';
 import type { OverworldActions } from './useOverworldActions';
 import type { InteriorNavigation } from './useInteriorNavigation';
 
@@ -93,9 +94,7 @@ export function useOverworldInput({ overworld, interior, openPanel, enabled }: O
             currentHex.terrain?.key === 'gate')
         ) {
           // Player is on the exit tile — leave the interior
-          const settlementTypes = ['camp', 'village', 'town', 'city', 'metropolis'];
-          const isSettlement = settlementTypes.includes(state.currentPOI?.poi?.type ?? '');
-          if (isSettlement) {
+          if (isSettlement(state.currentPOI?.poi?.type)) {
             dispatch({ type: actions.EXIT_TOWN });
           } else {
             interior.markExitReady();
@@ -104,9 +103,7 @@ export function useOverworldInput({ overworld, interior, openPanel, enabled }: O
         } else if (
           currentHex &&
           currentHex.content === 'entrance' &&
-          ['camp', 'village', 'town', 'city', 'metropolis'].includes(
-            state.currentPOI?.poi?.type ?? ''
-          )
+          isSettlement(state.currentPOI?.poi?.type)
         ) {
           // Entrance tile only exits for towns (legacy behaviour)
           dispatch({ type: actions.EXIT_TOWN });
@@ -154,8 +151,7 @@ export function useOverworldInput({ overworld, interior, openPanel, enabled }: O
           const discovered = isPoiDiscovered(hex.col, hex.row);
 
           // Directly trigger the appropriate action based on POI type
-          const settlementTypes = ['camp', 'village', 'town', 'city', 'metropolis'];
-          if (settlementTypes.includes(hex.poi.type)) {
+          if (isSettlement(hex.poi.type)) {
             if (discovered || hex.poi.visibleWithoutDiscovery) {
               // Enter settlement - use handleInteract which will route to the correct handler
               handleInteract();

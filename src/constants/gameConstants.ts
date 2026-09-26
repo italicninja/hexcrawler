@@ -388,29 +388,20 @@ export const POI_SPAWN = {
 };
 
 // ===================
-// SETTLEMENT SIZES
+// SETTLEMENTS
 // ===================
-export const SETTLEMENT = {
-  CAMP_MIN_NPCS: 5,
-  CAMP_MAX_NPCS: 15,
-  VILLAGE_MIN_NPCS: 20,
-  VILLAGE_MAX_NPCS: 100,
-  TOWN_MIN_NPCS: 100,
-  TOWN_MAX_NPCS: 1000,
-  CITY_MIN_NPCS: 1000,
-  CITY_MAX_NPCS: 10000,
-  METROPOLIS_MIN_NPCS: 10000,
+export const SETTLEMENT_TYPES = ['camp', 'village', 'town', 'city', 'metropolis'];
 
-  CAMP_WIDTH: 10,
-  CAMP_HEIGHT: 10,
-  VILLAGE_WIDTH: 15,
-  VILLAGE_HEIGHT: 15,
-  TOWN_WIDTH: 20,
-  TOWN_HEIGHT: 20,
-  CITY_WIDTH: 30,
-  CITY_HEIGHT: 30,
-  METROPOLIS_WIDTH: 40,
-  METROPOLIS_HEIGHT: 40,
+/** True for POI types that open a TownGenerator interior. */
+export const isSettlement = (type: string | undefined): boolean => SETTLEMENT_TYPES.includes(type ?? '');
+
+/** Interior grid per settlement size. Heights are 4n + 2 so TownGenerator's streets fill the map. */
+export const SETTLEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  camp: { width: 12, height: 10 },
+  village: { width: 18, height: 14 },
+  town: { width: 24, height: 18 },
+  city: { width: 30, height: 22 },
+  metropolis: { width: 36, height: 26 },
 };
 
 // ===================

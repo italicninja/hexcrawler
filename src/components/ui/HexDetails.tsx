@@ -1,5 +1,6 @@
 import { useGameState } from '../../contexts/GameStateContext';
 import { useHexInteraction } from '../../hooks/useHexInteraction';
+import { isSettlement } from '../../constants/gameConstants';
 
 /**
  * HexDetails component - displays current hex and selected hex in two panes
@@ -295,7 +296,7 @@ function HexDetails({ hex }: HexDetailsProps) {
             {displayHex.poi &&
               poiVisible &&
               displayHex.poi.eventType === 'passive' &&
-              displayHex.poi.type === 'town' && (
+              isSettlement(displayHex.poi.type) && (
                 <button
                   className="hex-action-btn hex-action-btn-success"
                   onClick={handleEnterTown}
@@ -319,7 +320,8 @@ function HexDetails({ hex }: HexDetailsProps) {
             {displayHex.poi &&
               poiVisible &&
               displayHex.poi.eventType === 'passive' &&
-              !['town', 'shrine', 'camp'].includes(displayHex.poi.type) && (
+              displayHex.poi.type !== 'shrine' &&
+              !isSettlement(displayHex.poi.type) && (
                 <button
                   className="hex-action-btn hex-action-btn-success"
                   onClick={handleInteract}
