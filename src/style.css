@@ -858,9 +858,6 @@ button:active {
 .hero-page--sheet {
   box-shadow: inset 22px 0 22px -20px rgba(90, 60, 20, 0.35);
 }
-.hero-book .journal-hero .journal-kicker {
-  text-transform: none;
-}
 .hero-book .journal-title {
   font-size: 2rem;
   margin-bottom: 18px;
@@ -1698,13 +1695,6 @@ button:active {
   gap: 1rem;
 }
 
-.journal-kicker {
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
 .journal-title {
   margin: 0;
   font: italic 1.6rem Georgia, 'Palatino Linotype', serif;
@@ -1792,10 +1782,6 @@ button:active {
 .journal-hero-body {
   flex: 1;
   min-width: 0;
-}
-.journal-hero .journal-kicker {
-  text-transform: capitalize;
-  letter-spacing: 0.04em;
 }
 .journal-hp {
   height: 10px;

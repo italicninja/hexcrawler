@@ -423,7 +423,6 @@ function CharacterCreationScene() {
       <TitleBackground />
       <div className="hero-book">
         <section className="journal-page hero-page--roster">
-          <div className="journal-kicker">Chapter One</div>
           <h1 className="journal-title">Create Your Hero</h1>
 
           <div className="jp-heading">Choose a class</div>
@@ -456,9 +455,6 @@ function CharacterCreationScene() {
               <PixelIcon name={`player:${selectedClass}`} scale={5} />
             </div>
             <div className="journal-hero-body">
-              <div className="journal-kicker">
-                Level 1 {currentClassData.name} · {currentClassData.hitDie} hit die
-              </div>
               <label htmlFor="character-name" className="sr-only">
                 Name
               </label>

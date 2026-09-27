@@ -10,7 +10,7 @@ import { useInteriorNavigation } from '../../hooks/useInteriorNavigation';
 import { useOverworldActions } from '../../hooks/useOverworldActions';
 import { useOverworldInput } from '../../hooks/useOverworldInput';
 import { TerrainGenerator } from '../../terrainGenerator';
-import { formatTime, getTimeOfDay } from '../../game/TimeManager';
+import { formatTime } from '../../game/TimeManager';
 import { Character } from '../../game/Character';
 import { FEATURES } from '../../constants/gameConstants';
 import GameLog from '../ui/GameLog';
@@ -32,14 +32,14 @@ import type { SceneHex } from '../../types/scene';
 import PixelIcon from '../ui/PixelIcon';
 
 // Right-page panels opened from the bookmark tabs (and keyboard shortcuts).
-const PAGES: Record<string, { title: string; kicker: string }> = {
-  character: { title: 'The hero', kicker: 'Abilities & feats' },
-  party: { title: 'Companions', kicker: 'Those who travel with you' },
-  equipment: { title: 'Pack & gear', kicker: 'What you carry' },
-  rest: { title: 'Rest', kicker: 'Catch your breath' },
-  quests: { title: 'Quests', kicker: 'Tasks & promises' },
-  save: { title: 'Save the tale', kicker: 'Bookmarks' },
-  config: { title: 'Settings', kicker: 'Margins & notes' },
+const PAGES: Record<string, { title: string }> = {
+  character: { title: 'The hero' },
+  party: { title: 'Companions' },
+  equipment: { title: 'Pack & gear' },
+  rest: { title: 'Rest' },
+  quests: { title: 'Quests' },
+  save: { title: 'Save the tale' },
+  config: { title: 'Settings' },
 };
 
 function OverworldScene() {
@@ -285,9 +285,6 @@ function OverworldScene() {
         <section className="journal-page journal-page--map">
           <header className="journal-map-header">
             <div>
-              <div className="journal-kicker">
-                Day {state.gameTime?.day ?? 1} · {getTimeOfDay(state.gameTime?.hour ?? 8)}
-              </div>
               <h2 className="journal-title">{locationTitle}</h2>
             </div>
             {import.meta.env.DEV && <DevTools terrainGeneratorRef={terrainGeneratorRef} />}
@@ -374,7 +371,6 @@ function OverworldScene() {
             <div className="journal-panel">
               <header className="journal-panel-header">
                 <div>
-                  <div className="journal-kicker">{PAGES[openPanel].kicker}</div>
                   <h2 className="journal-title">{PAGES[openPanel].title}</h2>
                 </div>
                 <button type="button" className="jp-link" onClick={handleClosePanel}>
@@ -409,9 +405,6 @@ function OverworldScene() {
                   <PixelIcon name={`player:${state.party?.player?.class ?? ''}`} scale={4} />
                   <div className="journal-hero-body">
                     <h2 className="journal-title">{hero.name}</h2>
-                    <div className="journal-kicker">
-                      {hero.class} · level {hero.level}
-                    </div>
                     <div
                       className="journal-hp"
                       role="meter"
