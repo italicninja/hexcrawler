@@ -4,27 +4,28 @@
 
 @layer base {
   :root {
-    /* Default theme: Teal Dark (original) */
-    --primary-color: #0d9488;
-    --secondary-color: #0f766e;
-    --accent-color: #14b8a6;
-    --bg-color: #1e293b;
-    --bg-light: #2d3748;
-    --bg-lighter: #374151;
-    --text-color: #e2e8f0;
-    --text-light: #cbd5e1;
-    --text-muted: #94a3b8;
-    --border-color: #475569;
-    --shadow: rgba(0, 0, 0, 0.3);
-    --input-bg: #1e293b;
-    --panel-bg: #2d3748;
+    /* Journal theme - parchment pages, ink and oxblood. The only theme. */
+    --primary-color: #8a5a2e;
+    --secondary-color: #6b4424;
+    --accent-color: #8a2a12;
+    --bg-color: #e9dcbc;
+    --bg-light: #dfcfa8;
+    --bg-lighter: #d4c197;
+    --text-color: #3a2a18;
+    --text-light: #4a3620;
+    --text-muted: #7a5c38;
+    --border-color: #b89a6a;
+    --shadow: rgba(60, 40, 10, 0.25);
+    --input-bg: #f3e9d0;
+    --panel-bg: #e9dcbc;
 
     /* GameLog message type colors */
-    --log-discovery: #14b8a6;
-    --log-encounter: #f87171;
-    --log-action: #60a5fa;
-    --log-system: #94a3b8;
-    --log-poi-interaction: #c084fc;
+    --log-discovery: #7a4a0a;
+    --log-encounter: #9a2a12;
+    --log-action: #2a4a7a;
+    --log-system: #7a5c38;
+    --log-poi-interaction: #6a2a7a;
+    --log-roll: #9a4a00;
 
     /* shadcn/ui CSS variables */
     --background: 222.2 84% 4.9%;
@@ -48,17 +49,17 @@
     --ring: 172.4 66.1% 50.4%;
     --radius: 0.5rem;
 
-    /* Semantic status colors (theme-independent) */
+    /* Semantic status colors  */
     --color-success: #15803d; /* white text on it: 5.0:1 */
     --color-warning: #f59e0b;
     --color-error: #f87171;
 
-    /* Text on filled primary/accent/secondary buttons (>= 4.5:1 across themes) */
-    --on-primary: #111111;
-    --on-accent: #111111;
-    --on-secondary: #ffffff;
+    /* Text on filled primary/accent/secondary buttons (>= 4.5:1 on parchment) */
+    --on-primary: #fff8e8;
+    --on-accent: #fff8e8;
+    --on-secondary: #fff8e8;
 
-    /* Aliases used by inline styles; resolve against the active theme on <html> */
+    /* Aliases used by inline styles; resolve against the :root palette */
     --color-bg: var(--bg-color);
     --color-text: var(--text-color);
     --control-bg: var(--bg-light);
@@ -69,228 +70,6 @@
     --z-screen: 9999;
     --z-modal: 10000;
     --z-modal-content: 10001;
-  }
-  /* Journal Theme - parchment pages, ink and oxblood. The overworld book (.journal-layout)
-     and the hero-creation book (.hero-book) always use it; selecting it in Settings extends it to modals and other scenes. */
-  [data-theme='journal'],
-  .journal-layout,
-  .hero-book {
-    --primary-color: #8a5a2e;
-    --secondary-color: #6b4424;
-    --accent-color: #8a2a12;
-    --bg-color: #e9dcbc;
-    --bg-light: #dfcfa8;
-    --bg-lighter: #d4c197;
-    --text-color: #3a2a18;
-    --text-light: #4a3620;
-    --text-muted: #7a5c38;
-    --border-color: #b89a6a;
-    --shadow: rgba(60, 40, 10, 0.25);
-    --input-bg: #f3e9d0;
-    --panel-bg: #e9dcbc;
-    --on-primary: #fff8e8;
-    --on-accent: #fff8e8;
-    --on-secondary: #fff8e8;
-
-    --log-discovery: #7a4a0a;
-    --log-encounter: #9a2a12;
-    --log-action: #2a4a7a;
-    --log-system: #7a5c38;
-    --log-poi-interaction: #6a2a7a;
-    --log-roll: #9a4a00;
-  }
-
-  /* RuneScape Theme - Old School stone, parchment text, gold accents */
-  [data-theme='runescape'] {
-    --primary-color: #8f7a3f;
-    --secondary-color: #6f5f33;
-    --accent-color: #f8c243;
-    --bg-color: #28231d;
-    --bg-light: #3e362b;
-    --bg-lighter: #4a4133;
-    --text-color: #efe5cd;
-    --text-light: #e0d3b4;
-    --text-muted: #a89a7e;
-    --border-color: #5c5040;
-    --shadow: rgba(0, 0, 0, 0.5);
-    --input-bg: #211d17;
-    --panel-bg: #352e24;
-
-    /* GameLog message type colors — OSRS chat-inspired */
-    --log-discovery: #f8c243;
-    --log-encounter: #ff6b5e;
-    --log-action: #7fb8e8;
-    --log-system: #b3a685;
-    --log-poi-interaction: #d9a7ff;
-  }
-
-  [data-theme='midnight-gold'] {
-    --primary-color: #b8860b;
-    --secondary-color: #9a7209;
-    --accent-color: #ffd700;
-    --bg-color: #000000;
-    --bg-light: rgba(0, 0, 0, 0.5);
-    --bg-lighter: rgba(255, 255, 255, 0.1);
-    --text-color: #ffffff;
-    --text-light: rgba(255, 255, 255, 0.9);
-    --text-muted: rgba(255, 255, 255, 0.5);
-    --border-color: rgba(255, 255, 255, 0.2);
-    --shadow: rgba(0, 0, 0, 0.5);
-    --input-bg: rgba(0, 0, 0, 0.7);
-    --panel-bg: rgba(0, 0, 0, 0.7);
-
-    /* GameLog message type colors */
-    --log-discovery: #ffd700;
-    --log-encounter: #ff6b6b;
-    --log-action: #4dabf7;
-    --log-system: rgba(255, 255, 255, 0.5);
-    --log-poi-interaction: #da77f2;
-  }
-
-  /* Teal Dark Theme - Original theme */
-  [data-theme='teal-dark'] {
-    --primary-color: #0d9488;
-    --secondary-color: #0f766e;
-    --accent-color: #14b8a6;
-    --bg-color: #1e293b;
-    --bg-light: #2d3748;
-    --bg-lighter: #374151;
-    --text-color: #e2e8f0;
-    --text-light: #cbd5e1;
-    --text-muted: #94a3b8;
-    --border-color: #475569;
-    --shadow: rgba(0, 0, 0, 0.3);
-    --input-bg: #1e293b;
-    --panel-bg: #2d3748;
-
-    /* GameLog message type colors */
-    --log-discovery: #14b8a6;
-    --log-encounter: #f87171;
-    --log-action: #60a5fa;
-    --log-system: #94a3b8;
-    --log-poi-interaction: #c084fc;
-  }
-
-  /* Light Theme */
-  [data-theme='light'] {
-    --primary-color: #0d9488;
-    --secondary-color: #0f766e;
-    --accent-color: #14b8a6;
-    --bg-color: #f8fafc;
-    --bg-light: #ffffff;
-    --bg-lighter: #e2e8f0;
-    --text-color: #1e293b;
-    --text-light: #334155;
-    --text-muted: #64748b;
-    --border-color: #cbd5e1;
-    --shadow: rgba(0, 0, 0, 0.1);
-    --input-bg: #ffffff;
-    --panel-bg: #ffffff;
-
-    /* GameLog message type colors */
-    --log-discovery: #0d9488;
-    --log-encounter: #dc2626;
-    --log-action: #2563eb;
-    --log-system: #64748b;
-    --log-poi-interaction: #9333ea;
-  }
-
-  /* Dark Blue Theme */
-  [data-theme='dark-blue'] {
-    --primary-color: #3b82f6;
-    --secondary-color: #2563eb;
-    --accent-color: #60a5fa;
-    --bg-color: #0f172a;
-    --bg-light: #1e293b;
-    --bg-lighter: #334155;
-    --text-color: #e2e8f0;
-    --text-light: #cbd5e1;
-    --text-muted: #94a3b8;
-    --border-color: #334155;
-    --shadow: rgba(0, 0, 0, 0.4);
-    --input-bg: #1e293b;
-    --panel-bg: #1e293b;
-
-    /* GameLog message type colors */
-    --log-discovery: #60a5fa;
-    --log-encounter: #f87171;
-    --log-action: #818cf8;
-    --log-system: #94a3b8;
-    --log-poi-interaction: #c084fc;
-  }
-
-  /* Forest Theme */
-  [data-theme='forest'] {
-    --primary-color: #22c55e;
-    --secondary-color: #16a34a;
-    --accent-color: #4ade80;
-    --on-secondary: #111111; /* white only reaches 3.3:1 on this green */
-    --bg-color: #14532d;
-    --bg-light: #166534;
-    --bg-lighter: #15803d;
-    --text-color: #dcfce7;
-    --text-light: #bbf7d0;
-    --text-muted: #86efac;
-    --border-color: #166534;
-    --shadow: rgba(0, 0, 0, 0.5);
-    --input-bg: #052e16;
-    --panel-bg: #166534;
-
-    /* GameLog message type colors */
-    --log-discovery: #4ade80;
-    --log-encounter: #fca5a5;
-    --log-action: #7dd3fc;
-    --log-system: #86efac;
-    --log-poi-interaction: #d8b4fe;
-  }
-
-  /* Purple Night Theme */
-  [data-theme='purple-night'] {
-    --primary-color: #a855f7;
-    --secondary-color: #9333ea;
-    --accent-color: #c084fc;
-    --bg-color: #1e1b4b;
-    --bg-light: #312e81;
-    --bg-lighter: #3730a3;
-    --text-color: #e9d5ff;
-    --text-light: #d8b4fe;
-    --text-muted: #c084fc;
-    --border-color: #4c1d95;
-    --shadow: rgba(0, 0, 0, 0.4);
-    --input-bg: #1e1b4b;
-    --panel-bg: #312e81;
-
-    /* GameLog message type colors */
-    --log-discovery: #c084fc;
-    --log-encounter: #f87171;
-    --log-action: #60a5fa;
-    --log-system: #c084fc;
-    --log-poi-interaction: #d8b4fe;
-  }
-
-  /* Crimson Theme */
-  [data-theme='crimson'] {
-    --primary-color: #dc2626;
-    --secondary-color: #b91c1c;
-    --accent-color: #ef4444;
-    --on-primary: #ffffff; /* dark text only reaches 3.9:1 on this red */
-    --bg-color: #1f1315;
-    --bg-light: #2d1519;
-    --bg-lighter: #3f1e22;
-    --text-color: #fee2e2;
-    --text-light: #fecaca;
-    --text-muted: #fca5a5;
-    --border-color: #7f1d1d;
-    --shadow: rgba(0, 0, 0, 0.5);
-    --input-bg: #1f1315;
-    --panel-bg: #2d1519;
-
-    /* GameLog message type colors */
-    --log-discovery: #fca5a5;
-    --log-encounter: #ef4444;
-    --log-action: #60a5fa;
-    --log-system: #fca5a5;
-    --log-poi-interaction: #d8b4fe;
   }
 }
 
@@ -665,7 +444,11 @@ button:active {
   color: var(--accent-color);
   margin-bottom: 0.5rem;
   /* hard-edged pixel drop shadow instead of a soft glow */
-  text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  text-shadow:
+    3px 3px 0 #000,
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000;
   letter-spacing: 0.05em;
 }
 
@@ -879,7 +662,9 @@ button:active {
   border: 2px solid var(--border-color);
   border-radius: 0;
   color: var(--text-color);
-  font: 0.9rem Georgia, serif;
+  font:
+    0.9rem Georgia,
+    serif;
 }
 .hero-class small {
   font: 0.68rem sans-serif;
@@ -934,7 +719,10 @@ button:active {
   border: 0;
   border-bottom: 2px solid var(--border-color);
   color: #5a3212;
-  font: italic 1.6rem Georgia, 'Palatino Linotype', serif;
+  font:
+    italic 1.6rem Georgia,
+    'Palatino Linotype',
+    serif;
 }
 .hero-name::placeholder {
   color: var(--text-muted);
@@ -1570,7 +1358,6 @@ button:active {
 
 /* Extra Small Mobile (480px and below) */
 @media (max-width: 480px) {
-
   /* Canvas optimized for portrait */
   .canvas-container {
     min-height: 40vh;
@@ -1618,7 +1405,6 @@ button:active {
 
 /* Landscape orientation optimization for mobile */
 @media (max-width: 900px) and (orientation: landscape) {
-
   /* Canvas takes majority of screen in landscape */
   .canvas-container {
     min-height: 60vh;
@@ -1697,7 +1483,10 @@ button:active {
 
 .journal-title {
   margin: 0;
-  font: italic 1.6rem Georgia, 'Palatino Linotype', serif;
+  font:
+    italic 1.6rem Georgia,
+    'Palatino Linotype',
+    serif;
   color: #5a3212;
 }
 
@@ -1837,7 +1626,10 @@ button:active {
 }
 .journal-entries .log-messages {
   padding: 6px 4px 8px 0;
-  font: italic 0.95rem/1.55 Georgia, 'Palatino Linotype', serif;
+  font:
+    italic 0.95rem/1.55 Georgia,
+    'Palatino Linotype',
+    serif;
   mask-image: linear-gradient(transparent, #000 25%);
 }
 .journal-entries .log-entry {
@@ -2023,7 +1815,9 @@ button:active {
 }
 .jp-scores b {
   display: block;
-  font: 1.35rem Georgia, serif;
+  font:
+    1.35rem Georgia,
+    serif;
   color: var(--text-color);
   letter-spacing: 0;
 }
@@ -2062,7 +1856,10 @@ button:active {
   border: 0;
   border-bottom: 2px solid #b9894f;
   color: #5a3212;
-  font: italic 0.95rem Georgia, 'Palatino Linotype', serif;
+  font:
+    italic 0.95rem Georgia,
+    'Palatino Linotype',
+    serif;
   cursor: pointer;
 }
 .jp-link:hover:not(:disabled),
@@ -2102,7 +1899,9 @@ button:active {
   border: 1px solid var(--border-color);
   border-radius: 2px;
   color: var(--text-color);
-  font: 0.95rem Georgia, serif;
+  font:
+    0.95rem Georgia,
+    serif;
 }
 .journal-panel input[type='checkbox'],
 .journal-panel input[type='range'] {

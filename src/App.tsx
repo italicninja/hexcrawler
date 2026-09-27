@@ -37,10 +37,6 @@ function GameRouter() {
   const { settings } = useSettings();
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', settings.theme);
-  }, [settings.theme]);
-
-  useEffect(() => {
     setVolumes(settings.musicVolume, settings.sfxVolume);
   }, [settings.musicVolume, settings.sfxVolume]);
 
