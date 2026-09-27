@@ -10,6 +10,7 @@
  * commented-out roll logic below is implemented.
  */
 
+import { random as gameRandom } from '../utils/seededRandom';
 import { BaseGenerator } from './BaseGenerator';
 
 interface TreasureHoard {
@@ -41,7 +42,7 @@ export class TreasureGenerator extends BaseGenerator {
   generateTreasureHoard(
     cr: number,
     partySize = 4,
-    random: () => number = Math.random
+    random: () => number = gameRandom
   ): TreasureHoard {
     // TODO: Replace with actual implementation once GameTableData.js is created
     // For now, return a placeholder structure
@@ -84,7 +85,7 @@ export class TreasureGenerator extends BaseGenerator {
    * Roll coins from treasure table and convert to gold.
    * @private
    */
-  _rollCoins(coinTable: Record<string, string>, random: () => number = Math.random): number {
+  _rollCoins(coinTable: Record<string, string>, random: () => number = gameRandom): number {
     let totalGold = 0;
 
     // Iterate through each coin type in the table
@@ -110,7 +111,7 @@ export class TreasureGenerator extends BaseGenerator {
    */
   _calculateGemValue(
     gemData: { count?: string; valueTable?: string } | null,
-    random: () => number = Math.random
+    random: () => number = gameRandom
   ): number {
     if (!gemData || !gemData.count) return 0;
 
@@ -133,7 +134,7 @@ export class TreasureGenerator extends BaseGenerator {
    */
   _calculateArtValue(
     artData: { count?: string; valueTable?: string } | null,
-    random: () => number = Math.random
+    random: () => number = gameRandom
   ): number {
     if (!artData || !artData.count) return 0;
 
@@ -156,7 +157,7 @@ export class TreasureGenerator extends BaseGenerator {
    */
   _rollConsumables(
     magicItemData: { count?: string; table?: string } | null,
-    random: () => number = Math.random
+    random: () => number = gameRandom
   ): string[] {
     if (!magicItemData || !magicItemData.count) return [];
 
@@ -183,7 +184,7 @@ export class TreasureGenerator extends BaseGenerator {
    * Parse dice roll string (e.g., "3d6", "1d4+2", "2d10*100") and apply multiplier.
    * @private
    */
-  _parseDiceRoll(diceString: string, multiplier = 1, random: () => number = Math.random): number {
+  _parseDiceRoll(diceString: string, multiplier = 1, random: () => number = gameRandom): number {
     if (!diceString) return 0;
 
     // Handle multiplier in dice string (e.g., "1d6*10")

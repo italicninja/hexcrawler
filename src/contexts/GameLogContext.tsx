@@ -1,3 +1,4 @@
+import { random } from '../utils/seededRandom';
 import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import type { LogMessageType } from '../types/game';
 
@@ -38,7 +39,7 @@ export function GameLogProvider({ children }: { children: React.ReactNode }) {
     setMessages(prev => {
       const newMessages: GameLogMessage[] = [
         ...prev,
-        { text, type, timestamp, id: Date.now() + Math.random() },
+        { text, type, timestamp, id: Date.now() + random() },
       ];
       // Keep only the last MAX_MESSAGES messages
       if (newMessages.length > MAX_MESSAGES) {

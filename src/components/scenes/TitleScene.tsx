@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import logger from '../../utils/logger';
+import { randomSeed } from '../../utils/seededRandom';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -20,7 +21,7 @@ function TitleScene() {
 
   const handleNewGame = () => {
     try {
-      const gameSeed = seed.trim() || Date.now().toString();
+      const gameSeed = seed.trim() || String(randomSeed());
       // NEW_GAME action sets mapSeed and currentScene automatically
       dispatch({ type: actions.NEW_GAME, payload: gameSeed });
     } catch (error) {

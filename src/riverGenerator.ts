@@ -3,6 +3,7 @@
  * Rivers flow from high elevation to low elevation (mountains to water)
  */
 
+import { random as gameRandom } from './utils/seededRandom';
 import { getHexNeighbors } from './utils/hexMath';
 
 interface Terrain {
@@ -41,7 +42,7 @@ export class RiverGenerator {
     width: number,
     height: number,
     numRivers = 3,
-    random: () => number = Math.random
+    random: () => number = gameRandom
   ): void {
     // Calculate elevation map first
     const elevationMap = this.calculateElevationMap(grid, width, height);
@@ -93,7 +94,7 @@ export class RiverGenerator {
     width: number,
     height: number,
     numRivers: number,
-    random: () => number = Math.random
+    random: () => number = gameRandom
   ): Pos[] {
     const sources: Pos[] = [];
     const attempts = numRivers * 10;

@@ -2,6 +2,7 @@
 /**
  * Combat.ts - D&D 5e combat system
  */
+import { random } from '../utils/seededRandom';
 import { DiceRoller } from './DiceRoller';
 import { getHexDistance } from '../utils/hexMath';
 import { CR_TO_XP, DND } from '../constants/gameConstants';
@@ -307,7 +308,7 @@ export class Combat {
     if (livingEnemies.length === 0) return;
 
     // Select random target
-    const target = livingEnemies[Math.floor(Math.random() * livingEnemies.length)];
+    const target = livingEnemies[Math.floor(random() * livingEnemies.length)];
 
     // Determine attack type based on character abilities
     const attackType =

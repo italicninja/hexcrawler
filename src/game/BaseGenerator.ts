@@ -3,6 +3,8 @@
  * Provides common utilities for Challenge Rating scaling, random selection, and table lookups
  */
 
+import { random as gameRandom } from '../utils/seededRandom';
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LookupTable = Record<number, any>;
 
@@ -58,7 +60,7 @@ export class BaseGenerator {
    * @param random - Random function (0-1)
    * @returns Random integer
    */
-  randomInt(min: number, max: number, random: () => number = Math.random): number {
+  randomInt(min: number, max: number, random: () => number = gameRandom): number {
     return Math.floor(random() * (max - min + 1)) + min;
   }
 
@@ -70,7 +72,7 @@ export class BaseGenerator {
    * @returns Selected item
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  weightedRandom<T = any>(items: T[], weights: number[], random: () => number = Math.random): T {
+  weightedRandom<T = any>(items: T[], weights: number[], random: () => number = gameRandom): T {
     const totalWeight = weights.reduce((sum, w) => sum + w, 0);
     let randomValue = random() * totalWeight;
 
@@ -92,7 +94,7 @@ export class BaseGenerator {
    * @param random - Random function (0-1)
    * @returns Total rolled value
    */
-  rollDice(diceCount: number, diceSides: number, random: () => number = Math.random): number {
+  rollDice(diceCount: number, diceSides: number, random: () => number = gameRandom): number {
     let total = 0;
     for (let i = 0; i < diceCount; i++) {
       total += Math.floor(random() * diceSides) + 1;
@@ -119,7 +121,7 @@ export class BaseGenerator {
    * @returns Selected item or null if array is empty
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  randomChoice<T = any>(array: T[], random: () => number = Math.random): T | null {
+  randomChoice<T = any>(array: T[], random: () => number = gameRandom): T | null {
     if (!array || array.length === 0) return null;
     const index = Math.floor(random() * array.length);
     return array[index];

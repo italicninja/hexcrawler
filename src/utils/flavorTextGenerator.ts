@@ -5,6 +5,8 @@
  * All messages are 1-line, second person ("You..."), and contextual.
  */
 
+import { random } from './seededRandom';
+
 // ============================================================================
 // DATA TABLES
 // ============================================================================
@@ -337,7 +339,7 @@ const COMBAT_INTROS: Record<string, string[]> = {
  */
 function randomChoice<T>(array: T[] | null | undefined): T | null {
   if (!array || array.length === 0) return null;
-  return array[Math.floor(Math.random() * array.length)];
+  return array[Math.floor(random() * array.length)];
 }
 
 /**

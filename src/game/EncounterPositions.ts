@@ -3,6 +3,7 @@
  * Handles different tactical formations for various encounter scenarios
  */
 
+import { random } from '../utils/seededRandom';
 import logger from '../utils/logger';
 import { getHexNeighbors } from '../utils/hexMath';
 
@@ -155,9 +156,9 @@ export class EncounterPositions {
       edgePositions.push({ col: width - 2, row });
     }
 
-    // Shuffle edge positions (simple Fisher-Yates using Math.random)
+    // Shuffle edge positions (simple Fisher-Yates using random())
     for (let i = edgePositions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(random() * (i + 1));
       [edgePositions[i], edgePositions[j]] = [edgePositions[j], edgePositions[i]];
     }
 

@@ -6,6 +6,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - logger.js will be converted to .ts in a future task
+import { random } from '../utils/seededRandom';
 import logger from '../utils/logger';
 import type { GameTime } from '../types/game';
 
@@ -117,7 +118,7 @@ export const TIME_COSTS = {
  */
 export function getCombatDuration(): number {
   return (
-    Math.floor(Math.random() * (TIME_COSTS.COMBAT_MAX - TIME_COSTS.COMBAT_MIN + 1)) +
+    Math.floor(random() * (TIME_COSTS.COMBAT_MAX - TIME_COSTS.COMBAT_MIN + 1)) +
     TIME_COSTS.COMBAT_MIN
   );
 }
@@ -128,7 +129,7 @@ export function getCombatDuration(): number {
  */
 export function getExplorationDuration(): number {
   return (
-    Math.floor(Math.random() * (TIME_COSTS.EXPLORATION_MAX - TIME_COSTS.EXPLORATION_MIN + 1)) +
+    Math.floor(random() * (TIME_COSTS.EXPLORATION_MAX - TIME_COSTS.EXPLORATION_MIN + 1)) +
     TIME_COSTS.EXPLORATION_MIN
   );
 }

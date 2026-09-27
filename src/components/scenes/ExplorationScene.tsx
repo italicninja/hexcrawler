@@ -133,8 +133,7 @@ function ExplorationScene() {
       });
 
       // Auto-resolve combat (simplified for now)
-      const seed = `${state.mapSeed}-encounter-${hex.col}-${hex.row}`;
-      const diceRoller = new DiceRoller(seed, addMessage);
+      const diceRoller = new DiceRoller(null, addMessage);
 
       // TODO: Implement full combat system
       const damageReceived = diceRoller.rollDice(6, 1); // 1d6
@@ -221,8 +220,7 @@ function ExplorationScene() {
           hazardKey: `${hex.col},${hex.row}`,
         },
       });
-      // Create dice roller with map seed for consistency
-      const diceRoller = new DiceRoller(`${state.mapSeed}-hazard-${hex.col}-${hex.row}`);
+      const diceRoller = new DiceRoller();
 
       // Roll saving throw
       const saveResult = diceRoller.savingThrow(state.playerCharacter, hazard.saveType, hazard.dc);

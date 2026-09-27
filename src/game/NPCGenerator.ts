@@ -1,4 +1,5 @@
 import { Character } from './Character';
+import { createSeededRNG, randomSeed } from '../utils/seededRandom';
 
 /**
  * NPCGenerator - generates random NPCs with stats, personalities, and backgrounds
@@ -290,15 +291,10 @@ const CLASS_CONFIGS: Record<string, ClassConfig> = {
 
 // Random number generator with seed support
 class SeededRandom {
-  seed: number;
+  next: () => number;
 
   constructor(seed: number) {
-    this.seed = seed;
-  }
-
-  next(): number {
-    this.seed = (this.seed * 9301 + 49297) % 233280;
-    return this.seed / 233280;
+    this.next = createSeededRNG(`npc:${seed}`);
   }
 
   nextInt(min: number, max: number): number {
@@ -313,7 +309,7 @@ class SeededRandom {
 /**
  * Generate a random fantasy name
  */
-export function generateName(seed: number = Date.now(), gender: string | null = null): GeneratedName {
+export function generateName(seed: number = randomSeed(), gender: string | null = null): GeneratedName {
   const rng = new SeededRandom(seed);
 
   // Random gender if not specified
@@ -336,7 +332,7 @@ export function generateName(seed: number = Date.now(), gender: string | null = 
 /**
  * Generate a random personality trait
  */
-export function generatePersonality(seed: number = Date.now()): string {
+export function generatePersonality(seed: number = randomSeed()): string {
   const rng = new SeededRandom(seed);
 
   // Pick 1-2 personality traits
@@ -356,7 +352,7 @@ export function generatePersonality(seed: number = Date.now()): string {
 /**
  * Generate a random background
  */
-export function generateBackground(seed: number = Date.now()): string {
+export function generateBackground(seed: number = randomSeed()): string {
   const rng = new SeededRandom(seed);
   return rng.choice(BACKGROUNDS);
 }
@@ -368,7 +364,7 @@ export function generateBackground(seed: number = Date.now()): string {
 export function generateNPC(
   level = 1,
   classType: string | null = null,
-  seed: number = Date.now()
+  seed: number = randomSeed()
 ): Character {
   const rng = new SeededRandom(seed);
 
@@ -454,7 +450,7 @@ export function generateNPC(
 /**
  * Generate a party of 3 random NPCs (each a different class where possible).
  */
-export function generateNPCParty(level = 1, seed: number = Date.now()): Character[] {
+export function generateNPCParty(level = 1, seed: number = randomSeed()): Character[] {
   const rng = new SeededRandom(seed);
   const npcs: Character[] = [];
   const availableClasses = Object.keys(CLASS_CONFIGS);

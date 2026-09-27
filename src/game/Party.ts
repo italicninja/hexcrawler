@@ -64,14 +64,14 @@ export class Party {
     return this.getAllMembers().filter(m => m !== null).length;
   }
 
-  generateNPCs(level = 1, seed: number = Date.now()): void {
+  generateNPCs(level = 1, seed?: number): void {
     const npcs = generateNPCParty(level, seed);
     this.npcs = npcs;
   }
 
   /** @deprecated Use generateNPCs() instead */
   createPlaceholderNPCs(): void {
-    this.generateNPCs(1, Date.now());
+    this.generateNPCs(1);
   }
 
   toJSON() {
