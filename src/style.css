@@ -2770,15 +2770,14 @@ button:active {
   border-radius: 0 8px 8px 0;
   box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
   cursor: pointer;
-  transition: width 0.12s, background 0.12s;
+  transition: background 0.12s;
 }
+/* Colour-only feedback: resizing a tab shifts the right-anchored column under the cursor */
 .journal-tab:hover:not(:disabled),
 .journal-tab:focus-visible {
-  width: 56px;
-  background: #c99a5f;
+  background: #d4a96a;
 }
 .journal-tab.is-open {
-  width: 56px;
   background: var(--bg-color);
 }
 .journal-tab:disabled {
