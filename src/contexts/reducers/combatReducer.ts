@@ -23,15 +23,15 @@
  * - TRIGGER_READY_ACTION
  */
 
- 
+import { playSfx } from '../../utils/audio';
 import { Combat } from '../../game/Combat';
- 
+
 import { CombatTerrainGenerator } from '../../game/CombatTerrainGenerator';
- 
+
 import { EncounterPositions } from '../../game/EncounterPositions';
- 
+
 import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
- 
+
 import logger from '../../utils/logger';
 import type { GameState, Action, CombatStateData } from '../../types/state';
 import type { EncounterSource } from '../../types/scene';
@@ -462,6 +462,8 @@ function reduceCombat(
 
         // Use Combat.processAttack which uses DiceRoller with auto-logging
         const attackResult = combat.processAttack(attacker.id, target.id);
+        // Side effect alongside the existing combat.logger calls below.
+        if (attackResult.success) playSfx(attackResult.hit ? 'hit' : 'miss');
 
         if (!attackResult.success) {
           logger.combat.warn('[PROCESS_COMBAT_ACTION] Attack failed', attackResult.message);

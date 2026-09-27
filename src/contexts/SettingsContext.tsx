@@ -21,7 +21,8 @@ export interface Keybindings {
 
 export interface Settings {
   doubleClickMove: boolean;
-  theme: string;
+  musicVolume: number;
+  sfxVolume: number;
   keybindings: Keybindings;
 }
 
@@ -38,7 +39,8 @@ interface SettingsContextValue {
 
 const defaultSettings: Settings = {
   doubleClickMove: true,
-  theme: 'journal', // journal, runescape, midnight-gold, teal-dark, light, dark-blue, forest
+  musicVolume: 0.5,
+  sfxVolume: 0.7,
   keybindings: {
     moveUp: 'w',
     moveDown: 's',

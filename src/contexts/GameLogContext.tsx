@@ -1,6 +1,7 @@
 import { random } from '../utils/seededRandom';
 import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import type { LogMessageType } from '../types/game';
+import { playSfx, type SfxName } from '../utils/audio';
 
 // Re-export for consumers that import from this module
 export type { LogMessageType as MessageType };
@@ -22,6 +23,16 @@ const GameLogContext = createContext<GameLogContextValue | null>(null);
 
 const MAX_MESSAGES = 100; // Limit to prevent memory leaks
 
+/** Log types that carry a sound; the rest are silent. */
+const LOG_SFX: Partial<Record<LogMessageType, SfxName>> = {
+  success: 'success',
+  error: 'error',
+  warning: 'warning',
+  encounter: 'encounter',
+  discovery: 'discovery',
+  action: 'click',
+};
+
 /**
  * GameLog Context Provider
  * Manages game log messages globally
@@ -36,6 +47,8 @@ export function GameLogProvider({ children }: { children: React.ReactNode }) {
    */
   const addMessage = useCallback((text: string, type: LogMessageType = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
+    const sfx = LOG_SFX[type];
+    if (sfx) playSfx(sfx);
     setMessages(prev => {
       const newMessages: GameLogMessage[] = [
         ...prev,
