@@ -277,7 +277,7 @@ export function useCombatOrchestration() {
       }
 
       const enemy = combatant.enemy;
-      addMessage(`${enemy.name} is thinking...`, 'encounter');
+      addMessage(`${enemy.name} is thinking...`, 'info');
       pendingAIAdvanceRef.current = false;
 
       logger.combat.info('Processing AI turn', { name: enemy.name, turnToken });

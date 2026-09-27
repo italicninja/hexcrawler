@@ -53,6 +53,29 @@ function Settings() {
         <span className="jp-note">Enable double-clicking a hex to move there instantly</span>
       </div>
 
+      <h4 className="jp-heading">Audio</h4>
+      {(
+        [
+          ['musicVolume', 'Music'],
+          ['sfxVolume', 'Sound effects'],
+        ] as const
+      ).map(([key, label]) => (
+        <div className="jp-field" key={key}>
+          <label htmlFor={key}>
+            {label} ({Math.round(settings[key] * 100)}%)
+          </label>
+          <input
+            id={key}
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={settings[key]}
+            onChange={e => set(key, Number(e.target.value))}
+          />
+        </div>
+      ))}
+
       <KeybindingsMenu />
     </div>
   );
