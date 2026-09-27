@@ -1,99 +1,56 @@
+/* SaveSlotManager: save bookmarks on a journal page. Standalone (title-screen Load dialog)
+   it draws its own page; embedded in the journal it inherits the book's page. */
 .save-slot-manager {
-  background: rgba(20, 20, 20, 0.95);
-  border: 2px solid #555;
-  border-radius: 12px;
-  padding: 24px;
-  max-width: 950px;
-  max-height: 80vh;
+  color: var(--text-color);
+  font-family: Georgia, 'Palatino Linotype', serif;
+}
+
+.save-slot-manager:not(.is-embedded) {
+  width: min(820px, 92vw);
+  max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  padding: 22px 28px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
 
 .save-slot-manager-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #444;
-}
-
-.save-slot-manager-header h2 {
-  margin: 0;
-  font-size: 24px;
-  color: #fff;
-}
-
-.save-slots-container {
+  align-items: flex-end;
+  gap: 1rem;
   margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.slot-section h3 {
-  color: #aaa;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin: 0 0 12px 0;
-}
-
-.save-slot-manager-footer {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #444;
-}
-
-.save-notice {
+.save-slot-manager-title {
   margin: 0;
-  font-size: 13px;
-  color: #888;
-  line-height: 1.5;
+  font:
+    italic 1.6rem Georgia,
+    'Palatino Linotype',
+    serif;
+  color: var(--accent-color);
 }
 
-.save-notice strong {
-  color: #aaa;
-}
-
-/* Scrollbar styling */
-.save-slot-manager::-webkit-scrollbar {
-  width: 8px;
-}
-
-.save-slot-manager::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-}
-
-.save-slot-manager::-webkit-scrollbar-thumb {
-  background: #555;
-  border-radius: 4px;
-}
-
-.save-slot-manager::-webkit-scrollbar-thumb:hover {
-  background: #666;
-}
-
-/* Two-column grid layout for Manual + Quick saves */
+/* One column on the journal page, two side by side in the wider dialog */
 .save-slots-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 32px;
   align-items: start;
 }
 
-.save-slots-grid .slot-section {
-  display: flex;
-  flex-direction: column;
+.save-slot-manager .slot-section .jp-heading {
+  margin-top: 0;
+}
+.save-slot-manager.is-embedded .slot-section + .slot-section .jp-heading {
+  margin-top: 18px;
 }
 
-/* Remove slot-divider within grid (no longer needed) */
-
-/* Responsive: Stack columns on smaller screens */
-@media (max-width: 768px) {
-  .save-slot-manager {
-    max-width: 600px;
-  }
-
-  .save-slots-grid {
-    grid-template-columns: 1fr;
-  }
+.save-notice {
+  margin: 16px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
 }

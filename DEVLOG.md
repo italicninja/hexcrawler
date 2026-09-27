@@ -452,3 +452,71 @@ log's `getProgress()`, saving) can then rely on completed quests being real inst
 `Quest.fromJSON` is used because it accepts either an instance or a plain object. The new
 test fails against the old reducer and passes against the fix. `FAIL_QUEST` has the same
 spread, but failed quests aren't saved, so it's left alone.
+
+## 2026-09-26: Journal tabs open pages, not pop-ups
+
+**What:** the bookmark tabs now turn the whole right page into the chosen panel. A new
+**Journal** tab (map icon) brings back the hero, context pane and log, as do Escape and a
+"Back to the journal" link. A fight always opens on the journal page. Keyboard shortcuts that
+used to open pop-ups (R, I, Q, and the inn/quest-giver interactions) now open the page.
+`MenuPanel` is gone.
+
+Every panel was redesigned for a ~520px parchment page. It uses a shared vocabulary of
+`.jp-*` classes at the end of `style.css`: ruled section headings, dotted-leader key/value
+rows, lists split by dotted rules, pixel HP/XP bars, and underlined ink links for actions in
+place of filled buttons.
+
+- **Character:** portrait header, six ability scores in a row, dotted-leader vitals, HP/XP
+  bars, and features with "2 of 2 left".
+- **Party:** the company as a selectable list (it still picks whose gear Equipment shows).
+  With no companions it reads "You travel alone."
+- **Equipment:** one column instead of three. "Worn & wielded" slot rows, then the pack with
+  filter links. Item details open under the selected row, with Equip/Unequip links. Rarity
+  colours are now ink tones; the old neon colours were meant for dark themes.
+- **Rest:** prose, HP and hit-dice rows, then a short rest, a long rest and the inn as
+  separate sections. The inn button now contains "Rest (10g)", which the QA driver expects.
+- **Quests:** filter links, an entries list, and each quest with an italic title, a
+  checklist of objectives, and rewards as rows.
+- **Save:** slots as bookmarks. `SaveSlotManager` has a new `embedded` prop that drops its
+  Radix `DialogTitle` on the page, where it crashed outside a dialog. The title-screen Load
+  dialog keeps its accessible title.
+- **Settings:** theme and controls as labelled fields, and the keybindings as dotted rows
+  ending in small key caps.
+
+Fixes that came along: `RestMenu` passed the character from state straight to
+`RestManager`/`applyStarvation`, which change it in place. It now hands them clones, as
+CLAUDE.md requires. The quest log no longer crashes on completed quests and no longer shows
+a Complete button on them. About 110 CSS rules for the old panels, sidebar and modal were
+removed after checking that nothing in `src` references their classes.
+
+**Why:** the user asked for the tabs to change the whole right pane and for the panels to be
+redesigned in the journal style.
+
+**Route:** the lead set up the page switching and the `.jp-*` classes first. Four parallel
+agents then redesigned Character+Party, Equipment, Rest+Settings and Quests+Save against
+the same brief, each with its own `<Component>.css`. A shared Playwright helper started a
+fresh game and screenshotted each tab, and each agent loaded test data (items, quests, low
+HP, a town) through the React fiber to review the populated states. Panel content couldn't
+stay in modals, because the old Equipment modal was 1050px wide.
+
+Before (Equipment squeezed onto the page) and after:
+
+![before](docs/devlog/2026-09-26-journal-pages/before-equipment.png)
+
+![equipment](docs/devlog/2026-09-26-journal-pages/equipment.png)
+
+![character](docs/devlog/2026-09-26-journal-pages/character.png)
+
+![party](docs/devlog/2026-09-26-journal-pages/party.png)
+
+![rest](docs/devlog/2026-09-26-journal-pages/rest.png)
+
+![quests](docs/devlog/2026-09-26-journal-pages/quests.png)
+
+![save](docs/devlog/2026-09-26-journal-pages/save.png)
+
+![config](docs/devlog/2026-09-26-journal-pages/config.png)
+
+The shared save list in the title-screen Load dialog:
+
+![title load](docs/devlog/2026-09-26-journal-pages/title-load.png)

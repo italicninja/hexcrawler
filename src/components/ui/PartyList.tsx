@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import PixelIcon from './PixelIcon';
+import './PartyList.css';
 
 /**
- * PartyList component - displays the party composition
+ * PartyList component - the company roll of the journal. Selecting a member picks
+ * whose equipment the Equipment page shows.
  */
 
 interface MemberData {
@@ -32,13 +34,6 @@ interface PartyListProps {
   onMemberSelect?: (member: MemberData, index: number) => void;
 }
 
-function getHPColor(percent: number): string {
-  if (percent > 75) return '#10b981'; // Green
-  if (percent > 50) return '#eab308'; // Yellow
-  if (percent > 25) return '#f59e0b'; // Orange
-  return '#ef4444'; // Red
-}
-
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
@@ -50,61 +45,41 @@ function PartyMember({ member, index, isSelected, onClick }: PartyMemberProps) {
   }
 
   const hpPercent = (member.currentHP / member.maxHP) * 100;
-  const hpColor = getHPColor(hpPercent);
-  const initial = member.name.charAt(0).toUpperCase();
+  const details = [
+    `Level ${member.level} ${capitalize(member.class)}`,
+    member.personality && capitalize(member.personality),
+    member.background && capitalize(member.background),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
-    <div
-      className={`party-member ${isSelected ? 'selected' : ''}`}
-      onClick={() => onClick(member, index)}
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
+      className={isSelected ? 'is-selected' : undefined}
       aria-pressed={isSelected}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick(member, index);
-        }
-      }}
-      style={{ cursor: 'pointer' }}
+      onClick={() => onClick(member, index)}
     >
-      <div className="party-icon">{initial}</div>
-      <div className="party-info">
-        <div className="party-name">
+      <PixelIcon name={`player:${member.class}`} scale={2} />
+      <span className="pl-info">
+        <span className="pl-name">
           {member.name}
+          {index === 0 && <span className="jp-note"> (you)</span>}
           {member.gender && (
-            <span style={{ marginLeft: '0.3rem' }}>
-              <PixelIcon
-                name={member.gender === 'male' ? 'male' : 'female'}
-                label={member.gender}
-              />
-            </span>
+            <PixelIcon name={member.gender === 'male' ? 'male' : 'female'} label={member.gender} />
           )}
-        </div>
-        <div className="party-hp">
-          <span style={{ color: hpColor }}>
-            {member.currentHP}/{member.maxHP} HP
-          </span>
-          {' • '}Lv{member.level} {capitalize(member.class)}
-        </div>
-        {member.personality && (
-          <div
-            className="party-personality"
-            style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.2rem' }}
-          >
-            {capitalize(member.personality)}
-          </div>
-        )}
-        {member.background && (
-          <div
-            className="party-background"
-            style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '0.1rem', fontStyle: 'italic' }}
-          >
-            {capitalize(member.background)}
-          </div>
-        )}
-      </div>
-    </div>
+        </span>
+        <span className="jp-note">{details}</span>
+      </span>
+      <span className="pl-hp">
+        <span className={hpPercent <= 25 ? 'pl-low' : undefined}>
+          {member.currentHP} / {member.maxHP} hp
+        </span>
+        <span className="jp-bar" aria-hidden="true">
+          <span style={{ width: `${Math.min(Math.max(hpPercent, 0), 100)}%` }} />
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -112,10 +87,11 @@ function PartyList({ party, onMemberSelect }: PartyListProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   if (!party) {
-    return <div>No party</div>;
+    return <p className="jp-prose jp-muted">You have no company to speak of.</p>;
   }
 
   const members = party.getAllMembers();
+  const companions = members.filter(Boolean).length - 1;
 
   const handleMemberClick = (member: MemberData, index: number) => {
     setSelectedIndex(index);
@@ -125,17 +101,29 @@ function PartyList({ party, onMemberSelect }: PartyListProps) {
   };
 
   return (
-    <div className="party-container">
-      {members.map((member, index) =>
-        member ? (
-          <PartyMember
-            key={index}
-            member={member}
-            index={index}
-            isSelected={selectedIndex === index}
-            onClick={handleMemberClick}
-          />
-        ) : null
+    <div>
+      <h3 className="jp-heading">The company</h3>
+      <div className="jp-list">
+        {members.map((member, index) =>
+          member ? (
+            <PartyMember
+              key={index}
+              member={member}
+              index={index}
+              isSelected={selectedIndex === index}
+              onClick={handleMemberClick}
+            />
+          ) : null
+        )}
+      </div>
+      {companions < 1 ? (
+        <p className="jp-prose jp-muted pl-foot">
+          You travel alone. Those who join you on the road will be written in here.
+        </p>
+      ) : (
+        <p className="jp-note pl-foot">
+          Choose a name to see what they carry on the Equipment page.
+        </p>
       )}
     </div>
   );
