@@ -84,7 +84,6 @@ function KeybindingsMenu() {
       inventory: 'i',
       quests: 'q',
       map: 'm',
-      quicksave: 'F5',
     };
 
     set('keybindings', defaultKeybindings);

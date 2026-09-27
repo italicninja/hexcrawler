@@ -545,14 +545,6 @@ export class GameDriver {
   // =========================
 
   /**
-   * Quick save (F5)
-   */
-  async quickSave() {
-    await this.page.keyboard.press('F5');
-    await this.wait(500);
-  }
-
-  /**
    * Save to specific slot
    */
   async saveGame(slotNumber) {

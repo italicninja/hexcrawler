@@ -8,18 +8,13 @@ import logger from './logger';
  * SaveManager - Handles game save/load operations with multiple save slots
  *
  * Save Slot System:
- * - 3 quicksave slots (hexcrawl_quicksave_a, _b, _c)
  * - 3 manual save slots (hexcrawl_save_slot_1, _2, _3)
  * - 1 auto-save slot (hexcrawl_autosave)
  * - Active slot tracking (hexcrawl_active_slot)
- * - Last quicksave tracking (hexcrawl_last_quicksave_slot)
  */
 
 export class SaveManager {
   static SAVE_SLOTS = {
-    QUICKSAVE_A: 'hexcrawl_quicksave_a',
-    QUICKSAVE_B: 'hexcrawl_quicksave_b',
-    QUICKSAVE_C: 'hexcrawl_quicksave_c',
     SLOT_1: 'hexcrawl_save_slot_1',
     SLOT_2: 'hexcrawl_save_slot_2',
     SLOT_3: 'hexcrawl_save_slot_3',
@@ -27,7 +22,6 @@ export class SaveManager {
   };
 
   static ACTIVE_SLOT_KEY = 'hexcrawl_active_slot';
-  static LAST_QUICKSAVE_KEY = 'hexcrawl_last_quicksave_slot';
   static SAVE_VERSION = SAVE.VERSION;
 
   static saveToSlot(slotKey: string, gameState: any): boolean {
@@ -130,20 +124,7 @@ export class SaveManager {
         JSON.stringify({ ...metadata, timestamp: saveData.timestamp, version: saveData.version })
       );
 
-      if (
-        slotKey === this.SAVE_SLOTS.QUICKSAVE_A ||
-        slotKey === this.SAVE_SLOTS.QUICKSAVE_B ||
-        slotKey === this.SAVE_SLOTS.QUICKSAVE_C
-      ) {
-        this.setLastQuicksaveSlot(slotKey);
-      }
-
-      if (
-        slotKey !== this.SAVE_SLOTS.AUTOSAVE &&
-        slotKey !== this.SAVE_SLOTS.QUICKSAVE_A &&
-        slotKey !== this.SAVE_SLOTS.QUICKSAVE_B &&
-        slotKey !== this.SAVE_SLOTS.QUICKSAVE_C
-      ) {
+      if (slotKey !== this.SAVE_SLOTS.AUTOSAVE) {
         this.setActiveSlot(slotKey);
       }
 
@@ -232,7 +213,7 @@ export class SaveManager {
     }
   }
 
-  /** Permadeath: wipe every slot, including autosave and quicksaves. */
+  /** Permadeath: wipe every slot, including autosave. */
   static deleteAllSlots(): void {
     Object.values(this.SAVE_SLOTS).forEach(slot => this.deleteSlot(slot));
     localStorage.removeItem('hexcrawl_save'); // pre-slot save format
@@ -241,9 +222,6 @@ export class SaveManager {
   static getAllSlots() {
     return {
       autosave: this.getSlotMetadata(this.SAVE_SLOTS.AUTOSAVE),
-      quicksaveA: this.getSlotMetadata(this.SAVE_SLOTS.QUICKSAVE_A),
-      quicksaveB: this.getSlotMetadata(this.SAVE_SLOTS.QUICKSAVE_B),
-      quicksaveC: this.getSlotMetadata(this.SAVE_SLOTS.QUICKSAVE_C),
       slot1: this.getSlotMetadata(this.SAVE_SLOTS.SLOT_1),
       slot2: this.getSlotMetadata(this.SAVE_SLOTS.SLOT_2),
       slot3: this.getSlotMetadata(this.SAVE_SLOTS.SLOT_3),
@@ -261,25 +239,10 @@ export class SaveManager {
   static hasSaveData(): boolean {
     return !!(
       this.getSlotMetadata(this.SAVE_SLOTS.AUTOSAVE) ||
-      this.getSlotMetadata(this.SAVE_SLOTS.QUICKSAVE_A) ||
-      this.getSlotMetadata(this.SAVE_SLOTS.QUICKSAVE_B) ||
-      this.getSlotMetadata(this.SAVE_SLOTS.QUICKSAVE_C) ||
       this.getSlotMetadata(this.SAVE_SLOTS.SLOT_1) ||
       this.getSlotMetadata(this.SAVE_SLOTS.SLOT_2) ||
       this.getSlotMetadata(this.SAVE_SLOTS.SLOT_3)
     );
-  }
-
-  static getNextQuicksaveSlot(): string {
-    const lastSlot = localStorage.getItem(this.LAST_QUICKSAVE_KEY) || this.SAVE_SLOTS.QUICKSAVE_C;
-
-    if (lastSlot === this.SAVE_SLOTS.QUICKSAVE_A) return this.SAVE_SLOTS.QUICKSAVE_B;
-    if (lastSlot === this.SAVE_SLOTS.QUICKSAVE_B) return this.SAVE_SLOTS.QUICKSAVE_C;
-    return this.SAVE_SLOTS.QUICKSAVE_A;
-  }
-
-  static setLastQuicksaveSlot(slotKey: string): void {
-    localStorage.setItem(this.LAST_QUICKSAVE_KEY, slotKey);
   }
 
   static _getCurrentLocationName(gameState: any): string {

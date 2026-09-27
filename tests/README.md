@@ -98,8 +98,7 @@ open tests/reports/test-report-*.html
    - Interior movement
    - Exit back to overworld
 
-7. **State Management** (3 tests)
-   - Quick save functionality
+7. **State Management** (2 tests)
    - Spam action stress test
    - Rapid menu toggle
 
