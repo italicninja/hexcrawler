@@ -124,5 +124,5 @@ a separate route.
 - When a change produces images (texture previews, screenshots, UI mockups), save them to
   `docs/devlog/<YYYY-MM-DD>-<slug>/` and embed them in the entry. Keep the version we settled on
   **plus a couple of rejected ones** to show how we got there.
-- Commit the DEVLOG update in the same commit as the change it describes (or a follow-up
-  `docs:` commit if the change already landed).
+- `DEVLOG.md` and `docs/devlog/` are gitignored and live only on disk (tracked outside the
+  repo to keep it small). Update them locally; never `git add -f` them.
