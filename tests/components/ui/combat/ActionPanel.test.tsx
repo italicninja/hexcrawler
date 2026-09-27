@@ -10,6 +10,11 @@ vi.mock('../../../../src/components/ui/combat/ActionEconomyDisplay', () => ({
   default: () => <div data-testid="action-economy" />,
 }));
 
+// PixelIcon bakes sprites on a canvas, which jsdom doesn't implement
+vi.mock('../../../../src/components/ui/PixelIcon', () => ({
+  default: () => null,
+}));
+
 // ─── Import component after mocks ────────────────────────────────────────────
 
 import ActionPanel from '../../../../src/components/ui/combat/ActionPanel';

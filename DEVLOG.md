@@ -520,3 +520,37 @@ Before (Equipment squeezed onto the page) and after:
 The shared save list in the title-screen Load dialog:
 
 ![title load](docs/devlog/2026-09-26-journal-pages/title-load.png)
+
+## 2026-09-26: Combat actions in the journal style
+
+**What:** the combat Actions and Bonus actions section is rewritten for the parchment page.
+- It opens with "**Grok**, it is your turn."
+- A tally line lists Action, Bonus and Object; each is struck through in oxblood once spent.
+  Movement shows "30 of 30 ft" with a small green bar.
+- While raging, a note with an oxblood rule replaces the red "RAGING" gradient banner.
+- Actions are ruled rows: a pixel icon, the name, and a short gloss of what the action does
+  ("double your movement", "leave reach safely"). Spent actions are faded and struck through.
+- Bonus actions show their remaining uses as ink pips (●●○) instead of "(2/3)".
+- **End Turn** is an ink link pinned to the bottom of the pane, so it stays reachable when
+  the list scrolls. It used to be a filled gold button.
+
+Logic, props and the button names are unchanged: the unit tests, and the QA driver's
+`text=Attack` / `text=End Turn`, still find them. The ActionPanel test now mocks
+`PixelIcon`, because jsdom has no canvas to bake the sprites on.
+
+**Why:** the user asked for the actions/bonus actions section to fit the new aesthetic.
+It was the last boxed, multicolour panel on the combat page.
+
+**Route:** the rows reuse the shared `.jp-list` / `.jp-heading` / `.jp-bar` / `.jp-link`
+classes, so `ActionPanel.css` only holds the tally, the rage note, the pips and the pinned
+footer. The glosses avoid the word "attack", so the QA driver's case-insensitive
+`text=Attack` can't match a gloss before the real button. The first version left End Turn at the
+end of the list, and it scrolled out of view once the rage note appeared. Pinning it fixed
+that. The turn-order list below is untouched.
+
+Before ([journal layout](docs/devlog/2026-09-26-journal-layout/combat.png)) and after, on the
+player's turn and after raging:
+
+![turn](docs/devlog/2026-09-26-journal-actions/turn.png)
+
+![raging](docs/devlog/2026-09-26-journal-actions/raging.png)

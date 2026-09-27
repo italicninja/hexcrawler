@@ -1,4 +1,6 @@
 import ActionEconomyDisplay from './ActionEconomyDisplay';
+import PixelIcon from '../PixelIcon';
+import './ActionPanel.css';
 
 /**
  * ActionPanel - Display available actions for current combatant
@@ -81,11 +83,7 @@ function ActionPanel({
   onEndTurn,
 }: ActionPanelProps) {
   if (!combatant) {
-    return (
-      <div className="p-4 text-center" style={{ color: 'var(--text-muted)' }}>
-        No combatant selected
-      </div>
-    );
+    return <p className="jp-note">No combatant selected</p>;
   }
 
   // Character instance lives on combatant.character for allies
@@ -140,104 +138,74 @@ function ActionPanel({
   const otherActionTaken = actionUsed && !attackActionCommitted; // spent action on non-attack
 
   /**
-   * Render an action button — full-width horizontal row, no icon
+   * One action as a ruled row: pixel icon, name, and a short gloss of what it does.
+   * The accessible name is just the label so tests and screen readers stay terse.
    */
-  const ActionButton = ({
+  const ActionRow = ({
     action,
+    icon,
     label,
+    gloss,
     disabled,
-    color,
     onClick,
   }: {
     action: string;
+    icon: string;
     label: string;
+    gloss?: string;
     disabled?: boolean;
-    color?: string;
     onClick?: () => void;
   }) => {
     const isSelected = selectedAction === action;
-    const baseColor = color || 'var(--primary-color)';
-
     return (
       <button
+        type="button"
         onClick={onClick}
         disabled={disabled}
         aria-label={label}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          width: '100%',
-          padding: '6px 12px',
-          borderRadius: '4px',
-          fontSize: '0.875rem',
-          fontWeight: '600',
-          fontFamily: 'inherit',
-          textAlign: 'left',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          opacity: disabled ? 0.4 : 1,
-          backgroundColor: isSelected ? baseColor : 'var(--bg-lighter)',
-          color: isSelected ? 'white' : 'var(--text-color)',
-          border: `1px solid ${disabled ? 'var(--border-color)' : baseColor}`,
-          transition: 'filter 0.15s',
-        }}
+        aria-pressed={isSelected}
+        className={isSelected ? 'is-selected' : undefined}
       >
-        {label}
-        {isSelected && <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>selected</span>}
+        <PixelIcon name={icon} scale={2} />
+        <span className="ap-name">{label}</span>
+        <span className="jp-aside">{isSelected ? 'chosen' : gloss}</span>
       </button>
     );
   };
 
+  const rageEffect = combatant.statusEffects?.find(e => e.name === 'Rage');
+  const bonusActions = Array.from(
+    new Map(availableBonusActions.map((a): [string, PanelAbility] => [a.name, a])).values()
+  );
+  const actionGone = actionUsed || attackActionCommitted;
+
   return (
-    <div
-      className="rounded-lg p-4"
-      style={{
-        backgroundColor: 'var(--panel-bg)',
-        border: '2px solid var(--border-color)',
-      }}
-    >
-      {/* Action Economy Display */}
+    <div className="action-panel">
+      <p className="jp-prose ap-turn">
+        <em className="ap-who">{combatant.name}</em>
+        <span>, it is your turn.</span>
+      </p>
+
       {turnState && <ActionEconomyDisplay turnState={turnState} character={combatant.character} />}
 
-      {/* Rage banner — shown whenever the combatant has an active Rage status effect */}
-      {(() => {
-        const rageEffect = combatant.statusEffects?.find(e => e.name === 'Rage');
-        if (!rageEffect) return null;
-        const bonus = rageEffect.effects?.rageDamageBonus ?? 2;
-        return (
-          <div
-            style={{
-              margin: '8px 0 4px',
-              padding: '8px 12px',
-              borderRadius: '6px',
-              background: 'linear-gradient(135deg, #7f1d1d, #c0392b)',
-              border: '1px solid #e74c3c',
-              color: 'white',
-            }}
-          >
-            <div style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '3px' }}>RAGING</div>
-            <div style={{ fontSize: '0.78rem', opacity: 0.9 }}>
-              +{bonus} damage · BPS resistance · STR advantage
-            </div>
-          </div>
-        );
-      })()}
+      {rageEffect && (
+        <p className="ap-rage">
+          <PixelIcon name="bolt" scale={2} />
+          <span>
+            <b>Raging.</b> +{rageEffect.effects?.rageDamageBonus ?? 2} damage, resistant to
+            bludgeoning, piercing and slashing, advantage on Strength.
+          </span>
+        </p>
+      )}
 
-      {/* Header */}
-      <h3 className="font-bold text-lg mb-1 mt-3" style={{ color: 'var(--text-color)' }}>
-        Actions
-      </h3>
-      <div className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-        {combatant.name}
-      </div>
-
-      {/* Actions — vertical stack */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-        <ActionButton
+      <h4 className="jp-heading">Actions</h4>
+      <div className="jp-list ap-list">
+        <ActionRow
           action="move"
+          icon="move"
           label={`Move${movementRemaining !== undefined ? ` (${movementRemaining} ft)` : ''}`}
+          gloss="pick a hex"
           disabled={(movementRemaining ?? 0) <= 0}
-          color="var(--primary-color)"
           onClick={() => onActionSelect('move')}
         />
 
@@ -245,126 +213,119 @@ function ActionPanel({
         {freeAbilities.map(ability => {
           const alreadyActive = combatant.statusEffects?.some(e => e.name === ability.name);
           return (
-            <ActionButton
+            <ActionRow
               key={ability.name}
               action={`free-${ability.name}`}
+              icon="die"
               label={alreadyActive ? `${ability.name} (active)` : ability.name}
+              gloss={alreadyActive ? 'declared' : 'free, before you strike'}
               disabled={attacksMade > 0 || alreadyActive}
-              color="#e67e22"
               onClick={() => onFreeAbilityClick && onFreeAbilityClick(ability)}
             />
           );
         })}
 
-        <ActionButton
+        <ActionRow
           action="attack"
+          icon="action"
           label={
             attacksUsedThisTurn > 0 ? `Attack (${attacksUsedThisTurn}/${maxAttacks})` : 'Attack'
           }
+          gloss={maxAttacks > 1 ? `${maxAttacks} swings` : 'strike a foe in reach'}
           disabled={!canAttackAgain || otherActionTaken}
-          color="#e74c3c"
           onClick={() => onActionSelect('attack')}
         />
-        <ActionButton
+        <ActionRow
           action="dodge"
+          icon="equipment"
           label="Dodge"
-          disabled={actionUsed || attackActionCommitted}
-          color="#3498db"
+          gloss="foes strike at disadvantage"
+          disabled={actionGone}
           onClick={onDodgeClick}
         />
-        <ActionButton
+        <ActionRow
           action="dash"
+          icon="arrowUp"
           label="Dash"
-          disabled={actionUsed || attackActionCommitted}
-          color="#2ecc71"
+          gloss="double your movement"
+          disabled={actionGone}
           onClick={onDashClick}
         />
-        <ActionButton
+        <ActionRow
           action="disengage"
+          icon="arrowLeft"
           label="Disengage"
-          disabled={actionUsed || attackActionCommitted}
-          color="#f39c12"
+          gloss="leave reach safely"
+          disabled={actionGone}
           onClick={onDisengageClick}
         />
-        <ActionButton
+        <ActionRow
           action="hide"
+          icon="lock"
           label="Hide"
-          disabled={actionUsed || attackActionCommitted}
-          color="#9b59b6"
+          gloss="slip out of sight"
+          disabled={actionGone}
           onClick={onHideClick}
         />
         {availableAbilities.length > 0 && (
-          <ActionButton
+          <ActionRow
             action="ability"
+            icon="star"
             label={`Abilities (${availableAbilities.length})`}
-            disabled={actionUsed || attackActionCommitted}
-            color="#9b59b6"
+            gloss="class features"
+            disabled={actionGone}
             onClick={onAbilityClick}
           />
         )}
         {hasSpells && (
-          <ActionButton
+          <ActionRow
             action="spell"
+            icon="bonus"
             label="Cast Spell"
-            disabled={actionUsed || attackActionCommitted}
-            color="#f39c12"
+            gloss="from your spellbook"
+            disabled={actionGone}
             onClick={onSpellClick}
           />
         )}
       </div>
 
-      {/* Bonus Actions — vertical stack, deduplicated, charges on label */}
-      {availableBonusActions.length > 0 && (
+      {/* Bonus actions — deduplicated, remaining uses shown as pips */}
+      {bonusActions.length > 0 && (
         <>
-          <div
-            style={{
-              fontSize: '0.7rem',
-              fontWeight: '600',
-              color: 'var(--text-muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginTop: '8px',
-              marginBottom: '4px',
-            }}
-          >
-            Bonus Actions
-          </div>
-          <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}
-          >
-            {Array.from(
-              new Map(availableBonusActions.map((a): [string, PanelAbility] => [a.name, a])).values()
-            ).map(ability => {
-                const hasCharges = ability.maxUses !== undefined && ability.maxUses !== -1;
-                const chargeLabel = hasCharges ? ` (${ability.uses}/${ability.maxUses})` : '';
-                return (
-                  <ActionButton
-                    key={ability.name}
-                    action={`bonus-${ability.name}`}
-                    label={`${ability.name}${chargeLabel}`}
-                    disabled={bonusActionUsed}
-                    color="#c0392b"
-                    onClick={() => onBonusActionClick(ability)}
-                  />
-                );
-              }
-            )}
+          <h4 className="jp-heading">Bonus actions</h4>
+          <div className="jp-list ap-list">
+            {bonusActions.map(ability => {
+              const hasCharges = ability.maxUses !== undefined && ability.maxUses !== -1;
+              const label = `${ability.name}${hasCharges ? ` (${ability.uses}/${ability.maxUses})` : ''}`;
+              return (
+                <button
+                  key={ability.name}
+                  type="button"
+                  aria-label={label}
+                  disabled={bonusActionUsed}
+                  onClick={() => onBonusActionClick(ability)}
+                >
+                  <PixelIcon name="bolt" scale={2} />
+                  <span className="ap-name">{ability.name}</span>
+                  {hasCharges && (
+                    <span className="ap-pips" aria-hidden="true">
+                      {Array.from({ length: ability.maxUses ?? 0 }, (_, i) => (
+                        <i key={i} className={i < (ability.uses ?? 0) ? 'is-full' : undefined} />
+                      ))}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </>
       )}
 
-      {/* End Turn */}
-      <button
-        className="w-full py-2 rounded font-bold text-sm transition-all duration-150 hover:brightness-110 mt-1"
-        style={{
-          backgroundColor: 'var(--accent-color)',
-          color: 'var(--bg-color)',
-          border: '2px solid var(--accent-color)',
-        }}
-        onClick={onEndTurn}
-      >
-        End Turn
-      </button>
+      <div className="ap-end">
+        <button type="button" className="jp-link jp-link--primary" onClick={onEndTurn}>
+          End Turn <PixelIcon name="chevronRight" />
+        </button>
+      </div>
     </div>
   );
 }

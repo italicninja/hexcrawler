@@ -1,6 +1,6 @@
 /**
- * ActionEconomyDisplay - Visual tracker for D&D 5e action economy
- * Shows Action, Bonus Action, Movement, and Free Object Interaction status
+ * ActionEconomyDisplay - D&D 5e action economy, written as a turn tally:
+ * Action / Bonus / Object are struck through once spent; movement is a small bar.
  */
 import PixelIcon from '../PixelIcon';
 
@@ -16,69 +16,44 @@ interface ActionEconomyDisplayProps {
   character?: { moveDistance?: number };
 }
 
-interface EconomyItemProps {
-  icon: string; // PixelIcon sprite name
-  label: string;
-  isUsed?: boolean;
-  showMovement?: boolean;
-  movementData?: { used: number; total: number };
-}
-
 function ActionEconomyDisplay({ turnState, character }: ActionEconomyDisplayProps) {
   const movementUsed = turnState?.movementUsed || 0;
   const movementTotal = (character?.moveDistance || 6) * 5; // Convert hexes to feet
+  const movementLeft = Math.max(0, movementTotal - movementUsed);
 
-  const actionUsed = turnState?.actionUsed || false;
-  const bonusActionUsed = turnState?.bonusActionUsed || false;
-  const objectInteractionUsed = turnState?.freeObjectUsed || false;
-
-  const EconomyItem = ({ icon, label, isUsed, showMovement, movementData }: EconomyItemProps) => (
-    <div
-      className="flex items-center gap-2 px-3 py-2 rounded-lg"
-      style={{
-        backgroundColor: 'var(--bg-lighter)',
-        border: '1px solid var(--border-color)',
-      }}
-    >
-      <PixelIcon name={icon} />
-      <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-        {label}
-      </span>
-      {showMovement ? (
-        <span
-          className="text-sm font-bold"
-          style={{
-            color:
-              (movementData?.used ?? 0) >= (movementData?.total ?? 0)
-                ? 'var(--text-muted)'
-                : '#2ecc71',
-          }}
-        >
-          {movementData?.used ?? 0}/{movementData?.total ?? 0} ft
-        </span>
-      ) : (
-        <PixelIcon name={isUsed ? 'check' : 'ready'} label={isUsed ? 'used' : 'available'} />
-      )}
-    </div>
-  );
+  const marks = [
+    { icon: 'action', label: 'Action', used: !!turnState?.actionUsed },
+    { icon: 'bonus', label: 'Bonus', used: !!turnState?.bonusActionUsed },
+    { icon: 'object', label: 'Object', used: !!turnState?.freeObjectUsed },
+  ];
 
   return (
-    <div
-      className="flex flex-wrap items-center gap-2 p-3"
-      style={{
-        backgroundColor: 'var(--panel-bg)',
-        borderBottom: '2px solid var(--border-color)',
-      }}
-    >
-      <EconomyItem icon="action" label="Action" isUsed={actionUsed} />
-      <EconomyItem icon="bonus" label="Bonus Action" isUsed={bonusActionUsed} />
-      <EconomyItem
-        icon="move"
-        label="Movement"
-        showMovement={true}
-        movementData={{ used: movementUsed, total: movementTotal }}
-      />
-      <EconomyItem icon="object" label="Object" isUsed={objectInteractionUsed} />
+    <div className="ap-economy" aria-label="This turn">
+      <ul className="ap-marks">
+        {marks.map(m => (
+          <li key={m.label} className={m.used ? 'is-spent' : undefined}>
+            <PixelIcon name={m.icon} />
+            <span>{m.label}</span>
+            <span className="sr-only">{m.used ? 'spent' : 'ready'}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="ap-move">
+        <PixelIcon name="move" />
+        <span>
+          {movementLeft} of {movementTotal} ft
+        </span>
+        <div
+          className="jp-bar jp-bar--good"
+          role="meter"
+          aria-label="Movement left"
+          aria-valuenow={movementLeft}
+          aria-valuemin={0}
+          aria-valuemax={movementTotal}
+        >
+          <span style={{ width: `${movementTotal ? (movementLeft / movementTotal) * 100 : 0}%` }} />
+        </div>
+      </div>
     </div>
   );
 }

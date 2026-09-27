@@ -1,0 +1,119 @@
+/* Combat actions on the journal page: a turn tally, then actions as ruled rows. */
+.ap-turn {
+  margin-bottom: 10px;
+}
+.ap-who {
+  font-style: normal;
+  font-weight: bold;
+  color: var(--accent-color);
+}
+
+/* Tally: Action / Bonus / Object, struck through when spent; movement as a bar */
+.ap-economy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.ap-marks {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ap-marks li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 0.75rem sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ap-marks li.is-spent {
+  opacity: 0.4;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--accent-color);
+}
+.ap-move {
+  flex: 1;
+  min-width: 170px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-style: italic;
+  white-space: nowrap;
+}
+.ap-move .jp-bar {
+  flex: 1;
+  height: 8px;
+}
+
+.ap-rage {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 10px 0 0;
+  padding: 6px 10px;
+  box-shadow: inset 3px 0 0 var(--accent-color);
+  background: rgba(138, 42, 18, 0.08);
+  color: var(--accent-color);
+  font-size: 0.85rem;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+/* Action rows */
+.ap-list > button {
+  padding: 6px;
+}
+.ap-list .ap-name {
+  font-size: 1rem;
+}
+.ap-list > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+.ap-list > button:disabled .ap-name {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+.ap-list > button:not(:disabled):hover .ap-name {
+  color: var(--accent-color);
+}
+
+/* Remaining uses (e.g. Rage 2/3) as ink pips */
+.ap-pips {
+  display: flex;
+  gap: 3px;
+  margin-left: auto;
+}
+.ap-pips i {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--accent-color);
+  border-radius: 50%;
+}
+.ap-pips i.is-full {
+  background: var(--accent-color);
+}
+
+/* Pinned to the bottom of the scrolling context pane so End Turn is always reachable */
+.ap-end {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding: 8px 0 6px;
+  background: linear-gradient(transparent, var(--bg-color) 35%);
+}
+.ap-end .jp-link {
+  font-size: 1.1rem;
+}
