@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createSeededRNG } from '../../src/utils/seededRandom';
+import { createSeededRNG, hashToUnit, random } from '../../src/utils/seededRandom';
 import { DiceRoller } from '../../src/game/DiceRoller';
 
 describe('createSeededRNG', () => {
@@ -27,6 +27,31 @@ describe('createSeededRNG', () => {
       const r = dice.rollD20();
       expect(r).toBeGreaterThanOrEqual(1);
       expect(r).toBeLessThanOrEqual(20);
+    }
+  });
+
+  it('near-identical seeds give unrelated streams', () => {
+    const a = createSeededRNG('x-hazard-1-10');
+    const b = createSeededRNG('x-hazard-10-1');
+    const diffs = Array.from({ length: 100 }, () => Math.abs(a() - b()));
+    // Unrelated uniforms differ by ~1/3 on average; correlated streams sit near 0
+    expect(diffs.reduce((s, d) => s + d, 0) / diffs.length).toBeGreaterThan(0.25);
+  });
+
+  it('gameplay d20 and hashToUnit are uniform across all faces', () => {
+    for (const next of [
+      random,
+      (() => {
+        let n = 0;
+        return () => hashToUnit(42, n++);
+      })(),
+    ]) {
+      const counts = new Array(20).fill(0);
+      const N = 200_000;
+      for (let i = 0; i < N; i++) counts[Math.floor(next() * 20)]++;
+      const expected = N / 20;
+      const chi2 = counts.reduce((s, c) => s + (c - expected) ** 2 / expected, 0);
+      expect(chi2).toBeLessThan(50); // 19 dof: p ≈ 0.0001
     }
   });
 });

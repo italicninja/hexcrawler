@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { random } from '../utils/seededRandom';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import DiceRoller from '../game/DiceRoller';
@@ -361,7 +362,7 @@ export function useHexInteraction(hex: InteractionHex | null) {
     addMessage(`Entering ${poi.name}...`, 'action');
 
     // Settlement entry flavor (50% chance)
-    if (Math.random() < 0.5) {
+    if (random() < 0.5) {
       const settlementSize = poi.settlementSize || poi.type;
       const flavor = generateSettlementFlavor(settlementSize);
       if (flavor) addMessage(flavor, 'info');

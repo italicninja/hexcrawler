@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- loose boundary, see TODO.md */
+import { random } from '../utils/seededRandom';
+
 /**
  * RestManager - Handles D&D 5e rest mechanics
  */
@@ -186,7 +188,7 @@ export class RestManager {
 
   static isRestInterrupted(terrainType: string, terrainDifficulty: number): boolean {
     const chance = this.calculateInterruptionChance(terrainType, terrainDifficulty);
-    const roll = Math.random() * 100;
+    const roll = random() * 100;
     return roll < chance;
   }
 

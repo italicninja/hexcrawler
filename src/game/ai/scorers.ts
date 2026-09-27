@@ -3,6 +3,7 @@
  * Functions that return 0.0-1.0 scores for target selection
  */
 
+import { random as gameRandom } from '../../utils/seededRandom';
 import { getHexDistance } from '../../utils/hexMath';
 import logger from '../../utils/logger';
 
@@ -210,7 +211,7 @@ export function targetIsSpellcaster(context: ScorerContext): number {
  * @returns {number} Score 0.0-1.0
  */
 export function random(_context: ScorerContext): number {
-  return Math.random();
+  return gameRandom();
 }
 
 /**
@@ -315,7 +316,7 @@ export function calculateScore(
   context: Omit<ScorerContext, 'params'>
 ): number {
   if (!scorerConfigs || scorerConfigs.length === 0) {
-    return Math.random(); // Fallback to random if no scorers
+    return gameRandom(); // Fallback to random if no scorers
   }
 
   let totalScore = 0;

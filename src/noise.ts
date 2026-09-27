@@ -1,3 +1,5 @@
+import { hashToUnit } from './utils/seededRandom';
+
 /**
  * Perlin Noise implementation for procedural terrain generation
  * Based on Ken Perlin's improved noise (2002)
@@ -45,8 +47,7 @@ export class PerlinNoise {
 
   // Seeded random number generator
   seededRandom(i: number): number {
-    const x = Math.sin(this.seed + i * 0.9123) * 10000;
-    return x - Math.floor(x);
+    return hashToUnit(this.seed, i);
   }
 
   // Fade function for smooth interpolation
@@ -114,26 +115,5 @@ export class PerlinNoise {
     }
 
     return total / maxValue;
-  }
-}
-
-/**
- * Simple noise generator (original implementation)
- * Kept for backward compatibility
- */
-export class SimpleNoise {
-  seed: number;
-
-  constructor(seed: number = 0) {
-    this.seed = seed;
-  }
-
-  setSeed(seed: number): void {
-    this.seed = seed;
-  }
-
-  noise2D(x: number, y: number): number {
-    const n = Math.sin(x * 12.9898 + y * 78.233 + this.seed * 0.001) * 43758.5453;
-    return (n - Math.floor(n)) * 2 - 1;
   }
 }

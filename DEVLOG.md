@@ -370,6 +370,42 @@ overworld.
 
 ![tower](docs/devlog/2026-09-25-title-screen/tower.png)
 
+## 2026-09-26: RNG overhaul (ADOM-style fresh gameplay rolls)
+
+**What:** all randomness now goes through `utils/seededRandom`, and there are two kinds of it.
+World generation stays seeded: a string seed goes through the cyrb128 hash into sfc32 (128-bit
+state; this replaces the 31-multiplier string hash and mulberry32). Gameplay rolls use one sfc32
+stream seeded from `crypto.getRandomValues`. All 45 `Math.random()` calls (combat, AI, shops,
+rest, loot, time costs) moved onto it.
+
+Deleted:
+
+- the NPC generator's toy LCG, which could only produce 233,280 different sequences;
+- the `Math.sin` generators in `RegionGenerator`, `WeatherSystem` and `PerlinNoise`, now
+  `hashToUnit(seed, n)`, which is stateless so `WeatherSystem` still saves as one counter;
+- the unused `SimpleNoise`;
+- the copy-pasted mulberry32 in `pixelTerrainRenderer`.
+
+Encounter and hazard rolls in `ExplorationScene` are no longer seeded by hex. NPC seeds and a
+blank world seed now default to `randomSeed()` instead of `Date.now()`.
+
+**Why:** the user asked for the RNG to be "far far more random", taking ADOM as the model. In
+ADOM the world comes from a seed, but gameplay rolls draw on fresh entropy. Reloading changes
+the outcome (players save-scum wishes that way), and Biskup chose not to block it. We were doing
+the opposite: a hazard's saving throw came from `mapSeed-hazard-col-row`, so the same hex always
+gave the same roll, and reloading replayed it.
+
+**Route:** `Math.random` itself was never the problem (V8's xorshift128+ is statistically
+fine). What made it feel un-random was the rolls seeded by hex, the weak generators and the
+hash that left similar seeds almost equal (`…-1-10` vs `…-10-1` hashed 2,760 apart). I
+considered mixing in keystroke timing the ADOM way and rejected it: `crypto.getRandomValues`
+already gives OS entropy for free. We kept one fast seeded stream rather than calling crypto
+for every roll, so tests can still mock `DiceRoller`.
+
+Trade-off, agreed with the user: the same seed text now builds a different world. Saves store
+the generated map, so they still load, but land that gets generated beyond an old save's map
+edge will not line up with it. `SAVE.VERSION` was left alone so old saves aren't rejected.
+
 ## 2026-09-26: Overworld as an adventurer's journal
 
 **What:** the overworld (including interiors and combat) is now laid out as an open book.

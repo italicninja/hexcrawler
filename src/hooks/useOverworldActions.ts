@@ -4,6 +4,7 @@
  * ration consumption, POI discovery, the forage action + cooldown status,
  * and starting a combat encounter from a POI.
  */
+import { random } from '../utils/seededRandom';
 import logger from '../utils/logger';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
@@ -69,7 +70,7 @@ export function useOverworldActions() {
     }
 
     // Hex entry flavor (15% chance)
-    if (Math.random() < 0.15) {
+    if (random() < 0.15) {
       const flavor = generateHexEntryFlavor(hex.terrain?.key ?? '');
       if (flavor) parts.push(flavor);
     }
@@ -330,7 +331,7 @@ export function useOverworldActions() {
         let discoveryMsg = `You discovered: ${hex.poi.name}!`;
 
         // Add POI flavor inline (20% chance)
-        if (Math.random() < 0.2) {
+        if (random() < 0.2) {
           const poiFlavor = generatePOIFlavor(hex.poi.type ?? '', hex.poi.cr || 1);
           if (poiFlavor) {
             discoveryMsg += ` - ${poiFlavor}`;

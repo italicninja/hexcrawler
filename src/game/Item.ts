@@ -5,6 +5,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - logger.js will be converted to .ts in a future task
+import { random } from '../utils/seededRandom';
 import logger from '../utils/logger';
 
 export type ItemType = 'weapon' | 'armor' | 'consumable' | 'quest' | 'misc';
@@ -112,7 +113,7 @@ export class Item {
    * Generate a unique ID for this item
    */
   generateId(): string {
-    return `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `item_${Date.now()}_${random().toString(36).substr(2, 9)}`;
   }
 
   /**

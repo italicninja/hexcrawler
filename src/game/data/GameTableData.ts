@@ -6,6 +6,7 @@
  * Implements DMG Treasure Hoard Tables and SRD v5.2.1 trap data.
  */
 
+import { random } from '../../utils/seededRandom';
 import logger from '../../utils/logger';
 
 // =============================================================================
@@ -1044,7 +1045,7 @@ export function getRandomGemstone(value: number): string {
     logger.mapgen.error('No gemstone table for value', { value });
     return `Unknown gemstone (${value}gp)`;
   }
-  return gems[Math.floor(Math.random() * gems.length)];
+  return gems[Math.floor(random() * gems.length)];
 }
 
 /**
@@ -1058,5 +1059,5 @@ export function getRandomArtObject(value: number): string {
     logger.mapgen.error('No art object table for value', { value });
     return `Unknown art object (${value}gp)`;
   }
-  return art[Math.floor(Math.random() * art.length)];
+  return art[Math.floor(random() * art.length)];
 }

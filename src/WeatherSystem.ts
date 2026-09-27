@@ -1,4 +1,5 @@
 import logger from './utils/logger';
+import { hashToUnit } from './utils/seededRandom';
 
 interface WeatherEffects {
   visibility: number;
@@ -304,8 +305,7 @@ export class WeatherSystem {
    * Seeded random number generator
    */
   random(): number {
-    const x = Math.sin(this.seedCounter++) * 10000;
-    return x - Math.floor(x);
+    return hashToUnit(this.seed, this.seedCounter++);
   }
 
   /**

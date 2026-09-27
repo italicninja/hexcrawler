@@ -3,6 +3,7 @@
  * Uses official D&D 5e SRD traps with level-based scaling
  */
 
+import { random as gameRandom } from '../utils/seededRandom';
 import { BaseGenerator } from './BaseGenerator';
 import { getScaledTrap } from './data/GameTableData';
 import logger from '../utils/logger';
@@ -53,7 +54,7 @@ export class HazardGenerator extends BaseGenerator {
   /**
    * Generate a random hazard using SRD traps
    */
-  generateHazard(cr: number, random: () => number = Math.random): Hazard {
+  generateHazard(cr: number, random: () => number = gameRandom): Hazard {
     // Convert CR to character level
     const level = this._crToLevel(cr);
 

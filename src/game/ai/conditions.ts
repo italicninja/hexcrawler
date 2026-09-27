@@ -3,6 +3,7 @@
  * Functions that return true/false for behavior tree conditions
  */
 
+import { random } from '../../utils/seededRandom';
 import { getHexDistance } from '../../utils/hexMath';
 import { checkLineOfSight } from '../LineOfSight';
 import logger from '../../utils/logger';
@@ -119,7 +120,7 @@ export function abilityReady(context: ConditionContext): boolean {
 export function randomChance(context: ConditionContext): boolean {
   const { params } = context;
   const probability = params.value || 0.5;
-  return Math.random() < probability;
+  return random() < probability;
 }
 
 /**

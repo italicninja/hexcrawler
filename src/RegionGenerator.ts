@@ -1,5 +1,6 @@
 import { PerlinNoise } from './noise';
 import logger from './utils/logger';
+import { hashToUnit } from './utils/seededRandom';
 import { getHexDistance, getHexNeighbors } from './utils/hexMath';
 
 export interface RegionType {
@@ -146,8 +147,7 @@ export class RegionGenerator {
    * Seeded random number generator
    */
   random(): number {
-    const x = Math.sin(this.seedCounter++) * 10000;
-    return x - Math.floor(x);
+    return hashToUnit(this.seed, this.seedCounter++);
   }
 
   /**

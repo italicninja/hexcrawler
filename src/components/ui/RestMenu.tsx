@@ -1,3 +1,4 @@
+import { random } from '../../utils/seededRandom';
 import { useState, useMemo } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -61,7 +62,7 @@ function RestMenu({ onClose }: RestMenuProps) {
       addMessage(result.message, 'info');
 
       // Optional flavor (30% chance)
-      if (Math.random() < 0.3) {
+      if (random() < 0.3) {
         const flavor = generateRestFlavor('short');
         if (flavor) addMessage(flavor, 'info');
       }
@@ -103,7 +104,7 @@ function RestMenu({ onClose }: RestMenuProps) {
       addMessage('Your rest is interrupted by hostile creatures!', 'warning');
 
       // Optional interrupted flavor (30% chance)
-      if (Math.random() < 0.3) {
+      if (random() < 0.3) {
         const flavor = generateRestFlavor('long', true);
         if (flavor) addMessage(flavor, 'warning');
       }
@@ -135,7 +136,7 @@ function RestMenu({ onClose }: RestMenuProps) {
       }
 
       // Optional peaceful flavor (30% chance)
-      if (Math.random() < 0.3) {
+      if (random() < 0.3) {
         const flavor = generateRestFlavor('long', false);
         if (flavor) addMessage(flavor, 'info');
       }
@@ -170,7 +171,7 @@ function RestMenu({ onClose }: RestMenuProps) {
       addMessage(result.message, 'info');
 
       // Optional inn flavor (30% chance)
-      if (Math.random() < 0.3) {
+      if (random() < 0.3) {
         const flavor = generateRestFlavor('inn');
         if (flavor) addMessage(flavor, 'info');
       }
