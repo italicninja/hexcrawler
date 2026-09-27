@@ -2098,6 +2098,16 @@ button:active {
 .journal-context.is-combat {
   flex-grow: 2;
 }
+/* Outside combat it only holds what you can do here; the log takes the rest of the page */
+.journal-context:not(.is-combat) {
+  flex: none;
+}
+.journal-context:empty {
+  display: none;
+}
+.hex-actions .jp-actions {
+  margin-top: 4px;
+}
 
 /* The game log, written as journal entries */
 .journal-entries {

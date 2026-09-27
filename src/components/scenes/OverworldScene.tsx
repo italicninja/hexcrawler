@@ -17,8 +17,8 @@ import GameLog from '../ui/GameLog';
 import CharacterStats from '../ui/CharacterStats';
 import PartyList from '../ui/PartyList';
 import Equipment from '../ui/Equipment';
-import HexDetails from '../ui/HexDetails';
-import InteriorInfoPane from '../ui/InteriorInfoPane';
+import HexActions from '../ui/HexActions';
+import InteriorActions from '../ui/InteriorActions';
 import Settings from '../ui/Settings';
 import RestMenu from '../ui/RestMenu';
 import QuestLog from '../ui/QuestLog';
@@ -50,7 +50,6 @@ function OverworldScene() {
   const isBlockingMovement = !!state.combatState?.active;
   const [openPanel, setOpenPanel] = useState<string | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState(state.playerCharacter);
-  const [selectedHex, setSelectedHex] = useState<SceneHex | null>(null);
   const [viewportSize, setViewportSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -213,10 +212,6 @@ function OverworldScene() {
     if (combatActive) setOpenPanel(null);
   }, [combatActive]);
 
-  const handleHexClick = (hex: SceneHex) => {
-    setSelectedHex(hex);
-  };
-
   const handleHexDoubleClick = (hex: SceneHex) => {
     if (!settings.doubleClickMove) return;
 
@@ -314,7 +309,6 @@ function OverworldScene() {
             ) : state.mapData && state.mapData.length > 0 ? (
               <HexGridCanvas
                 hexes={state.mapData as unknown as Parameters<typeof HexGridCanvas>[0]['hexes']}
-                onHexClick={handleHexClick}
                 onHexDoubleClick={handleHexDoubleClick}
               />
             ) : (
@@ -399,7 +393,9 @@ function OverworldScene() {
                 {openPanel === 'equipment' && <Equipment character={selectedCharacter} />}
                 {openPanel === 'rest' && <RestMenu onClose={handleClosePanel} />}
                 {openPanel === 'quests' && <QuestLog />}
-                {openPanel === 'save' && <SaveSlotManager mode="save" onClose={handleClosePanel} embedded />}
+                {openPanel === 'save' && (
+                  <SaveSlotManager mode="save" onClose={handleClosePanel} embedded />
+                )}
                 {openPanel === 'config' && <Settings />}
               </div>
             </div>
@@ -434,28 +430,16 @@ function OverworldScene() {
                 {inCombat ? (
                   <CombatActionPane combat={combat} />
                 ) : showInterior ? (
-                  <InteriorInfoPane
-                    selectedHex={
-                      interior.selectedInteriorHex as unknown as Parameters<
-                        typeof InteriorInfoPane
-                      >[0]['selectedHex']
-                    }
+                  <InteriorActions
                     playerPosition={state.interiorPlayerPosition}
                     interiorMap={
                       interior.interiorMap as unknown as Parameters<
-                        typeof InteriorInfoPane
+                        typeof InteriorActions
                       >[0]['interiorMap']
                     }
                   />
                 ) : (
-                  <HexDetails
-                    hex={selectedHex as unknown as Parameters<typeof HexDetails>[0]['hex']}
-                    onMoveClick={
-                      overworld.handleMoveToHex as unknown as Parameters<
-                        typeof HexDetails
-                      >[0]['onMoveClick']
-                    }
-                  />
+                  <HexActions />
                 )}
               </div>
 

@@ -579,3 +579,35 @@ green, then red when low, the same as the Party page.
 ![turn order](docs/devlog/2026-09-26-journal-turn-order/turn-order.png)
 
 ![enemy turn](docs/devlog/2026-09-26-journal-turn-order/enemy-turn.png)
+
+## 2026-09-26: Hex details move into the game log
+
+**What:** the Current Hex and Selected Hex panels are gone from the journal page, in the
+overworld and inside POIs alike.
+- **The log instead:** every overworld step now logs one arrival line, e.g. "You arrive in
+  Grassland (11, 7); the going is easy. Clear Skies." It also names a place you already know
+  is there ("Millbrook is here."). The time-of-day, weather and terrain flavour text are
+  appended to that same entry, not logged separately.
+- **The actions that lived in the Current Hex panel** are now a slim `HexActions` line,
+  shown only when you stand on a known place. It reads "Crumbled Roadside Shrine is here."
+  with ink links for Enter / Interact / Search / Explore / Pray / Offer (10g).
+- **Inside a POI**, `InteriorActions` keeps only the way out: an "Exit Interior" / "Exit
+  Town" link, or "Return to the entrance to leave." Interior arrivals were already logged
+  (buildings, stairs, loot, the entrance).
+- **Layout:** outside combat the context area shrinks to fit its contents and disappears
+  when empty, so the log gets the rest of the page.
+
+**Why:** the user wanted the selected/current hex panels removed, with that information
+written to the game log on arrival instead.
+
+**Route:** `describeArrival` / `describeGoing` are pure helpers in `flavorTextGenerator`,
+covered by a unit test. The difficulty wording ("easy", "moderate", ...) comes from the old
+HexDetails. A newly discovered place isn't repeated in the arrival line, because it gets its
+own "You discovered…" entry. Clicking a hex still highlights it on the map but no longer
+opens a panel. Movement was already by double-click or keyboard; the old "Move Here" button
+had been gone since before this work. Dropped: the selected hex's distance readout and the
+interior encounter card (CR, creatures).
+
+![at a place](docs/devlog/2026-09-26-arrival-log/at-poi.png)
+
+![after a step](docs/devlog/2026-09-26-arrival-log/arrived.png)
