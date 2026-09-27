@@ -21,6 +21,7 @@ import { InteriorGenerator } from './InteriorGenerator';
 import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { STARTING_CACHE, GAME_DEFAULTS } from '../constants/gameConstants';
 import { getHexDistance } from '../utils/hexMath';
+import { HEXES_PER_TRAVEL_DAY } from './TimeManager';
 import { isSettlement } from '../constants/gameConstants';
 
 /** Minimal overworld-hex shape needed to locate settlements. */
@@ -79,14 +80,14 @@ function getCompassDirection(dCol: number, dRow: number): string {
 }
 
 /**
- * Build a natural-language travel-time string from a hex distance.
- * 1 hex = 1 game-day of travel (per TIME.TRAVEL_TIME_PER_HEX_MINUTES × 48 = 1 440 min).
+ * Build a natural-language travel-time string from a hex distance, assuming open ground
+ * (HEXES_PER_TRAVEL_DAY hexes per 8-hour travel day).
  */
-function formatTravelTime(hexDistance: number): string {
-  const days = Math.round(hexDistance);
-  if (days <= 0) return "less than a day's walk";
-  if (days === 1) return "a day's walk";
-  return `${days} days' walk`;
+export function formatTravelTime(hexDistance: number): string {
+  const days = hexDistance / HEXES_PER_TRAVEL_DAY;
+  if (days <= 0.5) return "half a day's walk";
+  if (days <= 1) return "a day's walk";
+  return `${Math.round(days)} days' walk`;
 }
 
 /**

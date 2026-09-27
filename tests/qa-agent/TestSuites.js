@@ -80,7 +80,6 @@ export const TEST_SUITES = [
         id: 'keyboard-movement',
         name: 'Test keyboard movement (WASD)',
         async execute(driver, validators) {
-          const initialRations = await driver.getRations();
           const snap = () => driver.page.locator('canvas').first().screenshot();
 
           // The game starts inside an interior, where moving doesn't advance the clock,
@@ -94,11 +93,7 @@ export const TEST_SUITES = [
           }
           if (!moved) throw new Error('WASD movement should change the map view');
 
-          // Verify rations consumed (HUD only exists when FEATURES.SURVIVAL_ENABLED)
-          if (initialRations > 0) {
-            const newRations = await driver.getRations();
-            validators.validateLessThan(newRations, initialRations, 'Rations after movement');
-          }
+          // Rations are eaten per day passed, not per move (see gameReducer.test.ts).
         }
       },
       {
