@@ -1,0 +1,111 @@
+/* Equipment tab on the journal's codex page: ruled item rows, details opened inline. */
+
+.eq-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 6px;
+  border: 0;
+  border-bottom: 1px dotted var(--border-color);
+  border-radius: 0;
+  transition: none;
+  background: none;
+  color: var(--text-color);
+  font: inherit;
+  text-align: left;
+}
+button.eq-row {
+  cursor: pointer;
+}
+button.eq-row:hover,
+button.eq-row:focus-visible {
+  background: rgba(139, 90, 46, 0.08);
+}
+.eq-row.is-selected {
+  background: rgba(138, 42, 18, 0.1);
+  box-shadow: inset 3px 0 0 var(--accent-color);
+}
+.eq-row .jp-aside {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Slot / type label in a fixed small-caps column */
+.eq-label {
+  flex: none;
+  width: 6.5rem;
+  font: 0.7rem sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.eq-name {
+  font-weight: 600;
+}
+.eq-row--empty .eq-name {
+  font-weight: normal;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* Rarity as ink colours that read on parchment (Item.getRarityColor is tuned for dark UI) */
+.eq [data-rarity='uncommon'] {
+  color: #2f6b1f;
+}
+.eq [data-rarity='rare'] {
+  color: #1f4c8a;
+}
+.eq [data-rarity='very rare'] {
+  color: #6b2d8f;
+}
+.eq [data-rarity='legendary'] {
+  color: #a4520e;
+}
+.eq-rarity {
+  font-weight: 600;
+}
+
+/* Inline detail, indented under the selected row like a margin note */
+.eq-detail {
+  margin: 0 0 6px calc(6.5rem + 16px);
+  padding: 8px 6px 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.eq-detail-kind {
+  margin: 0 0 6px;
+}
+.eq-detail .jp-actions {
+  margin-top: 8px;
+}
+
+/* Pack filters: a line of small italic links */
+.eq-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: -2px 0 6px;
+}
+.eq-filter {
+  padding: 1px 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  color: var(--text-color);
+  font:
+    italic 0.85rem Georgia,
+    serif;
+  cursor: pointer;
+}
+.eq-filter:hover,
+.eq-filter:focus-visible {
+  border-bottom-color: var(--border-color);
+}
+.eq-filter.is-active {
+  color: var(--accent-color);
+  border-bottom-color: var(--accent-color);
+}

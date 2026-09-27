@@ -1,0 +1,55 @@
+.rest-menu-hp {
+  margin: 2px 0 6px;
+}
+
+.rest-menu-dice {
+  margin-top: 8px;
+}
+.rest-menu-dice label {
+  display: flex;
+  justify-content: space-between;
+  font-style: italic;
+  color: var(--text-muted);
+}
+.rest-menu-dice label b {
+  font-style: normal;
+  color: var(--text-color);
+}
+.rest-menu-dice input[type='range'] {
+  width: 100%;
+  margin: 4px 0 0;
+}
+.rest-menu-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.rest-menu-warning {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--accent-color);
+}
+
+.rest-menu-perks {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+.rest-menu-perks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.rest-menu-footer {
+  margin-top: 22px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}

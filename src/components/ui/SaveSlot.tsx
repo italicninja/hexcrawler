@@ -74,26 +74,28 @@ function SaveSlot({
   };
 
   const slotTitle = (
-    <>
-      <PixelIcon name={isAutosave || isQuicksave ? 'bolt' : 'disk'} />{' '}
+    <h4 className="save-slot-title">
+      <PixelIcon name={isAutosave || isQuicksave ? 'bolt' : 'disk'} />
       {isAutosave ? 'Auto-save' : isQuicksave ? `Quick Save ${slotLetter}` : `Slot ${slotNumber}`}
-    </>
+      <span className="jp-aside">
+        {metadata ? `Saved ${formatTimestamp(metadata.timestamp)}` : 'Empty Slot'}
+      </span>
+    </h4>
   );
 
   // Empty slot
   if (!metadata) {
     return (
       <div className="save-slot empty-slot">
-        <div className="slot-header">{slotTitle}</div>
-        <div className="slot-content">
-          <div className="empty-slot-message">Empty Slot</div>
-        </div>
+        {slotTitle}
         {mode === 'save' && !isAutosave && (
-          <div className="slot-actions">
-            <button className="btn-save" onClick={() => onSave(slotKey)}>
-              Save Here
-            </button>
-          </div>
+          <button
+            type="button"
+            className="jp-link jp-link--primary"
+            onClick={() => onSave(slotKey)}
+          >
+            Save Here
+          </button>
         )}
       </div>
     );
@@ -102,42 +104,54 @@ function SaveSlot({
   // Filled slot
   return (
     <div className="save-slot filled-slot">
-      <div className="slot-header">{slotTitle}</div>
-      <div className="slot-content">
-        <div className="character-info">
-          <strong className="character-name">{metadata.characterName}</strong>
-          <span className="character-details">
-            Level {metadata.level} {metadata.class}
-          </span>
+      {slotTitle}
+      <p className="save-slot-name">
+        {metadata.characterName}
+        <span className="jp-muted">
+          , level {metadata.level} {metadata.class}
+        </span>
+      </p>
+      <dl className="jp-rows">
+        <div className="jp-row">
+          <dt>Location</dt>
+          <dd>{metadata.location}</dd>
         </div>
-        <div className="location-info">
-          <PixelIcon name="pin" /> {metadata.location}
+        <div className="jp-row">
+          <dt>Day</dt>
+          <dd>{metadata.day}</dd>
         </div>
-        <div className="progress-info">
-          <span>Day {metadata.day}</span>
-          {metadata.playtime > 0 && (
-            <span className="playtime">
-              <PixelIcon name="clock" /> {formatPlaytime(metadata.playtime)}
-            </span>
-          )}
-        </div>
-        <div className="timestamp-info">
-          <small>Saved {formatTimestamp(metadata.timestamp)}</small>
-        </div>
-      </div>
-      <div className="slot-actions">
+        {metadata.playtime > 0 && (
+          <div className="jp-row">
+            <dt>Played</dt>
+            <dd>{formatPlaytime(metadata.playtime)}</dd>
+          </div>
+        )}
+      </dl>
+      <div className="jp-actions">
         {mode === 'load' && (
-          <button className="btn-load" onClick={() => onLoad(slotKey)}>
+          <button
+            type="button"
+            className="jp-link jp-link--primary"
+            onClick={() => onLoad(slotKey)}
+          >
             Load Game
           </button>
         )}
         {mode === 'save' && !isAutosave && (
-          <button className="btn-save" onClick={() => onSave(slotKey)}>
+          <button
+            type="button"
+            className="jp-link jp-link--primary"
+            onClick={() => onSave(slotKey)}
+          >
             Overwrite
           </button>
         )}
         {!isAutosave && (
-          <button className="btn-delete" onClick={() => onDelete(slotKey)}>
+          <button
+            type="button"
+            className="jp-link save-slot-delete"
+            onClick={() => onDelete(slotKey)}
+          >
             Delete
           </button>
         )}

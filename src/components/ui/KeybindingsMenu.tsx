@@ -92,38 +92,34 @@ function KeybindingsMenu() {
 
   return (
     <div className="keybindings-menu">
-      <div className="keybindings-header">
-        <h4>Keyboard Controls</h4>
-        <button className="reset-button" onClick={resetToDefaults}>
-          Reset to Defaults
-        </button>
-      </div>
-
-      <div className="keybindings-list">
+      <h4 className="jp-heading">Keyboard Controls</h4>
+      <ul className="jp-rows">
         {Object.entries(keybindingLabels).map(([action, label]) => (
-          <div key={action} className="keybinding-row">
-            <span className="keybinding-label">{label}</span>
+          <li key={action} className="jp-row">
+            <span>{label}</span>
             <button
-              className={`keybinding-button ${editing === action ? 'editing' : ''}`}
+              type="button"
+              className={`keybindings-key ${editing === action ? 'is-editing' : ''}`}
               onClick={() => startListening(action)}
               disabled={!!editing && editing !== action}
+              aria-label={`Rebind ${label}`}
             >
               {editing === action ? (
-                <span className="listening">Press any key...</span>
+                <em>Press any key...</em>
               ) : (
-                <span className="key-display">
-                  {formatKey(settings.keybindings[action as keyof Keybindings])}
-                </span>
+                <kbd>{formatKey(settings.keybindings[action as keyof Keybindings])}</kbd>
               )}
             </button>
-          </div>
+          </li>
         ))}
-      </div>
-
-      <div className="keybindings-note">
-        <p>
-          Click a button and press any key to rebind. Some keys may be reserved by your browser.
-        </p>
+      </ul>
+      <p className="jp-note">
+        Click a key and press any other to rebind. Some keys may be reserved by your browser.
+      </p>
+      <div className="jp-actions">
+        <button type="button" className="jp-link" onClick={resetToDefaults}>
+          Reset to Defaults
+        </button>
       </div>
     </div>
   );

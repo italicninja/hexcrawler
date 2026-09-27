@@ -7,7 +7,8 @@ import { useGameLog } from '../../contexts/GameLogContext';
  * Now connected to GameLogContext instead of using refs
  */
 
-const ROLL_NUMBER_COLOR = '#f4d03f'; // warm yellow — distinct from log-text but readable on all themes
+// Warm yellow, distinct from log-text on dark themes; light themes override via --log-roll.
+const ROLL_NUMBER_COLOR = 'var(--log-roll, #f4d03f)';
 
 /**
  * Split a log message into text and highlighted number segments.

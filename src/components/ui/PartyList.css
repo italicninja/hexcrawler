@@ -1,0 +1,36 @@
+/* Company roll (journal right page) */
+.pl-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.pl-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 1.05rem;
+}
+.pl-hp {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.pl-hp .jp-bar {
+  display: block;
+  width: 84px;
+  height: 8px;
+}
+.pl-low {
+  color: var(--accent-color);
+  font-weight: 600;
+}
+.pl-foot {
+  margin-top: 12px;
+}

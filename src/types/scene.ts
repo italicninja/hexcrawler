@@ -30,7 +30,13 @@ export interface SceneInteriorMap {
 export interface SceneHex {
   col: number;
   row: number;
-  terrain?: { name?: string; key?: string; walkable?: boolean; isInteractive?: boolean };
+  terrain?: {
+    name?: string;
+    key?: string;
+    walkable?: boolean;
+    isInteractive?: boolean;
+    difficulty?: number;
+  };
   content?: string | null;
   poi?: ScenePoi | null;
   weather?: { condition?: string } | null;

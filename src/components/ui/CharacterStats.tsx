@@ -4,9 +4,10 @@ import { useGameLog } from '../../contexts/GameLogContext';
 import { Character } from '../../game/Character';
 import { FEATURES } from '../../constants/gameConstants';
 import PixelIcon from './PixelIcon';
+import './CharacterStats.css';
 
 /**
- * CharacterStats component - displays character stats in D&D 5e format
+ * CharacterStats component - the character sheet page of the journal (D&D 5e format)
  */
 
 function formatModifier(value: number): string {
@@ -17,39 +18,37 @@ function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-interface AbilityScoreProps {
-  label: string;
-  score: number;
-  modifier: number;
-}
-
-function AbilityScore({ label, score, modifier }: AbilityScoreProps) {
-  return (
-    <div className="ability-score">
-      <div className="ability-label">{label}</div>
-      <div className="ability-value">{score}</div>
-      <div className="ability-modifier">{formatModifier(modifier)}</div>
-    </div>
-  );
-}
+const ABILITIES = [
+  ['STR', 'strength'],
+  ['DEX', 'dexterity'],
+  ['CON', 'constitution'],
+  ['INT', 'intelligence'],
+  ['WIS', 'wisdom'],
+  ['CHA', 'charisma'],
+] as const;
 
 function CharacterStats({ character }: { character: Character | null }) {
   const { dispatch } = useGameState();
   const { addMessage } = useGameLog();
 
   if (!character) {
-    return <div className="character-card">No character</div>;
+    return <p className="jp-prose jp-muted">No one has signed this journal yet.</p>;
   }
 
   // Additional null checks for nested properties
   if (!character.abilities || typeof character.getModifier !== 'function') {
-    return <div className="character-card">Invalid character data</div>;
+    return <p className="jp-prose jp-muted">The ink on this page has run; it cannot be read.</p>;
   }
 
   const hpPercent = (character.currentHP / character.maxHP) * 100;
   const xpPercent =
     character.xpToNextLevel > 0 ? (character.xp / character.xpToNextLevel) * 100 : 0;
   const canLevelUp = character.shouldLevelUp && character.shouldLevelUp();
+  const className = capitalize(character.class ?? '');
+  const origin = [character.personality, character.background]
+    .filter((s): s is string => !!s)
+    .map(capitalize)
+    .join(' · ');
 
   const handleLevelUp = () => {
     // Clone immutably, apply level-up, dispatch updated character
@@ -69,276 +68,162 @@ function CharacterStats({ character }: { character: Character | null }) {
   };
 
   return (
-    <div className="character-card">
-      <div className="character-name">{character.name}</div>
-      <div className="character-class">
-        Level {character.level} {capitalize(character.class ?? '')}
-      </div>
-
-      <div className="ability-scores">
-        <AbilityScore
-          label="STR"
-          score={character.abilities.strength}
-          modifier={character.getModifier('strength')}
-        />
-        <AbilityScore
-          label="DEX"
-          score={character.abilities.dexterity}
-          modifier={character.getModifier('dexterity')}
-        />
-        <AbilityScore
-          label="CON"
-          score={character.abilities.constitution}
-          modifier={character.getModifier('constitution')}
-        />
-        <AbilityScore
-          label="INT"
-          score={character.abilities.intelligence}
-          modifier={character.getModifier('intelligence')}
-        />
-        <AbilityScore
-          label="WIS"
-          score={character.abilities.wisdom}
-          modifier={character.getModifier('wisdom')}
-        />
-        <AbilityScore
-          label="CHA"
-          score={character.abilities.charisma}
-          modifier={character.getModifier('charisma')}
-        />
-      </div>
-
-      <div className="character-stats">
-        <div className="stat-item">
-          <div className="stat-label">AC</div>
-          <div className="stat-value">{character.armorClass}</div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-label">Prof</div>
-          <div className="stat-value">+{character.proficiencyBonus}</div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-label">Hit Die</div>
-          <div className="stat-value">{character.hitDie}</div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-label">Init</div>
-          <div className="stat-value">{formatModifier(character.getModifier('dexterity'))}</div>
-        </div>
-      </div>
-
-      <div className="stat-item" style={{ marginTop: '0.75rem' }}>
-        <div className="stat-label">Hit Points</div>
-        <div className="stat-value">
-          {character.currentHP} / {character.maxHP}
-        </div>
-        <div className="hp-bar">
-          <div className="hp-fill" style={{ width: `${hpPercent}%` }}>
-            {Math.round(hpPercent)}%
+    <div className="cs-sheet">
+      <div className="cs-head">
+        <PixelIcon name={`player:${character.class ?? ''}`} scale={3} />
+        <div>
+          <div className="cs-name">{character.name}</div>
+          <div className="jp-prose cs-sub">
+            Level {character.level} {className}
           </div>
+          {origin && <div className="jp-note">{origin}</div>}
+        </div>
+      </div>
+
+      <h3 className="jp-heading">Ability scores</h3>
+      <div className="jp-scores cs-scores">
+        {ABILITIES.map(([label, key]) => (
+          <div key={key}>
+            <b>{character.abilities[key]}</b>
+            {label}
+            <i>{formatModifier(character.getModifier(key))}</i>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="jp-heading">Vitals</h3>
+      <div className="cs-cols">
+        <ul className="jp-rows">
+          <li className="jp-row">
+            <span>Armour class</span>
+            <span>{character.armorClass}</span>
+          </li>
+          <li className="jp-row">
+            <span>Proficiency</span>
+            <span>+{character.proficiencyBonus}</span>
+          </li>
+        </ul>
+        <ul className="jp-rows">
+          <li className="jp-row">
+            <span>Hit die</span>
+            <span>{character.hitDie}</span>
+          </li>
+          <li className="jp-row">
+            <span>Initiative</span>
+            <span>{formatModifier(character.getModifier('dexterity'))}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div className="cs-meter">
+        <div className="jp-row">
+          <span>Hit points</span>
+          <span>
+            {character.currentHP} / {character.maxHP}
+          </span>
+        </div>
+        <div
+          className="jp-bar"
+          role="meter"
+          aria-label="Hit points"
+          aria-valuenow={character.currentHP}
+          aria-valuemin={0}
+          aria-valuemax={character.maxHP}
+        >
+          <span style={{ width: `${Math.min(Math.max(hpPercent, 0), 100)}%` }} />
         </div>
       </div>
 
       {character.level < 20 && (
-        <div className="stat-item" style={{ marginTop: '0.75rem' }}>
-          <div className="stat-label">Experience</div>
-          <div className="stat-value">
-            {character.xp} / {character.xpToNextLevel} XP
+        <div className="cs-meter">
+          <div className="jp-row">
+            <span>Experience</span>
+            <span>
+              {character.xp} / {character.xpToNextLevel} XP
+            </span>
           </div>
-          <div className="hp-bar" style={{ position: 'relative' }}>
-            <div
-              className="hp-fill"
-              style={{
-                width: `${Math.min(xpPercent, 100)}%`,
-                backgroundColor: canLevelUp ? '#f39c12' : '#3498db',
-                animation: canLevelUp ? 'pulse 1.5s ease-in-out infinite' : 'none',
-              }}
-            >
-              {Math.round(xpPercent)}%
-            </div>
+          <div
+            className={`jp-bar jp-bar--xp${canLevelUp ? ' cs-ready' : ''}`}
+            role="meter"
+            aria-label="Experience"
+            aria-valuenow={character.xp}
+            aria-valuemin={0}
+            aria-valuemax={character.xpToNextLevel}
+          >
+            <span style={{ width: `${Math.min(xpPercent, 100)}%` }} />
           </div>
           {canLevelUp && (
-            <button
-              onClick={handleLevelUp}
-              style={{
-                marginTop: '0.5rem',
-                padding: '0.5rem 1rem',
-                backgroundColor: '#f39c12',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                width: '100%',
-                animation: 'pulse 1.5s ease-in-out infinite',
-              }}
-            >
-              LEVEL UP!
-            </button>
+            <div className="jp-actions">
+              <button type="button" className="jp-link jp-link--primary" onClick={handleLevelUp}>
+                <PixelIcon name="star" /> Level up!
+              </button>
+              <span className="jp-note">You have learned enough to grow stronger.</span>
+            </div>
           )}
         </div>
       )}
 
       {character.level === 20 && (
-        <div
-          style={{
-            marginTop: '0.75rem',
-            textAlign: 'center',
-            color: '#f39c12',
-            fontWeight: 'bold',
-          }}
-        >
-          MAX LEVEL REACHED
-        </div>
+        <p className="jp-prose cs-max">You have reached the height of your powers.</p>
       )}
 
       {/* Class Abilities */}
       {character.abilities_list && character.abilities_list.length > 0 && (
-        <div
-          style={{
-            marginTop: '0.75rem',
-            borderTop: '1px solid var(--border-color)',
-            paddingTop: '0.75rem',
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 'bold',
-              marginBottom: '0.5rem',
-              fontSize: '0.9rem',
-              color: 'var(--text-color)',
-            }}
-          >
-            Abilities
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <>
+          <h3 className="jp-heading">Features</h3>
+          <ul className="jp-list">
             {character.abilities_list.map((ability, index) => (
-              <div
-                key={index}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '0.4rem',
-                  backgroundColor: 'var(--bg-light)',
-                  borderRadius: '4px',
-                  fontSize: '0.85rem',
-                }}
-              >
-                <span style={{ fontWeight: '500' }}>{ability.name}</span>
+              <li key={index} title={ability.description}>
+                <span>{ability.name}</span>
                 {(ability.maxUses ?? -1) >= 0 && (
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    {ability.uses}/{ability.maxUses}
+                  <span className="jp-aside">
+                    {ability.uses} of {ability.maxUses} left
                   </span>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </>
       )}
 
       {/* Spells */}
       {character.spells && character.spells.length > 0 && (
-        <div
-          style={{
-            marginTop: '0.75rem',
-            borderTop: '1px solid var(--border-color)',
-            paddingTop: '0.75rem',
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 'bold',
-              marginBottom: '0.5rem',
-              fontSize: '0.9rem',
-              color: 'var(--text-color)',
-            }}
-          >
-            Spells
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            {character.spells.map((spell, index) => {
-              const label =
-                typeof spell === 'string' ? spell : ((spell as { name?: string }).name ?? '');
-              return (
-                <div
-                  key={index}
-                  style={{
-                    padding: '0.35rem 0.5rem',
-                    backgroundColor: 'var(--bg-light)',
-                    borderRadius: '4px',
-                    fontSize: '0.85rem',
-                  }}
-                >
-                  {label}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <>
+          <h3 className="jp-heading">Spells</h3>
+          <ul className="jp-list">
+            {character.spells.map((spell, index) => (
+              <li key={index}>
+                {typeof spell === 'string' ? spell : ((spell as { name?: string }).name ?? '')}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {/* Survival Stats (hidden when survival mechanics are disabled) */}
       {FEATURES.SURVIVAL_ENABLED && (
-        <div
-          style={{
-            marginTop: '0.75rem',
-            borderTop: '1px solid var(--border-color)',
-            paddingTop: '0.75rem',
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 'bold',
-              marginBottom: '0.5rem',
-              fontSize: '0.9rem',
-              color: 'var(--text-color)',
-            }}
-          >
-            Survival
-          </div>
-          <div className="character-stats">
-            <div className="stat-item">
-              <div className="stat-label">Rations</div>
-              <div
-                className="stat-value"
-                style={{ color: character.rations <= 2 ? '#e74c3c' : 'var(--text-color)' }}
-              >
+        <>
+          <h3 className="jp-heading">Survival</h3>
+          <ul className="jp-rows">
+            <li className="jp-row">
+              <span>Rations</span>
+              <span className={character.rations <= 2 ? 'cs-warn' : undefined}>
                 {character.rations} days
-              </div>
-            </div>
-          </div>
+              </span>
+            </li>
+          </ul>
           {character.daysWithoutFood > 0 && (
-            <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#e74c3c' }}>
+            <p className="jp-prose cs-warn">
               <PixelIcon name="warning" /> {character.daysWithoutFood} day(s) without food
-            </div>
+            </p>
           )}
           {character.exhaustionLevel > 0 && (
-            <div
-              style={{
-                marginTop: '0.5rem',
-                padding: '0.5rem',
-                backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                borderRadius: '4px',
-                border: '1px solid #e74c3c',
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 'bold',
-                  color: '#e74c3c',
-                  marginBottom: '0.25rem',
-                  fontSize: '0.85rem',
-                }}
-              >
-                Exhaustion Level {character.exhaustionLevel}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-color)' }}>
-                {getExhaustionEffects(character.exhaustionLevel).description}
-              </div>
-            </div>
+            <p className="jp-prose">
+              <strong className="cs-warn">Exhaustion level {character.exhaustionLevel}.</strong>{' '}
+              {getExhaustionEffects(character.exhaustionLevel).description}
+            </p>
           )}
-        </div>
+        </>
       )}
     </div>
   );

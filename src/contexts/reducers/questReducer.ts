@@ -11,6 +11,7 @@
  */
 
 import type { GameState, Action } from '../../types/state';
+import { Quest as QuestModel, QuestStatus } from '../../game/Quest';
 
 export function questReducer(
   state: GameState,
@@ -69,7 +70,13 @@ export function questReducer(
         ...state,
         playerCharacter: updatedCharacter,
         activeQuests: state.activeQuests?.filter(q => q.id !== questId) || [],
-        completedQuests: [...(state.completedQuests || []), { ...quest, completedAt: Date.now() }],
+        // Keep it a Quest instance: saves call toJSON() on every completed quest.
+        completedQuests: [
+          ...(state.completedQuests || []),
+          Object.assign(QuestModel.fromJSON({ ...quest, status: QuestStatus.COMPLETED }), {
+            completedAt: Date.now(),
+          }) as unknown as typeof quest,
+        ],
       };
     }
 

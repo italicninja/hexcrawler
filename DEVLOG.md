@@ -405,3 +405,245 @@ for every roll, so tests can still mock `DiceRoller`.
 Trade-off, agreed with the user: the same seed text now builds a different world. Saves store
 the generated map, so they still load, but land that gets generated beyond an old save's map
 edge will not line up with it. `SAVE.VERSION` was left alone so old saves aren't rejected.
+
+## 2026-09-26: Overworld as an adventurer's journal
+
+**What:** the overworld (including interiors and combat) is now laid out as an open book.
+The left page has a kicker with the day and time of day, a location title (the POI or
+terrain, or "Battle is joined!"), the map in a double-ruled frame, and a strip for gold,
+rations, time and position. The right page is a codex: the hero's portrait, HP and AC,
+then the context pane (hex details, interior info, or combat actions), then the game log
+written as diary entries in italic serif. The old left menu is gone. The menus are now
+bookmark tabs on the book's edge and still open the existing panels.
+
+A new `journal` parchment theme is the default. The book always uses it, since its variables
+are also set on `.journal-layout`. Picking it in Settings extends it to modals and the other
+scenes. Players with a saved theme keep that theme for modals.
+
+Small fixes that came along: `SaveSlot.css` had a global `.character-name { color: #fff }`
+that turned the name in the Character panel white. It's now scoped to `.save-slot`. Log roll
+numbers read `--log-roll`, so they stay legible on parchment. `MenuSidebar` had no
+callers left, so it was deleted. The QA driver's gold/rations selectors accept the new "75 gold"
+wording.
+
+**Why:** the user asked for a reimagining of the UI layouts that kept only the pixel icons,
+and then picked the journal direction out of five mockups to try on a PR.
+
+**Route:** the five directions were built first as a static page, `docs/ui-mockups/index.html`
+(served by Vite at `/docs/ui-mockups/index.html`). It uses the real `pixelIcons` sprites over a
+map screenshot, with an explore/combat toggle for each direction. The rejected directions were a map-first
+floating HUD, a monospace tactician's console, 16-bit JRPG command windows, and a
+minimal glass dock. For the build, the existing theme variables did most of the work. Every
+panel already reads `--panel-bg` / `--text-color` etc., so a parchment variable set
+reskins HexDetails, the combat panel and modals without touching them. Only
+OverworldScene's layout was restructured. Panel content stays in modals for now. The
+Equipment panel is 1050px wide and wouldn't fit on a page.
+
+The mockup we settled on, in explore and combat:
+
+![journal mockup](docs/devlog/2026-09-26-ui-layout-mockups/2-explore.png)
+
+![journal mockup combat](docs/devlog/2026-09-26-ui-layout-mockups/2-combat.png)
+
+Two of the rejected directions:
+
+![map-first HUD](docs/devlog/2026-09-26-ui-layout-mockups/1-explore.png)
+
+![command windows](docs/devlog/2026-09-26-ui-layout-mockups/4-explore.png)
+
+In game:
+
+![overworld](docs/devlog/2026-09-26-journal-layout/explore.png)
+
+![interior](docs/devlog/2026-09-26-journal-layout/interior.png)
+
+![combat](docs/devlog/2026-09-26-journal-layout/combat.png)
+
+![character panel](docs/devlog/2026-09-26-journal-layout/character-panel.png)
+
+## 2026-09-26: Stop the journal tabs bouncing
+
+**What:** the bookmark tabs no longer change width on hover or when open. Only their colour
+changes.
+
+**Why:** the user reported the tabs bouncing when hovered.
+
+**Route:** hovering widened a tab from 50px to 56px. The tab column is pinned by its right
+edge, so the extra width pushed the whole column left and out from under the cursor. The
+hover then ended and the tab shrank, over and over. Colour-only feedback avoids the loop.
+Measured in Playwright: the tab and the column keep the same bounding box when hovered.
+
+## 2026-09-26: Keep completed quests saveable
+
+**What:** `COMPLETE_QUEST` now stores the completed quest as a `Quest` instance with status
+`completed` and a `completedAt` stamp. It used to store a `{ ...quest }` spread. A new
+`questReducer` unit test covers this.
+
+**Why:** the spread dropped the class methods. `SaveManager` calls `toJSON()` on every
+completed quest, so once any quest was finished, every save failed with `q.toJSON is not a
+function`, the autosave included. The agent redesigning the Quests page found it.
+
+**Route:** the fix is in the reducer, not in SaveManager. Anything downstream (the quest
+log's `getProgress()`, saving) can then rely on completed quests being real instances.
+`Quest.fromJSON` is used because it accepts either an instance or a plain object. The new
+test fails against the old reducer and passes against the fix. `FAIL_QUEST` has the same
+spread, but failed quests aren't saved, so it's left alone.
+
+## 2026-09-26: Journal tabs open pages, not pop-ups
+
+**What:** the bookmark tabs now turn the whole right page into the chosen panel. A new
+**Journal** tab (map icon) brings back the hero, context pane and log, as do Escape and a
+"Back to the journal" link. A fight always opens on the journal page. Keyboard shortcuts that
+used to open pop-ups (R, I, Q, and the inn/quest-giver interactions) now open the page.
+`MenuPanel` is gone.
+
+Every panel was redesigned for a ~520px parchment page. It uses a shared vocabulary of
+`.jp-*` classes at the end of `style.css`: ruled section headings, dotted-leader key/value
+rows, lists split by dotted rules, pixel HP/XP bars, and underlined ink links for actions in
+place of filled buttons.
+
+- **Character:** portrait header, six ability scores in a row, dotted-leader vitals, HP/XP
+  bars, and features with "2 of 2 left".
+- **Party:** the company as a selectable list (it still picks whose gear Equipment shows).
+  With no companions it reads "You travel alone."
+- **Equipment:** one column instead of three. "Worn & wielded" slot rows, then the pack with
+  filter links. Item details open under the selected row, with Equip/Unequip links. Rarity
+  colours are now ink tones; the old neon colours were meant for dark themes.
+- **Rest:** prose, HP and hit-dice rows, then a short rest, a long rest and the inn as
+  separate sections. The inn button now contains "Rest (10g)", which the QA driver expects.
+- **Quests:** filter links, an entries list, and each quest with an italic title, a
+  checklist of objectives, and rewards as rows.
+- **Save:** slots as bookmarks. `SaveSlotManager` has a new `embedded` prop that drops its
+  Radix `DialogTitle` on the page, where it crashed outside a dialog. The title-screen Load
+  dialog keeps its accessible title.
+- **Settings:** theme and controls as labelled fields, and the keybindings as dotted rows
+  ending in small key caps.
+
+Fixes that came along: `RestMenu` passed the character from state straight to
+`RestManager`/`applyStarvation`, which change it in place. It now hands them clones, as
+CLAUDE.md requires. The quest log no longer crashes on completed quests and no longer shows
+a Complete button on them. About 110 CSS rules for the old panels, sidebar and modal were
+removed after checking that nothing in `src` references their classes.
+
+**Why:** the user asked for the tabs to change the whole right pane and for the panels to be
+redesigned in the journal style.
+
+**Route:** the lead set up the page switching and the `.jp-*` classes first. Four parallel
+agents then redesigned Character+Party, Equipment, Rest+Settings and Quests+Save against
+the same brief, each with its own `<Component>.css`. A shared Playwright helper started a
+fresh game and screenshotted each tab, and each agent loaded test data (items, quests, low
+HP, a town) through the React fiber to review the populated states. Panel content couldn't
+stay in modals, because the old Equipment modal was 1050px wide.
+
+Before (Equipment squeezed onto the page) and after:
+
+![before](docs/devlog/2026-09-26-journal-pages/before-equipment.png)
+
+![equipment](docs/devlog/2026-09-26-journal-pages/equipment.png)
+
+![character](docs/devlog/2026-09-26-journal-pages/character.png)
+
+![party](docs/devlog/2026-09-26-journal-pages/party.png)
+
+![rest](docs/devlog/2026-09-26-journal-pages/rest.png)
+
+![quests](docs/devlog/2026-09-26-journal-pages/quests.png)
+
+![save](docs/devlog/2026-09-26-journal-pages/save.png)
+
+![config](docs/devlog/2026-09-26-journal-pages/config.png)
+
+The shared save list in the title-screen Load dialog:
+
+![title load](docs/devlog/2026-09-26-journal-pages/title-load.png)
+
+## 2026-09-26: Combat actions in the journal style
+
+**What:** the combat Actions and Bonus actions section is rewritten for the parchment page.
+- It opens with "**Grok**, it is your turn."
+- A tally line lists Action, Bonus and Object; each is struck through in oxblood once spent.
+  Movement shows "30 of 30 ft" with a small green bar.
+- While raging, a note with an oxblood rule replaces the red "RAGING" gradient banner.
+- Actions are ruled rows: a pixel icon, the name, and a short gloss of what the action does
+  ("double your movement", "leave reach safely"). Spent actions are faded and struck through.
+- Bonus actions show their remaining uses as ink pips (●●○) instead of "(2/3)".
+- **End Turn** is an ink link pinned to the bottom of the pane, so it stays reachable when
+  the list scrolls. It used to be a filled gold button.
+
+Logic, props and the button names are unchanged: the unit tests, and the QA driver's
+`text=Attack` / `text=End Turn`, still find them. The ActionPanel test now mocks
+`PixelIcon`, because jsdom has no canvas to bake the sprites on.
+
+**Why:** the user asked for the actions/bonus actions section to fit the new aesthetic.
+It was the last boxed, multicolour panel on the combat page.
+
+**Route:** the rows reuse the shared `.jp-list` / `.jp-heading` / `.jp-bar` / `.jp-link`
+classes, so `ActionPanel.css` only holds the tally, the rage note, the pips and the pinned
+footer. The glosses avoid the word "attack", so the QA driver's case-insensitive
+`text=Attack` can't match a gloss before the real button. The first version left End Turn at the
+end of the list, and it scrolled out of view once the rage note appeared. Pinning it fixed
+that. The turn-order list below is untouched.
+
+Before ([journal layout](docs/devlog/2026-09-26-journal-layout/combat.png)) and after, on the
+player's turn and after raging:
+
+![turn](docs/devlog/2026-09-26-journal-actions/turn.png)
+
+![raging](docs/devlog/2026-09-26-journal-actions/raging.png)
+
+## 2026-09-26: Turn order in the journal style
+
+**What:** the combat turn order is now a ruled list:
+- Each row has the initiative in a small ink roundel, then the combatant's sprite: the class
+  sprite for allies, the goblin sprite for foes, and the grey "defeated" sprite for the fallen.
+- Foes are named in oxblood.
+- The current combatant is highlighted and marked "acting".
+- HP shows as "10 / 10" above a thin bar, which turns red at 30% or less.
+- Fallen combatants are struck through and read "fallen" instead of "DEAD".
+
+The enemy-turn box ("Enemy is taking their turn...", with a red heading) is now one line of
+prose with an oxblood rule: "**Goblin Warrior** is taking their turn…". It has
+`role="status"`, so screen readers announce it.
+
+**Why:** the user said yes to restyling the turn order after the actions section. It was the
+last boxed panel on the combat page.
+
+**Route:** it reuses `.jp-list` / `.jp-heading` / `.jp-bar`, and the list is now an `<ol>`
+with `aria-current` on the acting row. The multicolour HP bar (green, amber, red) became
+green, then red when low, the same as the Party page.
+
+![turn order](docs/devlog/2026-09-26-journal-turn-order/turn-order.png)
+
+![enemy turn](docs/devlog/2026-09-26-journal-turn-order/enemy-turn.png)
+
+## 2026-09-26: Hex details move into the game log
+
+**What:** the Current Hex and Selected Hex panels are gone from the journal page, in the
+overworld and inside POIs alike.
+- **The log instead:** every overworld step now logs one arrival line, e.g. "You arrive in
+  Grassland (11, 7); the going is easy. Clear Skies." It also names a place you already know
+  is there ("Millbrook is here."). The time-of-day, weather and terrain flavour text are
+  appended to that same entry, not logged separately.
+- **The actions that lived in the Current Hex panel** are now a slim `HexActions` line,
+  shown only when you stand on a known place. It reads "Crumbled Roadside Shrine is here."
+  with ink links for Enter / Interact / Search / Explore / Pray / Offer (10g).
+- **Inside a POI**, `InteriorActions` keeps only the way out: an "Exit Interior" / "Exit
+  Town" link, or "Return to the entrance to leave." Interior arrivals were already logged
+  (buildings, stairs, loot, the entrance).
+- **Layout:** outside combat the context area shrinks to fit its contents and disappears
+  when empty, so the log gets the rest of the page.
+
+**Why:** the user wanted the selected/current hex panels removed, with that information
+written to the game log on arrival instead.
+
+**Route:** `describeArrival` / `describeGoing` are pure helpers in `flavorTextGenerator`,
+covered by a unit test. The difficulty wording ("easy", "moderate", ...) comes from the old
+HexDetails. A newly discovered place isn't repeated in the arrival line, because it gets its
+own "You discovered…" entry. Clicking a hex still highlights it on the map but no longer
+opens a panel. Movement was already by double-click or keyboard; the old "Move Here" button
+had been gone since before this work. Dropped: the selected hex's distance readout and the
+interior encounter card (CR, creatures).
+
+![at a place](docs/devlog/2026-09-26-arrival-log/at-poi.png)
+
+![after a step](docs/devlog/2026-09-26-arrival-log/arrived.png)

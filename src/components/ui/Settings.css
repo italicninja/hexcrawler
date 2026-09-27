@@ -1,0 +1,11 @@
+/* A checkbox field reads as a sentence, not a small-caps field label */
+.jp-field label.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 0.95rem Georgia, serif;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-color);
+  cursor: pointer;
+}

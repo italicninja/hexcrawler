@@ -1,0 +1,59 @@
+/* QuestLog: a quest journal on the codex page. Builds on the shared .jp-* classes. */
+.questlog {
+  color: var(--text-color);
+}
+
+.questlog-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-bottom: 14px;
+}
+
+.questlog-empty {
+  margin-top: 18px;
+}
+
+.questlog-list-title {
+  font-style: italic;
+}
+
+.questlog-entry {
+  margin-top: 18px;
+}
+.questlog-entry:first-child {
+  margin-top: 0;
+}
+
+.questlog-title {
+  margin: 0 0 6px;
+  font:
+    italic 1.45rem Georgia,
+    'Palatino Linotype',
+    serif;
+  color: var(--accent-color);
+}
+
+/* dl/dt/dd reset so .jp-row lays out like the other rows */
+.questlog-entry dl,
+.questlog-entry dd {
+  margin: 0;
+}
+
+/* Objectives checklist: box, text, count */
+.questlog-objectives > li {
+  padding: 6px 2px;
+}
+.questlog-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--text-muted);
+}
+.questlog-done .questlog-objective {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}

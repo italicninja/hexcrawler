@@ -16,6 +16,7 @@ import {
   generateWeatherFlavor,
   generatePOIFlavor,
   generateCombatIntro,
+  describeArrival,
 } from '../utils/flavorTextGenerator';
 import { Enemy } from '../game/Enemy';
 import type { Character } from '../game/Character';
@@ -42,8 +43,15 @@ export function useOverworldActions() {
     hex: SceneHex,
     oldTimeOfDay: string,
     newTimeOfDay: string
-  ): { message: string; type: LogMessageType } | null => {
-    const parts: string[] = [];
+  ): { message: string; type: LogMessageType } => {
+    // Where you are (terrain, position, going, weather, a known place) always leads the entry;
+    // this replaces the old Current/Selected Hex panels.
+    const parts: string[] = [
+      describeArrival({
+        ...hex,
+        knownPlace: hex.poi && isPoiDiscovered(hex.col, hex.row) ? hex.poi.name : null,
+      }),
+    ];
     let messageType: LogMessageType = 'info';
 
     // Time transition (highest priority)
@@ -67,12 +75,7 @@ export function useOverworldActions() {
       if (flavor) parts.push(flavor);
     }
 
-    if (parts.length === 0) return null;
-
-    return {
-      message: parts.join(' - '), // Hyphen separator
-      type: messageType,
-    };
+    return { message: parts.join(' '), type: messageType };
   };
 
   // Get adjacent hexes (6 neighbors in hex grid) - Uses HexGrid spatial index for O(1) lookup
@@ -311,9 +314,7 @@ export function useOverworldActions() {
     const newTimeOfDay = getTimeOfDay(newTime.hour);
 
     const hexEntryMsg = buildHexEntryMessage(hex, oldTimeOfDay, newTimeOfDay);
-    if (hexEntryMsg) {
-      addMessage(hexEntryMsg.message, hexEntryMsg.type);
-    }
+    addMessage(hexEntryMsg.message, hexEntryMsg.type);
 
     // Check for POI discovery
     if (hex.poi) {

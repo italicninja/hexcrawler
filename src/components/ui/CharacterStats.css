@@ -1,0 +1,57 @@
+/* Character sheet page (journal right page) */
+.cs-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+.cs-name {
+  font:
+    1.5rem Georgia,
+    'Palatino Linotype',
+    serif;
+  line-height: 1.1;
+  color: var(--text-color);
+}
+.cs-sub {
+  margin: 2px 0 0;
+  color: var(--accent-color);
+}
+.cs-scores i {
+  display: block;
+  margin-top: 1px;
+  font:
+    italic 0.8rem Georgia,
+    serif;
+  color: var(--accent-color);
+  letter-spacing: 0;
+}
+.cs-scores > div + div {
+  border-left: 1px dotted var(--border-color);
+}
+.cs-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 28px;
+}
+.cs-meter {
+  margin-top: 10px;
+}
+.cs-meter .jp-bar {
+  margin-top: 3px;
+}
+.cs-ready {
+  animation: cs-pulse 1.5s ease-in-out infinite;
+}
+@keyframes cs-pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+.cs-max,
+.cs-warn {
+  color: var(--accent-color);
+}
+.cs-max {
+  margin-top: 10px;
+}

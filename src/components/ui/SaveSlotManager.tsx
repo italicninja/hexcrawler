@@ -17,9 +17,11 @@ import PixelIcon from './PixelIcon';
 interface SaveSlotManagerProps {
   mode: string;
   onClose?: () => void;
+  /** Rendered inside a journal page that supplies its own title and close link. */
+  embedded?: boolean;
 }
 
-function SaveSlotManager({ mode, onClose }: SaveSlotManagerProps) {
+function SaveSlotManager({ mode, onClose, embedded = false }: SaveSlotManagerProps) {
   const { state, dispatch, actions } = useGameState();
   const { addMessage } = useGameLog();
   const { confirm, dialogProps } = useConfirm();
@@ -113,97 +115,74 @@ function SaveSlotManager({ mode, onClose }: SaveSlotManagerProps) {
     refreshSlots();
   };
 
+  const { SAVE_SLOTS } = SaveManager;
+  const manualSlots = [
+    [SAVE_SLOTS.SLOT_1, slots.slot1],
+    [SAVE_SLOTS.SLOT_2, slots.slot2],
+    [SAVE_SLOTS.SLOT_3, slots.slot3],
+  ] as const;
+  const quickSlots = [
+    [SAVE_SLOTS.QUICKSAVE_A, slots.quicksaveA],
+    [SAVE_SLOTS.QUICKSAVE_B, slots.quicksaveB],
+    [SAVE_SLOTS.QUICKSAVE_C, slots.quicksaveC],
+  ] as const;
+
   return (
     <>
-      <div className="save-slot-manager">
-        <div className="save-slot-manager-header">
-          <ModalTitle>{mode === 'load' ? 'Load Game' : 'Save Game'}</ModalTitle>
-          {onClose && (
-            <button className="close-button" onClick={onClose} aria-label="Close">
-              <PixelIcon name="close" label="Close" />
-            </button>
-          )}
-        </div>
-
-        <div className="save-slots-container">
-          {/* Two-column grid: Manual Saves (left) | Quick Saves (right) */}
-          <div className="save-slots-grid">
-            {/* LEFT COLUMN: Manual Save Section (1, 2, 3) */}
-            <div className="slot-section">
-              <h3>Manual Saves</h3>
-              <SaveSlot
-                slotKey={SaveManager.SAVE_SLOTS.SLOT_1}
-                metadata={slots.slot1}
-                slotNumber={1}
-                mode={mode}
-                onLoad={handleLoad}
-                onSave={handleSave}
-                onDelete={handleDelete}
-              />
-              <SaveSlot
-                slotKey={SaveManager.SAVE_SLOTS.SLOT_2}
-                metadata={slots.slot2}
-                slotNumber={2}
-                mode={mode}
-                onLoad={handleLoad}
-                onSave={handleSave}
-                onDelete={handleDelete}
-              />
-              <SaveSlot
-                slotKey={SaveManager.SAVE_SLOTS.SLOT_3}
-                metadata={slots.slot3}
-                slotNumber={3}
-                mode={mode}
-                onLoad={handleLoad}
-                onSave={handleSave}
-                onDelete={handleDelete}
-              />
-            </div>
-
-            {/* RIGHT COLUMN: Quick Save Section (A, B, C) */}
-            <div className="slot-section">
-              <h3>Quick Saves</h3>
-              <SaveSlot
-                slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_A}
-                metadata={slots.quicksaveA}
-                slotLetter="A"
-                isQuicksave={true}
-                mode={mode}
-                onLoad={handleLoad}
-                onSave={handleQuickSave}
-                onDelete={handleDelete}
-              />
-              <SaveSlot
-                slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_B}
-                metadata={slots.quicksaveB}
-                slotLetter="B"
-                isQuicksave={true}
-                mode={mode}
-                onLoad={handleLoad}
-                onSave={handleQuickSave}
-                onDelete={handleDelete}
-              />
-              <SaveSlot
-                slotKey={SaveManager.SAVE_SLOTS.QUICKSAVE_C}
-                metadata={slots.quicksaveC}
-                slotLetter="C"
-                isQuicksave={true}
-                mode={mode}
-                onLoad={handleLoad}
-                onSave={handleQuickSave}
-                onDelete={handleDelete}
-              />
-            </div>
+      <div className={`save-slot-manager${embedded ? ' is-embedded' : ''}`}>
+        {!embedded && (
+          <div className="save-slot-manager-header">
+            <ModalTitle className="save-slot-manager-title">
+              {mode === 'load' ? 'Load Game' : 'Save Game'}
+            </ModalTitle>
+            {onClose && (
+              <button type="button" className="jp-link" onClick={onClose} aria-label="Close">
+                <PixelIcon name="close" /> Close
+              </button>
+            )}
           </div>
+        )}
+
+        <div className="save-slots-grid">
+          <section className="slot-section">
+            <h3 className="jp-heading">Manual Saves</h3>
+            {manualSlots.map(([slotKey, metadata], i) => (
+              <SaveSlot
+                key={slotKey}
+                slotKey={slotKey}
+                metadata={metadata}
+                slotNumber={i + 1}
+                mode={mode}
+                onLoad={handleLoad}
+                onSave={handleSave}
+                onDelete={handleDelete}
+              />
+            ))}
+          </section>
+
+          <section className="slot-section">
+            <h3 className="jp-heading">Quick Saves</h3>
+            {quickSlots.map(([slotKey, metadata], i) => (
+              <SaveSlot
+                key={slotKey}
+                slotKey={slotKey}
+                metadata={metadata}
+                slotLetter={'ABC'[i]}
+                isQuicksave={true}
+                mode={mode}
+                onLoad={handleLoad}
+                onSave={handleQuickSave}
+                onDelete={handleDelete}
+              />
+            ))}
+          </section>
         </div>
 
         {mode === 'load' && (
-          <div className="save-slot-manager-footer">
-            <p className="save-notice">
-              <PixelIcon name="bulb" /> <strong>Save version:</strong> {SaveManager.SAVE_VERSION} -
-              Older saves are not compatible
-            </p>
-          </div>
+          <p className="jp-note save-notice">
+            <PixelIcon name="bulb" /> Save version {SaveManager.SAVE_VERSION}. Older saves are not
+            compatible.
+          </p>
         )}
       </div>
 
