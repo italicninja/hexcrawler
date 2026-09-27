@@ -424,3 +424,15 @@ In game:
 ![combat](docs/devlog/2026-09-26-journal-layout/combat.png)
 
 ![character panel](docs/devlog/2026-09-26-journal-layout/character-panel.png)
+
+## 2026-09-26: Stop the journal tabs bouncing
+
+**What:** the bookmark tabs no longer change width on hover or when open. Only their colour
+changes.
+
+**Why:** the user reported the tabs bouncing when hovered.
+
+**Route:** hovering widened a tab from 50px to 56px. The tab column is pinned by its right
+edge, so the extra width pushed the whole column left and out from under the cursor. The
+hover then ended and the tab shrank, over and over. Colour-only feedback avoids the loop.
+Measured in Playwright: the tab and the column keep the same bounding box when hovered.
