@@ -8,7 +8,7 @@ import { useRef } from 'react';
 import logger from '../utils/logger';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
-import { TIME_COSTS, getTimeOfDay, advanceTime } from '../game/TimeManager';
+import { TIME_COSTS, getTimeOfDay, advanceTime, getTravelMinutes } from '../game/TimeManager';
 import { DiceRoller } from '../game/DiceRoller';
 import {
   generateHexEntryFlavor,
@@ -259,28 +259,6 @@ export function useOverworldActions() {
       return;
     }
 
-    // Consume rations for travel (only when survival mechanics are enabled)
-    if (FEATURES.SURVIVAL_ENABLED) {
-      const character = state.playerCharacter;
-      if (character) {
-        // Create immutable copy to avoid state mutation
-        const updatedCharacter = character.clone();
-
-        if (updatedCharacter.rations > 0) {
-          updatedCharacter.rations--;
-          updatedCharacter.daysWithoutFood = 0;
-        } else {
-          updatedCharacter.daysWithoutFood++;
-        }
-
-        // Update character state with immutable copy
-        dispatch({
-          type: actions.UPDATE_CHARACTER,
-          payload: updatedCharacter,
-        });
-      }
-    }
-
     // Capture old time before advancing (for time-of-day transition detection)
     const oldTime = { ...state.gameTime };
 
@@ -290,10 +268,12 @@ export function useOverworldActions() {
       payload: { col: hex.col, row: hex.row },
     });
 
-    // Advance time for movement (1 day per hex)
+    // Advance time for movement (2h per open hex, longer through difficult terrain).
+    // Rations are eaten in ADVANCE_TIME as days roll over.
+    const travelMinutes = getTravelMinutes(hex.terrain?.difficulty);
     dispatch({
       type: actions.ADVANCE_TIME,
-      payload: TIME_COSTS.MOVEMENT,
+      payload: travelMinutes,
     });
 
     // Reveal hexes around new position
@@ -302,17 +282,23 @@ export function useOverworldActions() {
       payload: { col: hex.col, row: hex.row },
     });
 
+    // Reaching a hex completes visit objectives and letter deliveries addressed to it
+    dispatch({
+      type: actions.QUEST_EVENT,
+      payload: { kind: 'arrive', hexKey: `${hex.col},${hex.row}` },
+    });
+
     // Log movement to debug console (not to GameLog)
     logger.movement.debug('Player moved to hex', {
       col: hex.col,
       row: hex.row,
       terrain: hex.terrain?.name,
-      timeCost: '1 day',
+      timeCost: `${travelMinutes / 60}h`,
     });
 
     // Build and log consolidated hex entry message
     // state.gameTime is still the pre-move value here; compute what ADVANCE_TIME produces
-    const newTime = advanceTime(state.gameTime, TIME_COSTS.MOVEMENT);
+    const newTime = advanceTime(state.gameTime, travelMinutes);
     const oldTimeOfDay = getTimeOfDay(oldTime.hour);
     const newTimeOfDay = getTimeOfDay(newTime.hour);
 

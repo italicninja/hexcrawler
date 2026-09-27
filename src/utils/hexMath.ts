@@ -130,3 +130,27 @@ export function isHexReachable(
 ): boolean {
   return getHexDistance(fromCol, fromRow, toCol, toRow) <= moveDistance;
 }
+
+/**
+ * Given a delta (target - origin) in offset-grid col/row space, return the
+ * nearest cardinal/intercardinal compass direction as a lowercase string.
+ */
+export function getCompassDirection(dCol: number, dRow: number): string {
+  // In an offset hex grid, increasing row goes DOWN on screen (south),
+  // increasing col goes RIGHT (east).  We treat dRow as the N/S axis and
+  // dCol as the E/W axis, then snap to the 8 compass points.
+  const angle = Math.atan2(dRow, dCol) * (180 / Math.PI); // –180 … +180
+  // Rotate so that 0° = East, positive = clockwise
+  const dirs = [
+    'east',
+    'southeast',
+    'south',
+    'southwest',
+    'west',
+    'northwest',
+    'north',
+    'northeast',
+  ];
+  const index = Math.round((((angle % 360) + 360) % 360) / 45) % 8;
+  return dirs[index];
+}

@@ -19,7 +19,8 @@ import { Quest } from '../../game/Quest';
 import { Shop } from '../../game/Shop';
 import { advanceTime } from '../../game/TimeManager';
 import { createInitialState } from '../initialState';
-import { GAME_DEFAULTS } from '../../constants/gameConstants';
+import { FEATURES, GAME_DEFAULTS } from '../../constants/gameConstants';
+import { consumeRations } from '../../game/SurvivalManager';
  
 import { WeatherSystem } from '../../WeatherSystem';
 import { HexGrid } from '../../utils/HexGrid';
@@ -174,11 +175,17 @@ export function gameReducer(
       };
     }
 
-    case ACTIONS.ADVANCE_TIME:
-      return {
-        ...state,
-        gameTime: advanceTime(state.gameTime, action.payload),
-      };
+    case ACTIONS.ADVANCE_TIME: {
+      const gameTime = advanceTime(state.gameTime, action.payload);
+      // One ration per day that passes, whatever spent the time (travel, rest, foraging).
+      const daysPassed = gameTime.day - state.gameTime.day;
+      let playerCharacter = state.playerCharacter;
+      if (FEATURES.SURVIVAL_ENABLED && daysPassed > 0 && playerCharacter) {
+        playerCharacter = playerCharacter.clone();
+        for (let i = 0; i < daysPassed; i++) consumeRations(playerCharacter);
+      }
+      return { ...state, gameTime, playerCharacter };
+    }
 
     case ACTIONS.UPDATE_PLAYTIME:
       return {

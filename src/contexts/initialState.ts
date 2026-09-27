@@ -68,8 +68,6 @@ export function createInitialState(): GameState {
     activeQuests: [],
     completedQuests: [],
     failedQuests: [],
-    availableQuests: [],
-    townQuests: {},
     // Shop state
     currentShop: null,
     shopInventories: {},

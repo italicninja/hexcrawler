@@ -170,8 +170,7 @@ export function generateExpansionHexes(
             r,
             maxCol + chunkSize + 1,
             maxRow + 1,
-            0.5, // terrainVariety
-            0.2 // poiChance (20%)
+            0.5 // terrainVariety
           );
           newHexes.push(hex);
         }
@@ -188,8 +187,7 @@ export function generateExpansionHexes(
             r,
             maxCol + 1,
             maxRow + 1,
-            0.5, // terrainVariety
-            0.2 // poiChance (20%)
+            0.5 // terrainVariety
           );
           newHexes.push(hex);
         }
@@ -206,8 +204,7 @@ export function generateExpansionHexes(
             r,
             maxCol + 1,
             maxRow + chunkSize + 1,
-            0.5, // terrainVariety
-            0.2 // poiChance (20%)
+            0.5 // terrainVariety
           );
           newHexes.push(hex);
         }
@@ -224,8 +221,7 @@ export function generateExpansionHexes(
             r,
             maxCol + 1,
             maxRow + 1,
-            0.5, // terrainVariety
-            0.2 // poiChance (20%)
+            0.5 // terrainVariety
           );
           newHexes.push(hex);
         }

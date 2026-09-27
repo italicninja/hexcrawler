@@ -6,7 +6,7 @@ import { RegionGenerator, type Region } from './RegionGenerator';
 import { WeatherSystem, type WeatherType } from './WeatherSystem';
 import logger from './utils/logger';
 import { getHexDistance } from './utils/hexMath';
-import { GAME_DEFAULTS } from './constants/gameConstants';
+import { GAME_DEFAULTS, POI_SPAWN } from './constants/gameConstants';
 import { createSeededRNG, hashSeed, seedToNumber } from './utils/seededRandom';
 
 interface TerrainType {
@@ -486,9 +486,26 @@ export class TerrainGenerator {
 
     let locationIndex = 0;
 
+    // Settlements keep POI_SPAWN.SETTLEMENT_MIN_SPACING apart; the best-scored spots
+    // otherwise bunch up along rivers (a village right next to a town).
+    const placed: SettlementLocation[] = [];
+    const isSpaced = (col: number, row: number) =>
+      placed.every(p => getHexDistance(p.col, p.row, col, row) >= POI_SPAWN.SETTLEMENT_MIN_SPACING);
+    const nextLocation = (): SettlementLocation | undefined => {
+      while (locationIndex < settlementLocations.length) {
+        const loc = settlementLocations[locationIndex++];
+        if (isSpaced(loc.col, loc.row)) {
+          placed.push(loc);
+          return loc;
+        }
+      }
+      return undefined;
+    };
+
     // Place metropolises first (best locations)
-    for (let i = 0; i < numMetropolises && locationIndex < settlementLocations.length; i++) {
-      const loc = settlementLocations[locationIndex++];
+    for (let i = 0; i < numMetropolises; i++) {
+      const loc = nextLocation();
+      if (!loc) break;
       grid[loc.row][loc.col].poi = this.poiSystem.generatePOI(
         POI_TYPES.METROPOLIS,
         loc.col,
@@ -501,8 +518,9 @@ export class TerrainGenerator {
     }
 
     // Place cities (next best locations)
-    for (let i = 0; i < numCities && locationIndex < settlementLocations.length; i++) {
-      const loc = settlementLocations[locationIndex++];
+    for (let i = 0; i < numCities; i++) {
+      const loc = nextLocation();
+      if (!loc) break;
       grid[loc.row][loc.col].poi = this.poiSystem.generatePOI(
         POI_TYPES.CITY,
         loc.col,
@@ -515,8 +533,9 @@ export class TerrainGenerator {
     }
 
     // Place towns
-    for (let i = 0; i < numTowns && locationIndex < settlementLocations.length; i++) {
-      const loc = settlementLocations[locationIndex++];
+    for (let i = 0; i < numTowns; i++) {
+      const loc = nextLocation();
+      if (!loc) break;
       grid[loc.row][loc.col].poi = this.poiSystem.generatePOI(
         POI_TYPES.TOWN,
         loc.col,
@@ -529,8 +548,9 @@ export class TerrainGenerator {
     }
 
     // Place villages
-    for (let i = 0; i < numVillages && locationIndex < settlementLocations.length; i++) {
-      const loc = settlementLocations[locationIndex++];
+    for (let i = 0; i < numVillages; i++) {
+      const loc = nextLocation();
+      if (!loc) break;
       grid[loc.row][loc.col].poi = this.poiSystem.generatePOI(
         POI_TYPES.VILLAGE,
         loc.col,
@@ -547,10 +567,10 @@ export class TerrainGenerator {
       let col, row;
 
       // First half from scored locations, second half random
-      if (i < numCamps / 2 && locationIndex < settlementLocations.length) {
-        const loc = settlementLocations[locationIndex++];
-        col = loc.col;
-        row = loc.row;
+      const scored = i < numCamps / 2 ? nextLocation() : undefined;
+      if (scored) {
+        col = scored.col;
+        row = scored.row;
       } else {
         // Random placement for camps (can be anywhere habitable)
         col = Math.floor(this.random() * width);
@@ -566,6 +586,8 @@ export class TerrainGenerator {
         if (terrainName !== 'Grassland' && terrainName !== 'Forest' && terrainName !== 'Hills') {
           continue;
         }
+        if (!isSpaced(col, row)) continue;
+        placed.push({ col, row, score: 0 });
       }
 
       grid[row][col].poi = this.poiSystem.generatePOI(

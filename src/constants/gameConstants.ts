@@ -252,7 +252,6 @@ export const TIME = {
   LONG_REST_MINUTES: 480, // 8 hours
   INN_REST_MINUTES: 480, // 8 hours
   COMBAT_ROUND_SECONDS: 6,
-  TRAVEL_TIME_PER_HEX_MINUTES: 30,
   FORAGE_TIME_MINUTES: 60,
   SEARCH_TIME_MINUTES: 30,
   MINUTES_PER_HOUR: 60,
@@ -390,15 +389,11 @@ export const ENCOUNTER_DIFFICULTY_BY_LEVEL = ['low', 'low', 'moderate', 'high', 
 // POI SPAWN RATES
 // ===================
 export const POI_SPAWN = {
-  TOWN: 0.1, // 10% chance
-  VILLAGE: 0.08, // 8% chance
-  CAMP: 0.05, // 5% chance
-  DUNGEON: 0.05, // 5% chance
-  CAVE: 0.04, // 4% chance
-  RUINS: 0.025, // 2.5% chance
-  TOWER: 0.02, // 2% chance
-  SHRINE: 0.03, // 3% chance
-  LAIR: 0.02, // 2% chance
+  /** Settlements are at least this many hexes apart (3 hexes ≈ 18 miles, under a day's walk). */
+  SETTLEMENT_MIN_SPACING: 3,
+  /** Per-hex chances beyond the starting map; tuned to match its density (~2% sites, ~1% settlements). */
+  EXPANSION_SITE_CHANCE: 0.03,
+  EXPANSION_SETTLEMENT_CHANCE: 0.02,
 };
 
 // ===================
@@ -518,24 +513,13 @@ export const SHOP = {
 // ===================
 // QUEST GENERATION
 // ===================
-export const QUEST_COUNTS_BY_SIZE: Record<string, { min: number; max: number }> = {
-  camp: { min: 0, max: 1 },
-  village: { min: 1, max: 2 },
-  town: { min: 2, max: 3 },
-  city: { min: 2, max: 4 },
-  metropolis: { min: 3, max: 5 },
-};
-
 export const QUEST = {
-  CAMP_QUEST_COUNT: 1,
-  VILLAGE_QUEST_COUNT: 2,
-  TOWN_QUEST_COUNT: 3,
-  CITY_QUEST_COUNT: 5,
-  METROPOLIS_QUEST_COUNT: 7,
-  QUEST_REFRESH_DAYS: 7,
-  BASE_XP_REWARD: 100,
-  BASE_GOLD_REWARD: 50,
-  REWARD_MULTIPLIER_PER_CR: 1.5,
+  /** Boards reroll every this many days (long enough to finish a job before it vanishes). */
+  REFRESH_DAYS: 14,
+  /** Board targets lie this many hexes out: half a day to 3 days' walk. */
+  BOARD_RADIUS: { MIN: 2, MAX: 12 },
+  /** Jobs posted per board, by settlement size. */
+  BOARD_COUNT: { camp: 1, village: 2, town: 3, city: 4, metropolis: 5 } as Record<string, number>,
 };
 
 // ===================

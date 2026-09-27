@@ -99,7 +99,7 @@ export function getTimeOfDay(hour: number): 'dawn' | 'day' | 'dusk' | 'night' {
  * Time costs for various actions (in minutes)
  */
 export const TIME_COSTS = {
-  MOVEMENT: 1440, // 1 day per hex (24 hours)
+  MOVEMENT: 120, // 6-mile hex at normal pace (3 mph); see getTravelMinutes for terrain
   COMBAT_MIN: 5, // Minimum combat duration
   COMBAT_MAX: 10, // Maximum combat duration
   SHORT_REST: 60, // 1 hour
@@ -111,6 +111,32 @@ export const TIME_COSTS = {
   CAMP_SETUP: 30, // Setting up camp
   CAMP_BREAKDOWN: 15, // Breaking down camp
 } as const;
+
+/** Hours of travel in a standard 5e travel day (normal pace = 24 miles = 4 hexes). */
+export const TRAVEL_HOURS_PER_DAY = 8;
+
+/** Open-ground hexes covered in one travel day. */
+export const HEXES_PER_TRAVEL_DAY = (TRAVEL_HOURS_PER_DAY * 60) / TIME_COSTS.MOVEMENT;
+
+/**
+ * Minutes to cross one hex. Terrain difficulty 1 (grassland) is normal pace; 5e difficult
+ * terrain halves speed, so difficulty 2 (forest, hills) takes twice as long and 3 (swamp,
+ * mountains) three times.
+ */
+export function getTravelMinutes(terrainDifficulty = 1): number {
+  return TIME_COSTS.MOVEMENT * Math.min(3, Math.max(1, terrainDifficulty));
+}
+
+/**
+ * Build a natural-language travel-time string from a hex distance, assuming open ground
+ * (HEXES_PER_TRAVEL_DAY hexes per 8-hour travel day).
+ */
+export function formatTravelTime(hexDistance: number): string {
+  const days = hexDistance / HEXES_PER_TRAVEL_DAY;
+  if (days <= 0.5) return "half a day's walk";
+  if (days <= 1) return "a day's walk";
+  return `${Math.round(days)} days' walk`;
+}
 
 /**
  * Gets a random combat duration
@@ -174,6 +200,7 @@ export function getTimeUntilDusk(gameTime: GameTime): number {
 
 export default {
   createGameTime,
+  formatTravelTime,
   advanceTime,
   formatTime,
   isNight,
