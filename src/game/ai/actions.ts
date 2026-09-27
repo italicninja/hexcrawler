@@ -3,6 +3,7 @@
  * Functions that return action objects for the combat system
  */
 
+import { random } from '../../utils/seededRandom';
 import { getHexDistance, getHexNeighbors } from '../../utils/hexMath';
 import logger from '../../utils/logger';
 
@@ -230,7 +231,7 @@ export function moveTo(context: ActionContext): AIAction {
         }
 
         // Normalise to 0–1 range, weight toward target (0.75) + randomness (0.25)
-        const score = ((cosAngle + 1) / 2) * 0.75 + Math.random() * 0.25;
+        const score = ((cosAngle + 1) / 2) * 0.75 + random() * 0.25;
         return { hex: n, score };
       });
 
@@ -339,7 +340,7 @@ export function flee(context: ActionContext): AIAction {
 
         // Cosine similarity in the AWAY direction
         const cosAngle = (ndx / nLen) * (dx / threatDist) + (ndy / nLen) * (dy / threatDist);
-        const score = ((cosAngle + 1) / 2) * 0.75 + Math.random() * 0.25;
+        const score = ((cosAngle + 1) / 2) * 0.75 + random() * 0.25;
         return { hex: n, score };
       });
 

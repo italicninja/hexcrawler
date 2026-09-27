@@ -10,6 +10,7 @@
 
 import { ART_PX, calculateHexPosition, pixelToOffset } from './hexRenderer';
 import { getHexNeighbors } from './hexMath';
+import { createSeededRNG } from './seededRandom';
 
 // ART_PX (CSS px per art px) lives in hexRenderer. The preview used 3 at radius 40;
 // 2 keeps a similar art-pixel count per hex at radius 30.
@@ -58,16 +59,7 @@ export function fbm(x: number, y: number, oct: number, s: number): number {
   }
   return sum / norm;
 }
-export function rng(seed: number): () => number {
-  // mulberry32
-  let a = Math.floor(seed * 4294967296) >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export const rng = (seed: number): (() => number) => createSeededRNG(`px:${seed}`);
 export const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 export const rgb = (h: string): RGB => {
   const n = parseInt(h.slice(1), 16);

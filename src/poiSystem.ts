@@ -4,6 +4,7 @@
  * Includes visibility rules, event types, and CR scaling
  */
 
+import { random as gameRandom } from './utils/seededRandom';
 import { getHexDistance } from './utils/hexMath';
 import { STARTING_CACHE } from './constants/gameConstants';
 
@@ -319,7 +320,7 @@ export class POISystem {
     startCol = 10,
     startRow = 7,
     terrainDifficulty = 1,
-    random: RandomFn = Math.random
+    random: RandomFn = gameRandom
   ): number {
     const distance = getHexDistance(startCol, startRow, col, row);
 
@@ -363,7 +364,7 @@ export class POISystem {
   getEncounterForTerrain(
     terrain: TerrainLike,
     cr: number,
-    random: RandomFn = Math.random
+    random: RandomFn = gameRandom
   ): EncounterEntry {
     const terrainKey = terrain.name.toLowerCase();
     const encounters = this.encounterTables[terrainKey] || this.encounterTables.grassland;
@@ -389,7 +390,7 @@ export class POISystem {
     terrain: TerrainLike,
     startCol = 10,
     startRow = 7,
-    random: RandomFn = Math.random
+    random: RandomFn = gameRandom
   ): POI | null {
     const tier = this.calculateCR(col, row, startCol, startRow, terrain.difficulty, random);
     // Interiors (dungeon/cave/tower/ruins) scale floors off whole-number CRs

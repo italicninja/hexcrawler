@@ -1,4 +1,5 @@
 // DiceRoller — D&D 5e dice rolling system
+import { random } from '../utils/seededRandom';
 import { createSeededRNG } from '../utils/seededRandom';
 import logger from '../utils/logger';
 import type { LogMessageType } from '../types/game';
@@ -54,7 +55,7 @@ export class DiceRoller {
   }
 
   random(): number {
-    return this.rng ? this.rng() : Math.random();
+    return this.rng ? this.rng() : random();
   }
 
   log(message: string, type: LogMessageType = 'info'): void {

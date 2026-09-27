@@ -3,6 +3,7 @@
  * Creates treasure hoards with gold, items, and rarity scaling
  */
 
+import { random as gameRandom } from '../utils/seededRandom';
 import { BaseGenerator } from './BaseGenerator';
 import { Item, type ItemConfig } from './Item';
 
@@ -647,7 +648,7 @@ export class LootGenerator extends BaseGenerator {
    * @param {Function} random - Random function (0-1)
    * @returns {object} { gold, items: Item[], rarity }
    */
-  generateLoot(cr: number, random: () => number = Math.random): Loot {
+  generateLoot(cr: number, random: () => number = gameRandom): Loot {
     // Get loot table for this CR (uses base class method with fallback)
     const lootTable = this.getCRTable(cr, 11) as LootTableEntry | null;
 

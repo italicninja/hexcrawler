@@ -1,4 +1,5 @@
 // Shop — vendor with rarity-weighted item tables
+import { random } from '../utils/seededRandom';
 import { Item, type ItemConfig } from './Item';
 
 interface ShopConfig {
@@ -62,7 +63,7 @@ export class Shop {
   }
 
   selectRarity(weights: Record<string, number>): string {
-    const roll = Math.random();
+    const roll = random();
     let cumulative = 0;
 
     for (const [rarity, weight] of Object.entries(weights)) {
@@ -86,7 +87,7 @@ export class Shop {
     const itemPool = itemTables[shopType] || itemTables.general;
     if (itemPool.length === 0) return null;
 
-    const itemData = itemPool[Math.floor(Math.random() * itemPool.length)];
+    const itemData = itemPool[Math.floor(random() * itemPool.length)];
     return new Item({ ...itemData, rarity });
   }
 
@@ -816,7 +817,7 @@ export class Shop {
   }
 
   randomInt(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    return Math.floor(random() * (max - min + 1)) + min;
   }
 
   toJSON() {

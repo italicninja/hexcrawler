@@ -1,3 +1,4 @@
+import { random } from '../../utils/seededRandom';
 import { useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { useGameLog } from '../../contexts/GameLogContext';
@@ -97,7 +98,7 @@ const HERO_NAMES = [
 
 // Helper function to get random element from array
 const getRandomElement = <T,>(array: T[]): T => {
-  return array[Math.floor(Math.random() * array.length)];
+  return array[Math.floor(random() * array.length)];
 };
 
 // Helper function to generate random hero name
