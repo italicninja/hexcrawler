@@ -78,7 +78,7 @@ Found & fixed along the way: `LOAD_GAME`'s "don't restore combat" comment only n
 | Combat render branches (battlefield canvas + action/turn-order panel) | `components/scenes/CombatSceneWrapper.tsx` (`CombatCanvasPane`/`CombatActionPane`) |
 | Interior navigation (map resolution, stairs/loot/lazy floors, buildings) | `hooks/useInteriorNavigation.ts` |
 | Overworld movement, foraging, POI combat engagement | `hooks/useOverworldActions.ts` |
-| Keyboard routing + F5 quicksave | `hooks/useOverworldInput.ts` |
+| Keyboard routing | `hooks/useOverworldInput.ts` |
 
 Deviation from the original plan: no separate `InteriorScene.tsx` — interior logic went to a hook and the two small interior render branches stayed inline; the orchestration hook is instantiated once in OverworldScene so its effects stay mounted scene-wide (zero behavior change). Shared scene types live in `types/scene.ts`.
 

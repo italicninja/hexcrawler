@@ -51,7 +51,7 @@ for components, but game code imports the util directly).
   it doesn't handle, letting the next one try.
 - Combat state lives ONLY in `state.combatState` (`CombatStateData`). There are no
   legacy top-level combat fields.
-- Saves: `utils/SaveManager` (3 slots + autosave + quicksave rotation, version
+- Saves: `utils/SaveManager` (3 slots + autosave, version
   checking, quota handling). `LOAD_GAME` in `gameReducer` reconstructs Sets/Maps and
   class instances (`Character`, `Party`, `Quest`, `Shop`) and deliberately resets
   combat and interior state.
@@ -83,8 +83,7 @@ component plus four hooks — keep it that way:
   lazy floor generation, loot, encounters via `handleEngageCombat`), building interactions.
 - `hooks/useOverworldActions` — hex movement (terrain checks, rations, POI
   discovery), foraging + cooldowns, engaging POI combat.
-- `hooks/useOverworldInput` — unified keyboard routing (overworld vs interior) and
-  F5 quicksave.
+- `hooks/useOverworldInput` — unified keyboard routing (overworld vs interior).
 
 Combat is an overlay on the overworld (`state.combatState?.battlefield` truthy), not
 a separate route.

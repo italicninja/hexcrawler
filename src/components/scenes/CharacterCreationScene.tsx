@@ -6,6 +6,7 @@ import { Character } from '../../game/Character';
 import { Party } from '../../game/Party';
 import { generateCharacterWelcome } from '../../utils/flavorTextGenerator';
 import PixelIcon from '../ui/PixelIcon';
+import TitleBackground from '../ui/TitleBackground';
 
 interface ClassData {
   name: string;
@@ -23,6 +24,15 @@ interface ClassData {
     charisma: number;
   };
 }
+
+const ABILITIES = [
+  ['STR', 'strength'],
+  ['DEX', 'dexterity'],
+  ['CON', 'constitution'],
+  ['INT', 'intelligence'],
+  ['WIS', 'wisdom'],
+  ['CHA', 'charisma'],
+] as const;
 
 // Random hero name lists for Quick Start
 const HERO_NAMES = [
@@ -409,124 +419,93 @@ function CharacterCreationScene() {
   const currentClassData = CLASS_DATA[selectedClass];
 
   return (
-    <div className="character-creation-screen">
-      <div className="character-creation-content">
-        <h1 className="title-logo">Create Your Hero</h1>
+    <div className="title-screen">
+      <TitleBackground />
+      <div className="hero-book">
+        <section className="journal-page hero-page--roster">
+          <h1 className="journal-title">Create Your Hero</h1>
 
-        {/* Begin Adventure Button - Moved to Top */}
-        <button
-          className="btn-primary btn-large btn-begin-adventure"
-          onClick={handleCreateCharacter}
-        >
-          Begin Adventure
-        </button>
-
-        {/* Quick Start Button */}
-        <button className="btn-quick-start" onClick={handleQuickStart} type="button">
-          Quick Start (Random Hero)
-        </button>
-
-        <div className="divider-text">
-          <span>or customize</span>
-        </div>
-
-        <div className="character-creation-form">
-          {/* Character Name Input */}
-          <div className="control-group">
-            <label htmlFor="character-name">Name:</label>
-            <input
-              type="text"
-              id="character-name"
-              placeholder="Enter name"
-              value={characterName}
-              onChange={e => {
-                setCharacterName(e.target.value);
-                setError('');
-              }}
-              maxLength={20}
-              autoFocus
-            />
-            {error && <div className="error-message">{error}</div>}
+          <div className="jp-heading">Choose a class</div>
+          <div className="hero-roster">
+            {Object.entries(CLASS_DATA).map(([key, data]) => {
+              const isDisabled = DISABLED_CLASSES.has(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={`hero-class ${selectedClass === key ? 'is-selected' : ''}`}
+                  onClick={() => setSelectedClass(key)}
+                  disabled={isDisabled}
+                  aria-pressed={selectedClass === key}
+                  title={isDisabled ? `${data.name} - Coming soon` : data.name}
+                >
+                  <PixelIcon name={`player:${key}`} scale={3} />
+                  <span>{data.name}</span>
+                  <small>{isDisabled ? 'soon' : data.hitDie}</small>
+                </button>
+              );
+            })}
           </div>
+          <p className="jp-note">The other classes are still being written.</p>
+        </section>
 
-          {/* Class Selection */}
-          <div className="control-group">
-            <label>Class:</label>
-            <div className="class-selection-grid">
-              {Object.entries(CLASS_DATA).map(([key, data]) => {
-                const isDisabled = DISABLED_CLASSES.has(key);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`class-button ${selectedClass === key ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
-                    onClick={() => !isDisabled && setSelectedClass(key)}
-                    disabled={isDisabled}
-                    title={isDisabled ? `${data.name} - Coming soon` : data.name}
-                  >
-                    <div className="class-button-icon">
-                      <PixelIcon name={`player:${key}`} />
-                    </div>
-                    <div className="class-button-name">{data.name}</div>
-                    <div className="class-button-hitdie">{isDisabled ? 'soon' : data.hitDie}</div>
-                  </button>
-                );
-              })}
+        <section className="journal-page hero-page--sheet">
+          <div className="journal-hero">
+            <div className="hero-portrait">
+              <PixelIcon name={`player:${selectedClass}`} scale={5} />
+            </div>
+            <div className="journal-hero-body">
+              <label htmlFor="character-name" className="sr-only">
+                Name
+              </label>
+              <input
+                type="text"
+                id="character-name"
+                className="hero-name"
+                placeholder="Name your hero"
+                value={characterName}
+                onChange={e => {
+                  setCharacterName(e.target.value);
+                  setError('');
+                }}
+                maxLength={20}
+                autoFocus
+              />
+              {error && <div className="error-message">{error}</div>}
             </div>
           </div>
 
-          {/* Class Description - Condensed */}
-          <div className="class-info-compact">
-            <div className="class-info-header">
-              <h3>{currentClassData.name}</h3>
-              <span className="class-hitdie">{currentClassData.hitDie}</span>
-            </div>
-            <p className="class-description">{currentClassData.description}</p>
+          <p className="jp-prose hero-description">{currentClassData.description}.</p>
+
+          <div className="jp-heading">Ability scores</div>
+          <div className="jp-scores">
+            {ABILITIES.map(([label, key]) => (
+              <div
+                key={key}
+                className={key === currentClassData.primaryStat ? 'is-primary' : undefined}
+              >
+                <b>{currentClassData.abilityScores[key]}</b>
+                {label}
+              </div>
+            ))}
           </div>
 
-          {/* Starting Equipment */}
-          <div className="starting-equipment-compact">
-            <h4>Starting Equipment</h4>
-            <ul className="starting-equipment-list">
-              {currentClassData.startingEquipment.map((item, index) => (
-                <li key={index} className="starting-equipment-item">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <div className="jp-heading">Starting equipment</div>
+          <ul className="jp-list">
+            {currentClassData.startingEquipment.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
 
-          {/* Ability Scores Display - Condensed */}
-          <div className="ability-scores-preview-compact">
-            <h4>Starting Scores</h4>
-            <div className="ability-scores-grid">
-              <div className="ability-score">
-                <div className="ability-label">STR</div>
-                <div className="ability-value">{currentClassData.abilityScores.strength}</div>
-              </div>
-              <div className="ability-score">
-                <div className="ability-label">DEX</div>
-                <div className="ability-value">{currentClassData.abilityScores.dexterity}</div>
-              </div>
-              <div className="ability-score">
-                <div className="ability-label">CON</div>
-                <div className="ability-value">{currentClassData.abilityScores.constitution}</div>
-              </div>
-              <div className="ability-score">
-                <div className="ability-label">INT</div>
-                <div className="ability-value">{currentClassData.abilityScores.intelligence}</div>
-              </div>
-              <div className="ability-score">
-                <div className="ability-label">WIS</div>
-                <div className="ability-value">{currentClassData.abilityScores.wisdom}</div>
-              </div>
-              <div className="ability-score">
-                <div className="ability-label">CHA</div>
-                <div className="ability-value">{currentClassData.abilityScores.charisma}</div>
-              </div>
-            </div>
+          <div className="hero-actions">
+            <button className="title-btn btn-primary" onClick={handleCreateCharacter}>
+              Begin Adventure
+            </button>
+            <button className="jp-link" onClick={handleQuickStart} type="button">
+              Quick Start (random hero)
+            </button>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

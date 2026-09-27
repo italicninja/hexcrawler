@@ -9,8 +9,7 @@ import { Shop } from '../../src/game/Shop';
 import { SAVE } from '../../src/constants/gameConstants';
 import logger from '../../src/utils/logger';
 
-const { SLOT_1, SLOT_2, SLOT_3, AUTOSAVE, QUICKSAVE_A, QUICKSAVE_B, QUICKSAVE_C } =
-  SaveManager.SAVE_SLOTS;
+const { SLOT_1, SLOT_2, SLOT_3, AUTOSAVE } = SaveManager.SAVE_SLOTS;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -211,17 +210,16 @@ describe('SaveManager — slot independence and deleteSlot', () => {
   });
 });
 
-// ─── Active slot & quicksave rotation ────────────────────────────────────────
+// ─── Active slot ─────────────────────────────────────────────────────────────
 
-describe('SaveManager — active slot and quicksave rotation', () => {
+describe('SaveManager — active slot', () => {
   it('saving to a manual slot sets it as the active slot', () => {
     SaveManager.saveToSlot(SLOT_3, makeGameState());
     expect(SaveManager.getActiveSlot()).toBe(SLOT_3);
   });
 
-  it('saving to the autosave or quicksave slots does not change the active slot', () => {
+  it('saving to the autosave slot does not change the active slot', () => {
     SaveManager.saveToSlot(AUTOSAVE, makeGameState());
-    SaveManager.saveToSlot(QUICKSAVE_A, makeGameState());
     expect(SaveManager.getActiveSlot()).toBeNull();
   });
 
@@ -231,19 +229,6 @@ describe('SaveManager — active slot and quicksave rotation', () => {
 
     SaveManager.loadFromSlot(SLOT_2);
     expect(SaveManager.getActiveSlot()).toBe(SLOT_2);
-  });
-
-  it('rotates quicksave slots A → B → C → A', () => {
-    expect(SaveManager.getNextQuicksaveSlot()).toBe(QUICKSAVE_A);
-
-    SaveManager.saveToSlot(QUICKSAVE_A, makeGameState());
-    expect(SaveManager.getNextQuicksaveSlot()).toBe(QUICKSAVE_B);
-
-    SaveManager.saveToSlot(QUICKSAVE_B, makeGameState());
-    expect(SaveManager.getNextQuicksaveSlot()).toBe(QUICKSAVE_C);
-
-    SaveManager.saveToSlot(QUICKSAVE_C, makeGameState());
-    expect(SaveManager.getNextQuicksaveSlot()).toBe(QUICKSAVE_A);
   });
 });
 
@@ -369,14 +354,11 @@ describe('SaveManager — getSlotMetadata / getAllSlots / hasSaveData', () => {
     expect(slots.autosave).not.toBeNull();
     expect(slots.slot2).toBeNull();
     expect(slots.slot3).toBeNull();
-    expect(slots.quicksaveA).toBeNull();
-    expect(slots.quicksaveB).toBeNull();
-    expect(slots.quicksaveC).toBeNull();
   });
 
   it('hasSaveData is false with no saves and true after any save', () => {
     expect(SaveManager.hasSaveData()).toBe(false);
-    SaveManager.saveToSlot(QUICKSAVE_B, makeGameState());
+    SaveManager.saveToSlot(SLOT_2, makeGameState());
     expect(SaveManager.hasSaveData()).toBe(true);
   });
 

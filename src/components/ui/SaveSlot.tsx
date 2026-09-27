@@ -19,9 +19,7 @@ interface SaveSlotProps {
   slotKey: string;
   metadata?: SaveMetadata | null;
   slotNumber?: number;
-  slotLetter?: string;
   isAutosave?: boolean;
-  isQuicksave?: boolean;
   mode: string;
   onLoad: (slotKey: string) => void;
   onSave: (slotKey: string) => void;
@@ -32,9 +30,7 @@ function SaveSlot({
   slotKey,
   metadata,
   slotNumber,
-  slotLetter,
   isAutosave,
-  isQuicksave,
   mode,
   onLoad,
   onSave,
@@ -75,8 +71,8 @@ function SaveSlot({
 
   const slotTitle = (
     <h4 className="save-slot-title">
-      <PixelIcon name={isAutosave || isQuicksave ? 'bolt' : 'disk'} />
-      {isAutosave ? 'Auto-save' : isQuicksave ? `Quick Save ${slotLetter}` : `Slot ${slotNumber}`}
+      <PixelIcon name={isAutosave ? 'bolt' : 'disk'} />
+      {isAutosave ? 'Auto-save' : `Slot ${slotNumber}`}
       <span className="jp-aside">
         {metadata ? `Saved ${formatTimestamp(metadata.timestamp)}` : 'Empty Slot'}
       </span>

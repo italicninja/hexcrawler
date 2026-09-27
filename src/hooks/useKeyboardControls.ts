@@ -16,7 +16,6 @@ export interface KeyboardCallbacks {
   onInventory?: () => void;
   onQuests?: () => void;
   onMap?: () => void;
-  onQuickSave?: () => void;
 }
 
 /**
@@ -102,12 +101,6 @@ export function useKeyboardControls(callbacks: KeyboardCallbacks = {}, enabled =
       if (key === keybindings.map?.toLowerCase()) {
         event.preventDefault();
         callbacks.onMap?.();
-        return;
-      }
-
-      if (event.key === 'F5') {
-        event.preventDefault();
-        callbacks.onQuickSave?.();
         return;
       }
     },

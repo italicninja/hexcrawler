@@ -55,7 +55,6 @@ That's it! Watch the agent play your game.
 - ✅ Short/long rest
 - ✅ Combat encounters
 - ✅ Interior exploration
-- ✅ Quick save
 - ✅ Keyboard shortcuts
 - ✅ Console errors
 - ✅ State management

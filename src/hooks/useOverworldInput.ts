@@ -1,15 +1,13 @@
 /**
- * useOverworldInput — unified keyboard controls + quicksave extracted from
+ * useOverworldInput — unified keyboard controls extracted from
  * OverworldScene (TODO #3). Routes movement/interact/search keys to either
  * the overworld or interior handlers depending on where the player is, and
  * binds them via useKeyboardControls.
  */
-import logger from '../utils/logger';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
 import { useKeyboardControls } from './useKeyboardControls';
 import { useHexInteraction } from './useHexInteraction';
-import { SaveManager } from '../utils/SaveManager';
 import { isSettlement } from '../constants/gameConstants';
 import type { OverworldActions } from './useOverworldActions';
 import type { InteriorNavigation } from './useInteriorNavigation';
@@ -30,31 +28,6 @@ export function useOverworldInput({ overworld, interior, openPanel, enabled }: O
   // Get hex interaction handlers for current hex
   const currentHex = overworld.getCurrentHex();
   const { handleInteract, handleSearch } = useHexInteraction(currentHex ?? null);
-
-  // Handle quick save (F5)
-  const handleQuickSave = () => {
-    try {
-      const nextSlot = SaveManager.getNextQuicksaveSlot();
-      const success = SaveManager.saveToSlot(nextSlot, state);
-
-      if (success) {
-        // Get slot letter for display (A, B, or C)
-        const slotLetter =
-          nextSlot === SaveManager.SAVE_SLOTS.QUICKSAVE_A
-            ? 'A'
-            : nextSlot === SaveManager.SAVE_SLOTS.QUICKSAVE_B
-              ? 'B'
-              : 'C';
-        addMessage(`Quick saved to slot ${slotLetter}`, 'system');
-      } else {
-        addMessage('Quick save failed', 'error');
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.storage.error('Quick save error:', { error, message: msg });
-      addMessage('Quick save failed: ' + msg, 'error');
-    }
-  };
 
   // Shared movement routing: interior moves one walkable hex, overworld moves
   // one reachable hex.
@@ -188,9 +161,6 @@ export function useOverworldInput({ overworld, interior, openPanel, enabled }: O
     },
     onMap: () => {
       addMessage('Map view not yet implemented', 'info');
-    },
-    onQuickSave: () => {
-      handleQuickSave();
     },
   };
 

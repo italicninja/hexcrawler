@@ -4,7 +4,7 @@
  * ration consumption, POI discovery, the forage action + cooldown status,
  * and starting a combat encounter from a POI.
  */
-import { random } from '../utils/seededRandom';
+import { useRef } from 'react';
 import logger from '../utils/logger';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
@@ -16,7 +16,7 @@ import {
   generateWeatherFlavor,
   generatePOIFlavor,
   generateCombatIntro,
-  describeArrival,
+  nextTerrainFlavorIn,
 } from '../utils/flavorTextGenerator';
 import { Enemy } from '../game/Enemy';
 import type { Character } from '../game/Character';
@@ -31,6 +31,8 @@ export function useOverworldActions() {
   const { addMessage } = useGameLog();
 
   const isBlockingMovement = !!state.combatState?.active;
+  // Hexes left until the next terrain blurb; the log stays quiet on ordinary moves
+  const stepsToFlavorRef = useRef(nextTerrainFlavorIn());
 
   /**
    * Build consolidated hex entry message from multiple events
@@ -43,39 +45,39 @@ export function useOverworldActions() {
     hex: SceneHex,
     oldTimeOfDay: string,
     newTimeOfDay: string
-  ): { message: string; type: LogMessageType } => {
-    // Where you are (terrain, position, going, weather, a known place) always leads the entry;
-    // this replaces the old Current/Selected Hex panels.
-    const parts: string[] = [
-      describeArrival({
-        ...hex,
-        knownPlace: hex.poi && isPoiDiscovered(hex.col, hex.row) ? hex.poi.name : null,
-      }),
-    ];
+  ): { message: string; type: LogMessageType } | null => {
+    const parts: string[] = [];
     let messageType: LogMessageType = 'info';
 
-    // Time transition (highest priority)
-    if (oldTimeOfDay !== newTimeOfDay) {
-      const timeFlavor = generateTimeTransitionFlavor(newTimeOfDay);
-      if (timeFlavor) parts.push(timeFlavor);
+    // Returning to a place you already know (new discoveries get their own message)
+    if (hex.poi && isPoiDiscovered(hex.col, hex.row)) {
+      parts.push(`You return to ${hex.poi.name}.`);
     }
 
-    // Weather warning (changes message type to 'warning')
+    // Time transition
+    if (oldTimeOfDay !== newTimeOfDay) {
+      const timeFlavor = generateTimeTransitionFlavor(newTimeOfDay);
+      if (timeFlavor) parts.push(`${timeFlavor}.`);
+    }
+
+    // Extreme weather only (changes message type to 'warning')
     if (hex.weather) {
       const weatherFlavor = generateWeatherFlavor(hex.weather.condition ?? '');
       if (weatherFlavor) {
-        parts.push(weatherFlavor);
-        messageType = 'warning'; // Weather is important, use warning type
+        parts.push(`${weatherFlavor}.`);
+        messageType = 'warning';
       }
     }
 
-    // Hex entry flavor (15% chance)
-    if (random() < 0.15) {
+    // A terrain blurb every 10-15 hexes
+    stepsToFlavorRef.current -= 1;
+    if (stepsToFlavorRef.current <= 0) {
+      stepsToFlavorRef.current = nextTerrainFlavorIn();
       const flavor = generateHexEntryFlavor(hex.terrain?.key ?? '');
-      if (flavor) parts.push(flavor);
+      if (flavor) parts.push(`${flavor}.`);
     }
 
-    return { message: parts.join(' '), type: messageType };
+    return parts.length ? { message: parts.join(' '), type: messageType } : null;
   };
 
   // Get adjacent hexes (6 neighbors in hex grid) - Uses HexGrid spatial index for O(1) lookup
@@ -301,7 +303,7 @@ export function useOverworldActions() {
     const newTimeOfDay = getTimeOfDay(newTime.hour);
 
     const hexEntryMsg = buildHexEntryMessage(hex, oldTimeOfDay, newTimeOfDay);
-    addMessage(hexEntryMsg.message, hexEntryMsg.type);
+    if (hexEntryMsg) addMessage(hexEntryMsg.message, hexEntryMsg.type);
 
     // Check for POI discovery
     if (hex.poi) {
@@ -318,16 +320,10 @@ export function useOverworldActions() {
           payload: { col: hex.col, row: hex.row },
         });
 
-        // Build discovery message with optional flavor (20% chance)
+        // Discovery message, with a blurb about the place when its type has one
         let discoveryMsg = `You discovered: ${hex.poi.name}!`;
-
-        // Add POI flavor inline (20% chance)
-        if (random() < 0.2) {
-          const poiFlavor = generatePOIFlavor(hex.poi.type ?? '', hex.poi.cr || 1);
-          if (poiFlavor) {
-            discoveryMsg += ` - ${poiFlavor}`;
-          }
-        }
+        const poiFlavor = generatePOIFlavor(hex.poi.type ?? '', hex.poi.cr || 1);
+        if (poiFlavor) discoveryMsg += ` ${poiFlavor}.`;
 
         addMessage(discoveryMsg, 'discovery');
 
