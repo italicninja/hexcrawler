@@ -5,6 +5,9 @@
  * This eliminates code duplication in map generation and terrain expansion.
  */
 
+import { GAME_DEFAULTS, POI_SPAWN, isSettlement } from '../constants/gameConstants';
+import { getHexDistance } from './hexMath';
+
 interface TerrainType {
   name: string;
   [key: string]: unknown;
@@ -17,8 +20,8 @@ interface POISystemLike {
     col: number,
     row: number,
     terrain: TerrainType,
-    playerLevel: number,
-    partySize: number,
+    startCol: number,
+    startRow: number,
     random: () => number
   ): unknown;
 }
@@ -45,15 +48,52 @@ interface GeneratedHex {
   weather: unknown;
 }
 
+/** Terrain a settlement can be built on (matches the starting map's settlement scoring). */
+const SETTLED_TERRAIN = ['Grassland', 'Forest', 'Hills'];
+
+/** Settlement size by where the hex's roll falls within the settlement chance (bigger = rarer). */
+const EXPANSION_SETTLEMENTS: [type: string, upTo: number][] = [
+  ['city', 0.05],
+  ['town', 0.2],
+  ['village', 0.55],
+  ['camp', 1],
+];
+
+const settlementRoll = (tg: TerrainGeneratorLike, col: number, row: number) =>
+  tg.streamFor('settlement', col, row)();
+
 /**
- * Generates a POI for a hex based on terrain type
+ * Settlement type for this hex, or null. A hex settles when its roll is under the chance
+ * AND is the lowest roll within the spacing radius, so settlements stay
+ * POI_SPAWN.SETTLEMENT_MIN_SPACING apart using only seed + coords (chunk order can't matter).
+ */
+function settlementForHex(tg: TerrainGeneratorLike, col: number, row: number): string | null {
+  const roll = settlementRoll(tg, col, row);
+  if (roll >= POI_SPAWN.EXPANSION_SETTLEMENT_CHANCE) return null;
+
+  const r = POI_SPAWN.SETTLEMENT_MIN_SPACING - 1;
+  for (let dr = -r; dr <= r; dr++) {
+    for (let dc = -r; dc <= r; dc++) {
+      if (!dc && !dr) continue;
+      if (getHexDistance(col, row, col + dc, row + dr) > r) continue;
+      if (settlementRoll(tg, col + dc, row + dr) < roll) return null;
+    }
+  }
+
+  const u = roll / POI_SPAWN.EXPANSION_SETTLEMENT_CHANCE;
+  return EXPANSION_SETTLEMENTS.find(([, upTo]) => u < upTo)![0];
+}
+
+/**
+ * Generates a POI for a hex beyond the starting map: a spaced-out settlement on habitable
+ * terrain, otherwise (at `chance`) a terrain-appropriate site or encounter.
  */
 export function generatePOIForHex(
   terrainGenerator: TerrainGeneratorLike | null,
   terrainType: TerrainType | null,
   col: number,
   row: number,
-  chance = 0.2,
+  chance: number = POI_SPAWN.EXPANSION_SITE_CHANCE,
   random: () => number = () => terrainGenerator!.random()
 ): unknown {
   if (!terrainGenerator || !terrainType) {
@@ -65,33 +105,32 @@ export function generatePOIForHex(
     return null;
   }
 
+  const { poiSystem } = terrainGenerator;
+  const { col: startCol, row: startRow } = GAME_DEFAULTS.START_POSITION;
+
+  const settlement = SETTLED_TERRAIN.includes(terrainType.name)
+    ? settlementForHex(terrainGenerator, col, row)
+    : null;
+  if (settlement) {
+    return poiSystem.generatePOI(settlement, col, row, terrainType, startCol, startRow, random);
+  }
+
   // Check if POI should be generated based on chance
   if (random() >= chance) {
     return null;
   }
 
-  // Get POI types suitable for this terrain
-  const suitableTypes = terrainGenerator.poiSystem.getPOITypesForTerrain(terrainType);
+  // Sites only — settlements come from the spaced roll above
+  const suitableTypes = poiSystem
+    .getPOITypesForTerrain(terrainType)
+    ?.filter(t => !isSettlement(t));
 
   if (!suitableTypes || suitableTypes.length === 0) {
     return null;
   }
 
-  // Select random POI type from suitable types
   const poiType = suitableTypes[Math.floor(random() * suitableTypes.length)];
-
-  // Generate POI using terrain generator's POI system
-  const poi = terrainGenerator.poiSystem.generatePOI(
-    poiType,
-    col,
-    row,
-    terrainType,
-    10, // playerLevel
-    7, // partySize
-    random
-  );
-
-  return poi;
+  return poiSystem.generatePOI(poiType, col, row, terrainType, startCol, startRow, random);
 }
 
 /**
@@ -104,7 +143,7 @@ export function generateHex(
   mapWidth: number,
   mapHeight: number,
   terrainVariety = 0.5,
-  poiChance = 0.2
+  poiChance: number = POI_SPAWN.EXPANSION_SITE_CHANCE
 ): GeneratedHex {
   if (!terrainGenerator) {
     throw new Error('poiGenerationHelper.generateHex: terrainGenerator is required');

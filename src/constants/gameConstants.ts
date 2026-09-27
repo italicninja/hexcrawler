@@ -389,15 +389,11 @@ export const ENCOUNTER_DIFFICULTY_BY_LEVEL = ['low', 'low', 'moderate', 'high', 
 // POI SPAWN RATES
 // ===================
 export const POI_SPAWN = {
-  TOWN: 0.1, // 10% chance
-  VILLAGE: 0.08, // 8% chance
-  CAMP: 0.05, // 5% chance
-  DUNGEON: 0.05, // 5% chance
-  CAVE: 0.04, // 4% chance
-  RUINS: 0.025, // 2.5% chance
-  TOWER: 0.02, // 2% chance
-  SHRINE: 0.03, // 3% chance
-  LAIR: 0.02, // 2% chance
+  /** Settlements are at least this many hexes apart (3 hexes ≈ 18 miles, under a day's walk). */
+  SETTLEMENT_MIN_SPACING: 3,
+  /** Per-hex chances beyond the starting map; tuned to match its density (~2% sites, ~1% settlements). */
+  EXPANSION_SITE_CHANCE: 0.03,
+  EXPANSION_SETTLEMENT_CHANCE: 0.02,
 };
 
 // ===================
