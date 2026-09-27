@@ -128,6 +128,17 @@ export function getTravelMinutes(terrainDifficulty = 1): number {
 }
 
 /**
+ * Build a natural-language travel-time string from a hex distance, assuming open ground
+ * (HEXES_PER_TRAVEL_DAY hexes per 8-hour travel day).
+ */
+export function formatTravelTime(hexDistance: number): string {
+  const days = hexDistance / HEXES_PER_TRAVEL_DAY;
+  if (days <= 0.5) return "half a day's walk";
+  if (days <= 1) return "a day's walk";
+  return `${Math.round(days)} days' walk`;
+}
+
+/**
  * Gets a random combat duration
  * @returns Minutes (5-10)
  */
@@ -189,6 +200,7 @@ export function getTimeUntilDusk(gameTime: GameTime): number {
 
 export default {
   createGameTime,
+  formatTravelTime,
   advanceTime,
   formatTime,
   isNight,

@@ -513,24 +513,13 @@ export const SHOP = {
 // ===================
 // QUEST GENERATION
 // ===================
-export const QUEST_COUNTS_BY_SIZE: Record<string, { min: number; max: number }> = {
-  camp: { min: 0, max: 1 },
-  village: { min: 1, max: 2 },
-  town: { min: 2, max: 3 },
-  city: { min: 2, max: 4 },
-  metropolis: { min: 3, max: 5 },
-};
-
 export const QUEST = {
-  CAMP_QUEST_COUNT: 1,
-  VILLAGE_QUEST_COUNT: 2,
-  TOWN_QUEST_COUNT: 3,
-  CITY_QUEST_COUNT: 5,
-  METROPOLIS_QUEST_COUNT: 7,
-  QUEST_REFRESH_DAYS: 7,
-  BASE_XP_REWARD: 100,
-  BASE_GOLD_REWARD: 50,
-  REWARD_MULTIPLIER_PER_CR: 1.5,
+  /** Boards reroll every this many days (long enough to finish a job before it vanishes). */
+  REFRESH_DAYS: 14,
+  /** Board targets lie this many hexes out: half a day to 3 days' walk. */
+  BOARD_RADIUS: { MIN: 2, MAX: 12 },
+  /** Jobs posted per board, by settlement size. */
+  BOARD_COUNT: { camp: 1, village: 2, town: 3, city: 4, metropolis: 5 } as Record<string, number>,
 };
 
 // ===================

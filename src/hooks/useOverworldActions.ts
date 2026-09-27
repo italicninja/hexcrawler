@@ -280,6 +280,12 @@ export function useOverworldActions() {
       payload: { col: hex.col, row: hex.row },
     });
 
+    // Reaching a hex completes visit objectives and letter deliveries addressed to it
+    dispatch({
+      type: actions.QUEST_EVENT,
+      payload: { kind: 'arrive', hexKey: `${hex.col},${hex.row}` },
+    });
+
     // Log movement to debug console (not to GameLog)
     logger.movement.debug('Player moved to hex', {
       col: hex.col,

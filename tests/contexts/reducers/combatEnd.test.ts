@@ -4,6 +4,8 @@ import { ACTIONS } from '../../../src/contexts/GameStateContext';
 import { createInitialState } from '../../../src/contexts/initialState';
 import { Character } from '../../../src/game/Character';
 import { Party } from '../../../src/game/Party';
+import { Quest } from '../../../src/game/Quest';
+import { HexGrid } from '../../../src/utils/HexGrid';
 import { stepCR, formatCR } from '../../../src/constants/gameConstants';
 
 /** State mid-fight: the player clone took damage and spent a Rage. */
@@ -68,6 +70,56 @@ describe('END_COMBAT on victory', () => {
       { type: ACTIONS.SET_INTERIOR_MAP, payload: { key: '4,4', map: regenerated } }
     );
     expect(reloaded.interiorMaps['4,4'].encounters[0].defeated).toBe(true);
+  });
+});
+
+describe('END_COMBAT clears quest sites', () => {
+  const clearQuest = (hexKey: string) =>
+    new Quest({
+      id: 'q-clear',
+      objectives: [Quest.createClearObjective(hexKey, 'Clear it')],
+      rewards: { xp: 0, gold: 0, items: [] },
+      status: 'active',
+    });
+  const withSite = (state: any, type: string, encounters: unknown[]) => ({
+    ...state,
+    hexGrid: new HexGrid([{ col: 4, row: 4, poi: { type, name: 'The Pit' } } as any]),
+    interiorMaps: { '4,4': { encounters } },
+    activeQuests: [clearQuest('4,4')],
+  });
+  const source = { kind: 'interior', mapKey: '4,4', floorKey: '4,4:floor0', col: 2, row: 3 };
+  const win = (state: any) =>
+    reduce(state, { type: ACTIONS.END_COMBAT, payload: { victory: true } });
+
+  it('a cave is cleared once its last encounter falls, and pays out its quest', () => {
+    const cave = (others: boolean) =>
+      withSite(fightState(source).state, 'cave', [
+        { col: 2, row: 3, defeated: false },
+        { col: 5, row: 5, defeated: !others },
+      ]);
+
+    expect(win(cave(true)).activeQuests).toHaveLength(1); // another encounter still stands
+
+    const after = win(cave(false));
+    expect(after.activeQuests).toHaveLength(0);
+    expect(after.completedQuests[0].id).toBe('q-clear');
+    expect(after.explorationState.clearedEncounters.sites.has('4,4')).toBe(true);
+  });
+
+  it('a dungeon needs its boss; the fight at the door does not count', () => {
+    const minion = withSite(fightState(source).state, 'dungeon', [{ col: 2, row: 3 }]);
+    expect(win(minion).activeQuests).toHaveLength(1);
+
+    const boss = withSite(fightState(source).state, 'dungeon', [{ col: 2, row: 3, isBoss: true }]);
+    expect(win(boss).activeQuests).toHaveLength(0);
+
+    const door = withSite(fightState({ kind: 'poi', col: 4, row: 4 }).state, 'dungeon', []);
+    expect(win(door).activeQuests).toHaveLength(1);
+  });
+
+  it('an overworld encounter clears outright', () => {
+    const state = withSite(fightState({ kind: 'poi', col: 4, row: 4 }).state, 'encounter', []);
+    expect(win(state).activeQuests).toHaveLength(0);
   });
 });
 

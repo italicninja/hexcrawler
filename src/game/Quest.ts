@@ -15,8 +15,13 @@ export const ObjectiveType = {
   COLLECT: 'collect',
   VISIT: 'visit',
   DELIVER: 'deliver',
+  CLEAR: 'clear',
 } as const;
 
+/**
+ * Targets are ids, not display names: VISIT/CLEAR target a "col,row" hex key, DELIVER
+ * targets an item name and its recipient is the destination hex key.
+ */
 export interface QuestObjective {
   type: string;
   target: string;
@@ -44,6 +49,13 @@ export interface QuestConfig {
   location?: string;
   /** Recommended/difficulty level for the quest (set by QuestGenerator). */
   level?: number;
+  /** Hex key of the settlement to hand the quest in at; absent = completes on its own. */
+  turnInAt?: string;
+  /** Item configs put in the player's inventory on accept (e.g. a courier's letter). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  grantItems?: any[];
+  /** Hex keys marked as discovered on accept (e.g. places circled on a map). */
+  reveal?: string[];
 }
 
 /**
@@ -60,6 +72,10 @@ export class Quest {
   questGiver: string;
   location: string;
   level: number;
+  turnInAt?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  grantItems: any[];
+  reveal: string[];
 
   constructor(config: QuestConfig = {}) {
     this.id = config.id || `quest_${Date.now()}`;
@@ -71,6 +87,9 @@ export class Quest {
     this.questGiver = config.questGiver || 'Unknown';
     this.location = config.location || 'Unknown';
     this.level = config.level ?? 1;
+    this.turnInAt = config.turnInAt;
+    this.grantItems = config.grantItems || [];
+    this.reveal = config.reveal || [];
   }
 
   /**
@@ -153,6 +172,9 @@ export class Quest {
       questGiver: this.questGiver,
       location: this.location,
       level: this.level,
+      turnInAt: this.turnInAt,
+      grantItems: this.grantItems.map(item => ({ ...item })),
+      reveal: [...this.reveal],
     };
   }
 
@@ -171,6 +193,9 @@ export class Quest {
       questGiver: json.questGiver,
       location: json.location,
       level: json.level,
+      turnInAt: json.turnInAt,
+      grantItems: (json.grantItems || []).map((item: object) => ({ ...item })),
+      reveal: [...(json.reveal || [])],
     });
   }
 
@@ -201,29 +226,34 @@ export class Quest {
   }
 
   /**
-   * Create a visit objective
+   * Create a visit objective (reach the hex)
    */
-  static createVisitObjective(target: string, required = 1): QuestObjective {
-    return {
-      type: ObjectiveType.VISIT,
-      target,
-      current: 0,
-      required,
-      description: `Visit ${target}`,
-    };
+  static createVisitObjective(hexKey: string, description: string): QuestObjective {
+    return { type: ObjectiveType.VISIT, target: hexKey, current: 0, required: 1, description };
   }
 
   /**
-   * Create a deliver objective
+   * Create a clear objective (defeat the site's encounter, or its boss for dungeons/towers)
    */
-  static createDeliverObjective(target: string, recipient: string, required = 1): QuestObjective {
+  static createClearObjective(hexKey: string, description: string): QuestObjective {
+    return { type: ObjectiveType.CLEAR, target: hexKey, current: 0, required: 1, description };
+  }
+
+  /**
+   * Create a deliver objective (carry the named item to the recipient hex)
+   */
+  static createDeliverObjective(
+    itemName: string,
+    recipientHexKey: string,
+    description: string
+  ): QuestObjective {
     return {
       type: ObjectiveType.DELIVER,
-      target,
-      recipient,
+      target: itemName,
+      recipient: recipientHexKey,
       current: 0,
-      required,
-      description: `Deliver ${required} ${target}${required > 1 ? 's' : ''} to ${recipient}`,
+      required: 1,
+      description,
     };
   }
 }

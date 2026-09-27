@@ -410,7 +410,6 @@ describe('gameReducer — NEW_GAME', () => {
       interiorFloors: { '1,1:2': {} },
       currentFloor: 2,
       failedQuests: ['q'],
-      availableQuests: ['q'],
       currentShop: { id: 'shop' },
       pendingLoot: [{ id: 'x' }],
       leveledUp: true,
@@ -428,7 +427,6 @@ describe('gameReducer — NEW_GAME', () => {
     expect(result.interiorFloors).toEqual({});
     expect(result.currentFloor).toBe(0);
     expect(result.failedQuests).toEqual([]);
-    expect(result.availableQuests).toEqual([]);
     expect(result.activeQuests).toEqual([]);
     expect(result.currentShop).toBeNull();
     expect(result.pendingLoot).toBeNull();
@@ -524,7 +522,7 @@ describe('gameReducer — LOAD_GAME reconstructs saved data', () => {
     const done = new Quest({
       id: 'q_done',
       title: 'Old Errand',
-      objectives: [Quest.createVisitObjective('village')],
+      objectives: [Quest.createVisitObjective('3,4', 'Visit the village')],
       status: 'completed',
     });
 

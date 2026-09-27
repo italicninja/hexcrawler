@@ -121,9 +121,7 @@ export function generatePOIForHex(
   }
 
   // Sites only — settlements come from the spaced roll above
-  const suitableTypes = poiSystem
-    .getPOITypesForTerrain(terrainType)
-    ?.filter(t => !isSettlement(t));
+  const suitableTypes = poiSystem.getPOITypesForTerrain(terrainType)?.filter(t => !isSettlement(t));
 
   if (!suitableTypes || suitableTypes.length === 0) {
     return null;

@@ -182,8 +182,6 @@ export interface GameState {
   activeQuests: Quest[];
   completedQuests: Quest[];
   failedQuests: Quest[];
-  availableQuests: Quest[];
-  townQuests: Record<string, Quest[]>; // hexKey → quests
 
   // Shop state
   currentShop: ShopInstance | null;

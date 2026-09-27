@@ -1,19 +1,26 @@
 /**
  * QuestLog.tsx
- * Quest tracking UI component - displays active and completed quests as a journal page
+ * Quest tracking UI component - displays active and completed quests as a journal page.
+ * Inside a settlement it also shows that settlement's quest board.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { Quest, type QuestObjective } from '../../game/Quest';
+import { generateBoardQuests } from '../../game/QuestGenerator';
+import { isSettlement } from '../../constants/gameConstants';
 import PixelIcon from './PixelIcon';
 import './QuestLog.css';
 
-type Filter = 'active' | 'completed' | 'all';
+type Filter = 'board' | 'active' | 'completed' | 'all';
 
 export default function QuestLog() {
   const { state, dispatch, actions } = useGameState();
-  const [filter, setFilter] = useState<Filter>('active');
+  const town =
+    state.inInterior && state.currentPOI && isSettlement(state.currentPOI.poi?.type)
+      ? state.currentPOI
+      : null;
+  const [filter, setFilter] = useState<Filter>(town ? 'board' : 'active');
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
 
   // State declares quests via the lightweight game/game.ts Quest interface. Active quests
@@ -23,13 +30,49 @@ export default function QuestLog() {
   const completedQuests = state.completedQuests as unknown as Quest[];
   const progressOf = (quest: Quest) => Quest.prototype.getProgress.call(quest);
   const isCompleted = (quest: Quest) => completedQuests.includes(quest);
+  const hereKey = `${state.playerPosition.col},${state.playerPosition.row}`;
+
+  // The board regenerates from seed + town + refresh period, so it isn't stored in state.
+  // Jobs already taken (or finished) are left off.
+  const { mapSeed, mapData, gameTime, explorationState, discoveredPOIs, failedQuests } = state;
+  const level = state.playerCharacter?.level ?? 1;
+  const boardQuests = useMemo(() => {
+    if (!town) return [];
+    const cleared = explorationState.clearedEncounters;
+    const taken = new Set(
+      [...activeQuests, ...completedQuests, ...(failedQuests as unknown as Quest[])].map(q => q.id)
+    );
+    return generateBoardQuests({
+      seed: mapSeed,
+      town: { col: town.col, row: town.row, name: town.poi.name, type: town.poi.type },
+      world: mapData ?? [],
+      level,
+      day: gameTime.day,
+      cleared: new Set([...(cleared.sites ?? []), ...(cleared.overworld ?? [])]),
+      discovered: discoveredPOIs,
+    }).filter(q => !taken.has(q.id));
+  }, [
+    town,
+    mapSeed,
+    mapData,
+    level,
+    gameTime.day,
+    explorationState,
+    discoveredPOIs,
+    activeQuests,
+    completedQuests,
+    failedQuests,
+  ]);
+  const isOnBoard = (quest: Quest) => boardQuests.includes(quest);
 
   const filteredQuests =
-    filter === 'completed'
-      ? completedQuests
-      : filter === 'all'
-        ? [...activeQuests, ...completedQuests]
-        : activeQuests;
+    filter === 'board'
+      ? boardQuests
+      : filter === 'completed'
+        ? completedQuests
+        : filter === 'all'
+          ? [...activeQuests, ...completedQuests]
+          : activeQuests;
   const selectedQuest = filteredQuests.find(q => q.id === selectedQuestId) || filteredQuests[0];
 
   // Auto-select first quest if none selected
@@ -47,7 +90,14 @@ export default function QuestLog() {
     }
   };
 
+  const handleAcceptQuest = (quest: Quest) => {
+    dispatch({ type: actions.ACCEPT_QUEST, payload: { quest } });
+    setFilter('active');
+    setSelectedQuestId(quest.id);
+  };
+
   const filters: { id: Filter; label: string; count: number }[] = [
+    ...(town ? [{ id: 'board' as const, label: 'Board', count: boardQuests.length }] : []),
     { id: 'active', label: 'Active', count: activeQuests.length },
     { id: 'completed', label: 'Completed', count: completedQuests.length },
     { id: 'all', label: 'All', count: activeQuests.length + completedQuests.length },
@@ -68,7 +118,9 @@ export default function QuestLog() {
 
   const renderQuestDetails = (quest: Quest) => {
     const completed = isCompleted(quest);
-    const readyToTurnIn = !completed && quest.status === 'active' && quest.isComplete();
+    const offered = isOnBoard(quest);
+    const done = !completed && !offered && quest.isComplete();
+    const readyToTurnIn = done && quest.turnInAt === hereKey;
 
     return (
       <article className="questlog-entry">
@@ -84,10 +136,12 @@ export default function QuestLog() {
             <dt>Location</dt>
             <dd>{quest.location}</dd>
           </div>
-          <div className="jp-row">
-            <dt>Progress</dt>
-            <dd>{completed ? 'Completed' : `${progressOf(quest)}%`}</dd>
-          </div>
+          {!offered && (
+            <div className="jp-row">
+              <dt>Progress</dt>
+              <dd>{completed ? 'Completed' : `${progressOf(quest)}%`}</dd>
+            </div>
+          )}
         </dl>
 
         <h4 className="jp-heading">Objectives</h4>
@@ -120,6 +174,22 @@ export default function QuestLog() {
             </li>
           ))}
         </ul>
+
+        {offered && (
+          <div className="jp-actions">
+            <button
+              type="button"
+              className="jp-link jp-link--primary"
+              onClick={() => handleAcceptQuest(quest)}
+            >
+              <PixelIcon name="check" /> Accept
+            </button>
+          </div>
+        )}
+
+        {done && !readyToTurnIn && (
+          <p className="jp-prose jp-muted">Return to {quest.location} to collect your reward.</p>
+        )}
 
         {readyToTurnIn && (
           <div className="jp-actions">
@@ -154,8 +224,9 @@ export default function QuestLog() {
 
       {filteredQuests.length === 0 ? (
         <p className="jp-prose jp-muted questlog-empty">
-          No {filter === 'all' ? '' : `${filter} `}quests are written here yet. Speak with townsfolk
-          and explore the wilds to take up new work.
+          {filter === 'board'
+            ? 'Nothing is posted on the board right now. Check back in a few days.'
+            : `No ${filter === 'all' ? '' : `${filter} `}quests are written here yet. Read the quest board in any settlement to take up new work.`}
         </p>
       ) : (
         <>
@@ -173,7 +244,11 @@ export default function QuestLog() {
                   >
                     <span className="questlog-list-title">{quest.title}</span>
                     <span className="jp-aside">
-                      {isCompleted(quest) ? 'completed' : `${progressOf(quest)}%`}
+                      {isOnBoard(quest)
+                        ? `level ${quest.level}`
+                        : isCompleted(quest)
+                          ? 'completed'
+                          : `${progressOf(quest)}%`}
                     </span>
                   </button>
                 ))}

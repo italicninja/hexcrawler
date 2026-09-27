@@ -7,6 +7,7 @@
 // @ts-ignore - logger.js will be converted to .ts in a future task
 import { random } from '../utils/seededRandom';
 import logger from '../utils/logger';
+import type { QuestConfig } from './Quest';
 
 export type ItemType = 'weapon' | 'armor' | 'consumable' | 'quest' | 'misc';
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'very rare' | 'legendary';
@@ -81,6 +82,9 @@ export class Item {
   charges: number | null;
   maxCharges: number | null;
   twoHanded: boolean;
+  /** Quest started when this item is picked up (starting-cache notes). Not saved: it's
+   *  consumed on pickup, and the quest itself is saved with the quest log. */
+  quest?: QuestConfig;
 
   /**
    * Create a new item

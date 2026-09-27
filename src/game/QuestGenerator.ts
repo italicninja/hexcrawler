@@ -1,493 +1,331 @@
 /**
- * QuestGenerator - Procedural Quest Generation System
- * Part of D&D 5e Hexcrawler - Task 4.4 (Quest Givers)
+ * QuestGenerator — quests that point at real places on the map.
  *
- * Generates quests based on character level and nearby terrain
+ *  - buildSurvivalNote / buildFlavorNote: the two notes in the starting cache. Each note's
+ *    text names a real nearby place, and picking the note up starts its quest.
+ *  - generateBoardQuests: a settlement's quest board. Seeded by map seed + town + refresh
+ *    period, so the same board comes back after a reload without being saved.
+ *
+ * Distances are in hexes (6-mile hexes, HEXES_PER_TRAVEL_DAY per day).
  */
 
 import { Quest, QuestStatus } from './Quest';
-import { DiceRoller } from './DiceRoller';
+import { formatTravelTime } from './TimeManager';
+import { createSeededRNG } from '../utils/seededRandom';
+import { getHexDistance, getCompassDirection } from '../utils/hexMath';
+import { QUEST, STARTING_CACHE, isSettlement } from '../constants/gameConstants';
 
-interface QuestLocation {
+/** Minimal overworld-hex shape the generators read. */
+export interface QuestWorldHex {
   col: number;
   row: number;
+  terrain?: unknown; // { name } on real hexes
+  poi?: { type?: string; name?: string; cr?: number } | null;
 }
 
-interface EnemyEntry {
+interface Place {
+  key: string;
   name: string;
+  type: string;
   cr: number;
-  terrains: string[];
+  terrain: string;
+  distance: number;
+  direction: string;
 }
 
-interface CollectibleItem {
-  name: string;
+type Coord = { col: number; row: number };
+
+/** Sites with interiors; "cleared" means their boss (dungeon/tower) or every encounter falls. */
+export const INTERIOR_SITE_TYPES = ['dungeon', 'tower', 'cave', 'ruins'];
+
+/** Places a clear quest can point at: overworld encounters and interiors with enemies. */
+export const isClearableSite = (type?: string) =>
+  type === 'encounter' || INTERIOR_SITE_TYPES.includes(type ?? '');
+
+const hexKey = (c: Coord) => `${c.col},${c.row}`;
+
+/** POIs matching `filter` between minDist and maxDist hexes of `from`, nearest first. */
+function placesNear(
+  world: QuestWorldHex[],
+  from: Coord,
+  filter: (type: string, key: string, cr: number) => boolean,
+  minDist: number,
+  maxDist: number
+): Place[] {
+  const places: Place[] = [];
+  for (const hex of world) {
+    const type = hex.poi?.type;
+    if (!type || !hex.poi?.name) continue;
+    const key = hexKey(hex);
+    const cr = hex.poi.cr ?? 0;
+    if (!filter(type, key, cr)) continue;
+    const distance = getHexDistance(from.col, from.row, hex.col, hex.row);
+    if (distance < minDist || distance > maxDist) continue;
+    places.push({
+      key,
+      name: hex.poi.name,
+      type,
+      cr,
+      terrain: ((hex.terrain as { name?: string } | null)?.name ?? 'wilds').toLowerCase(),
+      distance,
+      direction: getCompassDirection(hex.col - from.col, hex.row - from.row),
+    });
+  }
+  return places.sort((a, b) => a.distance - b.distance);
+}
+
+/** "a day's walk northeast" */
+const where = (p: Place) => `${formatTravelTime(p.distance)} ${p.direction}`;
+
+// ── Starting-cache notes ────────────────────────────────────────────────────
+
+export interface StartingNote {
+  text: string;
+  quest: Quest | null;
+}
+
+/** Survival note: points at the nearest settlement; reaching it completes "Reach Safety". */
+export function buildSurvivalNote(world: QuestWorldHex[], start: Coord): StartingNote {
+  const town = placesNear(world, start, type => isSettlement(type), 1, Infinity)[0];
+  if (!town) {
+    return {
+      text: 'A scrawled note reads: "If you\'re reading this, you survived the ambush. Keep moving — find the nearest settlement. Stay off the main road."',
+      quest: null,
+    };
+  }
+  return {
+    text:
+      `A scrawled note reads: "If you're reading this, you survived the ambush. ` +
+      `Head ${town.direction} — there's ${town.name} ${formatTravelTime(town.distance)}. ` +
+      `Stay off the main road."`,
+    quest: new Quest({
+      id: 'note:survival',
+      title: 'Reach Safety',
+      description: `The note in the cache says ${town.name} lies ${where(town)}. Get there before whatever ambushed you comes back.`,
+      objectives: [Quest.createVisitObjective(town.key, `Reach ${town.name} (${where(town)})`)],
+      rewards: { xp: 50, gold: 0, items: [] },
+      status: QuestStatus.ACTIVE,
+      questGiver: 'A scrawled note',
+      location: town.name,
+    }),
+  };
+}
+
+/** Flavor note `variant` (index into STARTING_CACHE.NOTES), rewritten around a real place. */
+export function buildFlavorNote(
+  world: QuestWorldHex[],
+  start: Coord,
+  variant: number
+): StartingNote {
+  const fallback = { text: STARTING_CACHE.NOTES[variant], quest: null };
+  const near = (filter: (type: string) => boolean) => placesNear(world, start, filter, 2, 16);
+  const note = (
+    id: string,
+    title: string,
+    config: Partial<ConstructorParameters<typeof Quest>[0]>
+  ) =>
+    new Quest({
+      id: `note:${id}`,
+      title,
+      status: QuestStatus.ACTIVE,
+      questGiver: 'A note in the cache',
+      rewards: { xp: 100, gold: 0, items: [] },
+      ...config,
+    });
+
+  switch (variant) {
+    case 0: {
+      // The journal writer went looking for help and never came back.
+      const site = near(type => INTERIOR_SITE_TYPES.includes(type) || type === 'shrine')[0];
+      if (!site) return fallback;
+      return {
+        text: `A torn journal page: "Day 12. Food running low. I've left what I could spare for whoever finds this place. Tomorrow I try the ${site.name}, ${where(site)}. Gods willing I find help there."`,
+        quest: note('journal', "The Writer's Trail", {
+          description: `The journal's author set out for the ${site.name} and never came back. Find out what became of them.`,
+          objectives: [
+            Quest.createVisitObjective(site.key, `Search the ${site.name} (${where(site)})`),
+          ],
+          location: site.name,
+        }),
+      };
+    }
+    case 1: {
+      // A hand-drawn map with unlabeled circles: reveal three real places.
+      const circled = near(type => !isSettlement(type) && type !== 'starting_cache').slice(0, 3);
+      if (circled.length === 0) return fallback;
+      return {
+        text: `A faded map pinned to the wall — hand-drawn, showing the local terrain. ${circled.length} places are circled but have no labels. You mark them on your own map.`,
+        quest: note('map', 'The Circled Places', {
+          description:
+            'Someone circled these places on their map and never wrote down why. Visit each of them.',
+          objectives: circled.map(p =>
+            Quest.createVisitObjective(p.key, `Visit the circled spot ${where(p)}`)
+          ),
+          reveal: circled.map(p => p.key),
+          rewards: { xp: 150, gold: 0, items: [] },
+          location: 'Marked on your map',
+        }),
+      };
+    }
+    case 2: {
+      // The warning scratched into the wall names a real, dangerous site.
+      const lair =
+        near(type => type === 'tower' || type === 'dungeon')[0] ?? near(isClearableSite)[0];
+      if (!lair) return fallback;
+      const label = lair.type === 'encounter' ? 'PLACE' : lair.type.toUpperCase();
+      return {
+        text: `Scratched into the stone wall: "Beware the ${label} to the ${lair.direction.toUpperCase()}. Do NOT enter alone."`,
+        quest: note('warning', `Beware the ${lair.type === 'encounter' ? 'Wilds' : lair.name}`, {
+          description: `Whoever hid here was afraid of the ${lair.name}, ${where(lair)}. Put an end to whatever lives there.`,
+          objectives: [Quest.createClearObjective(lair.key, `Clear the ${lair.name}`)],
+          rewards: { xp: 200, gold: 25, items: [] },
+          location: lair.name,
+        }),
+      };
+    }
+    case 3: {
+      // The merchant's attackers are a real encounter nearby.
+      const raiders = near(type => type === 'encounter')[0];
+      if (!raiders) return fallback;
+      return {
+        text: `A merchant's ledger, entries trailing off mid-sentence. The last line reads: "...they came from the ${raiders.terrain} to the ${raiders.direction} without warning—"`,
+        quest: note('ledger', 'The Merchant’s Last Entry', {
+          description: `The merchant's killers came out of the ${raiders.terrain}, ${where(raiders)}. Find them and settle the debt.`,
+          objectives: [Quest.createClearObjective(raiders.key, `Defeat the ${raiders.name}`)],
+          rewards: { xp: 150, gold: 10, items: [] },
+          location: `The ${raiders.terrain}, ${raiders.direction}`,
+        }),
+      };
+    }
+    default:
+      return fallback;
+  }
+}
+
+// ── Quest boards ────────────────────────────────────────────────────────────
+
+export interface BoardOptions {
+  seed: string;
+  town: Coord & { name: string; type: string };
+  world: QuestWorldHex[];
   level: number;
-  terrains: string[];
+  day: number;
+  /** Hex keys of sites already cleared (no quest to clear them again). */
+  cleared: Set<string>;
+  /** Hex keys of POIs the player has found (no quest to scout them). */
+  discovered: Set<string>;
 }
 
-interface DeliveryItem {
-  name: string;
-  level: number;
+/** Base reward by quest level, ±20%. */
+function rewardFor(level: number, multiplier: number, rng: () => number) {
+  const [xp, gold] =
+    level <= 2 ? [100, 50] : level <= 5 ? [300, 100] : level <= 8 ? [800, 250] : [2000, 500];
+  const roll = () => multiplier * (0.8 + rng() * 0.4);
+  return { xp: Math.floor(xp * roll()), gold: Math.floor(gold * roll()), items: [] };
 }
 
-interface QuestRewards {
-  xp: number;
-  gold: number;
-  items: string[];
+/** The refresh period a game day falls in; boards reroll when it changes. */
+export const boardPeriod = (day: number) => Math.floor((day - 1) / QUEST.REFRESH_DAYS);
+
+/** A settlement's board: clear, scout and courier jobs aimed at real places nearby. */
+export function generateBoardQuests(opts: BoardOptions): Quest[] {
+  const { town, world, level, day, cleared, discovered } = opts;
+  const townKey = hexKey(town);
+  const period = boardPeriod(day);
+  const rng = createSeededRNG(`${opts.seed}:board:${townKey}:${period}`);
+  const { MIN, MAX } = QUEST.BOARD_RADIUS;
+  const base = {
+    status: QuestStatus.AVAILABLE,
+    questGiver: `${town.name} quest board`,
+  };
+
+  const pools = {
+    clear: placesNear(
+      world,
+      town,
+      (type, key, cr) => isClearableSite(type) && cr <= level + 2 && !cleared.has(key),
+      MIN,
+      MAX
+    ),
+    scout: placesNear(
+      world,
+      town,
+      (type, key) => INTERIOR_SITE_TYPES.includes(type) && !discovered.has(key),
+      MIN,
+      MAX
+    ),
+    courier: placesNear(
+      world,
+      town,
+      (type, key) => isSettlement(type) && key !== townKey,
+      MIN,
+      MAX
+    ),
+  };
+
+  // Take one of the nearest few so boards differ without sending you across the map.
+  const take = (pool: Place[]) => pool.splice(Math.floor(rng() * Math.min(3, pool.length)), 1)[0];
+
+  const make: Record<keyof typeof pools, (p: Place, id: string) => Quest> = {
+    clear: (p, id) =>
+      new Quest({
+        ...base,
+        id,
+        title: p.type === 'encounter' ? `Bounty: ${p.name}` : `Clear the ${p.name}`,
+        description: `${town.name} will pay to be rid of the ${p.name}, ${where(p)}. Report back here when it's done.`,
+        objectives: [Quest.createClearObjective(p.key, `Clear the ${p.name} (${where(p)})`)],
+        rewards: rewardFor(Math.max(level, p.cr), 1.2, rng),
+        location: town.name,
+        turnInAt: townKey,
+        level: Math.max(1, p.cr),
+      }),
+    scout: (p, id) =>
+      new Quest({
+        ...base,
+        id,
+        title: `Scout the ${p.type}`,
+        description: `Travelers speak of a ${p.type} ${where(p)}. Find it and report back to ${town.name}.`,
+        objectives: [Quest.createVisitObjective(p.key, `Find the ${p.type} ${where(p)}`)],
+        rewards: rewardFor(level, 0.8, rng),
+        location: town.name,
+        turnInAt: townKey,
+        level,
+      }),
+    courier: (p, id) => {
+      const letter = `Sealed Letter for ${p.name}`;
+      return new Quest({
+        ...base,
+        id,
+        title: `Letter to ${p.name}`,
+        description: `Carry a sealed letter from ${town.name} to ${p.name}, ${where(p)}. You'll be paid on delivery.`,
+        objectives: [
+          Quest.createDeliverObjective(letter, p.key, `Deliver the letter to ${p.name}`),
+        ],
+        rewards: rewardFor(level, 0.6 + p.distance / 20, rng),
+        grantItems: [
+          {
+            name: letter,
+            type: 'quest',
+            description: `Addressed to ${p.name}.`,
+            weight: 0,
+            value: 0,
+          },
+        ],
+        location: p.name,
+        level,
+      });
+    },
+  };
+
+  const kinds = Object.keys(pools) as (keyof typeof pools)[];
+  const offset = Math.floor(rng() * kinds.length);
+  const count = QUEST.BOARD_COUNT[town.type] ?? 1;
+  const quests: Quest[] = [];
+  // Round-robin the kinds, skipping any whose pool ran dry (bounded so dry pools can't spin).
+  for (let i = 0; quests.length < count && i < count * 2 + kinds.length; i++) {
+    const kind = kinds[(offset + i) % kinds.length];
+    const place = take(pools[kind]);
+    if (place) quests.push(make[kind](place, `board:${townKey}:${period}:${quests.length}`));
+  }
+  return quests;
 }
-
-export class QuestGenerator {
-  roller: DiceRoller;
-
-  constructor(seed: string | null = null) {
-    this.roller = new DiceRoller(seed);
-  }
-
-  /**
-   * Generate a random quest
-   */
-  generateQuest(
-    level: number,
-    location: QuestLocation,
-    questGiverName = 'Town Elder',
-    nearbyTerrain: string[] = []
-  ): Quest {
-    const questTypes = ['kill', 'collect', 'explore', 'deliver'];
-    const questType = questTypes[Math.floor(this.roller.random() * questTypes.length)];
-
-    let quest;
-    switch (questType) {
-      case 'kill':
-        quest = this.generateKillQuest(level, location, questGiverName, nearbyTerrain);
-        break;
-      case 'collect':
-        quest = this.generateCollectQuest(level, location, questGiverName, nearbyTerrain);
-        break;
-      case 'explore':
-        quest = this.generateExploreQuest(level, location, questGiverName, nearbyTerrain);
-        break;
-      case 'deliver':
-        quest = this.generateDeliverQuest(level, location, questGiverName, nearbyTerrain);
-        break;
-      default:
-        quest = this.generateKillQuest(level, location, questGiverName, nearbyTerrain);
-    }
-
-    return quest;
-  }
-
-  /**
-   * Generate a kill quest
-   */
-  generateKillQuest(
-    level: number,
-    location: QuestLocation,
-    questGiverName: string,
-    nearbyTerrain: string[]
-  ): Quest {
-    const difficulty = level + Math.floor(this.roller.random() * 3) - 1; // ±1 level variance
-    const enemy = this.selectEnemyForLevel(difficulty, nearbyTerrain);
-    const count = 5 + Math.floor(difficulty * 1.5) + Math.floor(this.roller.random() * 5);
-
-    const title = this.getKillQuestTitle(enemy.name);
-    const description = this.getKillQuestDescription(enemy.name, count);
-
-    const objectives = [Quest.createKillObjective(enemy.name, count)];
-
-    const rewards = this.calculateRewards(difficulty, 'kill');
-
-    return new Quest({
-      title,
-      description,
-      objectives,
-      rewards,
-      status: QuestStatus.AVAILABLE,
-      questGiver: questGiverName,
-      location: `${location.col},${location.row}`,
-      level: difficulty,
-    });
-  }
-
-  /**
-   * Generate a collect quest
-   */
-  generateCollectQuest(
-    level: number,
-    location: QuestLocation,
-    questGiverName: string,
-    nearbyTerrain: string[]
-  ): Quest {
-    const difficulty = level + Math.floor(this.roller.random() * 3) - 1;
-    const item = this.selectCollectibleItem(difficulty, nearbyTerrain);
-    const count = 3 + Math.floor(this.roller.random() * 6); // 3-8 items
-
-    const title = this.getCollectQuestTitle(item.name);
-    const description = this.getCollectQuestDescription(item.name, count);
-
-    const objectives = [Quest.createCollectObjective(item.name, count)];
-
-    const rewards = this.calculateRewards(difficulty, 'collect');
-
-    return new Quest({
-      title,
-      description,
-      objectives,
-      rewards,
-      status: QuestStatus.AVAILABLE,
-      questGiver: questGiverName,
-      location: `${location.col},${location.row}`,
-      level: difficulty,
-    });
-  }
-
-  /**
-   * Generate an explore quest
-   */
-  generateExploreQuest(
-    level: number,
-    location: QuestLocation,
-    questGiverName: string,
-    nearbyTerrain: string[]
-  ): Quest {
-    const difficulty = level + Math.floor(this.roller.random() * 3) - 1;
-    const poiType = this.selectPOIType(nearbyTerrain);
-
-    const title = this.getExploreQuestTitle(poiType);
-    const description = this.getExploreQuestDescription(poiType);
-
-    const objectives = [Quest.createVisitObjective(poiType, 1)];
-
-    const rewards = this.calculateRewards(difficulty, 'explore');
-
-    return new Quest({
-      title,
-      description,
-      objectives,
-      rewards,
-      status: QuestStatus.AVAILABLE,
-      questGiver: questGiverName,
-      location: `${location.col},${location.row}`,
-      level: difficulty,
-    });
-  }
-
-  /**
-   * Generate a delivery quest
-   */
-  generateDeliverQuest(
-    level: number,
-    location: QuestLocation,
-    questGiverName: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    nearbyTerrain: string[]
-  ): Quest {
-    const difficulty = level + Math.floor(this.roller.random() * 3) - 1;
-    const item = this.selectDeliveryItem(difficulty);
-    const recipient = this.generateRecipientName();
-
-    const title = `Deliver ${item.name}`;
-    const description = `${questGiverName} needs you to deliver ${item.name} to ${recipient} in a nearby town. The journey may be dangerous, so stay alert.`;
-
-    const objectives = [Quest.createDeliverObjective(item.name, recipient, 1)];
-
-    const rewards = this.calculateRewards(difficulty, 'deliver');
-
-    return new Quest({
-      title,
-      description,
-      objectives,
-      rewards,
-      status: QuestStatus.AVAILABLE,
-      questGiver: questGiverName,
-      location: `${location.col},${location.row}`,
-      level: difficulty,
-    });
-  }
-
-  /**
-   * Select enemy appropriate for level
-   */
-  selectEnemyForLevel(level: number, nearbyTerrain: string[] = []): EnemyEntry {
-    const enemies: Record<string, EnemyEntry[]> = {
-      low: [
-        { name: 'Goblin', cr: 0, terrains: ['forest', 'hills'] },
-        { name: 'Wolf', cr: 0, terrains: ['forest', 'grassland'] },
-        { name: 'Bandit', cr: 1, terrains: ['grassland', 'forest'] },
-        { name: 'Skeleton', cr: 0, terrains: ['desert', 'swamp'] },
-        { name: 'Giant Rat', cr: 0, terrains: ['swamp', 'forest'] },
-      ],
-      medium: [
-        { name: 'Orc', cr: 2, terrains: ['hills', 'mountain'] },
-        { name: 'Hobgoblin', cr: 2, terrains: ['forest', 'hills'] },
-        { name: 'Ogre', cr: 3, terrains: ['mountain', 'hills'] },
-        { name: 'Ghoul', cr: 2, terrains: ['swamp', 'desert'] },
-        { name: 'Worg', cr: 2, terrains: ['forest', 'grassland'] },
-      ],
-      high: [
-        { name: 'Troll', cr: 5, terrains: ['swamp', 'mountain'] },
-        { name: 'Hill Giant', cr: 6, terrains: ['mountain', 'hills'] },
-        { name: 'Wyvern', cr: 6, terrains: ['mountain'] },
-        { name: 'Vampire Spawn', cr: 5, terrains: ['forest', 'swamp'] },
-        { name: 'Chimera', cr: 6, terrains: ['mountain', 'desert'] },
-      ],
-    };
-
-    let category;
-    if (level <= 3) {
-      category = 'low';
-    } else if (level <= 7) {
-      category = 'medium';
-    } else {
-      category = 'high';
-    }
-
-    const candidates = enemies[category];
-
-    // Try to match terrain if available
-    if (nearbyTerrain && nearbyTerrain.length > 0) {
-      const terrainMatches = candidates.filter(enemy =>
-        enemy.terrains.some(t => nearbyTerrain.includes(t))
-      );
-      if (terrainMatches.length > 0) {
-        return terrainMatches[Math.floor(this.roller.random() * terrainMatches.length)];
-      }
-    }
-
-    // Otherwise, random selection
-    return candidates[Math.floor(this.roller.random() * candidates.length)];
-  }
-
-  /**
-   * Select collectible item
-   */
-  selectCollectibleItem(level: number, nearbyTerrain: string[] = []): CollectibleItem {
-    const items: CollectibleItem[] = [
-      { name: 'Wolf Pelt', level: 1, terrains: ['forest', 'grassland'] },
-      { name: 'Goblin Ear', level: 1, terrains: ['forest', 'hills'] },
-      { name: 'Rare Herb', level: 2, terrains: ['forest', 'swamp'] },
-      { name: 'Ancient Coin', level: 3, terrains: ['desert', 'mountain'] },
-      { name: 'Crystal Shard', level: 4, terrains: ['mountain'] },
-      { name: 'Mushroom Spore', level: 2, terrains: ['swamp', 'forest'] },
-      { name: 'Dragon Scale', level: 7, terrains: ['mountain'] },
-      { name: 'Phoenix Feather', level: 8, terrains: ['desert', 'mountain'] },
-    ];
-
-    const levelAppropriate = items.filter(item => item.level <= level + 1);
-
-    // Try terrain matching
-    if (nearbyTerrain && nearbyTerrain.length > 0) {
-      const terrainMatches = levelAppropriate.filter(item =>
-        item.terrains.some(t => nearbyTerrain.includes(t))
-      );
-      if (terrainMatches.length > 0) {
-        return terrainMatches[Math.floor(this.roller.random() * terrainMatches.length)];
-      }
-    }
-
-    return levelAppropriate[Math.floor(this.roller.random() * levelAppropriate.length)] || items[0];
-  }
-
-  /**
-   * Select POI type for exploration
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  selectPOIType(nearbyTerrain: string[] = []): string {
-    const poiTypes = ['cave', 'ruins', 'tower', 'dungeon'];
-    return poiTypes[Math.floor(this.roller.random() * poiTypes.length)];
-  }
-
-  /**
-   * Select delivery item
-   */
-  selectDeliveryItem(level: number): DeliveryItem {
-    const items: DeliveryItem[] = [
-      { name: 'Sealed Letter', level: 1 },
-      { name: 'Package of Supplies', level: 1 },
-      { name: 'Valuable Artifact', level: 3 },
-      { name: 'Magical Scroll', level: 4 },
-      { name: 'Family Heirloom', level: 2 },
-    ];
-
-    const appropriate = items.filter(item => item.level <= level + 1);
-    return appropriate[Math.floor(this.roller.random() * appropriate.length)] || items[0];
-  }
-
-  /**
-   * Generate recipient name for delivery quests
-   */
-  generateRecipientName(): string {
-    const firstNames = ['Eldrin', 'Mara', 'Theron', 'Lyra', 'Gareth', 'Selene', 'Bran', 'Aria'];
-    const titles = ['the Wise', 'the Brave', 'the Merchant', 'the Smith', 'the Healer'];
-
-    const firstName = firstNames[Math.floor(this.roller.random() * firstNames.length)];
-    const title = titles[Math.floor(this.roller.random() * titles.length)];
-
-    return `${firstName} ${title}`;
-  }
-
-  /**
-   * Calculate quest rewards based on difficulty
-   */
-  calculateRewards(difficulty: number, questType: string): QuestRewards {
-    let xpBase: number;
-    let goldBase: number;
-
-    // Base rewards by level
-    if (difficulty <= 2) {
-      xpBase = 100;
-      goldBase = 50;
-    } else if (difficulty <= 5) {
-      xpBase = 300;
-      goldBase = 100;
-    } else if (difficulty <= 8) {
-      xpBase = 800;
-      goldBase = 250;
-    } else {
-      xpBase = 2000;
-      goldBase = 500;
-    }
-
-    // Modify by quest type
-    const typeMultipliers: Record<string, number> = {
-      kill: 1.2,
-      collect: 1.0,
-      explore: 1.1,
-      deliver: 0.9,
-    };
-
-    const multiplier = typeMultipliers[questType] || 1.0;
-
-    const xp = Math.floor(xpBase * multiplier * (0.8 + this.roller.random() * 0.4)); // ±20% variance
-    const gold = Math.floor(goldBase * multiplier * (0.8 + this.roller.random() * 0.4));
-
-    const rewards: QuestRewards = { xp, gold, items: [] };
-
-    // 20% chance of item reward
-    if (this.roller.random() < 0.2) {
-      rewards.items.push(this.generateRewardItem(difficulty));
-    }
-
-    return rewards;
-  }
-
-  /**
-   * Generate a reward item
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  generateRewardItem(level: number): string {
-    const items = [
-      'Healing Potion',
-      'Magic Dagger +1',
-      'Ring of Protection',
-      'Cloak of Resistance',
-      'Scroll of Fireball',
-    ];
-
-    return items[Math.floor(this.roller.random() * items.length)];
-  }
-
-  /**
-   * Get kill quest title
-   */
-  getKillQuestTitle(enemyName: string): string {
-    const templates = [
-      `${enemyName} Menace`,
-      `Clear the ${enemyName}s`,
-      `Hunt the ${enemyName}s`,
-      `${enemyName} Extermination`,
-      `Eliminate the ${enemyName} Threat`,
-    ];
-    return templates[Math.floor(this.roller.random() * templates.length)];
-  }
-
-  /**
-   * Get kill quest description
-   */
-  getKillQuestDescription(enemyName: string, count: number): string {
-    const templates = [
-      `A pack of ${enemyName}s has been terrorizing the area. Defeat ${count} of them to restore peace.`,
-      `The local militia is overwhelmed by ${enemyName} attacks. Help them by eliminating ${count} ${enemyName}s.`,
-      `${count} ${enemyName}s have been spotted near trade routes. Clear them out to make travel safe again.`,
-      `Villagers are living in fear of ${enemyName} raids. Slay ${count} of these creatures to protect the innocent.`,
-    ];
-    return templates[Math.floor(this.roller.random() * templates.length)];
-  }
-
-  /**
-   * Get collect quest title
-   */
-  getCollectQuestTitle(itemName: string): string {
-    const templates = [
-      `Gather ${itemName}s`,
-      `${itemName} Collection`,
-      `In Search of ${itemName}s`,
-      `The ${itemName} Bounty`,
-    ];
-    return templates[Math.floor(this.roller.random() * templates.length)];
-  }
-
-  /**
-   * Get collect quest description
-   */
-  getCollectQuestDescription(itemName: string, count: number): string {
-    const templates = [
-      `I need ${count} ${itemName}s for my research. Bring them to me and you'll be well compensated.`,
-      `The town needs ${count} ${itemName}s. Search the wilderness and return with what you find.`,
-      `A rare opportunity! I'll pay handsomely for ${count} ${itemName}s. Can you help?`,
-      `Gather ${count} ${itemName}s from the surrounding area. They're valuable and I need them urgently.`,
-    ];
-    return templates[Math.floor(this.roller.random() * templates.length)];
-  }
-
-  /**
-   * Get explore quest title
-   */
-  getExploreQuestTitle(poiType: string): string {
-    const templates: Record<string, string[]> = {
-      cave: ['Explore the Dark Cave', 'Mystery of the Cave', 'Cave Expedition'],
-      ruins: ['Ancient Ruins Discovery', 'Explore the Ruins', 'Lost Ruins Investigation'],
-      tower: ['Tower of Secrets', 'Explore the Tower', 'The Abandoned Tower'],
-      dungeon: ['Dungeon Delve', 'Explore the Dungeon', 'The Forgotten Dungeon'],
-    };
-
-    const options = templates[poiType] || templates['cave'];
-    return options[Math.floor(this.roller.random() * options.length)];
-  }
-
-  /**
-   * Get explore quest description
-   */
-  getExploreQuestDescription(poiType: string): string {
-    const templates: Record<string, string> = {
-      cave: 'A mysterious cave has been discovered nearby. Explore it and report what you find.',
-      ruins: 'Ancient ruins hold secrets of the past. Venture inside and uncover their mysteries.',
-      tower: 'An old tower stands abandoned. Investigate it and return with your findings.',
-      dungeon: 'A dungeon entrance has been found. Brave its depths and discover what lies within.',
-    };
-
-    return templates[poiType] || templates['cave'];
-  }
-
-  /**
-   * Generate multiple quests for a town
-   */
-  generateTownQuests(
-    level: number,
-    location: QuestLocation,
-    count = 3,
-    nearbyTerrain: string[] = []
-  ): Quest[] {
-    const questGivers = ['Village Elder', 'Town Guard Captain', 'Local Merchant', 'Traveling Sage'];
-
-    const quests: Quest[] = [];
-    for (let i = 0; i < count; i++) {
-      const questGiver = questGivers[i % questGivers.length];
-      const quest = this.generateQuest(level, location, questGiver, nearbyTerrain);
-      quests.push(quest);
-    }
-
-    return quests;
-  }
-}
-
-export default QuestGenerator;

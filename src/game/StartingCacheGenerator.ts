@@ -20,16 +20,7 @@ import { Item } from './Item';
 import { InteriorGenerator } from './InteriorGenerator';
 import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { STARTING_CACHE, GAME_DEFAULTS } from '../constants/gameConstants';
-import { getHexDistance } from '../utils/hexMath';
-import { HEXES_PER_TRAVEL_DAY } from './TimeManager';
-import { isSettlement } from '../constants/gameConstants';
-
-/** Minimal overworld-hex shape needed to locate settlements. */
-interface WorldHex {
-  col: number;
-  row: number;
-  poi?: { type?: string; name?: string } | null;
-}
+import { buildSurvivalNote, buildFlavorNote, type QuestWorldHex } from './QuestGenerator';
 
 /** A hand-placed room in the starting cache (x/y top-left + size). */
 interface CacheRoom {
@@ -46,103 +37,7 @@ interface CacheMap {
   [key: string]: unknown;
 }
 
-interface NearestSettlement {
-  name: string;
-  col: number;
-  row: number;
-  distance: number;
-  direction: string;
-}
 
-
-/**
- * Given a delta (target - origin) in offset-grid col/row space, return the
- * nearest cardinal/intercardinal compass direction as a lowercase string.
- */
-function getCompassDirection(dCol: number, dRow: number): string {
-  // In an offset hex grid, increasing row goes DOWN on screen (south),
-  // increasing col goes RIGHT (east).  We treat dRow as the N/S axis and
-  // dCol as the E/W axis, then snap to the 8 compass points.
-  const angle = Math.atan2(dRow, dCol) * (180 / Math.PI); // –180 … +180
-  // Rotate so that 0° = East, positive = clockwise
-  const dirs = [
-    'east',
-    'southeast',
-    'south',
-    'southwest',
-    'west',
-    'northwest',
-    'north',
-    'northeast',
-  ];
-  const index = Math.round((((angle % 360) + 360) % 360) / 45) % 8;
-  return dirs[index];
-}
-
-/**
- * Build a natural-language travel-time string from a hex distance, assuming open ground
- * (HEXES_PER_TRAVEL_DAY hexes per 8-hour travel day).
- */
-export function formatTravelTime(hexDistance: number): string {
-  const days = hexDistance / HEXES_PER_TRAVEL_DAY;
-  if (days <= 0.5) return "half a day's walk";
-  if (days <= 1) return "a day's walk";
-  return `${Math.round(days)} days' walk`;
-}
-
-/**
- * Find the nearest settlement hex to the starting position.
- * Returns { name, col, row, distance, direction } or null if none found.
- */
-function findNearestSettlement(
-  worldHexes: WorldHex[],
-  startCol: number,
-  startRow: number
-): NearestSettlement | null {
-  let nearest: WorldHex | null = null;
-  let nearestDist = Infinity;
-
-  for (const hex of worldHexes) {
-    if (!hex.poi || !hex.poi.type || !isSettlement(hex.poi.type)) continue;
-    // Skip the starting cache itself
-    if (hex.col === startCol && hex.row === startRow) continue;
-
-    const dist = getHexDistance(startCol, startRow, hex.col, hex.row);
-    if (dist < nearestDist) {
-      nearestDist = dist;
-      nearest = hex;
-    }
-  }
-
-  if (!nearest || !nearest.poi || !nearest.poi.name) return null;
-
-  return {
-    name: nearest.poi.name,
-    col: nearest.col,
-    row: nearest.row,
-    distance: nearestDist,
-    direction: getCompassDirection(nearest.col - startCol, nearest.row - startRow),
-  };
-}
-
-/**
- * Build the dynamic survival note text using real world data.
- * Falls back to a vague version if no settlement is found.
- */
-function buildSurvivalNote(worldHexes: WorldHex[], startCol: number, startRow: number): string {
-  const settlement = findNearestSettlement(worldHexes, startCol, startRow);
-
-  if (!settlement) {
-    return 'A scrawled note reads: "If you\'re reading this, you survived the ambush. Keep moving — find the nearest settlement. Stay off the main road."';
-  }
-
-  const travelTime = formatTravelTime(settlement.distance);
-  return (
-    `A scrawled note reads: "If you're reading this, you survived the ambush. ` +
-    `Head ${settlement.direction} — there's ${settlement.name} ${travelTime}. ` +
-    `Stay off the main road."`
-  );
-}
 
 export class StartingCacheGenerator extends InteriorGenerator {
   constructor() {
@@ -319,7 +214,7 @@ export class StartingCacheGenerator extends InteriorGenerator {
    */
   placeLoot(
     interiorMap: CacheMap,
-    worldHexes: WorldHex[] = [],
+    worldHexes: QuestWorldHex[] = [],
     startCol = GAME_DEFAULTS.START_POSITION.col,
     startRow = GAME_DEFAULTS.START_POSITION.row
   ) {
@@ -435,7 +330,9 @@ export class StartingCacheGenerator extends InteriorGenerator {
 
     if (flavorTiles.length > 0) {
       // ── Note 1: Dynamic survival note (always accurate) ─────────────────
-      const survivalNote = buildSurvivalNote(worldHexes, startCol, startRow);
+      const start = { col: startCol, row: startRow };
+      const survival = buildSurvivalNote(worldHexes, start);
+      const survivalNote = survival.text;
       const tile1 = this.randomChoice(flavorTiles);
 
       if (tile1) {
@@ -450,14 +347,17 @@ export class StartingCacheGenerator extends InteriorGenerator {
           type: 'loot',
           gold: 0,
           items: [
-            new Item({
-              name: 'Tattered Note',
-              type: 'quest',
-              rarity: 'common',
-              description: survivalNote,
-              weight: 0,
-              value: 0,
-            }),
+            Object.assign(
+              new Item({
+                name: 'Tattered Note',
+                type: 'quest',
+                rarity: 'common',
+                description: survivalNote,
+                weight: 0,
+                value: 0,
+              }),
+              { quest: survival.quest?.toJSON() }
+            ),
           ],
           consumables: [],
           rarity: 'common',
@@ -473,8 +373,12 @@ export class StartingCacheGenerator extends InteriorGenerator {
 
       // ── Note 2: Random flavor note (atmosphere / lore) ──────────────────
       if (flavorTiles.length > 0 && STARTING_CACHE.NOTES.length > 0) {
-        const flavorNote =
-          STARTING_CACHE.NOTES[Math.floor(this.random() * STARTING_CACHE.NOTES.length)];
+        const flavor = buildFlavorNote(
+          worldHexes,
+          start,
+          Math.floor(this.random() * STARTING_CACHE.NOTES.length)
+        );
+        const flavorNote = flavor.text;
         const tile2 = this.randomChoice(flavorTiles);
 
         if (tile2) {
@@ -489,14 +393,17 @@ export class StartingCacheGenerator extends InteriorGenerator {
             type: 'loot',
             gold: 0,
             items: [
-              new Item({
-                name: 'Tattered Note',
-                type: 'quest',
-                rarity: 'common',
-                description: flavorNote,
-                weight: 0,
-                value: 0,
-              }),
+              Object.assign(
+                new Item({
+                  name: 'Tattered Note',
+                  type: 'quest',
+                  rarity: 'common',
+                  description: flavorNote,
+                  weight: 0,
+                  value: 0,
+                }),
+                { quest: flavor.quest?.toJSON() }
+              ),
             ],
             consumables: [],
             rarity: 'common',

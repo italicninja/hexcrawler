@@ -9,6 +9,7 @@ import { useCombatOrchestration } from '../../hooks/useCombatOrchestration';
 import { useInteriorNavigation } from '../../hooks/useInteriorNavigation';
 import { useOverworldActions } from '../../hooks/useOverworldActions';
 import { useOverworldInput } from '../../hooks/useOverworldInput';
+import { useQuestTracker } from '../../hooks/useQuestTracker';
 import { TerrainGenerator } from '../../terrainGenerator';
 import { formatTime, getTimeOfDay } from '../../game/TimeManager';
 import { Character } from '../../game/Character';
@@ -64,6 +65,7 @@ function OverworldScene() {
   // Combat behaviour: victory/defeat detection, initiative logging, AI turns,
   // and the player-facing combat handlers. Must stay mounted scene-wide.
   const combat = useCombatOrchestration();
+  useQuestTracker();
 
   // Overworld movement, foraging, and combat engagement.
   const overworld = useOverworldActions();

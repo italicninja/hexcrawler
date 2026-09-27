@@ -15,7 +15,10 @@ describe('gameReducer ADVANCE_TIME', () => {
   const run = (hour: number, minutes: number) => {
     const hero = new Character('Tess', 'barbarian');
     hero.rations = 5;
-    const state = { gameTime: { day: 1, hour, minute: 0 }, playerCharacter: hero } as unknown as GameState;
+    const state = {
+      gameTime: { day: 1, hour, minute: 0 },
+      playerCharacter: hero,
+    } as unknown as GameState;
     const next = gameReducer(state, { type: 'ADVANCE_TIME', payload: minutes }, ACTIONS)!;
     return { hero, next };
   };

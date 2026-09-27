@@ -21,6 +21,7 @@
 
 import type { GameState, Action, InteriorMap } from '../../types/state';
 import logger from '../../utils/logger';
+import { acceptQuest } from './questReducer';
 
 export function explorationReducer(
   state: GameState,
@@ -133,11 +134,12 @@ export function explorationReducer(
         character.gold += gold;
       }
 
-      return {
-        ...state,
-        playerCharacter: character,
-        pendingLoot: null,
-      };
+      // Quest notes start their quest when picked up
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return ((items ?? []) as any[]).reduce(
+        (next: GameState, item) => (item?.quest ? acceptQuest(next, item.quest) : next),
+        { ...state, playerCharacter: character, pendingLoot: null }
+      );
     }
 
     case ACTIONS.TRIGGER_HAZARD: {

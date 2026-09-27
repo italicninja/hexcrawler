@@ -21,7 +21,9 @@ describe('POI placement', () => {
       const { grid } = gen.generate(60, 60, 0.5, 5);
       const pois: Placed[] = [];
       grid.forEach((r, row) =>
-        r.forEach((h, col) => h.poi && pois.push({ col, row, type: (h.poi as { type: string }).type }))
+        r.forEach(
+          (h, col) => h.poi && pois.push({ col, row, type: (h.poi as { type: string }).type })
+        )
       );
 
       expect(closestPair(pois.filter(p => isSettlement(p.type)))).toBeGreaterThanOrEqual(

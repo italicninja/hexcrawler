@@ -35,6 +35,8 @@ import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
 import logger from '../../utils/logger';
 import type { GameState, Action, CombatStateData } from '../../types/state';
 import type { EncounterSource } from '../../types/scene';
+import { INTERIOR_SITE_TYPES } from '../../game/QuestGenerator';
+import { advanceQuests } from './questReducer';
 
 // StrictMode (and React's render replays) call a reducer more than once with the same
 // (state, action). This reducer drives the mutable Combat instance — dice rolls, HP,
@@ -809,13 +811,17 @@ function reduceCombat(
       if (!action.payload?.victory || !combatState) {
         return { ...state, combatState: null, currentScene: 'overworld' };
       }
-      return {
+      const source = combatState.encounterSource as EncounterSource | null;
+      const patch = clearEncounter(state, source);
+      const next: GameState = {
         ...state,
-        ...clearEncounter(state, combatState.encounterSource as EncounterSource | null),
+        ...patch,
         playerCharacter: writeBackPlayer(state, combatState),
         combatState: null,
         currentScene: 'overworld',
       };
+      const site = clearedSite(state, source, patch);
+      return site ? advanceQuests(markSiteCleared(next, site), 'clear', site) : next;
     }
 
     case ACTIONS.UPDATE_COMBAT_STATE: {
@@ -1161,6 +1167,43 @@ function writeBackPlayer(state: GameState, combatState: CombatStateData) {
     return used ? { ...a, uses: used.uses } : a;
   });
   return updated;
+}
+
+/**
+ * The overworld site ("col,row") this win clears, if any. An overworld encounter clears
+ * outright; an interior clears with its boss (dungeon/tower) or once every encounter on
+ * the map is down (cave/ruins). A dungeon's fight at the door doesn't count. `patch` is
+ * clearEncounter's result, so the encounter just won is already marked defeated.
+ */
+function clearedSite(
+  state: GameState,
+  source: EncounterSource | null,
+  patch: Partial<GameState>
+): string | null {
+  if (!source) return null;
+  if (source.kind === 'poi') {
+    const type = state.hexGrid?.get(source.col, source.row)?.poi?.type;
+    return INTERIOR_SITE_TYPES.includes(type ?? '') ? null : `${source.col},${source.row}`;
+  }
+  const [col, row] = source.mapKey.split(',').map(Number);
+  const type = state.hexGrid?.get(col, row)?.poi?.type;
+  const encounters: any[] = patch.interiorMaps?.[source.mapKey]?.encounters ?? [];
+  const won = encounters.find(e => e.col === source.col && e.row === source.row);
+  const done =
+    type === 'dungeon' || type === 'tower' ? !!won?.isBoss : encounters.every(e => e.defeated);
+  return done ? source.mapKey : null;
+}
+
+/** Remember cleared sites (clearedEncounters.sites) so boards stop posting them. */
+function markSiteCleared(state: GameState, hexKey: string): GameState {
+  const cleared = state.explorationState.clearedEncounters;
+  return {
+    ...state,
+    explorationState: {
+      ...state.explorationState,
+      clearedEncounters: { ...cleared, sites: new Set([...(cleared.sites ?? []), hexKey]) },
+    },
+  };
 }
 
 /** Record a won encounter so walking back onto it doesn't restart the fight. */
