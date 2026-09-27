@@ -6,7 +6,7 @@ import { RestManager } from '../../game/RestManager';
 import { applyStarvation } from '../../game/SurvivalManager';
 import { generateRestFlavor } from '../../utils/flavorTextGenerator';
 import PixelIcon from './PixelIcon';
-import { isSettlement } from '../../constants/gameConstants';
+import { isSettlement, FEATURES } from '../../constants/gameConstants';
 import './RestMenu.css';
 
 interface RestMenuProps {
@@ -117,8 +117,10 @@ function RestMenu({ onClose }: RestMenuProps) {
     // Perform long rest
     const result = RestManager.longRest(rested, currentGameTime);
 
-    // Check for starvation effects after rest
-    const starvationResult = applyStarvation(rested);
+    // Starvation is applied here, once (the LONG_REST reducer no longer does it)
+    const starvationResult = FEATURES.SURVIVAL_ENABLED
+      ? applyStarvation(rested)
+      : { exhaustionGained: 0, message: '' };
 
     // Dispatch action to update character and time
     dispatch({

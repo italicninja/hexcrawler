@@ -65,12 +65,15 @@ function OverworldScene() {
   // and the player-facing combat handlers. Must stay mounted scene-wide.
   const combat = useCombatOrchestration();
 
-  // Interior exploration: active interior map, hex selection, movement
-  // (stairs, loot, lazy floor generation), and building interactions.
-  const interior = useInteriorNavigation({ openPanel: setOpenPanel });
-
   // Overworld movement, foraging, and combat engagement.
   const overworld = useOverworldActions();
+
+  // Interior exploration: active interior map, hex selection, movement
+  // (stairs, loot, encounters, lazy floor generation), and building interactions.
+  const interior = useInteriorNavigation({
+    openPanel: setOpenPanel,
+    engageCombat: overworld.handleEngageCombat,
+  });
 
   const terrainGeneratorRef = useRef<TerrainGenerator | null>(null);
 

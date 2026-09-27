@@ -15,7 +15,13 @@ export interface ScenePoi {
   creatures?: string;
   eventType?: string;
   description?: string;
+  isBoss?: boolean;
 }
+
+/** Where a fight came from, so END_COMBAT can mark it cleared. */
+export type EncounterSource =
+  | { kind: 'poi'; col: number; row: number }
+  | { kind: 'interior'; mapKey: string; floorKey: string; col: number; row: number };
 
 export interface SceneInteriorMap {
   hexes: SceneHex[];

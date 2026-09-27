@@ -29,8 +29,8 @@ src/
     reducers/    8 domain reducers composed in reducers/index.ts
   hooks/         Scene-level hooks (see OverworldScene section below)
   components/
-    scenes/      TitleScene, CharacterCreationScene, OverworldScene, TownScene,
-                 ExplorationScene, GameOverScene, CombatSceneWrapper
+    scenes/      TitleScene, CharacterCreationScene, OverworldScene, GameOverScene,
+                 CombatSceneWrapper
     canvas/      HexGridCanvas, InteriorHexCanvas, CombatCanvas
     ui/          Panels and widgets (combat/ holds the combat UI)
   types/         state.ts (GameState, CombatStateData), game.ts, scene.ts
@@ -80,7 +80,7 @@ component plus four hooks — keep it that way:
   once in OverworldScene so its effects stay mounted scene-wide; rendered through
   `CombatSceneWrapper`'s `CombatCanvasPane` / `CombatActionPane`.
 - `hooks/useInteriorNavigation` — active interior map, interior movement (stairs,
-  lazy floor generation, loot), building interactions.
+  lazy floor generation, loot, encounters via `handleEngageCombat`), building interactions.
 - `hooks/useOverworldActions` — hex movement (terrain checks, rations, POI
   discovery), foraging + cooldowns, engaging POI combat.
 - `hooks/useOverworldInput` — unified keyboard routing (overworld vs interior) and
@@ -93,7 +93,7 @@ a separate route.
 
 - Zero `@ts-nocheck`. `any` is allowed only at documented loose boundaries via
   file-level `eslint-disable @typescript-eslint/no-explicit-any` (combat, generators,
-  save serialization, SurvivalManager/RestManager/EnemyMovement).
+  save serialization, SurvivalManager/RestManager).
 - `eslint.config.js` turns OFF the React-Compiler-era react-hooks rules
   (`static-components`, `immutability`, `purity`, `set-state-in-effect`) and
   `exhaustive-deps` as a baseline — the codebase predates them. Re-enable
@@ -124,5 +124,5 @@ a separate route.
 - When a change produces images (texture previews, screenshots, UI mockups), save them to
   `docs/devlog/<YYYY-MM-DD>-<slug>/` and embed them in the entry. Keep the version we settled on
   **plus a couple of rejected ones** to show how we got there.
-- Commit the DEVLOG update in the same commit as the change it describes (or a follow-up
-  `docs:` commit if the change already landed).
+- `DEVLOG.md` and `docs/devlog/` are gitignored and live only on disk (tracked outside the
+  repo to keep it small). Update them locally; never `git add -f` them.

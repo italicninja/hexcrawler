@@ -11,11 +11,13 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import logger from '../utils/logger';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
+import { SaveManager } from '../utils/SaveManager';
 import { getXPForCR } from '../game/Combat';
 import { findPath } from '../game/Pathfinding';
 import { AIEngine } from '../game/ai/AIEngine';
 import type { CombatTurnEntry } from '../types/state';
 import type { CombatUIState } from '../types/scene';
+import { formatCR } from '../constants/gameConstants';
 
 export function useCombatOrchestration() {
   const { state, dispatch, actions, getHexDistance } = useGameState();
@@ -54,9 +56,13 @@ export function useCombatOrchestration() {
   const pendingAIAdvanceRef = useRef(false);
 
   useEffect(() => {
-    if (!state.combatState) {
+    if (!state.combatState?.active) {
       combatEndHandledRef.current = false;
       combatStartRoundRef.current = null;
+      // Turn keys repeat across fights ("1:1"), so a stale key would make the next
+      // combat skip that enemy turn with no fallback armed — a soft-lock.
+      lastProcessedTurnRef.current = null;
+      pendingAIAdvanceRef.current = false;
       return;
     }
 
@@ -98,7 +104,7 @@ export function useCombatOrchestration() {
       if (defeatedEnemies.length > 0) {
         defeatedEnemies.forEach(c => {
           const xp = getXPForCR(c.enemy.cr ?? 0);
-          addMessage(`  ${c.name} defeated — ${xp} XP (CR ${c.enemy.cr ?? 0})`, 'info');
+          addMessage(`  ${c.name} defeated — ${xp} XP (CR ${formatCR(c.enemy.cr)})`, 'info');
         });
         addMessage(
           `Total XP: ${totalXP} / ${livingAllyCount} ally = ${xpPerCharacter} XP each`,
@@ -116,6 +122,8 @@ export function useCombatOrchestration() {
     } else if (livingAllies.length === 0) {
       combatEndHandledRef.current = true;
       addMessage('Defeat! All party members have fallen...', 'error');
+      // Wipe now, not after the 2s delay, so a refresh can't dodge permadeath
+      SaveManager.deleteAllSlots();
       aiTimeoutRefs.current.defeat = setTimeout(() => {
         dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'gameover' });
         aiTimeoutRefs.current.defeat = null;
@@ -335,11 +343,19 @@ export function useCombatOrchestration() {
           } else if (action.type === 'attack') {
             const tgt = action.target as { character?: { name: string }; enemy?: { name: string } };
             const targetName = tgt.character?.name || tgt.enemy?.name;
-            addMessage(`${enemy.name} attacks ${targetName}!`, 'encounter');
-            dispatch({
-              type: actions.PROCESS_COMBAT_ACTION,
-              payload: { actionType: 'attack', target: action.target, attacker: combatant },
-            });
+            // Multiattack: one dispatch per swing. The reducer applies them in order and
+            // ignores swings at a target that's already down.
+            const swings = enemy.getAttacksPerAction?.() ?? 1;
+            addMessage(
+              `${enemy.name} attacks ${targetName}${swings > 1 ? ` (${swings} attacks)` : ''}!`,
+              'encounter'
+            );
+            for (let i = 0; i < swings; i++) {
+              dispatch({
+                type: actions.PROCESS_COMBAT_ACTION,
+                payload: { actionType: 'attack', target: action.target, attacker: combatant },
+              });
+            }
           } else if (action.type === 'ability') {
             const tgt = action.target as
               | { character?: { name: string }; enemy?: { name: string } }

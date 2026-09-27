@@ -701,6 +701,13 @@ export class Combat {
       };
     }
 
+    const distance = getHexDistance(
+      attacker.position.col,
+      attacker.position.row,
+      target.position.col,
+      target.position.row
+    );
+
     // Get weapon range (default to melee range 1)
     // attacker.character is null for enemies — use .enemy fallback
     let weaponRange = 1;
@@ -710,18 +717,13 @@ export class Combat {
       const weapon = attackerChar.equipment.mainHand;
       weaponRange = weapon.range || 1;
     } else if (attacker.enemy) {
-      // Enemy — use their range property directly
-      weaponRange = attacker.enemy.range || 1;
+      // Enemy — the attack it would pick at this distance (melee adjacent, else ranged)
+      const enemy = attacker.enemy;
+      weaponRange =
+        (enemy.chooseAttack ? enemy.chooseAttack(distance)?.range : 0) || enemy.range || 1;
     }
 
     // Check range
-    const distance = getHexDistance(
-      attacker.position.col,
-      attacker.position.row,
-      target.position.col,
-      target.position.row
-    );
-
     if (distance > weaponRange) {
       return {
         success: false,
@@ -814,11 +816,20 @@ export class Combat {
     } else if (attacker.enemy) {
       // Enemy attacker — read from Enemy stat block
       const enemy = attacker.enemy;
-      const primaryAttack = enemy.attacks?.[0];
-      weaponDamage = primaryAttack?.damage || '1d6';
-      damageType = primaryAttack?.damageType || 'slashing';
-      weaponName = primaryAttack?.name || 'Attack';
-      weaponRange = enemy.range || 1;
+      const distance =
+        attacker.position && target.position
+          ? getHexDistance(
+              attacker.position.col,
+              attacker.position.row,
+              target.position.col,
+              target.position.row
+            )
+          : 1;
+      const chosen = enemy.chooseAttack ? enemy.chooseAttack(distance) : enemy.attacks?.[0];
+      weaponDamage = chosen?.damage || '1d6';
+      damageType = chosen?.damageType || 'slashing';
+      weaponName = chosen?.name || 'Attack';
+      weaponRange = chosen?.range || enemy.range || 1;
       attackBonus = enemy.attackBonus || 0;
       // Enemies roll straight attackBonus without extra modifiers through the DiceRoller path
       // We handle this below by passing attackBonus into the manual roll

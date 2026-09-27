@@ -62,7 +62,12 @@ interface LevelUpResult {
   proficiencyBonus: number;
   newMaxHP: number;
   newFeatures: ClassFeature[];
+  abilityIncreases: Partial<AbilityScores>;
 }
+
+// SRD Ability Score Improvement levels; Fighter and Rogue get extras
+const ASI_LEVELS = [4, 8, 12, 16, 19];
+const EXTRA_ASI_LEVELS: Record<string, number[]> = { fighter: [6, 14], rogue: [10] };
 
 /**
  * Character class representing player and NPC characters in D&D 5e
@@ -903,8 +908,17 @@ export class Character {
 
     const hitDieValue = parseInt(this.hitDie.substring(1), 10);
     const hpGain = Math.floor(hitDieValue / 2) + 1 + this.getModifier('constitution');
+    // calculateEffectiveStats() rebuilds maxHP from baseStats, so the gain goes there too
+    if (!this.baseStats) this.calculateEffectiveStats();
+    this.baseStats!.maxHP += hpGain;
     this.maxHP += hpGain;
     this.currentHP += hpGain;
+
+    const cls = (this.class || '').toLowerCase();
+    const abilityIncreases =
+      ASI_LEVELS.includes(this.level) || EXTRA_ASI_LEVELS[cls]?.includes(this.level)
+        ? this._applyAbilityScoreImprovement()
+        : {};
 
     this.hitDiceRemaining++;
     this.xpToNextLevel = Character.getXPForLevel(this.level + 1);
@@ -934,7 +948,34 @@ export class Character {
       proficiencyBonus: this.proficiencyBonus,
       newMaxHP: this.maxHP,
       newFeatures,
+      abilityIncreases,
     };
+  }
+
+  /**
+   * Spend an ASI's 2 points, one at a time, on the highest base score below 20 —
+   * i.e. +2 to the class's primary ability, spilling over once it caps.
+   * A CON increase raises max HP retroactively for every level.
+   * ponytail: auto-applied; add a +2/+1+1/feat picker to the level-up UI if players want the choice.
+   */
+  _applyAbilityScoreImprovement(): Partial<AbilityScores> {
+    const base = this.baseStats!;
+    const oldConMod = this.getModifier('constitution');
+    const increases: Partial<AbilityScores> = {};
+    for (let point = 0; point < 2; point++) {
+      const target = (Object.keys(base.abilities) as AbilityName[])
+        .filter(a => base.abilities[a] < 20)
+        .sort((a, b) => base.abilities[b] - base.abilities[a])[0];
+      if (!target) break;
+      base.abilities[target]++;
+      increases[target] = (increases[target] ?? 0) + 1;
+    }
+    this.calculateEffectiveStats();
+    const hpDelta = (this.getModifier('constitution') - oldConMod) * this.level;
+    base.maxHP += hpDelta;
+    this.maxHP += hpDelta;
+    this.currentHP += hpDelta;
+    return increases;
   }
 
   /**
@@ -1198,7 +1239,9 @@ export class Character {
    * state. Never mutate a character that is still referenced by state.
    */
   clone(): Character {
-    return Character.fromJSON(this.toJSON());
+    // toJSON() copies shallowly (abilities_list entries, baseStats.abilities, foragedHexes),
+    // so round-trip through a string to get a real deep copy.
+    return Character.fromJSON(JSON.parse(JSON.stringify(this.toJSON())));
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

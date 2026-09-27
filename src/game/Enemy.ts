@@ -289,10 +289,13 @@ export class Enemy {
         intelligence: 10,
         wisdom: 8,
         charisma: 8,
-        // Default: scimitar (melee). _applyRoleOverrides will swap to shortbow for archers.
-        attacks: [{ name: 'Scimitar', damage: '1d6+2', damageType: 'slashing', range: 1 }],
+        // Scimitar adjacent, shortbow (80 ft) at range; archers drop the scimitar
+        attacks: [
+          { name: 'Scimitar', damage: '1d6+2', damageType: 'slashing', range: 1 },
+          { name: 'Shortbow', damage: '1d6+2', damageType: 'piercing', range: 16 },
+        ],
         multiattack: 1,
-        range: 1,
+        range: 16,
         moveDistance: 6,
       };
     }
@@ -334,9 +337,12 @@ export class Enemy {
         intelligence: 10,
         wisdom: 10,
         charisma: 9,
-        attacks: [{ name: 'Longsword', damage: '1d8+1', damageType: 'slashing', range: 1 }],
+        attacks: [
+          { name: 'Longsword', damage: '1d8+1', damageType: 'slashing', range: 1 },
+          { name: 'Longbow', damage: '1d10+1', damageType: 'piercing', range: 30 },
+        ],
         multiattack: 1,
-        range: 1,
+        range: 30,
         moveDistance: 6,
       };
     }
@@ -900,6 +906,21 @@ export class Enemy {
 
   addSpecialAbility(ability: unknown): void {
     this.specialAbilities.push(ability);
+  }
+
+  /** Multiattack count — hex combat reads this to know when the Attack action is spent. */
+  getAttacksPerAction(): number {
+    return this.multiattack || 1;
+  }
+
+  /** Melee when adjacent, otherwise the first attack that reaches `distance` (in hexes). */
+  chooseAttack(distance: number): Attack | undefined {
+    const reach = (a: Attack) => a.range || 1;
+    return (
+      (distance <= 1 ? this.attacks?.find(a => reach(a) === 1) : undefined) ??
+      this.attacks?.find(a => reach(a) >= distance) ??
+      this.attacks?.[0]
+    );
   }
 
   toJSON() {

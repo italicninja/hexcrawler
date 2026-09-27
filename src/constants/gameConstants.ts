@@ -357,6 +357,20 @@ export const CR_TO_XP: Record<number, number> = {
   30: 155000,
 };
 
+const CR_LADDER = Object.keys(CR_TO_XP)
+  .map(Number)
+  .sort((a, b) => a - b);
+
+/** Move a CR up `steps` rungs of the CR ladder (1/8 → 1/4 → 1/2 → 1 → 2 …), capped at 30. */
+export const stepCR = (cr: number, steps: number): number => {
+  const i = CR_LADDER.findIndex(c => c >= cr);
+  return CR_LADDER[Math.min(CR_LADDER.length - 1, (i < 0 ? CR_LADDER.length - 1 : i) + steps)];
+};
+
+/** Show a CR the SRD way: 0.125 → "1/8", 0.25 → "1/4", 0.5 → "1/2". */
+export const formatCR = (cr: number | null | undefined): string =>
+  ({ 0.125: '1/8', 0.25: '1/4', 0.5: '1/2' })[cr ?? 0] ?? String(cr ?? 0);
+
 /**
  * 2024 DMG XP budget PER CHARACTER by level (index 0 = level 1).
  * ponytail: levels 1-5 only; higher levels reuse level 5 — extend when balancing 6+.

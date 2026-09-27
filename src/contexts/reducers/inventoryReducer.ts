@@ -55,32 +55,17 @@ export function inventoryReducer(
 
     case ACTIONS.EQUIP_ITEM: {
       // Payload may be { item } (full object) or { itemId, slot } (id + slot)
-      const { item: payloadItem, itemId, slot: payloadSlot } = action.payload;
+      const { item: payloadItem, itemId, slot } = action.payload;
 
       if (!state.playerCharacter) return state;
 
       const character = state.playerCharacter.clone();
-
-      // Resolve the item — either passed directly or looked up by id
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const item: any = payloadItem || character.inventory.find((i: any) => i.id === itemId);
-
-      if (!item) {
-        logger.items.warn('EQUIP_ITEM: item not found', { itemId, payloadItem });
+      // Character.equipItem swaps out whatever is in the slot, enforces two-handed
+      // rules and reapplies item stat bonuses — never assign equipment directly.
+      if (!character.equipItem(payloadItem?.id ?? itemId, slot ?? null)) {
+        logger.items.warn('EQUIP_ITEM failed', { itemId, payloadItem, slot });
         return state;
       }
-
-      const slot = (payloadSlot || item.slot) as keyof typeof character.equipment;
-
-      // Remove from inventory
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const index = character.inventory.findIndex((i: any) => i.id === item.id);
-      if (index >= 0) {
-        character.inventory.splice(index, 1);
-      }
-
-      // Add to equipped slot
-      character.equipment[slot] = item;
 
       return {
         ...state,
@@ -94,12 +79,7 @@ export function inventoryReducer(
       if (!state.playerCharacter) return state;
 
       const character = state.playerCharacter.clone();
-      const equipSlot = slot as keyof typeof character.equipment;
-      const item = character.equipment[equipSlot];
-      if (item) {
-        character.equipment[equipSlot] = null;
-        character.inventory.push(item);
-      }
+      if (!character.unequipItem(slot)) return state;
 
       return {
         ...state,

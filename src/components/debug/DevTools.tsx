@@ -365,7 +365,8 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
       addMessage('[DEV] No party found!', 'error');
       return;
     }
-    const allies = state.party.getAllMembers().filter(Boolean);
+    // Clone the player (combat mutates its combatants); END_COMBAT writes the result back
+    const allies = [state.playerCharacter?.clone(), ...state.party.npcs].filter(Boolean);
     if (allies.length === 0) {
       addMessage('[DEV] No party members!', 'error');
       return;

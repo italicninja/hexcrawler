@@ -8,6 +8,7 @@ import { useGameLog } from '../../contexts/GameLogContext';
 import { TIME_COSTS } from '../../game/TimeManager';
 import './InteriorHexDetails.css';
 import PixelIcon from './PixelIcon';
+import { formatCR } from '../../constants/gameConstants';
 
 interface HexLike {
   col: number;
@@ -148,7 +149,7 @@ function InteriorHexDetails({ hex, playerPosition, interiorMap, poiKey }: Interi
       <div className="content-section encounter-section">
         <h4>Encounter (Defeated)</h4>
         <p>
-          <strong>CR:</strong> {encounter.cr}
+          <strong>CR:</strong> {formatCR(encounter.cr)}
         </p>
         <p>
           <strong>Creatures:</strong> {encounter.creatures}

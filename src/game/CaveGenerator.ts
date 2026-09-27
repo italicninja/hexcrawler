@@ -8,6 +8,7 @@ import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { LootGenerator } from './LootGenerator';
 import { HazardGenerator } from './HazardGenerator';
 import { TreasureGenerator } from './TreasureGenerator';
+import { formatCR } from '../constants/gameConstants';
 
 /** Loose POI metadata passed into content placement. */
 interface PoiData {
@@ -366,7 +367,7 @@ export class CaveGenerator extends InteriorGenerator {
         col: tile.col,
         row: tile.row,
         cr: cr,
-        creatures: poiData.creatures || `CR ${cr} enemies`,
+        creatures: poiData.creatures || `CR ${formatCR(cr)} enemies`,
         defeated: false,
         discovered: false,
       });

@@ -150,75 +150,7 @@ describe('inventoryReducer — REMOVE_ITEM', () => {
   });
 });
 
-// ─── EQUIP_ITEM ───────────────────────────────────────────────────────────────
-
-describe('inventoryReducer — EQUIP_ITEM', () => {
-  it('moves item from inventory to equipment slot', () => {
-    const item = makeItem('axe-1', 'mainHand');
-    const state = makeState({ inventory: [item] });
-    const result = inventoryReducer(
-      state as any,
-      { type: ACTIONS.EQUIP_ITEM, payload: { item, slot: 'mainHand' } } as any,
-      ACTIONS
-    );
-    const char = result?.playerCharacter as any;
-    expect(char.equipment.mainHand?.id).toBe('axe-1');
-    // Item removed from inventory
-    expect(char.inventory.find((i: any) => i.id === 'axe-1')).toBeUndefined();
-  });
-
-  it('returns original state if playerCharacter is null', () => {
-    const state = { ...makeState(), playerCharacter: null };
-    const result = inventoryReducer(
-      state as any,
-      { type: ACTIONS.EQUIP_ITEM, payload: { item: makeItem('x'), slot: 'mainHand' } } as any,
-      ACTIONS
-    );
-    expect(result).toEqual(state);
-  });
-});
-
-// ─── UNEQUIP_ITEM ────────────────────────────────────────────────────────────
-
-describe('inventoryReducer — UNEQUIP_ITEM', () => {
-  it('moves item from equipment slot to inventory', () => {
-    const item = makeItem('shield-1', 'offHand');
-    const state = makeState({
-      equipment: {
-        mainHand: null,
-        offHand: item,
-        chest: null,
-        head: null,
-        neck: null,
-        hands: null,
-        legs: null,
-        feet: null,
-        ring1: null,
-        ring2: null,
-      },
-      inventory: [],
-    });
-    const result = inventoryReducer(
-      state as any,
-      { type: ACTIONS.UNEQUIP_ITEM, payload: { slot: 'offHand' } } as any,
-      ACTIONS
-    );
-    const char = result?.playerCharacter as any;
-    // Empty slots are represented as null (matches Character.unequipItem and toJSON), not deleted.
-    expect(char.equipment.offHand).toBeNull();
-    expect(char.inventory.some((i: any) => i.id === 'shield-1')).toBe(true);
-  });
-
-  it('does nothing if slot is empty', () => {
-    const state = makeState({ inventory: [] });
-    const result = inventoryReducer(
-      state as any,
-      { type: ACTIONS.UNEQUIP_ITEM, payload: { slot: 'offHand' } } as any,
-      ACTIONS
-    );
-    expect((result?.playerCharacter as any).inventory).toHaveLength(0);
-  });
-});
+// EQUIP_ITEM / UNEQUIP_ITEM run through the real Character: see equipReducer.test.ts
 
 // ─── CONSUME_RATIONS ─────────────────────────────────────────────────────────
 

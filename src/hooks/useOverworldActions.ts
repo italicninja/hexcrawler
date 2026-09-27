@@ -24,7 +24,7 @@ import SurvivalManager from '../game/SurvivalManager';
 import { AIEngine } from '../game/ai/AIEngine';
 import { FEATURES } from '../constants/gameConstants';
 import type { Hex, LogMessageType } from '../types/game';
-import type { SceneHex, ScenePoi } from '../types/scene';
+import type { EncounterSource, SceneHex, ScenePoi } from '../types/scene';
 
 export function useOverworldActions() {
   const { state, dispatch, actions, isHexReachable, isPoiDiscovered } = useGameState();
@@ -152,12 +152,12 @@ export function useOverworldActions() {
     return state.mapData.find(h => h.col === targetCol && h.row === targetRow);
   };
 
-  // Handle engaging in combat with a POI
-  const handleEngageCombat = async (poi: ScenePoi) => {
+  // Start combat with a POI (or an interior encounter shaped like one)
+  const handleEngageCombat = async (poi: ScenePoi, encounterSource: EncounterSource) => {
     addMessage(`You engage ${poi.name} in combat!`, 'encounter');
 
-    // Party members. state.party.player is the creation-time snapshot and never
-    // updated, so use the live playerCharacter (cloned — combat may mutate it).
+    // Party members. The player goes in cloned (combat mutates its combatants) and
+    // must be allies[0] — END_COMBAT writes that clone's HP/resources back.
     const npcs: Character[] = (state.party?.npcs ?? []).filter((m: Character | null) => m !== null);
     const allies = state.playerCharacter ? [state.playerCharacter.clone(), ...npcs] : npcs;
 
@@ -174,7 +174,7 @@ export function useOverworldActions() {
     // Determine encounter type based on POI or terrain
     let encounterType = 'standard';
     if (poi.eventType === 'ambush') encounterType = 'ambush';
-    if ((poi.cr ?? 0) >= 5) encounterType = 'boss';
+    if (poi.isBoss || (poi.cr ?? 0) >= 5) encounterType = 'boss';
 
     // Get terrain type from current hex
     const currentHex = state.mapData?.find(
@@ -214,6 +214,7 @@ export function useOverworldActions() {
         encounterType,
         terrainType,
         gameLogger: addMessage,
+        encounterSource,
       },
     });
   };
@@ -319,6 +320,10 @@ export function useOverworldActions() {
     // Check for POI discovery
     if (hex.poi) {
       const discovered = isPoiDiscovered(hex.col, hex.row);
+      const source: EncounterSource = { kind: 'poi', col: hex.col, row: hex.row };
+      const cleared = !!state.explorationState.clearedEncounters.overworld?.has(
+        `${hex.col},${hex.row}`
+      );
 
       if (!discovered) {
         // Mark as discovered
@@ -341,19 +346,19 @@ export function useOverworldActions() {
         addMessage(discoveryMsg, 'discovery');
 
         // Trigger event based on type
-        if (hex.poi.eventType === 'active') {
+        if (hex.poi.eventType === 'active' && !cleared) {
           // Combat intro
           const combatIntro = generateCombatIntro(hex.poi.type ?? '');
           addMessage(combatIntro, 'encounter');
 
           // Trigger combat encounter directly
-          handleEngageCombat(hex.poi);
+          handleEngageCombat(hex.poi, source);
         }
-      } else if (hex.poi.eventType === 'active') {
-        // Already discovered active event - trigger combat again
+      } else if (hex.poi.eventType === 'active' && !cleared) {
+        // Discovered but not yet beaten (e.g. reloaded before winning) - fight again
         const combatIntro = generateCombatIntro(hex.poi.type ?? '');
         addMessage(combatIntro, 'encounter');
-        handleEngageCombat(hex.poi);
+        handleEngageCombat(hex.poi, source);
       }
     }
   };

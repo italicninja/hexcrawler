@@ -361,6 +361,30 @@ describe('Character XP & levelling', () => {
     expect((c as any).maxHP).toBeGreaterThan(before);
   });
 
+  it('levelUp grants an Ability Score Improvement at level 4 (+2 primary, capped at 20)', () => {
+    const c = new Character('Grog', 'barbarian'); // STR 15
+    for (let i = 0; i < 2; i++) c.levelUp();
+    expect(c.abilities.strength).toBe(15);
+    const result = c.levelUp()!; // level 4
+    expect(result.abilityIncreases).toEqual({ strength: 2 });
+    expect(c.abilities.strength).toBe(17);
+    expect(c.baseStats!.abilities.strength).toBe(17);
+
+    c.baseStats!.abilities.strength = 19;
+    c.calculateEffectiveStats();
+    while (c.level < 8) c.levelUp();
+    expect(c.abilities.strength).toBe(20); // 1 point, the other spills to CON
+    expect(c.abilities.constitution).toBe(15);
+  });
+
+  it('levelUp HP survives calculateEffectiveStats (equip recalculation)', () => {
+    const c = new Character('Hero', 'fighter');
+    c.levelUp();
+    const maxHP = c.maxHP;
+    c.calculateEffectiveStats();
+    expect(c.maxHP).toBe(maxHP);
+  });
+
   it('levelUp does nothing at level 20', () => {
     const c = new Character('Hero', 'fighter');
     (c as any).level = 20;
@@ -399,6 +423,18 @@ describe('Character — toJSON/fromJSON round-trip', () => {
     expect(restored.knownSpells).toEqual(['fire_bolt', 'shield']);
     expect(restored.preparedSpells).toEqual(['magic_missile']);
     expect(c.clone().knownSpells).not.toBe(c.knownSpells);
+  });
+
+  it('clone() shares no nested objects (ability uses, foraged hexes, base stats)', () => {
+    const c = new Character('Grog', 'barbarian');
+    c.foragedHexes = { '1,1': 3 };
+    const copy = c.clone();
+    copy.abilities_list[0].uses = 0;
+    copy.foragedHexes['2,2'] = 4;
+    copy.baseStats!.abilities.strength = 1;
+    expect(c.abilities_list[0].uses).toBe(2);
+    expect(c.foragedHexes).toEqual({ '1,1': 3 });
+    expect(c.baseStats!.abilities.strength).toBe(15);
   });
 
   it('defaults the new fields for old saves that lack them', () => {

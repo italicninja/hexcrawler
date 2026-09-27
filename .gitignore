@@ -26,3 +26,7 @@ playwright-report/
 
 # Unit test coverage
 coverage/
+
+# Dev log (kept locally, tracked outside the repo)
+DEVLOG.md
+docs/devlog/

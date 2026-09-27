@@ -34,6 +34,7 @@ import { OpportunityAttackSystem } from '../../game/OpportunityAttack';
  
 import logger from '../../utils/logger';
 import type { GameState, Action, CombatStateData } from '../../types/state';
+import type { EncounterSource } from '../../types/scene';
 
 // StrictMode (and React's render replays) call a reducer more than once with the same
 // (state, action). This reducer drives the mutable Combat instance — dice rolls, HP,
@@ -73,8 +74,16 @@ function reduceCombat(
       }
 
       // New tactical combat system
-      const { allies, enemies, encounterName, encounterType, terrainType, hexContext, gameLogger } =
-        action.payload;
+      const {
+        allies,
+        enemies,
+        encounterName,
+        encounterType,
+        terrainType,
+        hexContext,
+        gameLogger,
+        encounterSource,
+      } = action.payload;
 
       logger.combat.info('[START_COMBAT] Payload:', {
         allies,
@@ -148,6 +157,8 @@ function reduceCombat(
 
         return {
           id: isAlly ? `ally-${index}` : `enemy-${index}`,
+          // Callers pass the (cloned) player as allies[0]; END_COMBAT writes it back
+          isPlayer: isAlly && combatant === allies[0],
           name: combatant.name,
           currentHP: combatant.currentHP,
           maxHP: combatant.maxHP,
@@ -221,6 +232,9 @@ function reduceCombat(
         round: 1,
         encounterName: encounterName || 'Combat',
         encounterType: encounterType || 'standard',
+        // Where the fight came from, so victory can clear it: { kind: 'poi', col, row }
+        // or { kind: 'interior', mapKey, floorKey, col, row }
+        encounterSource: encounterSource ?? null,
         waitingForPlayerAction: waitingForPlayer,
         movementRemaining: moveDistance * 5, // Convert hexes to feet
         // D&D 5e Action Economy
@@ -427,6 +441,10 @@ function reduceCombat(
           attacker: attacker.name,
           target: target.name,
         });
+
+        // A later Multiattack swing can find its target already dropped — skip quietly
+        const liveTarget = state.combatState.turnOrder.find(c => c.id === target.id);
+        if (!liveTarget || liveTarget.currentHP <= 0) return state;
 
         // Sync current positions from Redux state into the Combat instance's turnOrder
         // before calling processAttack. PROCESS_COMBAT_MOVEMENT updates the Redux copy
@@ -787,8 +805,14 @@ function reduceCombat(
     }
 
     case ACTIONS.END_COMBAT: {
+      const combatState = state.combatState;
+      if (!action.payload?.victory || !combatState) {
+        return { ...state, combatState: null, currentScene: 'overworld' };
+      }
       return {
         ...state,
+        ...clearEncounter(state, combatState.encounterSource as EncounterSource | null),
+        playerCharacter: writeBackPlayer(state, combatState),
         combatState: null,
         currentScene: 'overworld',
       };
@@ -1111,4 +1135,65 @@ function reduceCombat(
     default:
       return null; // Action not handled by this reducer
   }
+}
+
+/**
+ * Combat runs on a clone of the player, so carry its HP, spell slots and ability
+ * uses back to the live character. Clones state.playerCharacter rather than
+ * swapping in the combat copy, so the AWARD_XP dispatched just before survives.
+ * A player downed in a fight their companions won comes back at 1 HP.
+ */
+function writeBackPlayer(state: GameState, combatState: CombatStateData) {
+  const pc = state.playerCharacter;
+  const entry = combatState.turnOrder.find(c => c.isPlayer);
+  // combat.turnOrder keeps the real Character; the Redux copy's .character can be a
+  // plain object after an ability sync, but its currentHP is the authoritative HP.
+  const fought = (combatState.combat?.turnOrder as any[] | undefined)?.find(
+    c => c.id === entry?.id
+  )?.character;
+  if (!pc || !entry || !fought) return pc;
+
+  const updated = pc.clone();
+  updated.currentHP = Math.min(updated.maxHP, Math.max(1, entry.currentHP));
+  updated.spellSlotsUsed = { ...fought.spellSlotsUsed };
+  updated.abilities_list = updated.abilities_list.map((a: any) => {
+    const used = fought.abilities_list?.find((f: any) => f.name === a.name);
+    return used ? { ...a, uses: used.uses } : a;
+  });
+  return updated;
+}
+
+/** Record a won encounter so walking back onto it doesn't restart the fight. */
+function clearEncounter(state: GameState, source: EncounterSource | null): Partial<GameState> {
+  if (!source) return {};
+  const key = source.kind === 'poi' ? 'overworld' : source.floorKey;
+  const hexKey = `${source.col},${source.row}`;
+  const cleared = state.explorationState.clearedEncounters;
+  const patch: Partial<GameState> = {
+    explorationState: {
+      ...state.explorationState,
+      clearedEncounters: { ...cleared, [key]: new Set([...(cleared[key] ?? []), hexKey]) },
+    },
+  };
+  if (source.kind === 'interior') {
+    const markDefeated = (map: any) => ({
+      ...map,
+      encounters: map.encounters.map((e: any) =>
+        e.col === source.col && e.row === source.row ? { ...e, defeated: true } : e
+      ),
+    });
+    if (state.interiorMaps[source.mapKey]) {
+      patch.interiorMaps = {
+        ...state.interiorMaps,
+        [source.mapKey]: markDefeated(state.interiorMaps[source.mapKey]),
+      };
+    }
+    if (state.interiorFloors[source.floorKey]) {
+      patch.interiorFloors = {
+        ...state.interiorFloors,
+        [source.floorKey]: markDefeated(state.interiorFloors[source.floorKey]),
+      };
+    }
+  }
+  return patch;
 }

@@ -36,8 +36,10 @@ export function shopReducer(
 
       if (!state.playerCharacter || !state.currentShop) return state;
 
-      // Check if player can afford
-      if (state.playerCharacter.gold < cost) {
+      // Must afford it, and it must still be on the shelf (a double-click would duplicate it)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const inStock = state.currentShop.inventory.some((i: any) => i.id === item.id);
+      if (state.playerCharacter.gold < cost || !inStock) {
         return state;
       }
 
@@ -50,7 +52,7 @@ export function shopReducer(
       // Clone shop inventory immutably — remove purchased item
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updatedShopInventory = state.currentShop.inventory.filter((i: any) => i.id !== item.id);
-      const updatedShop = { ...state.currentShop, inventory: updatedShopInventory };
+      const updatedShop = withInventory(state.currentShop, updatedShopInventory);
 
       return {
         ...state,
@@ -69,16 +71,13 @@ export function shopReducer(
       const character = state.playerCharacter.clone();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invIndex = character.inventory.findIndex((i: any) => i.id === item.id);
-      if (invIndex >= 0) {
-        character.inventory.splice(invIndex, 1);
-      }
+      // Selling something you no longer carry (double-click, stale UI) must not pay out
+      if (invIndex < 0) return state;
+      character.inventory.splice(invIndex, 1);
       character.gold += sellPrice;
 
       // Clone shop inventory immutably — add sold item back to shop
-      const updatedShop = {
-        ...state.currentShop,
-        inventory: [...state.currentShop.inventory, item],
-      };
+      const updatedShop = withInventory(state.currentShop, [...state.currentShop.inventory, item]);
 
       return {
         ...state,
@@ -90,4 +89,10 @@ export function shopReducer(
     default:
       return null; // Action not handled by this reducer
   }
+}
+
+/** Copy a Shop with a new inventory, keeping its class (a spread would drop toJSON). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withInventory(shop: any, inventory: unknown[]) {
+  return Object.assign(Object.create(Object.getPrototypeOf(shop)), shop, { inventory });
 }

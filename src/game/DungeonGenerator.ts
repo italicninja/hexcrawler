@@ -8,6 +8,7 @@ import type { InteriorGrid, InteriorHex, HexCoord } from './InteriorGenerator';
 import { LootGenerator } from './LootGenerator';
 import { HazardGenerator } from './HazardGenerator';
 import { TreasureGenerator } from './TreasureGenerator';
+import { stepCR, formatCR } from '../constants/gameConstants';
 
 /** Loose POI metadata passed into content placement. */
 interface PoiData {
@@ -172,7 +173,7 @@ export class DungeonGenerator extends InteriorGenerator {
     }
 
     const hexes = this.gridToHexes(grid);
-    const bossFloorCR = Math.ceil(cr * 1.5);
+    const bossFloorCR = stepCR(cr, 2);
     const spawnUp = { col: stairsUpCol, row: stairsUpRow };
 
     const floorMap: BossFloorMap = {
@@ -198,7 +199,7 @@ export class DungeonGenerator extends InteriorGenerator {
         row: cy,
         floor: 1,
         cr: bossFloorCR,
-        creatures: `Boss: CR ${bossFloorCR} dungeon lord`,
+        creatures: `Boss: CR ${formatCR(bossFloorCR)} dungeon lord`,
         defeated: false,
         discovered: false,
         isBoss: true,
@@ -631,15 +632,15 @@ export class DungeonGenerator extends InteriorGenerator {
 
       // Last room has boss encounter (only when there's no second floor with a dedicated boss)
       const isBoss = room === bossRoom && interiorMap.floorCount === 1;
-      const encounterCR = isBoss ? Math.ceil(interiorMap.cr * 1.5) : interiorMap.cr;
+      const encounterCR = isBoss ? stepCR(interiorMap.cr, 2) : interiorMap.cr;
 
       encounters.push({
         col: tile.col,
         row: tile.row,
         cr: encounterCR,
         creatures: isBoss
-          ? `Boss: CR ${encounterCR} ${poiData.creatures || 'dungeon lord'}`
-          : poiData.creatures || `CR ${encounterCR} enemies`,
+          ? `Boss: CR ${formatCR(encounterCR)} ${poiData.creatures || 'dungeon lord'}`
+          : poiData.creatures || `CR ${formatCR(encounterCR)} enemies`,
         defeated: false,
         discovered: false,
         isBoss: isBoss,

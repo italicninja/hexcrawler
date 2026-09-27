@@ -9,6 +9,7 @@ import { LootGenerator } from './LootGenerator';
 import { HazardGenerator } from './HazardGenerator';
 import { TreasureGenerator } from './TreasureGenerator';
 import logger from '../utils/logger';
+import { formatCR } from '../constants/gameConstants';
 
 /** Loose POI metadata passed into content placement. */
 interface PoiData {
@@ -539,7 +540,7 @@ export class RuinsGenerator extends InteriorGenerator {
         col: tile.col,
         row: tile.row,
         cr: cr,
-        creatures: poiData.creatures || `CR ${cr} guardians`,
+        creatures: poiData.creatures || `CR ${formatCR(cr)} guardians`,
         defeated: false,
         discovered: false,
       });

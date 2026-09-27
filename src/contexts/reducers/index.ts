@@ -37,6 +37,16 @@ const countedActions = new WeakSet<object>();
 const DISPATCH_WINDOW_MS = 1000; // 1 second
 const MAX_DISPATCHES_PER_WINDOW = 200; // Increased - movement dispatches 5+ actions per hex
 
+/**
+ * playerCharacter is the source of truth; every update replaces it with a clone.
+ * Point party.player at the same instance so party readers never see a stale snapshot.
+ */
+function syncPartyPlayer(state: GameState): GameState {
+  const { party, playerCharacter } = state;
+  if (!party || party.player === playerCharacter) return state;
+  return { ...state, party: party.withPlayer(playerCharacter) };
+}
+
 export function combinedReducer(
   state: GameState,
   action: Action,
@@ -119,9 +129,9 @@ export function combinedReducer(
           prevPlayerPosition: state.playerPosition,
         });
         // Restore it from previous state so the app doesn't crash
-        return { ...newState, playerPosition: state.playerPosition };
+        return syncPartyPlayer({ ...newState, playerPosition: state.playerPosition });
       }
-      return newState;
+      return syncPartyPlayer(newState);
     }
   }
 
