@@ -579,7 +579,6 @@ function DevTools({ terrainGeneratorRef }: DevToolsProps) {
   const handleWipeSaves = () => {
     Object.values(SaveManager.SAVE_SLOTS).forEach(slot => SaveManager.deleteSlot(slot));
     localStorage.removeItem(SaveManager.ACTIVE_SLOT_KEY);
-    localStorage.removeItem(SaveManager.LAST_QUICKSAVE_KEY);
     addMessage('[DEV] All save slots wiped', 'system');
     logger.storage.warn('DEV Wipe Saves: all slots cleared');
   };

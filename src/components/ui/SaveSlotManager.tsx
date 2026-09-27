@@ -81,24 +81,6 @@ function SaveSlotManager({ mode, onClose, embedded = false }: SaveSlotManagerPro
     }
   };
 
-  const handleQuickSave = async (slotKey: string) => {
-    try {
-      // Quick save never asks for confirmation - just overwrites
-      const success = SaveManager.saveToSlot(slotKey, state);
-
-      if (success) {
-        addMessage('Quick save successful', 'system');
-        refreshSlots();
-      } else {
-        addMessage('Failed to quick save', 'error');
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.storage.error('Error quick saving:', { error, slotKey, message });
-      addMessage('Failed to quick save: ' + message, 'error');
-    }
-  };
-
   const handleDelete = async (slotKey: string) => {
     const slotMetadata = SaveManager.getSlotMetadata(slotKey);
     if (!slotMetadata) return;
@@ -120,11 +102,6 @@ function SaveSlotManager({ mode, onClose, embedded = false }: SaveSlotManagerPro
     [SAVE_SLOTS.SLOT_1, slots.slot1],
     [SAVE_SLOTS.SLOT_2, slots.slot2],
     [SAVE_SLOTS.SLOT_3, slots.slot3],
-  ] as const;
-  const quickSlots = [
-    [SAVE_SLOTS.QUICKSAVE_A, slots.quicksaveA],
-    [SAVE_SLOTS.QUICKSAVE_B, slots.quicksaveB],
-    [SAVE_SLOTS.QUICKSAVE_C, slots.quicksaveC],
   ] as const;
 
   return (
@@ -160,22 +137,6 @@ function SaveSlotManager({ mode, onClose, embedded = false }: SaveSlotManagerPro
             ))}
           </section>
 
-          <section className="slot-section">
-            <h3 className="jp-heading">Quick Saves</h3>
-            {quickSlots.map(([slotKey, metadata], i) => (
-              <SaveSlot
-                key={slotKey}
-                slotKey={slotKey}
-                metadata={metadata}
-                slotLetter={'ABC'[i]}
-                isQuicksave={true}
-                mode={mode}
-                onLoad={handleLoad}
-                onSave={handleQuickSave}
-                onDelete={handleDelete}
-              />
-            ))}
-          </section>
         </div>
 
         {mode === 'load' && (

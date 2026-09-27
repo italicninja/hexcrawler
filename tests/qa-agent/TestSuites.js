@@ -429,17 +429,6 @@ export const TEST_SUITES = [
     description: 'Test save/load and state consistency',
     tests: [
       {
-        id: 'quick-save',
-        name: 'Quick save (F5)',
-        async execute(driver, validators) {
-          await driver.quickSave();
-          await driver.wait(1000);
-          
-          const logs = await driver.getGameLog();
-          validators.validateLogMessage(logs, 'saved', 'Should show save message');
-        }
-      },
-      {
         id: 'spam-actions',
         name: 'Spam movement commands (stress test)',
         async execute(driver, validators) {

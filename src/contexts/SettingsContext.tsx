@@ -17,7 +17,6 @@ export interface Keybindings {
   inventory: string;
   quests: string;
   map: string;
-  quicksave: string;
 }
 
 export interface Settings {
@@ -52,7 +51,6 @@ const defaultSettings: Settings = {
     inventory: 'i',
     quests: 'q',
     map: 'm',
-    quicksave: 'F5',
   },
 };
 

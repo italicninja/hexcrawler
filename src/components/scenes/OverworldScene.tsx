@@ -38,7 +38,7 @@ const PAGES: Record<string, { title: string }> = {
   equipment: { title: 'Pack & gear' },
   rest: { title: 'Rest' },
   quests: { title: 'Quests' },
-  save: { title: 'Save the tale' },
+  save: { title: 'Save' },
   config: { title: 'Settings' },
 };
 
@@ -232,7 +232,7 @@ function OverworldScene() {
     }
   };
 
-  // Keyboard controls (movement, interact, search, panels, quicksave) for
+  // Keyboard controls (movement, interact, search, panels) for
   // both overworld and interior; disabled while combat blocks movement.
   useOverworldInput({
     overworld,
