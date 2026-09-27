@@ -51,7 +51,7 @@ export const TEST_SUITES = [
           
           validators.validateGreaterThan(gold, 0, 'Gold');
           // Rations HUD only exists when FEATURES.SURVIVAL_ENABLED
-          if (await driver.page.locator('text=/Rations:/').count()) {
+          if (await driver.page.locator('text=/Rations:|\d+ rations/').count()) {
             validators.validateGreaterThan(rations, 0, 'Rations');
           }
         }

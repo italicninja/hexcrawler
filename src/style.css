@@ -72,6 +72,35 @@
   }
 
   /* Midnight Gold Theme - Dark with Gold Accents */
+  /* Journal Theme - parchment pages, ink and oxblood. The overworld book (.journal-layout)
+     always uses it; selecting it in Settings extends it to modals and other scenes. */
+  [data-theme='journal'],
+  .journal-layout {
+    --primary-color: #8a5a2e;
+    --secondary-color: #6b4424;
+    --accent-color: #8a2a12;
+    --bg-color: #e9dcbc;
+    --bg-light: #dfcfa8;
+    --bg-lighter: #d4c197;
+    --text-color: #3a2a18;
+    --text-light: #4a3620;
+    --text-muted: #7a5c38;
+    --border-color: #b89a6a;
+    --shadow: rgba(60, 40, 10, 0.25);
+    --input-bg: #f3e9d0;
+    --panel-bg: #e9dcbc;
+    --on-primary: #fff8e8;
+    --on-accent: #fff8e8;
+    --on-secondary: #fff8e8;
+
+    --log-discovery: #7a4a0a;
+    --log-encounter: #9a2a12;
+    --log-action: #2a4a7a;
+    --log-system: #7a5c38;
+    --log-poi-interaction: #6a2a7a;
+    --log-roll: #9a4a00;
+  }
+
   /* RuneScape Theme - Old School stone, parchment text, gold accents */
   [data-theme='runescape'] {
     --primary-color: #8f7a3f;
@@ -2632,5 +2661,245 @@ button:active {
   /* Hex details can take more space in portrait */
   .hex-detail-panel {
     max-height: 45vh;
+  }
+}
+
+/* ===== Overworld journal (book layout) ===== */
+.journal-layout {
+  height: 100vh;
+  padding: 18px 72px 40px 24px; /* right: room for the bookmark tabs; bottom: the toolbar */
+  background: radial-gradient(circle at 50% 40%, #4a3220, #1c120a);
+  color: var(--text-color);
+  font-family: Georgia, 'Palatino Linotype', serif;
+}
+
+.journal-book {
+  height: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(360px, 1fr);
+  background: var(--bg-color);
+  border-radius: 6px 6px 10px 10px;
+  box-shadow:
+    0 16px 50px rgba(0, 0, 0, 0.7),
+    inset 0 0 60px rgba(120, 80, 30, 0.25);
+}
+
+.journal-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 22px 30px;
+}
+
+/* The spine: a soft fold shadow either side of the gutter */
+.journal-page--map {
+  box-shadow: inset -22px 0 22px -20px rgba(90, 60, 20, 0.35);
+}
+.journal-page--codex {
+  box-shadow: inset 22px 0 22px -20px rgba(90, 60, 20, 0.35);
+}
+
+.journal-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.journal-kicker {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.journal-title {
+  margin: 0;
+  font: italic 1.6rem Georgia, 'Palatino Linotype', serif;
+  color: #5a3212;
+}
+
+.journal-map.canvas-container {
+  flex: 1;
+  min-height: 0;
+  margin: 12px 0 10px;
+  border: 3px double #7a5530;
+  border-radius: 0;
+  background: #14100a;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+  color: #e9dcbc;
+}
+
+.journal-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.4rem;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #5a3a1c;
+}
+.journal-strip span {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.journal-low {
+  color: var(--accent-color);
+}
+
+.journal-tabs {
+  position: absolute;
+  top: 36px;
+  right: -46px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.journal-tab {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  background: #b9894f;
+  border: 0;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: width 0.12s, background 0.12s;
+}
+.journal-tab:hover:not(:disabled),
+.journal-tab:focus-visible {
+  width: 56px;
+  background: #c99a5f;
+}
+.journal-tab.is-open {
+  width: 56px;
+  background: var(--bg-color);
+}
+.journal-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.journal-tab-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent-color);
+  color: #fff8e8;
+  font: bold 10px/16px sans-serif;
+}
+
+.journal-hero {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.journal-hero-body {
+  flex: 1;
+  min-width: 0;
+}
+.journal-hero .journal-kicker {
+  text-transform: capitalize;
+  letter-spacing: 0.04em;
+}
+.journal-hp {
+  height: 10px;
+  margin: 8px 0 2px;
+  background: #3a2f22;
+  border: 2px solid #1a150c;
+}
+.journal-hp span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(#e0513f, #b3291f);
+}
+
+.journal-context {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+.journal-context.is-combat {
+  flex-grow: 2;
+}
+
+/* The game log, written as journal entries */
+.journal-entries {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+.journal-entries .log-header {
+  padding: 8px 0 0;
+  background: none;
+  border: 0;
+}
+.journal-entries .log-header h3 {
+  font: 0.75rem sans-serif;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.journal-entries .log-messages {
+  padding: 6px 4px 8px 0;
+  font: italic 0.95rem/1.55 Georgia, 'Palatino Linotype', serif;
+  mask-image: linear-gradient(transparent, #000 25%);
+}
+.journal-entries .log-entry {
+  display: block;
+  margin-bottom: 8px;
+}
+.journal-entries .log-timestamp {
+  display: block;
+  font: normal 0.7rem sans-serif;
+}
+.journal-layout .log-success .log-text {
+  color: #2f6a1a;
+}
+.journal-layout .log-warning .log-text {
+  color: #8a5a00;
+}
+.journal-layout .log-error .log-text {
+  color: #a02a1a;
+}
+
+@media (max-width: 900px) {
+  .journal-layout {
+    height: auto;
+    min-height: 100vh;
+    padding: 8px 8px 40px;
+  }
+  .journal-book {
+    grid-template-columns: 1fr;
+  }
+  .journal-map.canvas-container {
+    height: 60vh;
+    flex: none;
+  }
+  .journal-tabs {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .journal-tab {
+    border-radius: 8px 8px 0 0;
+  }
+  .journal-context,
+  .journal-entries {
+    flex: none;
+    max-height: 50vh;
   }
 }

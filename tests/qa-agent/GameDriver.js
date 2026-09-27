@@ -499,7 +499,7 @@ export class GameDriver {
    * Get character gold amount
    */
   async getGold() {
-    const goldText = await this.page.textContent('text=/Gold:\\s*\\d+/i', { timeout: 5000 }).catch(() => '0');
+    const goldText = await this.page.textContent('text=/Gold:\\s*\\d+|\\d+\\s+gold/i', { timeout: 5000 }).catch(() => '0');
     const match = goldText.match(/(\d+)/);
     return match ? parseInt(match[1]) : 0;
   }
@@ -508,7 +508,7 @@ export class GameDriver {
    * Get character rations
    */
   async getRations() {
-    const rationText = await this.page.textContent('text=/Rations:\\s*\\d+/i', { timeout: 5000 }).catch(() => '0');
+    const rationText = await this.page.textContent('text=/Rations:\\s*\\d+|\\d+\\s+rations/i', { timeout: 5000 }).catch(() => '0');
     const match = rationText.match(/(\d+)/);
     return match ? parseInt(match[1]) : 0;
   }

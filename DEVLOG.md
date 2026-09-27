@@ -369,3 +369,58 @@ overworld.
 ![dungeon](docs/devlog/2026-09-25-title-screen/dungeon.png)
 
 ![tower](docs/devlog/2026-09-25-title-screen/tower.png)
+
+## 2026-09-26: Overworld as an adventurer's journal
+
+**What:** the overworld (including interiors and combat) is now laid out as an open book.
+The left page has a kicker with the day and time of day, a location title (the POI or
+terrain, or "Battle is joined!"), the map in a double-ruled frame, and a strip for gold,
+rations, time and position. The right page is a codex: the hero's portrait, HP and AC,
+then the context pane (hex details, interior info, or combat actions), then the game log
+written as diary entries in italic serif. The old left menu is gone. The menus are now
+bookmark tabs on the book's edge and still open the existing panels.
+
+A new `journal` parchment theme is the default. The book always uses it, since its variables
+are also set on `.journal-layout`. Picking it in Settings extends it to modals and the other
+scenes. Players with a saved theme keep that theme for modals.
+
+Small fixes that came along: `SaveSlot.css` had a global `.character-name { color: #fff }`
+that turned the name in the Character panel white. It's now scoped to `.save-slot`. Log roll
+numbers read `--log-roll`, so they stay legible on parchment. `MenuSidebar` had no
+callers left, so it was deleted. The QA driver's gold/rations selectors accept the new "75 gold"
+wording.
+
+**Why:** the user asked for a reimagining of the UI layouts that kept only the pixel icons,
+and then picked the journal direction out of five mockups to try on a PR.
+
+**Route:** the five directions were built first as a static page, `docs/ui-mockups/index.html`
+(served by Vite at `/docs/ui-mockups/index.html`). It uses the real `pixelIcons` sprites over a
+map screenshot, with an explore/combat toggle for each direction. The rejected directions were a map-first
+floating HUD, a monospace tactician's console, 16-bit JRPG command windows, and a
+minimal glass dock. For the build, the existing theme variables did most of the work. Every
+panel already reads `--panel-bg` / `--text-color` etc., so a parchment variable set
+reskins HexDetails, the combat panel and modals without touching them. Only
+OverworldScene's layout was restructured. Panel content stays in modals for now. The
+Equipment panel is 1050px wide and wouldn't fit on a page.
+
+The mockup we settled on, in explore and combat:
+
+![journal mockup](docs/devlog/2026-09-26-ui-layout-mockups/2-explore.png)
+
+![journal mockup combat](docs/devlog/2026-09-26-ui-layout-mockups/2-combat.png)
+
+Two of the rejected directions:
+
+![map-first HUD](docs/devlog/2026-09-26-ui-layout-mockups/1-explore.png)
+
+![command windows](docs/devlog/2026-09-26-ui-layout-mockups/4-explore.png)
+
+In game:
+
+![overworld](docs/devlog/2026-09-26-journal-layout/explore.png)
+
+![interior](docs/devlog/2026-09-26-journal-layout/interior.png)
+
+![combat](docs/devlog/2026-09-26-journal-layout/combat.png)
+
+![character panel](docs/devlog/2026-09-26-journal-layout/character-panel.png)

@@ -10,7 +10,7 @@ import { useInteriorNavigation } from '../../hooks/useInteriorNavigation';
 import { useOverworldActions } from '../../hooks/useOverworldActions';
 import { useOverworldInput } from '../../hooks/useOverworldInput';
 import { TerrainGenerator } from '../../terrainGenerator';
-import { formatTime } from '../../game/TimeManager';
+import { formatTime, getTimeOfDay } from '../../game/TimeManager';
 import { Character } from '../../game/Character';
 import { FEATURES } from '../../constants/gameConstants';
 import GameLog from '../ui/GameLog';
@@ -27,15 +27,12 @@ import SaveSlotManager from '../ui/SaveSlotManager';
 import HexGridCanvas from '../canvas/HexGridCanvas';
 import InteriorHexCanvas from '../canvas/InteriorHexCanvas';
 import { CombatCanvasPane, CombatActionPane } from './CombatSceneWrapper';
-import MenuSidebar from '../ui/MenuSidebar';
 import MenuPanel from '../ui/MenuPanel';
 import Modal from '../ui/Modal';
 import AIInspector from '../debug/AIInspector';
 import DevTools from '../debug/DevTools';
 import type { SceneHex } from '../../types/scene';
 import PixelIcon from '../ui/PixelIcon';
-
-// Sidebar menu icons: inline SVG so they render the same on every OS (emoji don't)
 
 function OverworldScene() {
   const { state, isHexReachable } = useGameState();
@@ -249,198 +246,169 @@ function OverworldScene() {
     );
   }
 
+  const inCombat = !!state.combatState?.battlefield;
+  const showInterior = state.inInterior && !!interior.interiorMap;
+  const pos = state.playerPosition;
+  const currentHex = state.mapData?.find(h => h.col === pos?.col && h.row === pos?.row);
+  const locationTitle = inCombat
+    ? 'Battle is joined!'
+    : showInterior
+      ? (state.currentPOI?.poi.name ?? 'Within')
+      : (currentHex?.poi?.name ?? currentHex?.terrain.name ?? 'The wilds');
+  const hero = state.playerCharacter;
+  const hpPct = hero?.maxHP ? Math.max(0, Math.min(1, hero.currentHP / hero.maxHP)) : 0;
+
   return (
-    <div
-      className="game-container"
-      style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}
-    >
-      {/* Game Header with Time Display */}
-      <div
-        className="overworld-header"
-        style={{
-          backgroundColor: 'var(--panel-bg)',
-          borderBottom: '1px solid var(--border-color)',
-          padding: '0.75rem 1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.25rem' }}>hexcrawler</h2>
-
-          {/* Dev Tools */}
-          {import.meta.env.DEV && <DevTools terrainGeneratorRef={terrainGeneratorRef} />}
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            gap: '1.5rem',
-            alignItems: 'center',
-            color: 'var(--text-color)',
-          }}
-        >
-          <div
-            style={{
-              fontSize: '1.1rem',
-              fontWeight: '500',
-              fontFamily: 'monospace',
-              padding: '0.25rem 0.75rem',
-              backgroundColor: 'var(--control-bg)',
-              borderRadius: '4px',
-            }}
-          >
-            {formatTime(state.gameTime)}
-          </div>
-          {FEATURES.SURVIVAL_ENABLED && (
-            <div
-              style={{
-                fontSize: '0.95rem',
-                fontWeight: '500',
-                padding: '0.25rem 0.75rem',
-                backgroundColor: 'var(--control-bg)',
-                borderRadius: '4px',
-                color: state.playerCharacter?.rations <= 2 ? '#e74c3c' : 'var(--text-color)',
-              }}
-            >
-              Rations: {state.playerCharacter?.rations || 0}
+    <div className="game-container journal-layout">
+      <div className="journal-book">
+        {/* Left page: where we are, and the map */}
+        <section className="journal-page journal-page--map">
+          <header className="journal-map-header">
+            <div>
+              <div className="journal-kicker">
+                Day {state.gameTime?.day ?? 1} · {getTimeOfDay(state.gameTime?.hour ?? 8)}
+              </div>
+              <h2 className="journal-title">{locationTitle}</h2>
             </div>
-          )}
-          <div
-            style={{
-              fontSize: '0.95rem',
-              fontWeight: '500',
-              padding: '0.25rem 0.75rem',
-              backgroundColor: 'var(--control-bg)',
-              borderRadius: '4px',
-              color: '#f39c12',
-            }}
-          >
-            Gold: {state.playerCharacter?.gold || 0}
-          </div>
-          {/* Forage Status Indicator */}
-          {FEATURES.SURVIVAL_ENABLED && (
-            <div
-              style={{
-                fontSize: '0.95rem',
-                fontWeight: '500',
-                color: forageStatus.ready ? '#2ecc71' : '#e74c3c',
-                cursor: 'default',
-                userSelect: 'none',
-              }}
-              title={forageStatus.message}
-            >
-              Forage
-            </div>
-          )}
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Position: ({state.playerPosition?.col ?? '?'}, {state.playerPosition?.row ?? '?'})
-          </div>
-        </div>
-      </div>
+            {import.meta.env.DEV && <DevTools terrainGeneratorRef={terrainGeneratorRef} />}
+          </header>
 
-      <div className="container" style={{ display: 'flex', flex: 1, gap: '1rem', padding: '1rem' }}>
-        {/* Left Sidebar - Menu */}
-        <div style={{ width: '280px', flexShrink: 0 }}>
-          <MenuSidebar
-            items={menuItems}
-            onItemClick={handleMenuItemClick}
-            selectedItem={menuItems.find(item => item.id === openPanel)}
-          />
-        </div>
-
-        {/* Canvas Container */}
-        <main
-          className="canvas-container"
-          style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-        >
-          {state.combatState?.battlefield ? (
-            /* Combat Mode - Show battlefield fullscreen */
-            <CombatCanvasPane combat={combat} />
-          ) : state.inInterior && interior.interiorMap ? (
-            /* Interior Mode */
-            <InteriorHexCanvas
-              interiorMap={
-                interior.interiorMap as unknown as Parameters<
-                  typeof InteriorHexCanvas
-                >[0]['interiorMap']
-              }
-              playerPosition={state.interiorPlayerPosition}
-              playerClass={state.party?.player?.class}
-              selectedHex={interior.selectedInteriorHex}
-              onHexClick={interior.handleInteriorHexClick}
-              onHexDoubleClick={interior.handleInteriorHexDoubleClick}
-            />
-          ) : state.mapData && state.mapData.length > 0 ? (
-            /* Overworld Mode */
-            <HexGridCanvas
-              hexes={state.mapData as unknown as Parameters<typeof HexGridCanvas>[0]['hexes']}
-              onHexClick={handleHexClick}
-              onHexDoubleClick={handleHexDoubleClick}
-            />
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                color: 'var(--text-color)',
-              }}
-            >
+          <main className="canvas-container journal-map">
+            {inCombat ? (
+              <CombatCanvasPane combat={combat} />
+            ) : showInterior ? (
+              <InteriorHexCanvas
+                interiorMap={
+                  interior.interiorMap as unknown as Parameters<
+                    typeof InteriorHexCanvas
+                  >[0]['interiorMap']
+                }
+                playerPosition={state.interiorPlayerPosition}
+                playerClass={state.party?.player?.class}
+                selectedHex={interior.selectedInteriorHex}
+                onHexClick={interior.handleInteriorHexClick}
+                onHexDoubleClick={interior.handleInteriorHexDoubleClick}
+              />
+            ) : state.mapData && state.mapData.length > 0 ? (
+              <HexGridCanvas
+                hexes={state.mapData as unknown as Parameters<typeof HexGridCanvas>[0]['hexes']}
+                onHexClick={handleHexClick}
+                onHexDoubleClick={handleHexDoubleClick}
+              />
+            ) : (
               <div style={{ textAlign: 'center' }}>
-                <h2>Generating Map...</h2>
+                <h2>Charting the land...</h2>
                 <p style={{ color: 'var(--text-muted)' }}>Seed: {state.mapSeed || 'Not set'}</p>
+              </div>
+            )}
+          </main>
+
+          <footer className="journal-strip">
+            <span>
+              <PixelIcon name="coins" scale={3} />
+              {hero?.gold || 0} gold
+            </span>
+            {FEATURES.SURVIVAL_ENABLED && (
+              <span className={hero?.rations <= 2 ? 'journal-low' : undefined}>
+                <PixelIcon name="forage" scale={3} />
+                {hero?.rations || 0} rations
+              </span>
+            )}
+            <span>
+              <PixelIcon name="clock" scale={3} />
+              {formatTime(state.gameTime)}
+            </span>
+            <span className="journal-position">
+              <PixelIcon name="pin" scale={3} />({pos?.col ?? '?'}, {pos?.row ?? '?'})
+            </span>
+            {FEATURES.SURVIVAL_ENABLED && (
+              <span
+                className={forageStatus.ready ? undefined : 'journal-low'}
+                title={forageStatus.message}
+              >
+                {forageStatus.ready ? 'Ready to forage' : 'Foraged recently'}
+              </span>
+            )}
+          </footer>
+        </section>
+
+        {/* Right page: the codex (hero, context, journal entries) */}
+        <section className="journal-page journal-page--codex">
+          <nav className="journal-tabs" aria-label="Game menu">
+            {menuItems.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className={`journal-tab${openPanel === item.id ? ' is-open' : ''}`}
+                onClick={() => handleMenuItemClick(item)}
+                disabled={item.disabled}
+                title={item.disabled ? item.disabledReason : `${item.label}: ${item.description}`}
+                aria-label={item.label}
+              >
+                {item.icon}
+                {!!item.badge && <span className="journal-tab-badge">{item.badge}</span>}
+              </button>
+            ))}
+          </nav>
+
+          {hero && (
+            <div className="journal-hero">
+              <PixelIcon name={`player:${state.party?.player?.class ?? ''}`} scale={4} />
+              <div className="journal-hero-body">
+                <h2 className="journal-title">{hero.name}</h2>
+                <div className="journal-kicker">
+                  {hero.class} · level {hero.level}
+                </div>
+                <div
+                  className="journal-hp"
+                  role="meter"
+                  aria-label="Hit points"
+                  aria-valuenow={hero.currentHP}
+                  aria-valuemin={0}
+                  aria-valuemax={hero.maxHP}
+                >
+                  <span style={{ width: `${hpPct * 100}%` }} />
+                </div>
+                <small>
+                  {hero.currentHP} of {hero.maxHP} hit points · armour {hero.armorClass}
+                </small>
               </div>
             </div>
           )}
-        </main>
 
-        {/* Right Panel - Combat Actions, Hex Info, or Interior Info */}
-        <aside
-          style={{
-            width: '280px',
-            flexShrink: 0,
-            backgroundColor: 'var(--bg-color)',
-            borderRadius: '8px',
-            padding: '0.5rem',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem',
-          }}
-        >
-          {state.combatState?.battlefield ? (
-            /* Combat Actions Panel */
-            <CombatActionPane combat={combat} />
-          ) : state.inInterior && interior.interiorMap ? (
-            /* Interior Info */
-            <InteriorInfoPane
-              selectedHex={
-                interior.selectedInteriorHex as unknown as Parameters<
-                  typeof InteriorInfoPane
-                >[0]['selectedHex']
-              }
-              playerPosition={state.interiorPlayerPosition}
-              interiorMap={
-                interior.interiorMap as unknown as Parameters<
-                  typeof InteriorInfoPane
-                >[0]['interiorMap']
-              }
-            />
-          ) : (
-            /* Hex Details */
-            <HexDetails
-              hex={selectedHex as unknown as Parameters<typeof HexDetails>[0]['hex']}
-              onMoveClick={
-                overworld.handleMoveToHex as unknown as Parameters<
-                  typeof HexDetails
-                >[0]['onMoveClick']
-              }
-            />
-          )}
-        </aside>
+          <div className={`journal-context${inCombat ? ' is-combat' : ''}`}>
+            {inCombat ? (
+              <CombatActionPane combat={combat} />
+            ) : showInterior ? (
+              <InteriorInfoPane
+                selectedHex={
+                  interior.selectedInteriorHex as unknown as Parameters<
+                    typeof InteriorInfoPane
+                  >[0]['selectedHex']
+                }
+                playerPosition={state.interiorPlayerPosition}
+                interiorMap={
+                  interior.interiorMap as unknown as Parameters<
+                    typeof InteriorInfoPane
+                  >[0]['interiorMap']
+                }
+              />
+            ) : (
+              <HexDetails
+                hex={selectedHex as unknown as Parameters<typeof HexDetails>[0]['hex']}
+                onMoveClick={
+                  overworld.handleMoveToHex as unknown as Parameters<
+                    typeof HexDetails
+                  >[0]['onMoveClick']
+                }
+              />
+            )}
+          </div>
+
+          <div className="journal-entries">
+            <GameLog />
+          </div>
+        </section>
       </div>
 
       {/* Popup Panels */}
@@ -513,19 +481,6 @@ function OverworldScene() {
       >
         <Settings />
       </MenuPanel>
-
-      {/* Game Log - Always shown at bottom with fixed height */}
-      <div
-        className="game-log-container"
-        style={{
-          display: 'flex',
-          position: 'relative',
-          height: '150px',
-          flexShrink: 0,
-        }}
-      >
-        <GameLog />
-      </div>
 
       {/* Save Menu Modal */}
       <Modal
