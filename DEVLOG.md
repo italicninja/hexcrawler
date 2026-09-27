@@ -436,3 +436,19 @@ changes.
 edge, so the extra width pushed the whole column left and out from under the cursor. The
 hover then ended and the tab shrank, over and over. Colour-only feedback avoids the loop.
 Measured in Playwright: the tab and the column keep the same bounding box when hovered.
+
+## 2026-09-26: Keep completed quests saveable
+
+**What:** `COMPLETE_QUEST` now stores the completed quest as a `Quest` instance with status
+`completed` and a `completedAt` stamp. It used to store a `{ ...quest }` spread. A new
+`questReducer` unit test covers this.
+
+**Why:** the spread dropped the class methods. `SaveManager` calls `toJSON()` on every
+completed quest, so once any quest was finished, every save failed with `q.toJSON is not a
+function`, the autosave included. The agent redesigning the Quests page found it.
+
+**Route:** the fix is in the reducer, not in SaveManager. Anything downstream (the quest
+log's `getProgress()`, saving) can then rely on completed quests being real instances.
+`Quest.fromJSON` is used because it accepts either an instance or a plain object. The new
+test fails against the old reducer and passes against the fix. `FAIL_QUEST` has the same
+spread, but failed quests aren't saved, so it's left alone.
