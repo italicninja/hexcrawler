@@ -448,29 +448,7 @@ export function generateCombatIntro(poiType: string = 'generic'): string {
   return randomChoice(flavorPool) || 'Combat begins!';
 }
 
-/** How hard a terrain is to cross, from its movement difficulty (1 = easy). */
-export function describeGoing(difficulty: number = 1): string {
-  if (difficulty <= 1) return 'easy';
-  if (difficulty <= 2) return 'moderate';
-  if (difficulty <= 3) return 'difficult';
-  return 'very difficult';
-}
-
-/**
- * The line logged on entering an overworld hex: where you are, how hard the going is,
- * the weather, and a place you already know is here. (Newly discovered places get their
- * own discovery message.)
- */
-export function describeArrival(hex: {
-  col: number;
-  row: number;
-  terrain?: { name?: string; difficulty?: number } | null;
-  weather?: { condition?: string } | null;
-  knownPlace?: string | null;
-}): string {
-  const terrain = hex.terrain?.name ?? 'the wilds';
-  let line = `You arrive in ${terrain} (${hex.col}, ${hex.row}); the going is ${describeGoing(hex.terrain?.difficulty)}.`;
-  if (hex.weather?.condition) line += ` ${hex.weather.condition}.`;
-  if (hex.knownPlace) line += ` ${hex.knownPlace} is here.`;
-  return line;
+/** Hexes to travel before the next terrain blurb in the log: 10-15. */
+export function nextTerrainFlavorIn(): number {
+  return 10 + Math.floor(random() * 6);
 }
