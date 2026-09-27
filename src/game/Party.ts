@@ -22,6 +22,14 @@ export class Party {
     this.player = character;
   }
 
+  /** New Party sharing these NPCs, with `character` as the player (reducers can't mutate). */
+  withPlayer(character: Character | null): Party {
+    const party = new Party();
+    party.player = character;
+    party.npcs = this.npcs;
+    return party;
+  }
+
   addNPC(character: Character, slot: number | null = null): boolean {
     if (slot !== null && slot >= 0 && slot < 3) {
       this.npcs[slot] = character;

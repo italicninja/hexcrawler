@@ -1,23 +1,15 @@
+import { useEffect } from 'react';
 import { useGameState } from '../../contexts/GameStateContext';
 import { SaveManager } from '../../utils/SaveManager';
 
 function GameOverScene() {
   const { dispatch, actions } = useGameState();
 
+  // Permadeath: wipe saves as soon as this screen shows, not on the button,
+  // so refreshing here can't reload the run from before the fatal fight.
+  useEffect(() => SaveManager.deleteAllSlots(), []);
+
   const handleReturnToTitle = () => {
-    // Clear all save slots (game over = permadeath)
-    SaveManager.deleteSlot(SaveManager.SAVE_SLOTS.AUTOSAVE);
-    SaveManager.deleteSlot(SaveManager.SAVE_SLOTS.SLOT_1);
-    SaveManager.deleteSlot(SaveManager.SAVE_SLOTS.SLOT_2);
-    SaveManager.deleteSlot(SaveManager.SAVE_SLOTS.SLOT_3);
-    SaveManager.deleteSlot(SaveManager.SAVE_SLOTS.QUICKSAVE_A);
-    SaveManager.deleteSlot(SaveManager.SAVE_SLOTS.QUICKSAVE_B);
-    SaveManager.deleteSlot(SaveManager.SAVE_SLOTS.QUICKSAVE_C);
-
-    // Also clear old save format if it exists
-    localStorage.removeItem('hexcrawl_save');
-
-    // Return to title screen
     dispatch({ type: actions.SET_CURRENT_SCENE, payload: 'title' });
   };
 

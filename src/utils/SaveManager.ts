@@ -111,6 +111,7 @@ export class SaveManager {
           playtime: gameState.playtime || 0,
           activeQuests: gameState.activeQuests.map((q: any) => q.toJSON()),
           completedQuests: gameState.completedQuests.map((q: any) => q.toJSON()),
+          failedQuests: gameState.failedQuests ?? [], // plain objects (questReducer spreads them)
           shopInventories: Object.fromEntries(
             Object.entries(gameState.shopInventories).map(([key, shop]: [string, any]) => [
               key,
@@ -229,6 +230,12 @@ export class SaveManager {
     } catch (error) {
       logger.storage.error('Failed to delete save slot', { error, slotKey });
     }
+  }
+
+  /** Permadeath: wipe every slot, including autosave and quicksaves. */
+  static deleteAllSlots(): void {
+    Object.values(this.SAVE_SLOTS).forEach(slot => this.deleteSlot(slot));
+    localStorage.removeItem('hexcrawl_save'); // pre-slot save format
   }
 
   static getAllSlots() {

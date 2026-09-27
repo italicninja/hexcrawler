@@ -72,11 +72,9 @@ headers.forEach((h, i) => {
       range: reachFt || !rangeFt ? 1 : Math.round(Number(rangeFt) / 5),
     });
   }
-  // Combat always swings attacks[0] at the enemy's `range`, so a creature with any melee
-  // attack keeps only melee attacks. ponytail: ranged fallbacks (goblin shortbow) dropped
-  // until combat picks an attack by distance.
-  const melee = attacks.filter(a => a.range === 1);
-  if (melee.length > 0) attacks.splice(0, attacks.length, ...melee);
+  // Melee first: combat picks the first attack that reaches (Enemy.chooseAttack), so an
+  // adjacent goblin uses its scimitar and a distant one its shortbow.
+  attacks.sort((a, b) => a.range - b.range);
   if (attacks.length === 0) return;
 
   const multi = actions.match(
@@ -114,7 +112,7 @@ headers.forEach((h, i) => {
       range,
     })),
     multiattack,
-    range: attacks[0].range,
+    range: Math.max(...attacks.map(a => a.range)), // farthest reach
     moveDistance: speedFt > 0 ? Math.round(speedFt / 5) : 6,
   });
 });

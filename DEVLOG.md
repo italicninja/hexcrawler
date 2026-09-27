@@ -647,3 +647,44 @@ interior encounter card (CR, creatures).
 ![at a place](docs/devlog/2026-09-26-arrival-log/at-poi.png)
 
 ![after a step](docs/devlog/2026-09-26-arrival-log/arrived.png)
+
+## 2026-09-26: Bug sweep (issues #6–#12 plus eight more)
+
+**What:** one pass fixing every open issue and the bugs a follow-up audit turned up.
+- **Combat:**
+  - A second fight could soft-lock on an enemy turn. The AI's "turn already processed" key (`round:index`) survived between fights, so a repeat key skipped that enemy with no fallback armed.
+  - HP, spell slots and Rage uses from a won fight now carry back to the character (#6). A player downed in a fight the party still won comes back at 1 HP.
+  - Enemies use their Multiattack (#7).
+  - Enemies pick melee when adjacent and a ranged attack otherwise (#11). The SRD extractor keeps ranged attacks now, so the goblin has its shortbow, the scout its longbow and the hill giant its rocks.
+- **Encounters:**
+  - Won overworld POIs stay cleared. Walking back onto one used to restart the fight for full XP.
+  - Interior encounters (dungeon, cave, tower, ruins) now start real combat (#9). The fight goes through the overworld engage path, and a won encounter stays defeated when the interior regenerates.
+  - Tower and boss CR escalation is capped: one CR rung every two floors, bosses +2 rungs, down from ×1.5.
+- **Character:**
+  - Equipping an item used to delete what was in the slot and never applied item AC or stat bonuses. It now goes through `Character.equipItem`.
+  - Level-up HP no longer vanishes on the next equip.
+  - An Ability Score Improvement is granted at 4/8/12/16/19, plus Fighter 6/14 and Rogue 10 (#10).
+  - `clone()` is a real deep copy.
+- **State:**
+  - `party.player` follows `playerCharacter` (#8).
+  - `SEARCH_POI` actually records searches, so shrines and searches can't be repeated forever.
+  - Starvation applies once per long rest.
+  - `LOAD_GAME` starts from a fresh state, and failed quests are saved.
+  - The shop can't pay out for an item you no longer have or sell the same item twice.
+- **Permadeath:** saves are wiped the moment the party falls, not when "Return to Title" is clicked.
+- **Display:** fractional CRs show as 1/8, 1/4, 1/2 (#12).
+- **Dead code removed:** `ExplorationScene`, `useCombatHandler`, `useMovement`, `encounters.ts`, `EnemyMovement` and the `DEFEAT_ENCOUNTER` action.
+
+**Why:** the user asked to investigate the open issues, look for others worth prioritising,
+then fix all of it in one PR.
+
+**Route:**
+- **Party sync:** handled once in the root reducer (`syncPartyPlayer`) rather than in each of the six reducers that replace `playerCharacter`.
+- **HP write-back:** clones the *current* `playerCharacter` and copies HP and resources onto it. It doesn't swap in the combat copy, because that would erase the XP from the `AWARD_XP` dispatched just before.
+- **Remembering wins:** they're stored in the existing (previously unused) `explorationState.clearedEncounters`, which was already saved and loaded. Interiors aren't saved, so reapplying that set when a floor map is stored keeps won fights won.
+- **Multiattack:** the AI dispatches one attack per swing, and the reducer ignores swings at a target that's already down. This was chosen over a multi-hit reducer action, so player and enemy attacks keep one code path.
+- **ASI:** auto-applied: +2 to the highest base score, spilling over at 20. A picker UI is deferred (`ponytail:` note in `Character.ts`).
+- **Interior creature text:** generated text like "CR 2 enemies" or "Boss: CR 3 …" is mapped to parseable creature strings. Bosses fight alone.
+- **Checked in a real browser:** HP persisted across three forced goblin fights until the Barbarian died from attrition. Every enemy turn ran in back-to-back fights, including the key collision that used to soft-lock. The hill giant made 2 attacks per turn and threw rocks at range. Saves were gone on the game-over screen.
+- **Not checked in a browser:** an interior encounter fight. The reducer side is unit-tested.
+- **Known simplification:** Multiattack applies to any attack, so the hill giant throws two rocks where the SRD gives one.

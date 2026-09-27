@@ -8,12 +8,44 @@ import { useState } from 'react';
 import logger from '../utils/logger';
 import { useGameState } from '../contexts/GameStateContext';
 import { useGameLog } from '../contexts/GameLogContext';
-import type { SceneHex, SceneInteriorMap } from '../types/scene';
+import type { EncounterSource, SceneHex, SceneInteriorMap, ScenePoi } from '../types/scene';
 import { isSettlement } from '../constants/gameConstants';
 
 interface InteriorNavigationOptions {
   /** Open a scene panel by id (e.g. 'rest', 'quests') — used by building interactions. */
   openPanel: (panelId: string) => void;
+  /** Start a fight — useOverworldActions.handleEngageCombat. */
+  engageCombat: (poi: ScenePoi, source: EncounterSource) => void;
+}
+
+interface InteriorEncounter {
+  col: number;
+  row: number;
+  cr: number;
+  creatures?: string;
+  defeated?: boolean;
+  isBoss?: boolean;
+}
+
+// Stand-in creature names for generator placeholders like "CR 2 enemies"
+const INTERIOR_FOES: Record<string, string> = {
+  cave: 'Cave Lurker',
+  ruins: 'Ruin Guardian',
+  dungeon: 'Dungeon Warden',
+  tower: 'Tower Sentinel',
+};
+
+/**
+ * Turn a generated encounter's text ("Boss: CR 3 1d4 goblins", "CR 1/2 enemies")
+ * into something Enemy.parseCreatureString understands. Bosses fight alone.
+ */
+function interiorCreatures(enc: InteriorEncounter, poiType = ''): string {
+  let text = (enc.creatures ?? '').replace(/^Boss:\s*/i, '').replace(/^CR\s+[\d./]+\s+/i, '');
+  if (!text || /^(enemies|guardians?|dungeon lord)$/i.test(text)) {
+    const foe = INTERIOR_FOES[poiType] ?? 'Lurker';
+    text = enc.isBoss ? `${foe} Champion` : `1d4 ${foe}`;
+  }
+  return enc.isBoss ? text.replace(/^(\d+d\d+|\d+)\s+/i, '') : text;
 }
 
 // ponytail: flavor only until shops/temple/smithy UIs are wired (ShopUI exists but is broken)
@@ -28,7 +60,7 @@ const BUILDING_LINES: Record<string, (name: string) => string> = {
   supplyWagon: n => `${n}: crates of rope, oil and salted meat. Not for sale.`,
 };
 
-export function useInteriorNavigation({ openPanel }: InteriorNavigationOptions) {
+export function useInteriorNavigation({ openPanel, engageCombat }: InteriorNavigationOptions) {
   const { state, dispatch, actions, getHexDistance } = useGameState();
   const { addMessage } = useGameLog();
 
@@ -241,6 +273,36 @@ export function useInteriorNavigation({ openPanel }: InteriorNavigationOptions) 
         payload: { key: poiKey, map: targetMap },
       });
 
+      return;
+    }
+
+    // Undefeated encounter — fight it (victory marks it defeated via END_COMBAT)
+    if (hex.content === 'encounter' && state.currentPOI) {
+      const mapKey = `${state.currentPOI.col},${state.currentPOI.row}`;
+      const encounters = (state.interiorMaps[mapKey]?.encounters ?? []) as InteriorEncounter[];
+      const enc = encounters.find(e => e.col === hex.col && e.row === hex.row);
+      if (enc && !enc.defeated) {
+        const poi = state.currentPOI.poi;
+        addMessage(
+          enc.isBoss ? 'The master of this place awaits!' : 'Enemies block the way!',
+          'encounter'
+        );
+        engageCombat(
+          {
+            name: enc.isBoss ? `${poi.name} Boss` : poi.name,
+            creatures: interiorCreatures(enc, poi.type),
+            cr: enc.cr,
+            isBoss: enc.isBoss,
+          },
+          {
+            kind: 'interior',
+            mapKey,
+            floorKey: `${mapKey}:floor${state.currentFloor ?? 0}`,
+            col: hex.col,
+            row: hex.row,
+          }
+        );
+      }
       return;
     }
 

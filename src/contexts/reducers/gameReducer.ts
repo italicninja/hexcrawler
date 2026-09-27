@@ -140,8 +140,10 @@ export function gameReducer(
         shopInventories[key] = Shop.fromJSON(shopData);
       });
 
+      // Start from a fresh state, not the current one, so nothing from the previous run
+      // (pending loot, town quests, level-up flag, open shop) leaks into the loaded game
       return {
-        ...state,
+        ...createInitialState(),
         ...loadedState,
         playerCharacter,
         party,

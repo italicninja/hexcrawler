@@ -58,3 +58,23 @@ describe('SRD monster database', () => {
     expect(new Enemy('Goblin', 0.25).maxHP).toBe(10);
   });
 });
+
+describe('Enemy attack choice and multiattack', () => {
+  it('uses melee adjacent and the ranged attack at a distance', () => {
+    const goblin = new Enemy('Goblin', 0.25, 'goblinoid');
+    expect(goblin.chooseAttack(1)?.name).toBe('Scimitar');
+    expect(goblin.chooseAttack(5)?.name).toBe('Shortbow');
+    expect(goblin.range).toBe(16);
+  });
+
+  it('keeps SRD ranged attacks behind melee ones', () => {
+    const scout = findSrdMonster('scout')!;
+    expect(scout.attacks.map(a => a.name)).toEqual(['Shortsword', 'Longbow']);
+    expect(scout.range).toBe(30);
+  });
+
+  it('reports its multiattack count as attacks per action', () => {
+    expect(new Enemy('Owlbear', 3, 'beast').getAttacksPerAction()).toBe(2);
+    expect(new Enemy('Goblin', 0.25, 'goblinoid').getAttacksPerAction()).toBe(1);
+  });
+});

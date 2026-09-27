@@ -14,8 +14,7 @@
  */
 
 import { advanceTime } from '../../game/TimeManager';
-import { TIME, FEATURES } from '../../constants/gameConstants';
-import { applyStarvation } from '../../game/SurvivalManager';
+import { TIME } from '../../constants/gameConstants';
 import type { GameState, Action } from '../../types/state';
 
 export function characterReducer(
@@ -56,12 +55,8 @@ export function characterReducer(
     }
 
     case ACTIONS.LONG_REST: {
+      // Starvation is applied by the caller (RestMenu) before dispatch
       const { character } = action.payload;
-
-      // Apply starvation check after long rest (only when survival mechanics are enabled)
-      if (FEATURES.SURVIVAL_ENABLED) {
-        applyStarvation(character);
-      }
 
       // Advance time
       const newGameTime = advanceTime(state.gameTime, TIME.LONG_REST_MINUTES);

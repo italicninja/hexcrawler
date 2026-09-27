@@ -10,6 +10,7 @@ import type { TerrainType, InteriorGrid, InteriorHex, HexCoord } from './Interio
 import { LootGenerator } from './LootGenerator';
 import { HazardGenerator } from './HazardGenerator';
 import { TreasureGenerator } from './TreasureGenerator';
+import { stepCR, formatCR } from '../constants/gameConstants';
 
 /** Loose POI metadata passed into content placement. */
 interface PoiData {
@@ -124,7 +125,8 @@ export class TowerGenerator extends InteriorGenerator {
     const spawnDown = stairsUpPos; // arrived from above
 
     const hexes = this.gridToHexes(grid);
-    const floorCR = cr + Math.floor(floorIndex * 1.5);
+    // One CR rung every two floors (a CR 3 tower tops out at CR 5 on floor 6)
+    const floorCR = stepCR(cr, Math.floor(floorIndex / 2));
 
     const floorMap: FloorMap = {
       seed: `${this.seed}:floor${floorIndex}`,
@@ -376,15 +378,15 @@ export class TowerGenerator extends InteriorGenerator {
       const idx = interiorMap.hexes.findIndex(h => h.col === tile.col && h.row === tile.row);
       if (idx !== -1) interiorMap.hexes[idx].content = 'encounter';
 
-      const encounterCR = isBossFloor ? Math.ceil(cr * 1.5) : cr;
+      const encounterCR = isBossFloor ? stepCR(cr, 2) : cr;
       encounters.push({
         col: tile.col,
         row: tile.row,
         floor: floorIndex,
         cr: encounterCR,
         creatures: isBossFloor
-          ? `Boss: CR ${encounterCR} ${poiData.creatures || 'guardian'}`
-          : poiData.creatures || `CR ${encounterCR} enemies`,
+          ? `Boss: CR ${formatCR(encounterCR)} ${poiData.creatures || 'guardian'}`
+          : poiData.creatures || `CR ${formatCR(encounterCR)} enemies`,
         defeated: false,
         discovered: false,
         isBoss: isBossFloor,

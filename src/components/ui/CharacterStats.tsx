@@ -65,6 +65,10 @@ function CharacterStats({ character }: { character: Character | null }) {
       `Level up! ${character.name} is now level ${result.newLevel}. +${result.hpGain} max HP.`,
       'success'
     );
+    const increases = Object.entries(result.abilityIncreases)
+      .map(([ability, amount]) => `+${amount} ${capitalize(ability)}`)
+      .join(', ');
+    if (increases) addMessage(`Ability Score Improvement: ${increases}.`, 'success');
   };
 
   return (

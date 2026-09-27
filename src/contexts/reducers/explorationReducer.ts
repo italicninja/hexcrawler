@@ -10,7 +10,6 @@
  * - ENTER_EXPLORATION
  * - EXIT_EXPLORATION
  * - CHANGE_FLOOR
- * - DEFEAT_ENCOUNTER
  * - COLLECT_LOOT
  * - TRIGGER_HAZARD
  * - DISCOVER_ENCOUNTER
@@ -20,7 +19,7 @@
  * - EXIT_TOWN
  */
 
-import type { GameState, Action } from '../../types/state';
+import type { GameState, Action, InteriorMap } from '../../types/state';
 import logger from '../../utils/logger';
 
 export function explorationReducer(
@@ -36,22 +35,27 @@ export function explorationReducer(
       };
 
     case ACTIONS.SEARCH_POI: {
-      const { col, row } = action.payload;
+      // payload: "col,row" — read back by isPoiSearched (search, shrine prayer/offering)
+      const poiKey: string = action.payload;
 
       return {
         ...state,
-        discoveredPOIs: new Set([...state.discoveredPOIs, `${col},${row}`]),
+        explorationState: {
+          ...state.explorationState,
+          searchedPOIs: new Set([...state.explorationState.searchedPOIs, poiKey]),
+        },
       };
     }
 
     case ACTIONS.SET_INTERIOR_MAP: {
+      // key is the POI key; the map shown is the current floor's (CHANGE_FLOOR runs first)
       const { key, map } = action.payload;
 
       return {
         ...state,
         interiorMaps: {
           ...state.interiorMaps,
-          [key]: map,
+          [key]: withClearedEncounters(state, map, `${key}:floor${state.currentFloor ?? 0}`),
         },
       };
     }
@@ -70,7 +74,7 @@ export function explorationReducer(
         ...state,
         interiorFloors: {
           ...state.interiorFloors,
-          [key]: map,
+          [key]: withClearedEncounters(state, map, key),
         },
       };
     }
@@ -111,34 +115,6 @@ export function explorationReducer(
         currentFloor: 0,
         interiorPlayerPosition: null,
       };
-
-    case ACTIONS.DEFEAT_ENCOUNTER: {
-      const { encounterId, loot, xp } = action.payload;
-
-      const newState = { ...state };
-
-      // Mark encounter as defeated — immutably
-      if (state.interiorMap?.encounters) {
-        const updatedEncounters = state.interiorMap.encounters.map(e =>
-          e.id === encounterId ? { ...e, defeated: true } : e
-        );
-        newState.interiorMap = { ...state.interiorMap, encounters: updatedEncounters };
-      }
-
-      // Award XP — immutably
-      if (xp && state.playerCharacter) {
-        const character = state.playerCharacter.clone();
-        character.awardXP(xp);
-        newState.playerCharacter = character;
-      }
-
-      // Add loot to pending collection
-      if (loot) {
-        newState.pendingLoot = loot;
-      }
-
-      return newState;
-    }
 
     case ACTIONS.COLLECT_LOOT: {
       const { items, gold } = action.payload;
@@ -289,4 +265,19 @@ export function explorationReducer(
     default:
       return null; // Action not handled by this reducer
   }
+}
+
+/**
+ * Interiors regenerate from their seed (they aren't saved), so re-apply the
+ * encounters already won on this floor (explorationState.clearedEncounters).
+ */
+function withClearedEncounters(state: GameState, map: InteriorMap, floorKey: string) {
+  const cleared = state.explorationState.clearedEncounters[floorKey];
+  if (!cleared?.size || !map?.encounters) return map;
+  return {
+    ...map,
+    encounters: map.encounters.map(e =>
+      cleared.has(`${e.col},${e.row}`) ? { ...e, defeated: true } : e
+    ),
+  };
 }

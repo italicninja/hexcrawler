@@ -22,6 +22,7 @@ import {
 import { drawPixelIcon, drawPixelPlayer } from '../../utils/pixelIcons';
 import { ART_PX } from '../../utils/pixelTerrainRenderer';
 import { renderInteriorFloor, interiorThemeFor } from '../../utils/pixelInteriorRenderer';
+import { formatCR } from '../../constants/gameConstants';
 
 interface Coord {
   col: number;
@@ -243,7 +244,7 @@ function InteriorHexCanvas({
           ctx.font = 'bold 10px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(enc?.cr != null ? `${enc.cr}` : '?', bx, by + 1);
+          ctx.fillText(enc?.cr != null ? formatCR(enc.cr) : '?', bx, by + 1);
         }
         break;
       }

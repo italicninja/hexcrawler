@@ -5,7 +5,7 @@ import { useGameLog } from '../contexts/GameLogContext';
 import DiceRoller from '../game/DiceRoller';
 import { generateSettlementFlavor } from '../utils/flavorTextGenerator';
 import logger from '../utils/logger';
-import { isSettlement, SETTLEMENT_DIMENSIONS } from '../constants/gameConstants';
+import { isSettlement, SETTLEMENT_DIMENSIONS, formatCR } from '../constants/gameConstants';
 
 /** POI fields this hook reads. Runtime POIs carry more than the canonical type. */
 interface InteractionPOI {
@@ -101,7 +101,7 @@ export function useHexInteraction(hex: InteractionHex | null) {
     }
 
     if (result.total >= 10) {
-      hints.push(`Challenge Rating: ${poi.cr}. ${poi.creatures ? `Expect ${poi.creatures}.` : ''}`);
+      hints.push(`Challenge Rating: ${formatCR(poi.cr)}. ${poi.creatures ? `Expect ${poi.creatures}.` : ''}`);
     }
 
     if (result.total >= 15) {
@@ -241,8 +241,8 @@ export function useHexInteraction(hex: InteractionHex | null) {
       return;
     }
 
-    // Increase piety
-    const character = state.playerCharacter;
+    // Increase piety (on a clone — never mutate the character state holds)
+    const character = state.playerCharacter.clone();
     character.increasePiety(1);
 
     // Mark shrine as visited
@@ -278,7 +278,7 @@ export function useHexInteraction(hex: InteractionHex | null) {
 
     // Default offering amount (could be made customizable)
     const offeringAmount = 10;
-    const character = state.playerCharacter;
+    const character = state.playerCharacter.clone();
 
     // Attempt to make offering
     const result = character.increaseGenerosity(offeringAmount);
