@@ -1,0 +1,82 @@
+/* Initiative order on the journal page */
+.turn-order {
+  margin-top: 6px;
+}
+.turn-order .jp-list > li {
+  padding: 5px 6px;
+}
+
+/* Initiative as a small inked roundel */
+.to-init {
+  flex: none;
+  min-width: 26px;
+  padding: 1px 4px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 999px;
+  font: 600 0.75rem sans-serif;
+  text-align: center;
+  color: var(--text-muted);
+}
+.turn-order .is-selected .to-init {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.to-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.turn-order .is-foe .to-name {
+  color: var(--accent-color);
+}
+.turn-order .is-selected .to-name {
+  font-weight: bold;
+}
+.to-now {
+  font-size: 0.8rem;
+  font-weight: normal;
+  color: var(--text-muted);
+}
+
+.to-hp {
+  flex: none;
+  width: 70px;
+  margin-left: auto;
+  text-align: right;
+}
+.to-hp-text {
+  display: block;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+.to-hp .jp-bar {
+  display: block;
+  height: 6px;
+  border-width: 1px;
+}
+
+.turn-order .is-dead {
+  opacity: 0.5;
+}
+.turn-order .is-dead .to-name {
+  text-decoration: line-through;
+}
+
+/* Enemy's turn, written as a line of prose (rendered by CombatActionPane) */
+.to-enemy-turn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  box-shadow: inset 3px 0 0 var(--accent-color);
+  background: rgba(138, 42, 18, 0.08);
+  font-style: italic;
+}
+.to-enemy-turn b {
+  font-style: normal;
+  color: var(--accent-color);
+}

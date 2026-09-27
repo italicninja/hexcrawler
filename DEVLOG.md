@@ -554,3 +554,28 @@ player's turn and after raging:
 ![turn](docs/devlog/2026-09-26-journal-actions/turn.png)
 
 ![raging](docs/devlog/2026-09-26-journal-actions/raging.png)
+
+## 2026-09-26: Turn order in the journal style
+
+**What:** the combat turn order is now a ruled list:
+- Each row has the initiative in a small ink roundel, then the combatant's sprite: the class
+  sprite for allies, the goblin sprite for foes, and the grey "defeated" sprite for the fallen.
+- Foes are named in oxblood.
+- The current combatant is highlighted and marked "acting".
+- HP shows as "10 / 10" above a thin bar, which turns red at 30% or less.
+- Fallen combatants are struck through and read "fallen" instead of "DEAD".
+
+The enemy-turn box ("Enemy is taking their turn...", with a red heading) is now one line of
+prose with an oxblood rule: "**Goblin Warrior** is taking their turn…". It has
+`role="status"`, so screen readers announce it.
+
+**Why:** the user said yes to restyling the turn order after the actions section. It was the
+last boxed panel on the combat page.
+
+**Route:** it reuses `.jp-list` / `.jp-heading` / `.jp-bar`, and the list is now an `<ol>`
+with `aria-current` on the acting row. The multicolour HP bar (green, amber, red) became
+green, then red when low, the same as the Party page.
+
+![turn order](docs/devlog/2026-09-26-journal-turn-order/turn-order.png)
+
+![enemy turn](docs/devlog/2026-09-26-journal-turn-order/enemy-turn.png)

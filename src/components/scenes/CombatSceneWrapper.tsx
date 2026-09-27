@@ -13,6 +13,7 @@ import CombatCanvas from '../canvas/CombatCanvas';
 import ActionPanel from '../ui/combat/ActionPanel';
 import TurnOrderDisplay from '../ui/combat/TurnOrderDisplay';
 import AbilityMenu from '../ui/combat/AbilityMenu';
+import PixelIcon from '../ui/PixelIcon';
 import type { CombatOrchestration } from '../../hooks/useCombatOrchestration';
 
 interface CombatPaneProps {
@@ -157,22 +158,12 @@ export function CombatActionPane({ combat }: CombatPaneProps) {
           )}
         </>
       ) : getCurrentCombatant()?.isEnemy ? (
-        <div
-          style={{
-            padding: '1.5rem',
-            textAlign: 'center',
-            backgroundColor: 'var(--bg-lighter)',
-            border: '2px solid var(--border-color)',
-            borderRadius: '8px',
-          }}
-        >
-          <h3 style={{ margin: '0 0 0.5rem 0', color: '#ff6b6b', fontSize: '1.2rem' }}>
-            {getCurrentCombatant()?.name}&apos;s Turn
-          </h3>
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Enemy is taking their turn...
-          </p>
-        </div>
+        <p className="to-enemy-turn" role="status">
+          <PixelIcon name="enemy" scale={2} />
+          <span>
+            <b>{getCurrentCombatant()?.name}</b> is taking their turn&hellip;
+          </span>
+        </p>
       ) : null}
 
       {/* Turn Order Display */}
