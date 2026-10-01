@@ -1630,7 +1630,7 @@ button:active {
     italic 0.95rem/1.55 Georgia,
     'Palatino Linotype',
     serif;
-  mask-image: linear-gradient(transparent, #000 25%);
+  mask-image: linear-gradient(transparent, #000 3em);
 }
 .journal-entries .log-entry {
   display: block;
