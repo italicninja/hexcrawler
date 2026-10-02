@@ -4,7 +4,7 @@
  * Converts all coinage to gold and gems/art objects to gold values
  * Generates consumables (potions/scrolls) from magic item tables
  *
- * NOTE: The full DMG-table implementation is still stubbed (see TODO.md). The
+ * NOTE: The full DMG-table implementation is still stubbed (see issue #55). The
  * GameTableData table imports (TREASURE_HOARD_TABLES, GEMSTONE_TABLES,
  * ART_OBJECT_TABLES, MAGIC_ITEM_TABLES, getCRBracket) will be re-added when the
  * commented-out roll logic below is implemented.

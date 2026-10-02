@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- loose boundary, see TODO.md */
+/* eslint-disable @typescript-eslint/no-explicit-any -- loose boundary, see CLAUDE.md */
 /**
  * SurvivalManager.ts
  * Manages food, water, and exhaustion mechanics for D&D 5e hexcrawl survival.
