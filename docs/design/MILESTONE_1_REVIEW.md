@@ -7,6 +7,11 @@ a level-5 party; killing it wins the milestone.
 Everything below was checked against the code (file:line refs as of `813477a`). The town
 redesign landed alongside this review; see the DEVLOG entry of the same date.
 
+> **Status (2026-10-01):** remaining work is tracked in the
+> [Milestone 1 GitHub milestone](https://github.com/italicninja/hexcrawler/milestone/1).
+> Done since this review: interior combat (#9), quest boards + accept/complete + kill/visit
+> objectives (#26), sites cleared on victory, ASI levels (#10).
+
 ---
 
 ## TL;DR: the loop is broken in six places
@@ -71,7 +76,7 @@ exploring"). Don't reuse `GameOverScene`, which deletes every save slot (`GameOv
 2. **Quest board → `QuestGiverUI`.** Board opens the giver UI with `state.availableQuests` for that
    settlement. Generate them on first board use, seeded by POI key. Fix `ACCEPT_QUEST` status and
    `COMPLETE_QUEST` class-stripping. Reconcile the `Quest` interface-vs-class type debt
-   (TODO.md #1 note).
+   (issue #64).
 3. **Objective progress hooks.** Combat victory → kill objectives; `DISCOVER_POI` / interior entry →
    explore objectives. `Quest.updateObjectivesByTarget` exists and is unused.
 4. **Boss lair POI + authored boss** (above).

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- loose boundary, see TODO.md */
+/* eslint-disable @typescript-eslint/no-explicit-any -- loose boundary, see CLAUDE.md */
 import { random } from '../utils/seededRandom';
 
 /**

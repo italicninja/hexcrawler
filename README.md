@@ -130,10 +130,9 @@ Hosted on [Railway](https://hexcrawler-production.up.railway.app). Pushes to `ma
 
 ## Project Status & Roadmap
 
-**Current Completeness:** ~92% (Core gameplay complete; class implementations are the main feature track)  
-**Focus:** D&D 5e class mechanics (Barbarian is the reference implementation)
+**Focus:** [Milestone 1: Slay the Level-5 Boss](https://github.com/italicninja/hexcrawler/milestone/1), the first win condition. After that, D&D 5e class mechanics (Barbarian is the reference implementation).
 
-👉 **See [TODO.md](./TODO.md) for detailed task list**
+👉 **The backlog lives in [GitHub issues](https://github.com/italicninja/hexcrawler/issues)**
 
 ### Recently Completed ✅
 - ✅ Full D&D 5e combat system with action economy and behavior-tree enemy AI
@@ -144,13 +143,13 @@ Hosted on [Railway](https://hexcrawler-production.up.railway.app). Pushes to `ma
 - ✅ Item/Inventory, Quest, Shop, Survival (rations/foraging/exhaustion) systems
 
 ### Next Up (Priority Order)
-1. 🔴 **Classes** - Fighter, Rogue, Ranger, Paladin mechanics (then the rest)
-2. 🟡 **Status effects** - General D&D 5e condition system
-3. 🟡 **Performance** - Canvas dirty-flag rendering
+1. 🔴 **Milestone 1** - Victory scene, boss lair + authored boss, Barbarian L3–5, shops
+2. 🔴 **Classes** - Fighter, Rogue, Ranger, Paladin mechanics (then the rest)
+3. 🟡 **Status effects** - General D&D 5e condition system
 4. ⚡ **Polish** - Weather gameplay effects, terrain movement costs, minimap
 
 ### Documentation
-- **[TODO.md](./TODO.md)** - Consolidated task list with priorities and estimates
+- **[docs/design/MILESTONE_1_REVIEW.md](./docs/design/MILESTONE_1_REVIEW.md)** - What stands between a new player and the first win
 - **[CLAUDE.md](./CLAUDE.md)** - Architecture overview and development guide
 - **[GAME_GUIDE.md](./GAME_GUIDE.md)** - Player guide and gameplay mechanics
 

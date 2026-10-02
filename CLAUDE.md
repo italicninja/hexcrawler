@@ -108,8 +108,9 @@ a separate route.
   never bare `console.log`.
 - Constants belong in `constants/gameConstants.ts` (XP tables, time costs, feature
   flags like `FEATURES.SURVIVAL_ENABLED`).
-- See [TODO.md](./TODO.md) for the prioritized backlog (class implementations are the
-  main feature track; Barbarian is the reference implementation).
+- The backlog lives in [GitHub issues](https://github.com/italicninja/hexcrawler/issues):
+  the "Milestone 1: Slay the Level-5 Boss" milestone is the current goal, and the `class`
+  label is the main feature track (Barbarian is the reference implementation).
 
 ## Development log (DEVLOG.md)
 

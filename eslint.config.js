@@ -39,7 +39,7 @@ export default tseslint.config(
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
       ],
-      // --- Baseline exclusions (re-enable incrementally, see TODO.md) ---
+      // --- Baseline exclusions (re-enable incrementally, see CLAUDE.md) ---
       // React-Compiler-era rules new in react-hooks v7; the codebase predates them.
       // Turning them on requires per-component refactors, not a lint-config change.
       'react-hooks/static-components': 'off',
